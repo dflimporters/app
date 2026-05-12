@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forms & Links — DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .page-header { background:var(--navy2); padding:32px 32px 36px; }
+  .page-header-inner { max-width:1060px; margin:0 auto; }
+  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
+  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
+  .page-header h1 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
+  .content { max-width:1060px; margin:0 auto; padding:32px; }
+  .section-label { font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:14px; }
+  .form-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-bottom:40px; }
+  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; box-shadow:var(--shadow); text-decoration:none; color:var(--text); transition:all 0.18s; display:flex; align-items:center; gap:16px; }
+  .form-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:#bfdbfe; }
+  .form-icon { width:42px; height:42px; background:var(--accent-bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .form-info { flex:1; }
+  .form-title { font-size:14px; font-weight:600; margin-bottom:3px; }
+  .form-desc { font-size:12px; color:var(--text-muted); }
+  .form-arrow { color:var(--accent); font-size:16px; }
+  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="specials.html">Specials</a>
+    <a href="dashboards.html">Dashboards</a>
+    <a href="forms.html" class="active">Forms</a>
+    <a href="assets.html">Assets</a>
+  </div>
+</nav>
+<div class="page-header">
+  <div class="page-header-inner">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Forms & Links</div>
+    <h1>Forms & Links</h1>
+  </div>
+</div>
+<div class="content">
+  <div class="section-label">Staff Forms</div>
+  <div class="form-cards">
+    <a class="form-card" href="https://splendid-pink-aghclqaehs.edgeone.app/" target="_blank">
+      <div class="form-icon">📋</div>
+      <div class="form-info">
+        <div class="form-title">Sales Rep Weekly Plan</div>
+        <div class="form-desc">Submit your weekly sales plan and targets</div>
+      </div>
+      <div class="form-arrow">→</div>
+    </a>
+  </div>
+</div>
+<footer>© 2026 DFL Importers · Internal use only</footer>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --green:#16a34a; --green-bg:#f0fdf4; --red:#dc2626; --red-bg:#fef2f2; --shadow:0 1px 3px rgba(0,0,0,0.07); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-badge { background:#dc2626; color:#fff; font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; letter-spacing:0.05em; }
+  .back-link { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; }
+  .back-link:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+  /* LOGIN */
+  .login-wrap { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 56px); }
+  .login-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:36px 32px; width:100%; max-width:360px; box-shadow:var(--shadow-md); }
+  .login-icon { font-size:32px; text-align:center; margin-bottom:16px; }
+  .login-title { font-size:18px; font-weight:700; text-align:center; margin-bottom:4px; }
+  .login-sub { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:24px; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12px; font-weight:500; margin-bottom:6px; color:var(--text-muted); }
+  .field input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:7px; font-size:14px; font-family:'Inter',sans-serif; outline:none; transition:border 0.15s; }
+  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+  .btn-primary { width:100%; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:7px; font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .btn-primary:hover { background:#1d4ed8; }
+  .login-error { background:var(--red-bg); color:var(--red); font-size:12px; padding:8px 12px; border-radius:6px; margin-bottom:14px; display:none; }
+
+  /* ADMIN PANEL */
+  .admin-panel { display:none; }
+  .page-header { background:var(--navy2); padding:28px 32px 32px; }
+  .page-header-inner { max-width:860px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+  .page-header h1 { font-size:22px; font-weight:700; color:#fff; }
+  .content { max-width:860px; margin:0 auto; padding:32px; }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; margin-bottom:24px; }
+  .tab { padding:8px 18px; border-radius:7px; border:1px solid var(--border); background:var(--surface); font-size:13px; font-weight:500; color:var(--text-muted); cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  /* FORM */
+  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; box-shadow:var(--shadow); margin-bottom:24px; }
+  .form-card h3 { font-size:15px; font-weight:600; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-row.full { grid-template-columns:1fr; }
+  .form-field label { display:block; font-size:12px; font-weight:500; color:var(--text-muted); margin-bottom:5px; }
+  .form-field input, .form-field select, .form-field textarea {
+    width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:7px;
+    font-size:13px; font-family:'Inter',sans-serif; outline:none; transition:border 0.15s; background:var(--surface);
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.08); }
+  .form-field textarea { resize:vertical; min-height:80px; }
+  .form-actions { display:flex; gap:10px; padding-top:16px; border-top:1px solid var(--border); }
+  .btn-submit { padding:9px 24px; background:var(--accent); color:#fff; border:none; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .btn-submit:hover { background:#1d4ed8; }
+  .btn-submit:disabled { opacity:0.6; cursor:not-allowed; }
+  .btn-reset { padding:9px 18px; background:var(--surface); color:var(--text-muted); border:1px solid var(--border); border-radius:7px; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; }
+  .toast { position:fixed; bottom:24px; right:24px; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:500; z-index:999; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .toast.success { background:#166534; color:#fff; }
+  .toast.error { background:#991b1b; color:#fff; }
+
+  /* LIST */
+  .items-list { display:flex; flex-direction:column; gap:10px; }
+  .item-row { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow); }
+  .item-img { width:48px; height:48px; border-radius:6px; background:var(--bg); object-fit:cover; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden; }
+  .item-img img { width:100%; height:100%; object-fit:cover; }
+  .item-info { flex:1; min-width:0; }
+  .item-name { font-size:13px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item-meta { font-size:11px; color:var(--text-muted); }
+  .badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; }
+  .badge-special { background:var(--accent-bg); color:var(--accent); }
+  .badge-flyer { background:#fef3c7; color:#92400e; }
+  .badge-active { background:var(--green-bg); color:var(--green); }
+  .badge-inactive { background:#f1f5f9; color:var(--text-dim); }
+  .item-actions { display:flex; gap:6px; }
+  .btn-toggle { padding:5px 12px; border-radius:5px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--border); font-family:'Inter',sans-serif; background:var(--surface); color:var(--text-muted); transition:all 0.15s; }
+  .btn-toggle:hover { border-color:var(--accent); color:var(--accent); }
+  .empty-list { text-align:center; padding:40px; color:var(--text-dim); font-size:13px; }
+  .list-loading { text-align:center; padding:40px; }
+  .spin { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+    <span class="nav-badge">ADMIN</span>
+  </div>
+  <a class="back-link" href="../index.html">← Back to Portal</a>
+</nav>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-icon">🔐</div>
+    <div class="login-title">Admin Access</div>
+    <div class="login-sub">Enter the admin password to continue</div>
+    <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-panel" id="adminPanel">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <h1>Manage Specials & Flyers</h1>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('add',this)">+ Add New</button>
+      <button class="tab" onclick="showTab('manage',this)">Manage Existing</button>
+    </div>
+
+    <!-- ADD TAB -->
+    <div class="tab-pane active" id="tab-add">
+      <div class="form-card">
+        <h3>Add New Special or Flyer</h3>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Product Name *</label>
+            <input type="text" id="f-name" placeholder="e.g. Clean & White Bleach 1L">
+          </div>
+          <div class="form-field">
+            <label>Type *</label>
+            <select id="f-type">
+              <option value="Special">Special</option>
+              <option value="Flyer">Flyer</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-field">
+            <label>Description</label>
+            <textarea id="f-desc" placeholder="e.g. Buy 2 cases get 1 free. Limited stock."></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Price ($) — leave blank if tiered</label>
+            <input type="number" id="f-price" placeholder="e.g. 850">
+          </div>
+          <div class="form-field">
+            <label>Price Notes (if no single price)</label>
+            <input type="text" id="f-price-notes" placeholder="e.g. 2+1 deal — see description">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Category</label>
+            <input type="text" id="f-category" placeholder="e.g. Plastics, Cleaning">
+          </div>
+          <div class="form-field">
+            <label>Valid Until</label>
+            <input type="date" id="f-valid">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-field">
+            <label>Image URL (upload to Supabase Storage and paste URL)</label>
+            <input type="url" id="f-image" placeholder="https://...">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-submit" id="submitBtn" onclick="submitSpecial()">Add to Portal</button>
+          <button class="btn-reset" onclick="resetForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE TAB -->
+    <div class="tab-pane" id="tab-manage">
+      <div class="form-card">
+        <h3>All Specials & Flyers</h3>
+        <div id="itemsList"><div class="list-loading"><div class="spin"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>© 2026 DFL Importers · Admin Panel</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const ADMIN_PASSWORD = 'Dflbuytime$';  // Change this to your preferred password
+
+  function doLogin() {
+    const pw = document.getElementById('pwInput').value;
+    if (pw === ADMIN_PASSWORD) {
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  }
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'manage') loadItems();
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  async function submitSpecial() {
+    const name = document.getElementById('f-name').value.trim();
+    const type = document.getElementById('f-type').value;
+    if (!name) { showToast('Product name is required', 'error'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    const payload = {
+      name,
+      type,
+      description: document.getElementById('f-desc').value.trim() || null,
+      price: document.getElementById('f-price').value ? parseFloat(document.getElementById('f-price').value) : null,
+      price_notes: document.getElementById('f-price-notes').value.trim() || null,
+      category: document.getElementById('f-category').value.trim() || null,
+      valid_until: document.getElementById('f-valid').value || null,
+      image_url: document.getElementById('f-image').value.trim() || null,
+      active: true
+    };
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        showToast('✓ Added successfully!', 'success');
+        resetForm();
+      } else {
+        showToast('Error saving. Please try again.', 'error');
+      }
+    } catch(e) {
+      showToast('Network error. Please try again.', 'error');
+    }
+    btn.disabled = false; btn.textContent = 'Add to Portal';
+  }
+
+  function resetForm() {
+    ['f-name','f-desc','f-price','f-price-notes','f-category','f-valid','f-image'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('f-type').value = 'Special';
+  }
+
+  async function loadItems() {
+    const list = document.getElementById('itemsList');
+    list.innerHTML = '<div class="list-loading"><div class="spin"></div></div>';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials?order=created_at.desc`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      const items = await res.json();
+      if (!items.length) { list.innerHTML = '<div class="empty-list">No items yet.</div>'; return; }
+      list.innerHTML = `<div class="items-list">${items.map(i => `
+        <div class="item-row" id="row-${i.id}">
+          <div class="item-img">${i.image_url ? `<img src="${i.image_url}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
+          <div class="item-info">
+            <div class="item-name">${i.name}</div>
+            <div class="item-meta">
+              <span class="badge badge-${i.type.toLowerCase()}">${i.type}</span>
+              &nbsp;
+              <span class="badge badge-${i.active ? 'active' : 'inactive'}" id="badge-${i.id}">${i.active ? 'Active' : 'Hidden'}</span>
+              ${i.valid_until ? ` · Until ${new Date(i.valid_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}` : ''}
+            </div>
+          </div>
+          <div class="item-actions">
+            <button class="btn-toggle" onclick="toggleActive('${i.id}', ${i.active})" id="togbtn-${i.id}">
+              ${i.active ? 'Hide' : 'Show'}
+            </button>
+          </div>
+        </div>
+      `).join('')}</div>`;
+    } catch(e) {
+      list.innerHTML = '<div class="empty-list">Could not load items.</div>';
+    }
+  }
+
+  async function toggleActive(id, current) {
+    const btn = document.getElementById('togbtn-' + id);
+    btn.disabled = true;
+    const newVal = !current;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/specials?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ active: newVal })
+      });
+      btn.textContent = newVal ? 'Hide' : 'Show';
+      btn.onclick = () => toggleActive(id, newVal);
+      const badge = document.getElementById('badge-' + id);
+      badge.textContent = newVal ? 'Active' : 'Hidden';
+      badge.className = `badge badge-${newVal ? 'active' : 'inactive'}`;
+      showToast(`Item ${newVal ? 'shown' : 'hidden'}`, 'success');
+    } catch(e) {
+      showToast('Error updating item', 'error');
+    }
+    btn.disabled = false;
+  }
+</script>
+</body>
+</html>

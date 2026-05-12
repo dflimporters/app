@@ -1,1 +1,196 @@
-<h1>DFL Sales Leaderboard</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --navy: #0f2044;
+    --navy2: #1a3260;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --teal: #0891b2;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* NAV */
+  nav {
+    background:var(--navy);
+    height:56px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 32px;
+    position:sticky;
+    top:0;
+    z-index:100;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a {
+    color:rgba(255,255,255,0.65);
+    text-decoration:none;
+    font-size:13px;
+    font-weight:500;
+    padding:6px 14px;
+    border-radius:6px;
+    transition:all 0.15s;
+  }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+
+  /* HERO */
+  .hero {
+    background:var(--navy2);
+    padding:48px 32px 52px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after {
+    content:'';
+    position:absolute;
+    right:-60px; top:-60px;
+    width:300px; height:300px;
+    border-radius:50%;
+    background:rgba(37,99,235,0.12);
+  }
+  .hero-inner { max-width:1060px; margin:0 auto; position:relative; z-index:1; }
+  .hero-eyebrow {
+    font-size:11px; font-weight:600; letter-spacing:0.12em;
+    text-transform:uppercase; color:rgba(255,255,255,0.5);
+    margin-bottom:10px;
+  }
+  .hero h1 {
+    font-size:32px; font-weight:700; color:#fff;
+    letter-spacing:-0.5px; line-height:1.2;
+    margin-bottom:10px;
+  }
+  .hero h1 span { color:#60a5fa; }
+  .hero p { font-size:14px; color:rgba(255,255,255,0.55); max-width:480px; }
+
+  /* CARDS */
+  .cards-section { max-width:1060px; margin:0 auto; padding:32px 32px 60px; }
+  .section-label {
+    font-size:11px; font-weight:600; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-dim);
+    margin-bottom:16px;
+  }
+  .cards-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:14px;
+  }
+  .card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 20px;
+    text-decoration:none;
+    color:var(--text);
+    transition:all 0.18s;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    box-shadow:var(--shadow);
+  }
+  .card:hover {
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-md);
+    border-color:#bfdbfe;
+  }
+  .card-icon {
+    width:38px; height:38px;
+    background:var(--accent-bg);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .card-title { font-size:14px; font-weight:600; }
+  .card-desc { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .card-link {
+    margin-top:auto;
+    font-size:12px; font-weight:500;
+    color:var(--accent);
+    display:flex; align-items:center; gap:4px;
+  }
+
+  footer {
+    text-align:center; padding:20px;
+    font-size:11px; color:var(--text-dim);
+    border-top:1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+  </div>
+  <div class="nav-links">
+    <a href="index.html" class="active">Home</a>
+    <a href="specials.html">Specials</a>
+    <a href="dashboards.html">Dashboards</a>
+    <a href="forms.html">Forms</a>
+    <a href="assets.html">Assets</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">DFL Importers — Internal</div>
+    <h1>Welcome to the <span>Staff Portal</span></h1>
+    <p>Your central hub for specials, dashboards, forms and company resources.</p>
+  </div>
+</div>
+
+<div class="cards-section">
+  <div class="section-label">Quick Access</div>
+  <div class="cards-grid">
+    <a class="card" href="specials.html">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">Specials & Flyers</div>
+      <div class="card-desc">Current promotions, price breaks and product flyers.</div>
+      <div class="card-link">View specials →</div>
+    </a>
+    <a class="card" href="dashboards.html">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Dashboards</div>
+      <div class="card-desc">Sales dashboard and World Cup competition tracker.</div>
+      <div class="card-link">View dashboards →</div>
+    </a>
+    <a class="card" href="forms.html">
+      <div class="card-icon">🔗</div>
+      <div class="card-title">Forms & Links</div>
+      <div class="card-desc">Weekly plan, daily activity submission and staff forms.</div>
+      <div class="card-link">View forms →</div>
+    </a>
+    <a class="card" href="assets.html">
+      <div class="card-icon">📁</div>
+      <div class="card-title">Assets</div>
+      <div class="card-desc">Logos, brand files and downloadable resources.</div>
+      <div class="card-link">View assets →</div>
+    </a>
+  </div>
+</div>
+
+<footer>© 2026 DFL Importers · Internal use only</footer>
+</body>
+</html>
