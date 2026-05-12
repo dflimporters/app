@@ -195,12 +195,47 @@
 
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
+<div id="installBanner" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#0f2044; padding:16px 20px; align-items:center; justify-content:space-between; z-index:999; border-top:1px solid rgba(255,255,255,0.1);">
+  <div style="display:flex; align-items:center; gap:12px;">
+    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" style="height:32px;">
+    <div>
+      <div style="color:#fff; font-size:13px; font-weight:600;">DFL Staff Portal</div>
+      <div style="color:rgba(255,255,255,0.5); font-size:11px;">Add to home screen</div>
+    </div>
+  </div>
+  <button onclick="installApp()" style="background:#2563eb; color:#fff; border:none; padding:8px 18px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer;">Install</button>
+</div>
+
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/app/sw.js');
   });
 }
+
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.style.display = 'flex';
+}
+
+function installApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.promise.then(() => {
+      deferredPrompt = null;
+      document.getElementById('installBanner').style.display = 'none';
+    });
+  }
+}
+
 </script>
 
 </body>
