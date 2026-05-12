@@ -1,0 +1,22 @@
+{
+  "name": "DFL Staff Portal",
+  "short_name": "DFL Portal",
+  "description": "DFL Importers internal staff portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f2044",
+  "theme_color": "#0f2044",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

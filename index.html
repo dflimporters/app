@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f2044">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL Staff Portal</title>
@@ -192,5 +194,14 @@
 </div>
 
 <footer>© 2026 DFL Importers · Internal use only</footer>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js');
+  });
+}
+</script>
+
 </body>
 </html>
