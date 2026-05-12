@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/app/manifest.json">
 <meta name="theme-color" content="#0f2044">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,6 +36,14 @@
   .form-desc { font-size:12px; color:var(--text-muted); }
   .form-arrow { color:var(--accent); font-size:16px; }
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
+    @media (max-width: 640px) {
+  .nav-links {
+    display: none;
+  }
+  .nav-title {
+    font-size: 13px;
+  }
+}
 </style>
 </head>
 <body>
