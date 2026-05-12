@@ -1,8 +1,9 @@
 {
   "name": "DFL Staff Portal",
   "short_name": "DFL Portal",
-  "description": "DFL Importers internal staff portal",
-  "start_url": "/",
+  "description": "DFL Importers Internal Staff Portal",
+  "start_url": "/app/",
+  "scope": "/app/",
   "display": "standalone",
   "background_color": "#0f2044",
   "theme_color": "#0f2044",
