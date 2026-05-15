@@ -1,10 +1,1298 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL — Sales Manager Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:         #326BD3;
+    --blue-dark:    #2559b8;
+    --blue-light:   #e8f0fb;
+    --blue-mid:     #c2d5f5;
+    --navy:         #0D1B3E;
+    --bg:           #f0f4fa;
+    --surface:      #ffffff;
+    --surface2:     #f7f9fd;
+    --border:       #dde5f4;
+    --border2:      #c4d2ee;
+    --text:         #0D1B3E;
+    --text2:        #3a4e72;
+    --muted:        #6b7fa8;
+    --dim:          #a0aec8;
+    --green:        #16a34a;
+    --green-bg:     #dcfce7;
+    --green-border: #bbf7d0;
+    --amber:        #d97706;
+    --amber-bg:     #fef3c7;
+    --amber-border: #fde68a;
+    --red:          #dc2626;
+    --red-bg:       #fee2e2;
+    --red-border:   #fca5a5;
+    --purple:       #7c3aed;
+    --purple-bg:    #ede9fe;
+    --purple-border:#c4b5fd;
+    --shadow-sm:    0 1px 3px rgba(13,27,62,0.07), 0 2px 8px rgba(13,27,62,0.04);
+    --shadow:       0 2px 6px rgba(13,27,62,0.08), 0 6px 20px rgba(13,27,62,0.06);
+    --shadow-lg:    0 4px 14px rgba(13,27,62,0.1), 0 10px 32px rgba(13,27,62,0.07);
+  }
+
+  body { min-height:100vh; background:var(--bg); font-family:'Open Sans',sans-serif; color:var(--text); padding:32px 24px 80px; }
+
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:radial-gradient(circle,rgba(50,107,211,0.07) 1px,transparent 1px);
+    background-size:26px 26px; pointer-events:none; z-index:0;
+  }
+
+  .wrap { position:relative; z-index:1; max-width:1160px; margin:0 auto; }
+
+  /* ── Top Bar ─────────────────────── */
+  .topbar { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:18px; animation:fadeUp 0.4s ease both; }
+  .brand-pill { display:inline-flex; align-items:center; gap:8px; background:var(--navy); color:#fff; font-family:'Montserrat',sans-serif; font-weight:800; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; padding:5px 14px 5px 10px; border-radius:5px; margin-bottom:10px; }
+  .brand-dot { width:8px; height:8px; background:var(--blue); border-radius:50%; }
+  .topbar h1 { font-family:'Montserrat',sans-serif; font-size:clamp(24px,4vw,38px); font-weight:900; color:var(--navy); line-height:1.05; letter-spacing:-0.5px; }
+  .topbar h1 span { color:var(--blue); }
+  .topbar-meta { font-size:12px; color:var(--muted); margin-top:6px; font-weight:500; }
+  .refresh-badge { display:inline-flex; align-items:center; gap:5px; background:var(--green-bg); border:1px solid var(--green-border); color:var(--green); font-size:10px; font-weight:700; font-family:'Montserrat',sans-serif; padding:3px 10px; border-radius:20px; margin-left:8px; vertical-align:middle; }
+  .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .filter-btn { background:var(--surface); border:1.5px solid var(--border2); color:var(--text2); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:8px 16px; cursor:pointer; border-radius:6px; transition:all 0.15s; box-shadow:var(--shadow-sm); }
+  .filter-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .filter-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; box-shadow:0 3px 10px rgba(50,107,211,0.28); }
+
+  /* ── Summary Cards ───────────────── */
+  .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; animation:fadeUp 0.4s 0.07s ease both; }
+  .sc { background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:22px 24px; box-shadow:var(--shadow); position:relative; overflow:hidden; transition:transform 0.15s,box-shadow 0.15s; }
+  .sc:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+  .sc::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; border-radius:12px 12px 0 0; }
+  .sc.total::before  { background:linear-gradient(90deg,var(--blue),#5a8fe8); }
+  .sc.good::before   { background:linear-gradient(90deg,var(--green),#4ade80); }
+  .sc.warn::before   { background:linear-gradient(90deg,var(--amber),#fbbf24); }
+  .sc.danger::before { background:linear-gradient(90deg,var(--red),#f87171); }
+  .sc-label { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
+  .sc-value { font-family:'Montserrat',sans-serif; font-size:36px; font-weight:900; color:var(--navy); line-height:1; letter-spacing:-1.5px; }
+  .sc-value small   { font-size:18px; color:var(--dim); font-weight:600; letter-spacing:0; }
+  .sc-value.v-green { color:var(--green); }
+  .sc-value.v-amber { color:var(--amber); }
+  .sc-value.v-red   { color:var(--red); }
+  .sc-sub { font-size:11px; color:var(--muted); margin-top:8px; font-weight:500; }
+
+  /* ── Follow-up Banner ────────────── */
+  #followup-banner { background:#fff8f8; border:1.5px solid var(--red-border); border-left:5px solid var(--red); border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; box-shadow:0 2px 10px rgba(220,38,38,0.07); animation:fadeUp 0.4s 0.11s ease both; }
+  .followup-label { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--red); flex-shrink:0; }
+  .followup-chips { display:flex; gap:7px; flex-wrap:wrap; }
+  .chip { background:var(--red-bg); border:1px solid var(--red-border); color:var(--red); font-family:'Open Sans',sans-serif; font-size:11px; font-weight:600; padding:4px 12px; border-radius:20px; cursor:pointer; transition:all 0.12s; }
+  .chip:hover { background:#fecaca; transform:translateY(-1px); }
+  .chip.amber { background:var(--amber-bg); border-color:var(--amber-border); color:var(--amber); }
+  .chip.amber:hover { background:#fde68a; }
+
+  /* ── Table ───────────────────────── */
+  .table-wrap { background:var(--surface); border:1.5px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow-lg); animation:fadeUp 0.4s 0.15s ease both; }
+  .table-head-bar { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; border-bottom:1.5px solid var(--border); background:linear-gradient(135deg,var(--navy) 0%,#1a3166 100%); }
+  .table-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:#fff; }
+  .table-meta  { font-size:11px; color:rgba(255,255,255,0.45); font-weight:600; }
+  .col-header-row { display:grid; grid-template-columns:220px 108px 1fr 120px 120px 110px 80px; padding:10px 28px; background:var(--blue-light); border-bottom:1.5px solid var(--blue-mid); }
+  .col-h { font-family:'Montserrat',sans-serif; font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--blue); }
+
+  .rep-row { display:grid; grid-template-columns:220px 108px 1fr 120px 120px 110px 80px; padding:0 28px; align-items:center; min-height:68px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
+  .rep-row:last-of-type { border-bottom:none; }
+  .rep-row:hover, .rep-row.open { background:var(--surface2); }
+  .rep-name { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; color:var(--navy); }
+  .rep-area  { font-size:11px; color:var(--muted); margin-top:3px; font-weight:500; }
+  .badge { display:inline-block; font-family:'Montserrat',sans-serif; font-size:9px; font-weight:800; letter-spacing:1px; text-transform:uppercase; padding:4px 10px; border-radius:20px; }
+  .bar-wrap { padding-right:24px; }
+  .bar-meta  { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .bar-track { height:6px; background:var(--border); border-radius:3px; overflow:visible; position:relative; }
+  .bar-fill  { height:100%; border-radius:3px; transition:width 0.6s ease; }
+  .metric-main { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:700; }
+  .metric-sub  { font-size:10px; color:var(--muted); margin-top:3px; font-weight:500; }
+  .flag-indicator { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; font-family:'Montserrat',sans-serif; color:var(--amber); }
+  .pulse { width:7px; height:7px; border-radius:50%; background:var(--amber); animation:blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.15} }
+
+  /* ── Expand Panel ────────────────── */
+  .expand-panel { display:none; padding:24px 28px 28px; background:#f5f8ff; border-bottom:1px solid var(--border); border-top:2px solid var(--blue-light); }
+  .expand-panel.open { display:block; }
+  .expand-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+  .expand-stat-block { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:16px 18px; box-shadow:var(--shadow-sm); }
+  .expand-label { font-family:'Montserrat',sans-serif; font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--blue); margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid var(--blue-mid); }
+  .expand-line { display:flex; justify-content:space-between; font-size:12px; color:var(--text2); line-height:2.1; }
+  .expand-line strong { color:var(--navy); font-weight:700; }
+
+  /* ── Tier Mix Donut ───────────────────── */
+  .donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .donut-svg { flex-shrink: 0; }
+
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+
+  .donut-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+
+  .donut-legend-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .donut-legend-label { flex: 1; font-size: 11px; color: var(--text2); }
+
+  .donut-legend-pct {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: var(--navy);
+  }
+
+  .donut-legend-change {
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .donut-center-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    fill: var(--muted);
+    text-anchor: middle;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Account Intelligence ──────────── */
+  .intel-section { margin-bottom:20px; }
+  .intel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .intel-title { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:var(--navy); display:flex; align-items:center; gap:8px; }
+  .intel-title::before { content:''; display:inline-block; width:3px; height:14px; background:var(--blue); border-radius:2px; }
+  .intel-legend { display:flex; gap:12px; flex-wrap:wrap; }
+  .legend-item { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--muted); font-weight:600; }
+  .legend-dot { width:8px; height:8px; border-radius:50%; }
+
+  .insight-list { display:flex; flex-direction:column; gap:7px; max-height:300px; overflow-y:auto; padding-right:4px; }
+  .insight-list::-webkit-scrollbar { width:4px; }
+  .insight-list::-webkit-scrollbar-track { background:var(--border); border-radius:2px; }
+  .insight-list::-webkit-scrollbar-thumb { background:var(--blue-mid); border-radius:2px; }
+
+  .insight-row { display:flex; align-items:center; gap:12px; background:var(--surface); border:1.5px solid var(--border); border-radius:8px; padding:10px 14px; transition:box-shadow 0.12s,transform 0.12s; cursor:default; }
+  .insight-row:hover { box-shadow:var(--shadow-sm); transform:translateX(2px); }
+  .insight-row.lapsed      { border-left:4px solid var(--red); }
+  .insight-row.below-trend { border-left:4px solid var(--amber); }
+  .insight-row.whitespace  { border-left:4px solid var(--purple); }
+
+  .insight-type-pill { flex-shrink:0; font-family:'Montserrat',sans-serif; font-size:8px; font-weight:800; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:10px; white-space:nowrap; }
+  .insight-row.lapsed      .insight-type-pill { background:var(--red-bg);    color:var(--red);    border:1px solid var(--red-border); }
+  .insight-row.below-trend .insight-type-pill { background:var(--amber-bg);  color:var(--amber);  border:1px solid var(--amber-border); }
+  .insight-row.whitespace  .insight-type-pill { background:var(--purple-bg); color:var(--purple); border:1px solid var(--purple-border); }
+
+  .insight-customer { font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; color:var(--navy); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .insight-detail   { font-size:11px; color:var(--muted); font-weight:500; flex:2; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .insight-detail strong { color:var(--text2); font-weight:600; }
+  .insight-value    { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0; }
+  .insight-row.lapsed      .insight-value { color:var(--red); }
+  .insight-row.below-trend .insight-value { color:var(--amber); }
+  .insight-row.whitespace  .insight-value { color:var(--purple); }
+
+  .intel-empty { text-align:center; padding:24px; font-size:12px; color:var(--dim); font-style:italic; background:var(--surface); border:1.5px dashed var(--border); border-radius:8px; }
+  .intel-loading { text-align:center; padding:20px; font-size:11px; color:var(--muted); font-weight:600; letter-spacing:1px; }
+  .mini-spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:6px; }
+
+  .action-row { display:flex; gap:9px; flex-wrap:wrap; }
+  .act-btn { background:var(--blue); border:none; color:#fff; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; padding:10px 20px; cursor:pointer; border-radius:7px; transition:all 0.15s; box-shadow:0 2px 8px rgba(50,107,211,0.22); }
+  .act-btn:hover { background:var(--blue-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(50,107,211,0.32); }
+  .act-btn.ghost { background:transparent; border:1.5px solid var(--border2); color:var(--text2); box-shadow:none; }
+  .act-btn.ghost:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); transform:translateY(-1px); }
+
+  #page-loading { text-align:center; padding:60px; color:var(--muted); font-size:12px; font-weight:600; }
+  .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 18px; }
+
+  @keyframes spin   { to{transform:rotate(360deg)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+  @media (max-width:960px) {
+    .summary-grid { grid-template-columns:1fr 1fr; }
+    .col-header-row { display:none; }
+    .rep-row { grid-template-columns:1fr auto; gap:12px; }
+    .rep-row > *:not(:nth-child(1)):not(:nth-child(2)) { display:none; }
+    .expand-stats { grid-template-columns:1fr; }
+    .insight-detail { display:none; }
+  }
+
+  /* ── Follow-up Modal ─────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(13,27,62,0.55);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+  .modal {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 480px;
+    margin: 20px;
+    animation: slideUp 0.25s ease;
+    overflow: hidden;
+  }
+
+  @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+  .modal-header {
+    background: linear-gradient(135deg, var(--navy) 0%, #1a3166 100%);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .modal-close {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .modal-close:hover { background: rgba(255,255,255,0.2); }
+
+  .modal-body { padding: 24px; }
+
+  .modal-rep-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+
+  .modal-date {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+
+  .modal-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+
+  .modal-label {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .modal-textarea {
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    color: var(--text);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    outline: none;
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.6;
+    transition: border-color 0.18s, box-shadow 0.18s;
+    width: 100%;
+  }
+
+  .modal-textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(50,107,211,0.1);
+  }
+
+  .modal-footer {
+    padding: 0 24px 24px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .modal-save {
+    flex: 1;
+    background: var(--blue);
+    border: none;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s;
+    box-shadow: 0 2px 8px rgba(50,107,211,0.22);
+  }
+
+  .modal-save:hover:not(:disabled) { background: var(--blue-dark); transform: translateY(-1px); }
+  .modal-save:disabled { background: var(--border2); color: var(--dim); cursor: not-allowed; box-shadow: none; }
+
+  .modal-cancel {
+    background: transparent;
+    border: 1.5px solid var(--border2);
+    color: var(--text2);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+
+  .modal-cancel:hover { border-color: var(--blue); color: var(--blue); }
+
+  .modal-success {
+    display: none;
+    text-align: center;
+    padding: 32px 24px;
+  }
+
+  .modal-success-icon {
+    width: 52px; height: 52px;
+    background: var(--green-bg);
+    border: 2px solid var(--green-border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin: 0 auto 16px;
+  }
+
+  .modal-success h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+
+  .modal-success p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* Follow-up history strip inside expand panel */
+  .followup-history {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .followup-history-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: 7px;
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+
+  .followup-history-date {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--blue);
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .followup-history-note { color: var(--text2); line-height: 1.5; }
+  .followup-history-empty { font-size: 11px; color: var(--dim); font-style: italic; }
+
+  .followup-delete-btn {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    line-height: 1;
+    margin-left: auto;
+  }
+
+  .followup-delete-btn:hover {
+    background: var(--red-bg);
+    color: var(--red);
+  }
+</style>
 </head>
 <body>
-  <h1 style="text-align:center; font-family:Inter, sans-serif; padding:60px 20px; color:#64748b;">Coming Soon</h1>
+<div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <div class="brand-pill"><span class="brand-dot"></span>DFL Importers · Sales</div>
+      <h1>Rep <span>Performance</span><br>Dashboard</h1>
+      <div class="topbar-meta" id="dash-meta">Loading live data…</div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All Reps</button>
+      <button class="filter-btn" onclick="setFilter('critical',this)">Critical <span id="cnt-critical">—</span></button>
+      <button class="filter-btn" onclick="setFilter('behind',this)">Behind <span id="cnt-behind">—</span></button>
+      <button class="filter-btn" onclick="setFilter('on-track',this)">On Track <span id="cnt-ontrack">—</span></button>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sc total">
+      <div class="sc-label">Team Revenue vs Target</div>
+      <div class="sc-value" id="sc-pct">—</div>
+      <div class="sc-sub" id="sc-rev-sub">Loading…</div>
+    </div>
+    <div class="sc good">
+      <div class="sc-label">Reps On Track</div>
+      <div class="sc-value v-green" id="sc-ontrack">—</div>
+      <div class="sc-sub">No action needed</div>
+    </div>
+    <div class="sc warn">
+      <div class="sc-label">Behind — Monitor</div>
+      <div class="sc-value v-amber" id="sc-behind">—</div>
+      <div class="sc-sub">Check in mid-week</div>
+    </div>
+    <div class="sc danger">
+      <div class="sc-label">Critical — Act Now</div>
+      <div class="sc-value v-red" id="sc-critical">—</div>
+      <div class="sc-sub">Follow up today</div>
+    </div>
+  </div>
+
+  <div id="followup-banner" style="display:none">
+    <div class="followup-label">⚡ Follow up today</div>
+    <div class="followup-chips" id="followup-chips"></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-head-bar">
+      <div class="table-title">Monthly Rep Tracker</div>
+      <div class="table-meta" id="table-meta">Loading…</div>
+    </div>
+    <div class="col-header-row">
+      <div class="col-h">Rep / Area</div>
+      <div class="col-h">Status</div>
+      <div class="col-h">Revenue vs Target</div>
+      <div class="col-h">Active Customers</div>
+      <div class="col-h">New Accounts</div>
+      <div class="col-h">Last Active</div>
+      <div class="col-h">Days Active</div>
+    </div>
+    <div id="rep-list">
+      <div id="page-loading"><div class="spinner"></div>Pulling live data from Supabase…</div>
+    </div>
+  </div>
+
+
+<!-- Follow-up Modal -->
+<div class="modal-overlay" id="followup-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📞 Log Follow-up</div>
+      <button class="modal-close" onclick="closeFollowupModal()">✕</button>
+    </div>
+    <div id="modal-form-body">
+      <div class="modal-body">
+        <div class="modal-rep-name" id="modal-rep-name">—</div>
+        <div class="modal-date" id="modal-date">—</div>
+        <div class="modal-field">
+          <div class="modal-label">Notes from the call / meeting</div>
+          <textarea class="modal-textarea" id="modal-note"
+            placeholder="e.g. Discussed pipeline for the week, agreed to push on ECOBOX accounts in the north corridor…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-save" id="modal-save-btn" onclick="saveFollowup()">Save Follow-up</button>
+        <button class="modal-cancel" onclick="closeFollowupModal()">Cancel</button>
+      </div>
+    </div>
+    <div class="modal-success" id="modal-success-body">
+      <div class="modal-success-icon">✓</div>
+      <h3>Follow-up Logged</h3>
+      <p id="modal-success-msg">Your follow-up has been saved.</p>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const pct  = (a, b) => b > 0 ? Math.min(Math.round(a / b * 100), 100) : 0;
+const fmtM = n => {
+  const v = Math.abs(Number(n));
+  if (v >= 1_000_000) return (n < 0 ? '-' : '') + '$' + (v / 1_000_000).toFixed(1) + 'M';
+  if (v >= 1_000)     return (n < 0 ? '-' : '') + '$' + (v / 1_000).toFixed(0) + 'K';
+  return (n < 0 ? '-' : '') + '$' + Math.round(v).toLocaleString();
+};
+const barColor = p => p >= 85 ? '#16a34a' : p >= 65 ? '#d97706' : '#dc2626';
+
+// ─── SUPABASE FETCH ───────────────────────────────────────────────────────────
+async function sbGet(path) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      signal: controller.signal,
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Accept':        'application/json',
+      }
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Supabase ${res.status}: ${body}`);
+    }
+    return res.json();
+  } catch(e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') throw new Error('Request timed out — check your connection');
+    throw e;
+  }
+}
+
+async function sbRpc(fn, params) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey':        SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type':  'application/json',
+      'Accept':        'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`RPC ${fn} error ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+// ─── RENDER SUMMARY ───────────────────────────────────────────────────────────
+function renderSummary(reps) {
+  const tot = reps.reduce((s, r) => s + Number(r.monthly_actual), 0);
+  const tgt = reps.reduce((s, r) => s + Number(r.monthly_target), 0);
+  const ot  = reps.filter(r => r.status === 'on-track').length;
+  const bh  = reps.filter(r => r.status === 'behind').length;
+  const cr  = reps.filter(r => r.status === 'critical').length;
+
+  const teamPct = pct(tot, tgt);
+  const pacePct = reps.length > 0 ? Number(reps[0].pct_month_elapsed).toFixed(0) : 0;
+  document.getElementById('sc-pct').innerHTML =
+    `${teamPct}%<small> &nbsp;/ ${pacePct}%</small>`;
+  document.getElementById('sc-rev-sub').textContent = `${fmtM(tot)} of ${fmtM(tgt)}`;
+  document.getElementById('sc-ontrack').innerHTML   = `${ot}<small>/${reps.length}</small>`;
+  document.getElementById('sc-behind').textContent  = bh;
+  document.getElementById('sc-critical').textContent = cr;
+  document.getElementById('cnt-critical').textContent = cr;
+  document.getElementById('cnt-behind').textContent   = bh;
+  document.getElementById('cnt-ontrack').textContent  = ot;
+
+  // Banner: only show reps meaningfully behind their TIME-ADJUSTED pace
+  // follow-up = >15 points behind pace (act now)
+  // watch     = 8–15 points behind pace (keep an eye on)
+  const followUp = reps.filter(r => r.pace_status === 'follow-up');
+  const watch    = reps.filter(r => r.pace_status === 'watch');
+  const banner   = document.getElementById('followup-banner');
+
+  if (followUp.length || watch.length) {
+    banner.style.display = 'flex';
+    const chips = [
+      ...followUp.map(r =>
+        `<span class="chip" onclick="scrollToRep('${r.salesperson}')"
+          title="Behind pace by ${Number(r.pace_gap_pct).toFixed(1)}%">${r.salesperson}</span>`),
+      ...watch.map(r =>
+        `<span class="chip amber" onclick="scrollToRep('${r.salesperson}')"
+          title="Slightly behind pace — ${Number(r.pace_gap_pct).toFixed(1)}% gap">${r.salesperson}</span>`),
+    ];
+    document.getElementById('followup-chips').innerHTML = chips.join('');
+
+    // Update banner label to be more specific
+    document.querySelector('.followup-label').innerHTML =
+      followUp.length
+        ? `⚡ ${followUp.length} need follow-up · ${watch.length} to watch`
+        : `👀 ${watch.length} to watch this week`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// ─── RENDER ROW ──────────────────────────────────────────────────────────────
+function renderRow(rep) {
+  const actual = Number(rep.monthly_actual);
+  const target = Number(rep.monthly_target);
+  const p  = pct(actual, target);
+  const bc = barColor(p);
+  const pctDisplay = Number(rep.pct_to_target).toFixed(1);
+  const sc = {
+    'on-track': { label:'On Track', color:'#16a34a', bg:'#dcfce7' },
+    'behind':   { label:'Behind',   color:'#d97706', bg:'#fef3c7' },
+    'critical': { label:'Critical', color:'#dc2626', bg:'#fee2e2' },
+  }[rep.status] || { label:'Unknown', color:'#6b7fa8', bg:'#f0f4fa' };
+
+  const lastDate = rep.last_invoice_date
+    ? new Date(rep.last_invoice_date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
+    : '—';
+
+  const rowId = 'rep-' + rep.salesperson.replace(/\s+/g, '-');
+
+  return `
+    <div class="rep-row" id="${rowId}" onclick="toggleExpand('${rep.salesperson.replace(/'/g,"\\'")}')">
+      <div>
+        <div class="rep-name">${rep.salesperson}</div>
+        <div class="rep-area">${rep.area || 'Unassigned'}</div>
+      </div>
+      <div><span class="badge" style="background:${sc.bg};color:${sc.color}">${sc.label}</span></div>
+      <div class="bar-wrap">
+        <div class="bar-meta">
+          <span>
+            <strong style="color:${bc}">${pctDisplay}%</strong>
+            <span style="color:var(--dim);font-size:9px;margin-left:5px">vs <strong style="color:var(--blue)">${Number(rep.pct_month_elapsed).toFixed(0)}% pace</strong></span>
+          </span>
+          <span style="color:var(--muted)">${fmtM(target)}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${p}%;background:${bc};border-radius:3px"></div>
+          <div style="position:absolute;top:-3px;bottom:-3px;left:${Math.min(Number(rep.pct_month_elapsed),100)}%;width:2px;background:var(--blue);border-radius:1px;opacity:0.8;transform:translateX(-1px)" title="Pace marker: ${Number(rep.pct_month_elapsed).toFixed(0)}% of month elapsed"></div>
+        </div>
+        <div style="font-size:9px;margin-top:4px;font-weight:600">
+          ${Number(rep.pace_gap_pct) > 0
+            ? `<span style="color:${bc}">▼ ${Number(rep.pace_gap_pct).toFixed(1)} pts behind pace</span>`
+            : `<span style="color:var(--green)">▲ ${Math.abs(Number(rep.pace_gap_pct)).toFixed(1)} pts ahead of pace</span>`}
+        </div>
+      </div>
+      <div>
+        <div class="metric-main" style="color:var(--navy)">${rep.active_customers_mtd}</div>
+        <div class="metric-sub">customers this month</div>
+      </div>
+      <div>
+        <div class="metric-main" style="color:${rep.new_accounts_mtd > 0 ? '#16a34a' : 'var(--navy)'}">${rep.new_accounts_mtd}</div>
+        <div class="metric-sub">new accounts</div>
+      </div>
+      <div>
+        <div class="metric-main">${lastDate}</div>
+        <div class="metric-sub">last invoice</div>
+      </div>
+      <div>
+        <div class="metric-main">${rep.days_active_mtd}</div>
+        <div class="metric-sub">days invoiced</div>
+      </div>
+    </div>
+
+    <div class="expand-panel" id="exp-${rowId}">
+      <div class="expand-stats">
+        <div class="expand-stat-block">
+          <div class="expand-label">Revenue Detail</div>
+          <div class="expand-line"><span>Actual MTD</span><strong>${fmtM(actual)}</strong></div>
+          <div class="expand-line"><span>Monthly Target</span><strong>${fmtM(target)}</strong></div>
+          <div class="expand-line"><span>Gap</span>
+            <strong style="color:${actual >= target ? '#16a34a' : '#dc2626'}">
+              ${actual >= target ? '+' : ''}${fmtM(actual - target)}
+            </strong>
+          </div>
+          <div class="expand-line"><span>% to Target</span><strong>${pctDisplay}%</strong></div>
+          <div class="expand-line"><span>Expected by now</span>
+            <strong>${Number(rep.pct_month_elapsed).toFixed(1)}%</strong>
+          </div>
+          <div class="expand-line"><span>Pace gap</span>
+            <strong style="color:${
+              rep.pace_status === 'follow-up' ? '#dc2626' :
+              rep.pace_status === 'watch'     ? '#d97706' : '#16a34a'}">
+              ${Number(rep.pace_gap_pct) > 0 ? '▼' : '▲'}${Math.abs(Number(rep.pace_gap_pct)).toFixed(1)} pts
+            </strong>
+          </div>
+        </div>
+        <div class="expand-stat-block">
+          <div class="expand-label">Activity This Month</div>
+          <div class="expand-line"><span>Active customers</span><strong>${rep.active_customers_mtd}</strong></div>
+          <div class="expand-line"><span>New accounts</span><strong>${rep.new_accounts_mtd}</strong></div>
+          <div class="expand-line"><span>Days invoiced</span><strong>${rep.days_active_mtd}</strong></div>
+          <div class="expand-line"><span>Last invoice</span><strong>${lastDate}</strong></div>
+        </div>
+        <div class="expand-stat-block">
+          <div class="expand-label">Weekly Plan</div>
+          <div id="plan-${rowId}" style="font-size:12px;color:var(--muted);font-style:italic;line-height:1.8">
+            Loading…
+          </div>
+        </div>
+        <div class="expand-stat-block" style="grid-column: 1 / -1">
+          <div class="expand-label">Revenue by Account Tier — This Month vs Last Month</div>
+          <div id="tier-mix-${rowId}">
+            <div style="font-size:11px;color:var(--dim);font-style:italic">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="intel-section">
+        <div class="intel-header">
+          <div class="intel-title">Account Intelligence</div>
+          <div class="intel-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Gone Quiet (60+ days)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Below Trend (vs 90-day avg)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div>White Space (&lt;50% of 119 key SKUs)</div>
+          </div>
+        </div>
+        <div class="insight-list" id="intel-${rowId}">
+          <div class="intel-loading"><span class="mini-spinner"></span>Loading account intelligence…</div>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="act-btn" data-rep="${rep.salesperson}" onclick="event.stopPropagation();logFollowup(this.dataset.rep)">📞 Log Follow-up</button>
+        <button class="act-btn ghost" data-rowid="${rowId}" data-rep="${rep.salesperson}" onclick="event.stopPropagation();toggleHistory(this.dataset.rowid,this.dataset.rep)">View History</button>
+        <button class="act-btn ghost">Send Reminder</button>
+      </div>
+      <div class="followup-history" id="history-${rowId}" style="display:none;flex-direction:column;gap:6px;margin-top:12px"></div>
+    </div>`;
+}
+
+// ─── LOAD INTELLIGENCE (lazy on expand) ──────────────────────────────────────
+async function loadIntelligence(salesperson, rowId) {
+  const el = document.getElementById('intel-' + rowId);
+  if (!el || !el.querySelector('.intel-loading')) return;
+
+  try {
+    const enc  = encodeURIComponent(salesperson);
+    // Fetch top 10 insights sorted: lapsed first (most days), then below-trend, whitespace
+    const data = await sbGet(
+      `customer_intelligence_cache?salesperson=eq.${enc}&select=insight_type,customer_name,detail_text,value_text,priority_score&order=insight_type.asc,priority_score.desc&limit=10`
+    );
+
+    if (!data.length) {
+      el.innerHTML = `<div class="intel-empty">No gaps detected for this rep's active accounts. ✓</div>`;
+      return;
+    }
+
+    el.innerHTML = data.map(ins => `
+      <div class="insight-row ${ins.insight_type}">
+        <span class="insight-type-pill">${
+          ins.insight_type === 'lapsed'       ? 'Gone Quiet'   :
+          ins.insight_type === 'below-trend'  ? 'Below Trend'  : 'White Space'
+        }</span>
+        <span class="insight-customer">${ins.customer_name}</span>
+        <span class="insight-detail">${ins.detail_text}</span>
+        <span class="insight-value">${ins.value_text}</span>
+      </div>`).join('');
+
+  } catch (e) {
+    el.innerHTML = `<div class="intel-empty" style="color:var(--red)">Could not load intelligence data.</div>`;
+  }
+}
+
+// ─── LOAD WEEKLY PLAN ────────────────────────────────────────────────────────
+async function loadWeeklyPlan(salesperson, rowId) {
+  const el = document.getElementById('plan-' + rowId);
+  if (!el) return;
+
+  try {
+    const enc  = encodeURIComponent(salesperson);
+    const week = document.getElementById('dash-meta').dataset.week || '';
+    const data = await sbGet(
+      `weekly_plans?salesperson=eq.${enc}&order=submitted_at.desc&limit=1`
+    );
+
+    if (!data.length) {
+      el.innerHTML = '<span style="color:var(--dim);font-style:italic">No plan submitted yet this week</span>';
+      return;
+    }
+
+    const plan = data[0];
+    const days = plan.days || [];
+    const activeDays = days.filter(d => d.zones && d.zones.length > 0);
+
+    // Format plan inline
+    let html = '';
+
+    if (plan.sales_goal) {
+      html += '<div style="margin-bottom:8px"><span style="color:var(--muted)">Sales goal:</span> '
+        + '<strong style="color:var(--navy)">$' + Number(plan.sales_goal).toLocaleString() + '</strong></div>';
+    }
+
+    if (activeDays.length) {
+      activeDays.forEach(d => {
+        const stores = Array.isArray(d.stores) ? d.stores : (d.stores ? d.stores.split(', ') : []);
+        html += '<div style="margin-bottom:6px">'
+          + '<span style="font-family:Montserrat,sans-serif;font-weight:700;color:var(--blue);font-size:10px">'
+          + d.day.slice(0,3).toUpperCase() + '</span> '
+          + '<span style="color:var(--muted)">' + (d.zones || []).join(', ') + '</span>';
+        if (stores.length) {
+          html += '<div style="color:var(--text2);padding-left:8px;font-size:11px">' + stores.join(', ') + '</div>';
+        }
+        html += '</div>';
+      });
+    }
+
+    if (plan.flags) {
+      html += '<div style="margin-top:8px;background:var(--amber-bg);border-left:3px solid var(--amber);'
+        + 'padding:6px 10px;border-radius:4px;color:#92400e;font-size:11px">⚠️ ' + plan.flags + '</div>';
+    }
+
+    const submittedAt = new Date(plan.submitted_at).toLocaleDateString('en-GB',
+      {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+    html += '<div style="margin-top:8px;font-size:10px;color:var(--dim)">Submitted ' + submittedAt + '</div>';
+
+    el.innerHTML = html;
+    el.style.fontStyle = 'normal';
+
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--dim)">Could not load plan</span>';
+  }
+}
+
+// ─── TIER MIX DONUT CHART ────────────────────────────────────────────────────
+const TIER_COLORS = {
+  'Tier 1':     '#326BD3',  // blue  — key accounts (good)
+  'Tier 2':     '#7c3aed',  // purple
+  'Tier 3':     '#d97706',  // amber
+  'Tier 4':     '#dc2626',  // red   — trying to move away from these
+  'Unassigned': '#a0aec8',  // grey
+};
+
+const TIER_ORDER = ['Tier 1','Tier 2','Tier 3','Tier 4','Unassigned'];
+
+async function loadTierMix(salesperson, rowId) {
+  const el = document.getElementById('tier-mix-' + rowId);
+  if (!el) return;
+
+  try {
+    const now      = new Date();
+    const fmtPeriod = d => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0');
+    const cmPeriod  = fmtPeriod(now);
+    const lmPeriod  = fmtPeriod(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+
+    // Call RPC function which handles the join server-side
+    const raw = await sbRpc('get_tier_mix', {
+      p_salesperson:    salesperson,
+      p_current_period: cmPeriod,
+      p_last_period:    lmPeriod,
+    });
+
+    // Supabase RPC can return array or wrapped object
+    const rows = Array.isArray(raw) ? raw : (raw?.data || []);
+
+    const cm = {}, lm = {};
+    rows.forEach(r => {
+      cm[r.tier] = Number(r.this_month);
+      lm[r.tier] = Number(r.last_month);
+    });
+
+    const cmTotal = Object.values(cm).reduce((s, v) => s + Math.max(v, 0), 0);
+    const lmTotal = Object.values(lm).reduce((s, v) => s + Math.max(v, 0), 0);
+
+    if (cmTotal === 0 && lmTotal === 0) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--dim);font-style:italic">No data available</div>';
+      return;
+    }
+
+    // Build donut segments
+    const tiers = TIER_ORDER.filter(t => (cm[t] || 0) > 0 || (lm[t] || 0) > 0);
+    const segments = tiers.map(t => ({
+      tier:    t,
+      val:     Math.max(cm[t] || 0, 0),
+      pct:     cmTotal > 0 ? (Math.max(cm[t] || 0, 0) / cmTotal) * 100 : 0,
+      lmPct:   lmTotal > 0 ? (Math.max(lm[t] || 0, 0) / lmTotal) * 100 : 0,
+      color:   TIER_COLORS[t] || '#a0aec8',
+    }));
+
+    // SVG donut
+    const R = 42, r = 26, cx = 52, cy = 52;
+    let angle = -90;
+    let paths = '';
+
+    segments.forEach(seg => {
+      if (seg.pct < 0.5) return;
+      const startAngle = angle;
+      const sweep      = (seg.pct / 100) * 360;
+      angle += sweep;
+      const endAngle   = angle;
+      const toRad      = a => (a * Math.PI) / 180;
+      const x1 = cx + R * Math.cos(toRad(startAngle));
+      const y1 = cy + R * Math.sin(toRad(startAngle));
+      const x2 = cx + R * Math.cos(toRad(endAngle));
+      const y2 = cy + R * Math.sin(toRad(endAngle));
+      const xi1 = cx + r * Math.cos(toRad(startAngle));
+      const yi1 = cy + r * Math.sin(toRad(startAngle));
+      const xi2 = cx + r * Math.cos(toRad(endAngle));
+      const yi2 = cy + r * Math.sin(toRad(endAngle));
+      const lg  = sweep > 180 ? 1 : 0;
+      paths += `<path d="M${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${r},${r} 0 ${lg},0 ${xi1},${yi1} Z"
+        fill="${seg.color}" opacity="0.92">
+        <title>${seg.tier}: ${seg.pct.toFixed(1)}%</title></path>`;
+    });
+
+    const svg = `<svg class="donut-svg" width="104" height="104" viewBox="0 0 104 104">
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="var(--border)" opacity="0.3"/>
+      ${paths}
+      <text x="${cx}" y="${cy - 5}" class="donut-center-label">THIS</text>
+      <text x="${cx}" y="${cy + 7}" class="donut-center-label">MONTH</text>
+    </svg>`;
+
+    // Legend rows
+    const legendRows = segments.map(seg => {
+      const change   = seg.pct - seg.lmPct;
+      const absChg   = Math.abs(change).toFixed(1);
+      // For Tier 4: going UP is bad (red), going DOWN is good (green)
+      // For Tier 1: going UP is good (green), going DOWN is bad (red)
+      let chgColor, arrow;
+      if (Math.abs(change) < 0.5) {
+        chgColor = 'var(--dim)'; arrow = '—';
+      } else if (seg.tier === 'Tier 4') {
+        chgColor = change > 0 ? '#dc2626' : '#16a34a';
+        arrow    = change > 0 ? '▲' : '▼';
+      } else {
+        chgColor = change > 0 ? '#16a34a' : '#dc2626';
+        arrow    = change > 0 ? '▲' : '▼';
+      }
+
+      return `<div class="donut-legend-row">
+        <div class="donut-legend-dot" style="background:${seg.color}"></div>
+        <div class="donut-legend-label">${seg.tier}</div>
+        <div class="donut-legend-pct">${seg.pct.toFixed(1)}%</div>
+        <div class="donut-legend-change" style="color:${chgColor}" title="vs last month: ${seg.lmPct.toFixed(1)}%">
+          ${arrow}${absChg === '0.0' ? '' : absChg + 'pp'}
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="donut-wrap">
+      ${svg}
+      <div class="donut-legend">${legendRows}
+        <div style="margin-top:6px;font-size:10px;color:var(--dim);border-top:1px solid var(--border);padding-top:6px">
+          pp = percentage point change vs last month
+        </div>
+      </div>
+    </div>`;
+
+  } catch(e) {
+    console.error('Tier mix error:', e);
+    el.innerHTML = `<div style="font-size:11px;color:var(--red);font-weight:600">
+      Could not load tier data: ${e.message || 'Unknown error'}
+    </div>`;
+  }
+}
+
+// ─── EXPAND / COLLAPSE ────────────────────────────────────────────────────────
+function toggleExpand(salesperson) {
+  const rowId = 'rep-' + salesperson.replace(/\s+/g, '-');
+  const row   = document.getElementById(rowId);
+  const pan   = document.getElementById('exp-' + rowId);
+  if (!row || !pan) return;
+  const open = pan.classList.contains('open');
+  document.querySelectorAll('.expand-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.rep-row.open').forEach(r => r.classList.remove('open'));
+  if (!open) {
+    pan.classList.add('open');
+    row.classList.add('open');
+    loadIntelligence(salesperson, rowId);
+    loadWeeklyPlan(salesperson, rowId);
+    loadTierMix(salesperson, rowId);
+  }
+}
+
+// ─── TABLE RENDER ─────────────────────────────────────────────────────────────
+let allReps = [], currentFilter = 'all';
+
+function renderTable(reps) {
+  const filtered = currentFilter === 'all' ? reps : reps.filter(r => r.status === currentFilter);
+  document.getElementById('table-meta').textContent = `${filtered.length} rep${filtered.length !== 1 ? 's' : ''} shown`;
+  document.getElementById('rep-list').innerHTML = filtered.length
+    ? filtered.map(renderRow).join('')
+    : `<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">No reps match this filter.</div>`;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(allReps);
+}
+
+function scrollToRep(salesperson) {
+  const rowId = 'rep-' + salesperson.replace(/\s+/g, '-');
+  const el = document.getElementById(rowId);
+  if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' }); toggleExpand(salesperson); }
+}
+
+// ─── FOLLOW-UP MODAL ─────────────────────────────────────────────────────────
+let currentFollowupRep = null;
+
+function logFollowup(salesperson) {
+  currentFollowupRep = salesperson;
+  const today = new Date().toLocaleDateString('en-GB', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('modal-rep-name').textContent = salesperson;
+  document.getElementById('modal-date').textContent = today;
+  document.getElementById('modal-note').value = '';
+  document.getElementById('modal-form-body').style.display = 'block';
+  document.getElementById('modal-success-body').style.display = 'none';
+  document.getElementById('modal-save-btn').disabled = false;
+  document.getElementById('modal-save-btn').textContent = 'Save Follow-up';
+  document.getElementById('modal-save-btn').style.background = '';
+  document.getElementById('followup-modal').classList.add('open');
+  setTimeout(() => document.getElementById('modal-note').focus(), 300);
+}
+
+function closeFollowupModal() {
+  document.getElementById('followup-modal').classList.remove('open');
+  currentFollowupRep = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('followup-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeFollowupModal();
+  });
+});
+
+async function saveFollowup() {
+  if (!currentFollowupRep) return;
+  const note = document.getElementById('modal-note').value.trim();
+  const btn  = document.getElementById('modal-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups`, {
+      method: 'POST',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=minimal',
+      },
+      body: JSON.stringify({
+        salesperson:    currentFollowupRep,
+        followed_up_by: 'Scott',
+        note:           note || null,
+        follow_up_date: new Date().toISOString().split('T')[0],
+      })
+    });
+
+    if (!res.ok) throw new Error('Save failed');
+
+    document.getElementById('modal-form-body').style.display = 'none';
+    document.getElementById('modal-success-body').style.display = 'block';
+    document.getElementById('modal-success-msg').innerHTML =
+      `Follow-up with <strong>${currentFollowupRep}</strong> logged for today.`;
+
+    // Refresh history strip in the open expand panel
+    const rowId = 'rep-' + currentFollowupRep.replace(/\s+/g, '-');
+    loadFollowupHistory(currentFollowupRep, rowId);
+
+    setTimeout(() => closeFollowupModal(), 1800);
+
+  } catch(err) {
+    btn.disabled = false;
+    btn.style.background = 'var(--red)';
+    btn.textContent = 'Failed — tap to retry';
+    setTimeout(() => { btn.style.background = ''; btn.textContent = 'Save Follow-up'; }, 3000);
+  }
+}
+
+// ─── DELETE FOLLOW-UP ────────────────────────────────────────────────────────
+async function deleteFollowup(id, rowId, salesperson) {
+  const item = document.getElementById('followup-item-' + id);
+  if (!item) return;
+
+  // Animate out
+  item.style.opacity = '0.4';
+  item.style.pointerEvents = 'none';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer':        'return=minimal',
+      }
+    });
+
+    if (!res.ok) throw new Error('Delete failed');
+
+    // Refresh the strip
+    await loadFollowupHistory(salesperson, rowId);
+
+  } catch(e) {
+    item.style.opacity = '1';
+    item.style.pointerEvents = '';
+    item.style.borderLeftColor = 'var(--red)';
+    setTimeout(() => { item.style.borderLeftColor = ''; }, 2000);
+  }
+}
+
+// ─── FOLLOW-UP HISTORY ────────────────────────────────────────────────────────
+async function toggleHistory(rowId, salesperson) {
+  const el = document.getElementById('history-' + rowId);
+  if (!el) return;
+  if (el.style.display === 'none' || el.style.display === '') {
+    el.style.display = 'flex';
+    el.innerHTML = '<div class="followup-history-empty" style="padding:8px">Loading history…</div>';
+    await loadFollowupHistory(salesperson, rowId);
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function loadFollowupHistory(salesperson, rowId) {
+  const el = document.getElementById('history-' + rowId);
+  if (!el) return;
+  try {
+    const enc  = encodeURIComponent(salesperson);
+    const data = await sbGet(
+      `rep_followups?salesperson=eq.${enc}&order=follow_up_date.desc&limit=5`
+    );
+    if (!data.length) {
+      el.innerHTML = '<div class="followup-history-empty">No follow-ups logged yet for this rep.</div>';
+      return;
+    }
+    el.innerHTML = data.map(f => `
+      <div class="followup-history-item" id="followup-item-${f.id}">
+        <div class="followup-history-date">${new Date(f.follow_up_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+        <div class="followup-history-note">${f.note || '<em style="color:var(--dim)">No notes added</em>'}</div>
+        <button class="followup-delete-btn" data-id="${f.id}" data-rowid="${rowId}" data-rep="${salesperson}"
+          onclick="deleteFollowup(this.dataset.id, this.dataset.rowid, this.dataset.rep)"
+          title="Delete this follow-up">✕</button>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="followup-history-empty">Could not load history.</div>';
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    // Fetch all reps from cache, ordered by pct to target descending
+    const data = await sbGet(
+      'rep_dashboard_cache?select=*&order=pct_to_target.desc'
+    );
+
+    if (!data.length) {
+      document.getElementById('rep-list').innerHTML =
+        `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">
+          No data in cache. Run <code>SELECT refresh_rep_dashboard();</code> in Supabase.
+        </div>`;
+      return;
+    }
+
+    allReps = data;
+    renderSummary(allReps);
+    renderTable(allReps);
+
+    // Show last refresh time and month
+    const refreshedAt = new Date(allReps[0].refreshed_at);
+    const monthLabel  = refreshedAt.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+    const timeLabel   = refreshedAt.toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+
+    document.getElementById('dash-meta').innerHTML =
+      `${monthLabel} · ${allReps.length} reps · <span class="refresh-badge">✓ Refreshed ${timeLabel}</span>`;
+
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    const errMsg = err.message || 'Unknown error';
+    console.error('Dashboard load error:', errMsg);
+    document.getElementById('dash-meta').textContent = 'Error loading data';
+    document.getElementById('rep-list').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
+        Could not load dashboard data.<br>
+        <strong style="font-size:11px;color:var(--text2)">${errMsg}</strong><br><br>
+        <button onclick="init()" style="background:var(--blue);border:none;color:#fff;
+          font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;
+          text-transform:uppercase;padding:10px 20px;border-radius:7px;cursor:pointer">
+          Retry
+        </button>
+      </div>`; 
+  }
+}
+
+// Quick connection test before full init
+async function testConnection() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      console.log('✓ Supabase connection OK');
+      init();
+    } else {
+      const body = await res.text();
+      console.error('Supabase returned:', res.status, body);
+      document.getElementById('rep-list').innerHTML =
+        `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
+          Supabase returned error <strong>${res.status}</strong>.<br>
+          <span style="font-size:11px;color:var(--muted)">${body}</span><br><br>
+          <button onclick="init()" style="background:var(--blue);border:none;color:#fff;
+            font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;
+            text-transform:uppercase;padding:10px 20px;border-radius:7px;cursor:pointer">Retry</button>
+        </div>`;
+      document.getElementById('dash-meta').textContent = `Supabase error ${res.status}`;
+    }
+  } catch(e) {
+    console.error('Connection test failed:', e);
+    document.getElementById('rep-list').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
+        Cannot reach Supabase.<br>
+        <strong style="font-size:11px">${e.message}</strong><br>
+        <span style="font-size:11px;color:var(--muted)">This is usually a network or CORS issue.<br>
+        Make sure the file is served from a web server, not opened as a local file.</span><br><br>
+        <button onclick="testConnection()" style="background:var(--blue);border:none;color:#fff;
+          font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;
+          text-transform:uppercase;padding:10px 20px;border-radius:7px;cursor:pointer">Retry</button>
+      </div>`;
+    document.getElementById('dash-meta').textContent = 'Connection failed';
+  }
+}
+
+testConnection();
+</script>
 </body>
 </html>
