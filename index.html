@@ -55,6 +55,9 @@
   }
   .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
   .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color:#fbbf24; }
+.nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+.nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
 
   /* HERO */
   .hero {
@@ -155,6 +158,8 @@
     <span class="nav-title">Staff Portal</span>
   </div>
   <div class="nav-links">
+    <a href="/app/admin/" class="mgmt">Admin</a>
+    <a href="/app/management/" class="mgmt">Management</a>
     <a href="index.html" class="active">Home</a>
     <a href="specials.html">Specials</a>
     <a href="dashboards.html">Dashboards</a>

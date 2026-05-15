@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Importers · Merch Dashboard 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0a0f1e; --paper: #f4f1eb; --cream: #faf8f3;
+  --accent: #1a3a8f; --accent2: #e8380d; --gold: #c8922a;
+  --green: #1a7a3c; --amber: #b86f00; --red: #c0180f;
+  --muted: #8a8378; --border: #d4cfc4; --surface: #fff;
+  --mono: 'DM Mono', monospace; --display: 'Syne', sans-serif; --body: 'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 13px; min-height: 100vh; }
+
+.header { background: var(--ink); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 54px; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--accent2); }
+.header-brand { display: flex; align-items: center; gap: 12px; }
+.logo { width: 30px; height: 30px; background: var(--accent2); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 13px; color: #fff; }
+.header-title { font-family: var(--display); font-weight: 700; font-size: 14px; color: #fff; }
+.header-sub { font-size: 10px; color: #8a9ab5; font-family: var(--mono); }
+.sync-info { font-family: var(--mono); font-size: 10px; color: #8a9ab5; text-align: right; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; margin-right: 4px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: 6px; font-family: var(--body); font-size: 11px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+.btn-sync { background: var(--accent2); color: #fff; }
+.btn-sync:hover { background: #c42e0a; }
+.btn-sync:disabled { background: #555; cursor: not-allowed; }
+.btn-outline { background: #fff; color: var(--ink); border: 1px solid #444; color: #ccc; font-size: 11px; }
+.btn-outline:hover { background: #1a2030; }
+
+/* MONTH TABS */
+.month-tabs { background: var(--ink); border-bottom: 1px solid #1e2640; padding: 0 28px; display: flex; gap: 2px; overflow-x: auto; }
+.month-tab { padding: 10px 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.8px; color: #6b7a99; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; user-select: none; }
+.month-tab:hover { color: #c8d3e8; }
+.month-tab.active { color: #fff; border-bottom-color: var(--accent2); }
+.month-tab.has-data { color: #8a9ab5; }
+.month-tab.active.has-data { color: #fff; }
+.month-tab .mtag { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #4ade80; margin-left: 4px; vertical-align: middle; }
+.month-tab.budget-only .mtag { background: #6b7a99; }
+
+/* LAYOUT */
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 96px); }
+.sidebar { background: var(--ink); padding: 16px 0; position: sticky; top: 96px; height: calc(100vh - 96px); overflow-y: auto; }
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: #2a3350; border-radius: 2px; }
+.sidebar-section { padding: 8px 16px 3px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: #3d4f70; text-transform: uppercase; }
+.sidebar-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 18px; cursor: pointer; border-left: 3px solid transparent; transition: background .1s; }
+.sidebar-item:hover { background: #111827; }
+.sidebar-item.active { background: #0f172a; border-left-color: var(--accent2); }
+.merch-name { font-size: 11px; color: #c8d3e8; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 155px; }
+.sidebar-item.active .merch-name { color: #fff; }
+.badge { font-family: var(--mono); font-size: 9px; padding: 2px 5px; border-radius: 3px; min-width: 26px; text-align: center; font-weight: 500; flex-shrink: 0; }
+.bg { background: #14532d; color: #4ade80; }
+.ba { background: #451a03; color: #fb923c; }
+.br { background: #3f0808; color: #f87171; }
+.bx { background: #1e2640; color: #6b7a99; }
+
+/* TOPBAR */
+.topbar { background: var(--cream); border-bottom: 1px solid var(--border); padding: 12px 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+.search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); opacity: .4; }
+input[type=text], select { width: 100%; padding: 7px 9px 7px 30px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--body); font-size: 11px; background: #fff; color: var(--ink); outline: none; }
+select { padding-left: 9px; cursor: pointer; }
+input[type=text]:focus, select:focus { border-color: var(--accent); }
+.filter-label { font-size: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+
+/* STATS */
+.stats-bar { padding: 10px 22px 0; background: var(--paper); }
+.stats-strip { display: flex; gap: 1px; background: var(--border); border-radius: 7px; overflow: hidden; border: 1px solid var(--border); display: inline-flex; }
+.stat-chip { background: #fff; padding: 6px 14px; text-align: center; min-width: 90px; }
+.stat-chip .val { font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--ink); line-height: 1; }
+.stat-chip .lbl { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-top: 2px; }
+.stat-chip.green .val { color: var(--green); }
+.stat-chip.amber .val { color: var(--amber); }
+
+/* CONTENT */
+.content { overflow: auto; padding: 16px 22px 40px; background: var(--paper); }
+.view-title { font-family: var(--display); font-weight: 800; font-size: 20px; color: var(--ink); margin-bottom: 2px; }
+.view-sub { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead { background: var(--ink); position: sticky; top: 0; z-index: 5; }
+thead th { padding: 10px 11px; text-align: left; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: #8a9ab5; text-transform: uppercase; white-space: nowrap; cursor: pointer; user-select: none; }
+thead th:hover { color: #fff; }
+thead th.sort-asc::after { content: ' ↑'; }
+thead th.sort-desc::after { content: ' ↓'; }
+tbody tr { border-bottom: 1px solid #f0ece4; transition: background .1s; }
+tbody tr:hover { background: #faf8f5; }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 9px 11px; vertical-align: middle; }
+.td-id { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.td-name { font-weight: 500; color: var(--ink); max-width: 220px; }
+.td-merch { color: var(--accent); font-weight: 500; white-space: nowrap; }
+.td-num { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.td-actual { font-weight: 600; }
+.td-comm { color: var(--green); font-weight: 600; }
+
+.pct-bar-wrap { display: flex; align-items: center; gap: 7px; min-width: 110px; }
+.pct-bar { flex: 1; height: 5px; background: #ede9e0; border-radius: 3px; overflow: hidden; }
+.pct-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+.fill-green { background: var(--green); }
+.fill-amber { background: var(--amber); }
+.fill-red { background: #e03a2f; }
+.pct-text { font-family: var(--mono); font-size: 10px; font-weight: 500; min-width: 38px; text-align: right; }
+
+.pill { display: inline-block; padding: 2px 7px; border-radius: 20px; font-family: var(--mono); font-size: 8px; font-weight: 500; white-space: nowrap; }
+.pill-green { background: #d1fae5; color: #065f46; }
+.pill-amber { background: #fef3c7; color: #92400e; }
+.pill-red { background: #fee2e2; color: #991b1b; }
+.pill-grey { background: #f1f0ee; color: #666; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(10,15,30,.7); z-index: 500; display: none; place-items: center; }
+.modal-overlay.open { display: grid; }
+.modal { background: #fff; border-radius: 12px; padding: 26px 30px; width: 500px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.modal-title { font-family: var(--display); font-weight: 800; font-size: 19px; margin-bottom: 4px; }
+.modal-sub { font-size: 11px; color: var(--muted); margin-bottom: 18px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.field input { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 11px; outline: none; }
+.field input:focus { border-color: var(--accent); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.info-box { background: #f0f4ff; border: 1px solid #c7d4f5; border-radius: 6px; padding: 9px 13px; font-size: 10px; color: #1a3a8f; margin-bottom: 14px; line-height: 1.5; }
+.modal-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; }
+.modal-btn-primary { background: var(--accent); color: #fff; }
+.modal-btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--border); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 22px; right: 22px; background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 8px; font-size: 12px; font-weight: 500; box-shadow: 0 8px 30px rgba(0,0,0,.3); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all .3s; max-width: 340px; border-left: 4px solid var(--accent2); }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-left-color: #4ade80; }
+.toast.error { border-left-color: #f87171; }
+
+.spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.loading-center { text-align: center; padding: 80px; color: var(--muted); }
+
+.source-tag { font-size: 8px; font-family: var(--mono); padding: 1px 4px; border-radius: 3px; background: #e8f0fe; color: #1a3a8f; }
+.source-tag.real { background: #d1fae5; color: #065f46; }
+
+@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <div class="logo">DFL</div>
+    <div>
+      <div class="header-title">DFL Importers — Merchandiser Dashboard</div>
+      <div class="header-sub">2026 FULL YEAR · COMMISSION TRACKER</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="sync-info">
+      <span class="dot"></span><span id="syncStatusText">Live · Supabase</span><br>
+      <span id="lastSyncTime">Auto-refreshes daily 6am</span>
+    </div>
+    <button class="btn btn-outline" onclick="openModal()">⚙ Acumatica</button>
+    <button class="btn btn-sync" id="refreshBtn" onclick="refreshFromDB()" title="Pull latest actuals from invoiced_items in Supabase">
+      <span id="refreshIcon">↻</span> Refresh Actuals
+    </button>
+    <button class="btn btn-outline" id="uploadBtn" onclick="runSync()" title="Upload a CSV file of actuals">
+      ⬆ Upload CSV
+    </button>
+  </div>
+</header>
+
+<!-- MONTH TABS -->
+<div class="month-tabs" id="monthTabs">
+  <div class="month-tab" data-m="202601" onclick="switchMonth('202601',this)">JAN <span class="mtag"></span></div>
+  <div class="month-tab" data-m="202602" onclick="switchMonth('202602',this)">FEB <span class="mtag"></span></div>
+  <div class="month-tab" data-m="202603" onclick="switchMonth('202603',this)">MAR <span class="mtag"></span></div>
+  <div class="month-tab active" data-m="202604" onclick="switchMonth('202604',this)">APR <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202605" onclick="switchMonth('202605',this)">MAY <span class="mtag budget-only"></span></div>
+  <div class="month-tab budget-only" data-m="202606" onclick="switchMonth('202606',this)">JUN <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202607" onclick="switchMonth('202607',this)">JUL <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202608" onclick="switchMonth('202608',this)">AUG <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202609" onclick="switchMonth('202609',this)">SEP <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202610" onclick="switchMonth('202610',this)">OCT <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202611" onclick="switchMonth('202611',this)">NOV <span class="mtag"></span></div>
+  <div class="month-tab budget-only" data-m="202612" onclick="switchMonth('202612',this)">DEC <span class="mtag"></span></div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">All Merchandisers</div>
+    <div class="sidebar-item active" onclick="selectMerch('ALL')" id="sb-ALL">
+      <span class="merch-name" style="color:#fff;font-weight:700">All Stores</span>
+      <span class="badge bx" id="badge-ALL">—</span>
+    </div>
+    <div class="sidebar-section" style="margin-top:6px">By Rep</div>
+    <div id="sidebarList"></div>
+  </aside>
+
+  <div style="display:flex;flex-direction:column;min-height:0;">
+    <div class="topbar">
+      <div class="search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Search stores…" oninput="applyFilters()">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="filter-label">Status</span>
+        <select id="statusFilter" onchange="applyFilters()" style="width:130px;padding-left:9px">
+          <option value="">All stores</option>
+          <option value="100">✅ 100%+</option>
+          <option value="80">🟡 80–99%</option>
+          <option value="below">❌ Below 80%</option>
+          <option value="nodata">⬜ No actuals</option>
+        </select>
+      </div>
+      <button onclick="exportCSV()" class="btn btn-outline" style="border-color:var(--border);color:var(--ink);background:#fff;font-size:11px" title="Export current view">⬇ CSV</button>
+      <button onclick="loadData()" class="btn btn-outline" style="border-color:var(--border);color:var(--ink);background:#fff;font-size:11px" title="Reload table data from Supabase">⟳ Reload</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stats-strip">
+        <div class="stat-chip"><div class="val" id="s-stores">—</div><div class="lbl">Stores</div></div>
+        <div class="stat-chip"><div class="val" id="s-target">—</div><div class="lbl">Target</div></div>
+        <div class="stat-chip"><div class="val" id="s-actual">—</div><div class="lbl">Actual</div></div>
+        <div class="stat-chip"><div class="val" id="s-pct">—</div><div class="lbl">Achievement</div></div>
+        <div class="stat-chip green"><div class="val" id="s-comm">—</div><div class="lbl">Commission</div></div>
+        <div class="stat-chip amber"><div class="val" id="s-qual">—</div><div class="lbl">≥80% Stores</div></div>
+      </div>
+      <div id="monthLabel" style="display:inline-block;margin-left:12px;font-family:var(--mono);font-size:10px;color:var(--muted);vertical-align:middle"></div>
+    </div>
+
+    <div class="content" id="mainContent">
+      <div class="loading-center"><div class="spinner" style="width:24px;height:24px;border-color:var(--border);border-top-color:var(--accent);margin:0 auto 12px"></div><p>Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD ACTUALS MODAL -->
+<div class="modal-overlay" id="acu-modal">
+  <div class="modal" style="width:600px;max-height:92vh;overflow-y:auto">
+    <div class="modal-title">Upload Actuals → Supabase</div>
+    <div class="modal-sub" id="upload-period-label" style="font-size:13px;font-weight:600;color:var(--accent)"></div>
+    <input type="hidden" id="upload-period">
+
+    <!-- STEP 1: FILE -->
+    <div id="step1">
+      <div class="info-box" style="margin:10px 0 14px">
+        📋 Export your monthly sales from Acumatica as a CSV, then upload it here. You'll pick which columns to use in the next step.
+      </div>
+      <div class="field">
+        <label>Step 1 — Upload your CSV file</label>
+        <input type="file" id="csv-file" accept=".csv,.txt,.tsv,.xls,.xlsx" onchange="handleCSV(event)"
+          style="padding:10px;font-size:11px;border:2px dashed var(--border);border-radius:8px;width:100%;background:#fafafa;cursor:pointer">
+      </div>
+      <div style="text-align:center;font-size:10px;color:var(--muted);margin:4px 0 10px">— or paste rows directly —</div>
+      <div class="field">
+        <label>Paste CSV / tab-delimited data</label>
+        <textarea id="csv-paste" rows="5" oninput="handlePaste(event)"
+          style="width:100%;padding:8px;font-family:var(--mono);font-size:10px;border:1px solid var(--border);border-radius:6px;resize:vertical;outline:none"
+          placeholder="CustomerNumber,CustomerName,NetSales&#10;C000001234,168 SUPERMARKET,1250000&#10;C000005678,MEGAMART,890000"></textarea>
+      </div>
+      <div id="parse-status" style="font-size:11px;color:var(--red);min-height:16px;margin-bottom:8px"></div>
+    </div>
+
+    <!-- STEP 2: COLUMN PICKER -->
+    <div id="step2" style="display:none">
+      <div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:10px">Step 2 — Pick the right columns</div>
+      <div style="background:#f5f8ff;border:1px solid #d0daf5;border-radius:8px;padding:12px;margin-bottom:12px;font-size:11px;color:#444;line-height:1.6">
+        <strong>Headers found in your file:</strong><br>
+        <span id="found-headers" style="font-family:var(--mono);color:var(--accent)"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="field" style="margin:0">
+          <label>Customer ID column</label>
+          <select id="col-cid" style="padding-left:9px;width:100%" onchange="repreview()"></select>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">Should contain codes like C000001234</div>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Sales Amount column</label>
+          <select id="col-amt" style="padding-left:9px;width:100%" onchange="repreview()"></select>
+          <div style="font-size:9px;color:var(--muted);margin-top:3px">Total invoiced / net sales amount</div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Customer ID format</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer"><input type="radio" name="cid-fmt" value="as-is" checked onchange="repreview()"> Use as-is (already C000001234)</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer"><input type="radio" name="cid-fmt" value="pad" onchange="repreview()"> Pad with zeros (1234 → C000001234)</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer"><input type="radio" name="cid-fmt" value="prefix" onchange="repreview()"> Just add C prefix (000001234 → C000001234)</label>
+        </div>
+      </div>
+      <div id="col-preview" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:#fafafa;padding:8px;font-size:10px;margin-bottom:10px"></div>
+      <div id="match-info" style="font-size:11px;margin-bottom:8px;min-height:16px"></div>
+    </div>
+
+    <div id="upload-status" style="font-size:11px;margin-bottom:8px;min-height:16px"></div>
+
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn modal-btn-primary" id="push-btn" onclick="pushActuals()" style="display:none">⬆ Push to Supabase</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA = 'https://hzagwndglwhcepsirafi.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+const HDR  = { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' };
+
+const MONTHS = { '202601':'January 2026','202602':'February 2026','202603':'March 2026','202604':'April 2026','202605':'May 2026','202606':'June 2026','202607':'July 2026','202608':'August 2026','202609':'September 2026','202610':'October 2026','202611':'November 2026','202612':'December 2026' };
+const REAL_TARGET_MONTHS = new Set(['202601','202602','202603','202604','202605']);
+
+const SHARED_STORES = {
+  'C000003331': ['Robert Clarke', 'Jermaine Whittingham']
+};
+
+// ── UPDATED MERCH_MAP ─────────────────────────────────────────────
+// Changes vs previous version:
+//   → Marsha stewart: C000002918 (Wagon Wholesale), C000005619 (Progressive Whitter Village),
+//                     C000005648 (Shoppers Fair Blue Diamond), C000005480 (Express Supermarket)
+//   → Latoya Smith:   C000001916 (Hilo Mobay), C000009185 (3 Q Supermarket),
+//                     C000005521 (Huiwen Company), C000001812 (H.TC Supermarket Mobay)
+const MERCH_MAP = {"C000005697":"Andre Creary","C000005084":"Andre Creary","C000003617":"Andre Creary","C000001908":"Andre Creary","C000003301":"Andre Creary","C000006072":"Andre Creary","C000002730":"Andre Creary","C000005797":"Andre Creary","C000004925":"Andre Creary","C000001577":"Andre Creary","C000001993":"Andre Creary","C000001490":"Andre Creary","C000001915":"Andre Creary","C000002976":"Andre Creary","C000004161":"Andre Creary","C000002802":"Andre Creary","C000006629":"Tavon Pinnock","C000001536":"Andre Creary","C000004933":"Andre Creary","C000003778":"Charles Wilson","C000001913":"Charles Wilson","C000001689":"Charles Wilson","C000004360":"Charles Wilson","C000004462":"Charles Wilson","C000004658":"Damion Crawford","C000002680":"Damion Crawford","C000002679":"Damion Crawford","C000004659":"Damion Crawford","C000005649":"Damion Crawford","C000009557":"Damion Crawford","C000001909":"Javiel Barton","C000001920":"Javiel Barton","C000002991":"Javiel Barton","C000004157":"Javiel Barton","C000005651":"Javiel Barton","C000005998":"Javiel Barton","C000002795":"Ricardo Rhooms","C000001907":"Ricardo Rhooms","C000002794":"Ricardo Rhooms","C000009549":"Ricardo Rhooms","C000005723":"Ricardo Rhooms","C000005578":"Ricardo Rhooms","C000000554":"Rushane Green","C000003042":"Rushane Green","C000000556":"Rushane Green","C000004656":"Rushane Green","C000005501":"Rushane Green","C000004075":"Rushane Green","C000005725":"Shanice Wynter","C000005618":"Shanice Wynter","C000001921":"Shanice Wynter","C000005579":"Shanice Wynter","C000004362":"Shanice Wynter","C000005818":"Shanice Wynter","C000005527":"Shanice Wynter","C000009445":"Shanice Wynter","C000002282":"Tavon Pinnock","C000000891":"Tavon Pinnock","C000001435":"Tavon Pinnock","C000001294":"Tavon Pinnock","C000006143":"Tavon Pinnock","C000001718":"Tavon Pinnock","C000003027":"Tavon Pinnock","C000000294":"Tavon Pinnock","C000000133":"Tavon Pinnock","C000005332":"Tavon Pinnock","C000005708":"Tavon Pinnock","C000003686":"Chad Wayne Reid","C000006091":"Chad Wayne Reid","C000002230":"Chad Wayne Reid","C000000512":"Chad Wayne Reid","C000001644":"Chad Wayne Reid","C000000136":"Chad Wayne Reid","C000000357":"Chad Wayne Reid","C000000454":"Chad Wayne Reid","C000001432":"Chad Wayne Reid","C000002223":"Chad Wayne Reid","C000002965":"Chad Wayne Reid","C000003666":"Chad Wayne Reid","C000005217":"Chad Wayne Reid","C000005328":"Chad Wayne Reid","C000000037":"Chad Wayne Reid","C000004971":"Chad Wayne Reid","C000000081":"Chad Wayne Reid","C000002392":"Chad Wayne Reid","C000006089":"Chad Wayne Reid","C000001656":"Chad Wayne Reid","C000002389":"Chad Wayne Reid","C000003734":"Chad Wayne Reid","C000003362":"Chad Wayne Reid","C000005411":"Christina Lindo","C000000540":"Christina Lindo","C000001889":"Christina Lindo","C000001928":"Christina Lindo","C000005599":"Christina Lindo","C000009644":"Christina Lindo","C000004487":"Christina Lindo","C000004883":"Christina Lindo","C000004997":"Christina Lindo","C000003825":"Christina Lindo","C000003920":"Christina Lindo","C000005416":"Dayna Henry","C000005544":"Dayna Henry","C000002408":"Dayna Henry","C000002409":"Dayna Henry","C000004244":"Dayna Henry","C000004455":"Dayna Henry","C000001702":"Dayna Henry","C000004178":"Dayna Henry","C000004443":"Dayna Henry","C000000757":"Dayna Henry","C000005724":"Jeneva Jarret","C000000883":"Jeneva Jarret","C000001809":"Jeneva Jarret","C000003798":"Jeneva Jarret","C000003934":"Jeneva Jarret","C000005839":"Jeneva Jarret","C000005395":"Latoya Gray","C000000754":"Latoya Gray","C000005494":"Latoya Gray","C000001901":"Latoya Gray","C000001949":"Latoya Gray","C000001929":"Latoya Gray","C000003790":"Latoya Gray","C000004241":"Latoya Gray","C000004990":"Latoya Gray","C000001923":"Marcus Cameron","C000004357":"Marcus Cameron","C000005927":"Marcus Cameron","C000004358":"Marcus Cameron","C000001826":"Marcus Cameron","C000005520":"Marcus Cameron","C000002297":"Marcus Cameron","C000005566":"Marcus Cameron","C000009846":"Marcus Cameron","C000000150":"Mark Ellis","C000000453":"Mark Ellis","C000000489":"Mark Ellis","C000000797":"Mark Ellis","C000005745":"Mark Ellis","C000001466":"Mark Ellis","C000001827":"Mark Ellis","C000002060":"Mark Ellis","C000005561":"Mark Ellis","C000004158":"Mark Ellis","C000002797":"Mark Ellis","C000002999":"Mark Ellis","C000004370":"Mark Ellis","C000004689":"Mark Ellis","C000005711":"Mark Ellis","C000003133":"Mark Ellis","C000002215":"Orlando Watkis","C000008342":"Mark Ellis","C000002213":"Mark Ellis","C000005154":"Orlando Watkis","C000005322":"Orlando Watkis","C000004351":"Orlando Watkis","C000000536":"Orlando Watkis","C000002263":"Orlando Watkis","C000000681":"Orlando Watkis","C000000154":"Orlando Watkis","C000004529":"Orlando Watkis","C000004574":"Orlando Watkis","C000005178":"Orlando Watkis","C000005291":"Orlando Watkis","C000005326":"Orlando Watkis","C000005339":"Orlando Watkis","C000002098":"Orlando Watkis","C000000017":"Orlando Watkis","C000006550":"Orlando Watkis","C000001703":"Richard Wheeler","C000000052":"Richard Wheeler","C000000329":"Richard Wheeler","C000001777":"Richard Wheeler","C000002731":"Richard Wheeler","C000003012":"Richard Wheeler","C000004895":"Richard Wheeler","C000000055":"Richard Wheeler","C000001682":"Richard Wheeler","C000005605":"Richard Wheeler","C000004210":"Richard Wheeler","C000004892":"Richard Wheeler","C000003011":"Richard Wheeler","C000000096":"Tameka Edwards","C000000529":"Tameka Edwards","C000002604":"Tameka Edwards","C000002705":"Tameka Edwards","C000004085":"Tameka Edwards","C000004140":"Tameka Edwards","C000004142":"Tameka Edwards","C000004314":"Tameka Edwards","C000003473":"Tameka Edwards","C000002896":"Ameline Brown-Price","C000006110":"Ameline Brown-Price","C000001782":"Ameline Brown-Price","C000005825":"Ameline Brown-Price","C000002298":"Ameline Brown-Price","C000000873":"Ameline Brown-Price","C000003813":"Ameline Brown-Price","C000004882":"Ameline Brown-Price","C000005238":"Carla Reid","C000004647":"Carla Reid","C000005707":"Carla Reid","C000003165":"Carla Reid","C000004527":"Carla Reid","C000002709":"Carla Reid","C000003387":"Carla Reid","C000004674":"Carla Reid","C000004657":"Dominique McCalla","C000004438":"Joel Gordon","C000002967":"Dominique McCalla","C000000297":"Dominique McCalla","C000006551":"Dominique McCalla","C000002823":"Dominique McCalla","C000004983":"Dominique McCalla","C000002491":"Dominique McCalla","C000002816":"Dominique McCalla","C000005817":"Dominique McCalla","C000005049":"Darien Watson","C000000246":"Darien Watson","C000007070":"Darien Watson","C000002343":"Darien Watson","C000005713":"Darien Watson","C000007159":"Jovian Morgan","C000001074":"Darien Watson","C000002232":"Darien Watson","C000003748":"Darien Watson","C000003331":"Robert Clarke","C000005652":"Jovian Morgan","C000005518":"Jovian Morgan","C000002974":"Jovian Morgan","C000000459":"Ricardo Davis","C000009865":"Ricardo Davis","C000003808":"Jovian Morgan","C000004633":"Jovian Morgan","C000004361":"Jovian Morgan","C000004597":"Junior Dennis","C000002523":"Junior Dennis","C000001463":"Junior Dennis","C000003282":"Junior Dennis","C000001808":"Junior Dennis","C000001304":"Junior Dennis","C000001926":"Junior Dennis","C000002939":"Junior Dennis","C000001741":"Junior Dennis","C000004627":"Junior Dennis","C000003374":"Oshine Cunningham","C000002661":"Oshine Cunningham","C000003880":"Oshine Cunningham","C000005934":"Oshine Cunningham","C000001611":"Oshine Cunningham","C000003401":"Oshine Cunningham","C000008829":"Oshine Cunningham","C000006463":"Oshine Cunningham","C000006543":"Oshine Cunningham","C000006039":"Oshine Cunningham","C000005876":"Oshine Cunningham","C000008766":"Joel Gordon","C000005490":"Joel Gordon","C000001972":"Joel Gordon","C000004565":"Joel Gordon","C000000121":"Joel Gordon","C000000119":"Joel Gordon","C000004644":"Joel Gordon","C000006329":"Joel Gordon","C000005848":"Joel Gordon","C000004369":"Joel Gordon","C000005338":"Joel Gordon","C000003774":"Rayon Smith","C000005696":"Rayon Smith","C000004373":"Rayon Smith","C000001927":"Rayon Smith","C000002327":"Rayon Smith","C000005437":"Rayon Smith","C000004474":"Rayon Smith","C000002454":"Rayon Smith","C000003299":"Rayon Smith","C000000172":"Rayon Smith","C000001049":"Rayon Smith","C000003024":"Rayon Smith","C000005227":"Rayon Smith","C000004794":"Ravaughn Willocks","C000000465":"Ravaughn Willocks","C000002972":"Ravaughn Willocks","C000005523":"Ravaughn Willocks","C000005449":"Ravaughn Willocks","C000000419":"Ravaughn Willocks","C000004992":"Ravaughn Willocks","C000000560":"Ravaughn Willocks","C000005546":"Ravaughn Willocks","C000005378":"Ravaughn Willocks","C000000838":"Ravaughn Willocks","C000004599":"Ravaughn Willocks","C000005314":"Ravaughn Willocks","C000005737":"Ravaughn Willocks","C000001627":"Ricardo Davis","C000003043":"Ricardo Davis","C000002735":"Ricardo Davis","C000002074":"Ricardo Davis","C000003501":"Jovian Morgan","C000002073":"Ricardo Davis","C000001732":"Ricardo Davis","C000000243":"Abina Clarke","C000000441":"Abina Clarke","C000003535":"Abina Clarke","C000001810":"Abina Clarke","C000000239":"Abina Clarke","C000003373":"Abina Clarke","C000002233":"Abina Clarke","C000004625":"Abina Clarke","C000002694":"Abina Clarke","C000000723":"Abina Clarke","C000000758":"Chris Eccleston","C000004805":"Chris Eccleston","C000003563":"Chris Eccleston","C000001528":"Chris Eccleston","C000002593":"Chris Eccleston","C000002686":"Chris Eccleston","C000006973":"Chris Eccleston","C000002255":"Chris Eccleston","C000001663":"Chris Eccleston","C000002877":"Chris Eccleston","C000004672":"Chris Eccleston","C000005300":"Dashann Green","C000002685":"Dashann Green","C000007252":"Dashann Green","C000005509":"Latoya Smith","C000006644":"Dashann Green","C000006228":"Dashann Green","C000006231":"Dashann Green","C000005884":"Dashann Green","C000008690":"Dashann Green","C000002000":"Dashann Green","C000000569":"Dashann Green","C000000769":"Dashann Green","C000004442":"Dashann Green","C000007350":"Dashann Green","C000000803":"Delroy Tracey","C000004278":"Delroy Tracey","C000001532":"Delroy Tracey","C000004785":"Delroy Tracey","C000001581":"Delroy Tracey","C000009378":"Delroy Tracey","C000007391":"Delroy Tracey","C000005995":"Delroy Tracey","C000002053":"Delroy Tracey","C000004594":"Delroy Tracey","C000009289":"Delroy Tracey","C000009244":"Delroy Tracey","C000003381":"Fabian Williams","C000007003":"Fabian Williams","C000004664":"Fabian Williams","C000000045":"Fabian Williams","C000005313":"Fabian Williams","C000003064":"Fabian Williams","C000004401":"Fabian Williams","C000000546":"Fabian Williams","C000005461":"Fabian Williams","C000003751":"Fabian Williams","C000007145":"Jason Anderson","C000002734":"Jason Anderson","C000000438":"Jason Anderson","C000001888":"Jason Anderson","C000004208":"Jason Anderson","C000003306":"Jason Anderson","C000004488":"Jason Anderson","C000000186":"Jason Anderson","C000005035":"Jason Anderson","C000002727":"Jason Anderson","C000003385":"Jason Anderson","C000004605":"Jason Anderson","C000005617":"Kemar Doeman","C000001911":"Kemar Doeman","C000001816":"Kemar Doeman","C000005156":"Kemar Doeman","C000003737":"Kemar Doeman","C000001995":"Kemar Doeman","C000003814":"Kemar Doeman","C000000305":"Kemar Doeman","C000000522":"Kemar Doeman","C000000442":"Kemar Doeman","C000005376":"Kemar Doeman",
+"C000005619":"Marsha stewart","C000005648":"Marsha stewart","C000005185":"Latoya Smith","C000002918":"Marsha stewart","C000005480":"Marsha stewart","C000004380":"Latoya Smith","C000002294":"Latoya Smith","C000002609":"Latoya Smith","C000003411":"Latoya Smith","C000008531":"Latoya Smith","C000001812":"Latoya Smith","C000004558":"Marsha stewart","C000001516":"Marsha stewart","C000004566":"Marsha stewart","C000005008":"Marsha stewart","C000005521":"Latoya Smith","C000001916":"Latoya Smith","C000001515":"Marsha stewart","C000003379":"Marsha stewart","C000005690":"Marsha stewart","C000002839":"Marsha stewart","C000002240":"Latoya Smith","C000005669":"Marsha stewart","C000007455":"Marsha stewart","C000003967":"Marsha stewart","C000002338":"Marsha stewart","C000009185":"Latoya Smith",
+"C000005654":"Oniel carby","C000003824":"Oniel carby","C000002632":"Oniel carby","C000004371":"Oniel carby","C000008044":"Kemar Doeman","C000005380":"Oniel carby","C000000836":"Roxanne Taylor","C000001951":"Roxanne Taylor","C000001739":"Roxanne Taylor","C000001906":"Roxanne Taylor","C000001621":"Roxanne Taylor","C000004413":"Roxanne Taylor","C000007016":"Roxanne Taylor","C000001284":"Roxanne Taylor","C000001788":"Roxanne Taylor","C000004995":"Roxanne Taylor","C000005186":"Roxanne Taylor","C000007525":"Roxanne Taylor","C000007678":"Roxanne Taylor","C000000440":"Roxanne Taylor","C000000942":"Susan Blair","C000003109":"Susan Blair","C000001815":"Susan Blair","C000002345":"Susan Blair","C000000768":"Akeam McDonald","C000000799":"Akeam McDonald","C000001008":"Akeam McDonald","C000001953":"Akeam McDonald","C000004416":"Akeam McDonald","C000004491":"Akeam McDonald","C000008864":"Akeam McDonald","C000009428":"Alister Forbes","C000005467":"Alister Forbes","C000002778":"Alister Forbes","C000003382":"Alister Forbes","C000003938":"Alister Forbes","C000005640":"Alister Forbes","C000004874":"Alister Forbes","C000001221":"Andrea Jamieson","C000002070":"Andrea Jamieson","C000004427":"Andrea Jamieson","C000005671":"Andrea Jamieson","C000004774":"Andrea Jamieson","C000005897":"Andrea Jamieson","C000006726":"Coliesha Smith","C000000348":"Coliesha Smith","C000005442":"Coliesha Smith","C000002011":"Coliesha Smith","C000002466":"Coliesha Smith","C000004317":"Coliesha Smith","C000005259":"Coliesha Smith","C000000446":"Coliesha Smith","C000000835":"Dwayne Granston","C000002059":"Dwayne Granston","C000000344":"Dwayne Granston","C000002865":"Dwayne Granston","C000003394":"Dwayne Granston","C000001899":"Dwayne Granston","C000004147":"Dwayne Granston","C000006952":"Dwayne Granston","C000005672":"Dwayne Granston","C000000443":"Felecia Ebanks","C000000760":"Felecia Ebanks","C000005455":"Felecia Ebanks","C000003137":"Felecia Ebanks","C000005653":"Felecia Ebanks","C000000456":"Georgia Lloyd","C000001539":"Georgia Lloyd","C000001742":"Georgia Lloyd","C000003026":"Georgia Lloyd","C000004635":"Georgia Lloyd","C000005458":"Jomo Thompson","C000001727":"Jomo Thompson","C000006029":"Jomo Thompson","C000007144":"Jomo Thompson","C000005597":"Jomo Thompson","C000003819":"Jomo Thompson","C000003902":"Jomo Thompson","C000005074":"Jomo Thompson","C000005356":"Jomo Thompson","C000000036":"Junior Chin","C000000206":"Junior Chin","C000005409":"Junior Chin","C000000000":"Junior Chin","C000002990":"Junior Chin","C000003134":"Junior Chin","C000003175":"Junior Chin","C000003786":"Junior Chin","C000003787":"Junior Chin","C000007129":"Junior Chin","C000001509":"Keisha Dennis","C000002033":"Keisha Dennis","C000005548":"Keisha Dennis","C000002707":"Keisha Dennis","C000007394":"Keisha Dennis","C000000434":"Melissa Ebanks","C000001080":"Melissa Ebanks","C000001453":"Melissa Ebanks","C000001989":"Melissa Ebanks","C000002537":"Melissa Ebanks","C000002726":"Melissa Ebanks","C000004359":"Melissa Ebanks","C000004459":"Melissa Ebanks","C000005663":"Melissa Ebanks","C000007180":"Melissa Ebanks","C000005286":"Melissa Ebanks","C000006635":"Prince Wanlis","C000000190":"Prince Wanlis","C000005465":"Prince Wanlis","C000001604":"Prince Wanlis","C000002035":"Prince Wanlis","C000005536":"Prince Wanlis","C000003171":"Prince Wanlis","C000003395":"Prince Wanlis","C000005611":"Prince Wanlis","C000004073":"Prince Wanlis","C000000267":"Sadiek Murphy","C000002034":"Sadiek Murphy","C000004125":"Sadiek Murphy","C000004812":"Sadiek Murphy","C000000420":"Shanique Salmon","C000007120":"Shanique Salmon","C000005885":"Shanique Salmon","C000000944":"Shanique Salmon","C000001237":"Shanique Salmon","C000001575":"Shanique Salmon","C000001811":"Shanique Salmon","C000001954":"Shanique Salmon","C000002085":"Shanique Salmon","C000003460":"Shanique Salmon","C000002601":"Trecia Harley","C000002706":"Trecia Harley","C000002779":"Trecia Harley","C000002821":"Dominique McCalla","C000003398":"Trecia Harley","C000004017":"Trecia Harley","C000004393":"Trecia Harley","C000005694":"Trecia Harley","C000005714":"Trecia Harley","C000002010":"Coliesha Smith","C000008470":"Kemar Doeman","C000006599":"Marsha stewart"};
+
+let storeRows=[], filteredRows=[], selectedMerch='ALL', currentPeriod='202604';
+let sortCol=null, sortDir=1;
+
+const fmt = n => !n||n==0?'—':'$'+Math.round(n).toLocaleString();
+const fmtM = n => !n?'—': n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'K':'$'+Math.round(n);
+const fmtPct = p => !p?'—':(p*100).toFixed(1)+'%';
+const fmtComm = n => !n||n===0?'—':'$'+(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const statusOf = pct => !pct||pct===0?'nodata':pct>=1?'100':pct>=0.8?'80':'below';
+
+async function supa(path){
+  const headers = Object.assign({}, HDR, {'Range': '0-9999', 'Range-Unit': 'items', 'Prefer': 'count=none'});
+  const r = await fetch(`${SUPA}/rest/v1/${path}`,{headers});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadData(){
+  document.getElementById('mainContent').innerHTML = '<div class="loading-center"><div class="spinner" style="width:22px;height:22px;border-color:var(--border);border-top-color:var(--accent);margin:0 auto 12px"></div><p>Loading '+MONTHS[currentPeriod]+'...</p></div>';
+  try {
+    // Build customer ID filter from MERCH_MAP — only fetch names we actually need
+    const merchIds = [...new Set(Object.keys(MERCH_MAP))];
+    const idFilter = merchIds.map(id => `"${id}"`).join(',');
+
+    const [raw, summaries, nameRows] = await Promise.all([
+      supa(`full_year_dashboard?period=eq.${currentPeriod}&select=customer_id,customer_name,target_amount,actual_amount,target_source&customer_id=in.(${Object.keys(MERCH_MAP).join(',')})&order=customer_name&limit=1000`),
+      supa(`merchandiser_summary?period=eq.${currentPeriod}&select=merchandiser_name,store_count,stores_with_target,stores_qualified,stores_100,total_target,total_actual,achievement_pct,commission&order=merchandiser_name`),
+      supa(`customers?select=customer_id,customer_name&customer_id=in.(${idFilter})&limit=1000`)
+    ]);
+    // Build name lookup from customers table — covers all stores regardless of sales activity
+    const nameLookup = {};
+    (nameRows||[]).forEach(n => { if(n.customer_name) nameLookup[n.customer_id] = n.customer_name; });
+    processRows(raw, nameLookup);
+    buildSidebar(summaries);
+    applyFilters();
+    document.getElementById('lastSyncTime').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch(e){
+    document.getElementById('mainContent').innerHTML = '<div class="empty"><p style="color:var(--red)">Load failed: ' + e.message + '</p></div>';
+    toast('Connection error','error');
+  }
+}
+
+function processRows(raw, nameLookup={}){
+  const byId = {};
+  raw.forEach(r => { byId[r.customer_id] = r; });
+
+  const rows = [];
+
+  // Always iterate MERCH_MAP as source of truth — DB result is just data lookup
+  Object.entries(MERCH_MAP).forEach(([cid, merch]) => {
+    if(SHARED_STORES[cid]) return;
+    const r = byId[cid] || {};
+    const target = parseFloat(r.target_amount)||0;
+    const actual = parseFloat(r.actual_amount)||0;
+    const pct = target>0 ? actual/target : 0;
+    const commission = pct>=0.8 ? actual*0.0025 : 0;
+    // Name priority: DB result → customers table lookup → customer ID
+    const name = (r.customer_name && r.customer_name !== cid ? r.customer_name : null)
+               || nameLookup[cid]
+               || cid;
+    rows.push({
+      customer_id: cid,
+      customer_name: name,
+      merchandiser: merch,
+      target, actual, pct, commission,
+      status: statusOf(pct),
+      isReal: REAL_TARGET_MONTHS.has(currentPeriod),
+      shared: false
+    });
+  });
+
+  Object.entries(SHARED_STORES).forEach(([cid, merches]) => {
+    const r = byId[cid] || {};
+    const target = parseFloat(r.target_amount)||0;
+    const actual = parseFloat(r.actual_amount)||0;
+    const pct = target>0 ? actual/target : 0;
+    merches.forEach(merch => {
+      const commission = pct>=0.8 ? actual*0.0025*0.5 : 0;
+      rows.push({
+        customer_id: cid,
+        customer_name: r.customer_name || nameLookup[cid] || cid,
+        merchandiser: merch,
+        target: target*0.5,
+        actual: actual*0.5,
+        pct, commission,
+        status: statusOf(pct),
+        isReal: REAL_TARGET_MONTHS.has(currentPeriod),
+        shared: true
+      });
+    });
+  });
+
+  storeRows = rows;
+}
+
+function buildSidebar(summaries){
+  const list = document.getElementById('sidebarList');
+  const byMerch = {};
+  (summaries || []).forEach(s => { byMerch[s.merchandiser_name] = s; });
+
+  const allT = storeRows.reduce((s,r)=>s+r.target,0);
+  const allA = storeRows.reduce((s,r)=>s+r.actual,0);
+  const allP = allT>0?allA/allT:0;
+  const allHas = storeRows.some(r=>r.actual>0);
+  const allBadge = document.getElementById('badge-ALL');
+  allBadge.textContent = allHas?fmtPct(allP):storeRows.length+' stores';
+  allBadge.className = 'badge '+(allHas?(allP>=1?'bg':allP>=0.8?'ba':'br'):'bx');
+
+  // Always union DB summary names + MERCH_MAP names so new reps (not yet in DB view) still appear
+  const dbNames = (summaries || []).map(s => s.merchandiser_name);
+  const mapNames = [...new Set(Object.values(MERCH_MAP))];
+  // Exclude Chameka Anderson — route transferred to Dominique McCalla
+  const merches = [...new Set([...dbNames, ...mapNames])].filter(m => m !== 'Chameka Anderson').sort();
+
+  list.innerHTML = merches.map(m => {
+    const s = byMerch[m];
+    // For reps not yet in DB summary, calculate live from storeRows
+    const mapRows = storeRows.filter(r => r.merchandiser === m);
+    const mapCount = mapRows.length;
+    const mapActual = mapRows.reduce((acc,r) => acc + r.actual, 0);
+    const mapTarget = mapRows.reduce((acc,r) => acc + r.target, 0);
+    const mapPct = mapTarget > 0 ? mapActual / mapTarget : 0;
+    const mapComm = mapRows.reduce((acc,r) => acc + r.commission, 0);
+    const mapQual = mapRows.filter(r => r.pct >= 0.8 && r.actual > 0).length;
+
+    const pct = s ? parseFloat(s.achievement_pct)/100 : mapPct;
+    const hasActuals = s ? parseFloat(s.total_actual) > 0 : mapActual > 0;
+    const count = s ? s.store_count : mapCount;
+    const qualified = s ? s.stores_qualified : mapQual;
+    const commission = s ? parseFloat(s.commission) : mapComm;
+    const cls = hasActuals?(pct>=1?'bg':pct>=0.8?'ba':'br'):'bx';
+    const txt = hasActuals ? fmtPct(pct) : count+' stores';
+    const sid = 'sb-'+m.replace(/[^a-zA-Z0-9]/g,'_');
+    const tip = hasActuals ? qualified+'/'+count+' qualified | Comm: '+fmtComm(commission) : count+' stores';
+    return '<div class="sidebar-item'+(selectedMerch===m?' active':'')+'" onclick="selectMerch(\'' + m.replace(/'/g, "\\'") + '\')" id="' + sid + '" title="' + tip + '">'
+      + '<span class="merch-name">'+m+'</span>'
+      + '<span class="badge '+cls+'">'+txt+'</span>'
+      + '</div>';
+  }).join('');
+}
+
+function selectMerch(name){
+  selectedMerch=name;
+  document.querySelectorAll('.sidebar-item').forEach(e=>e.classList.remove('active'));
+  const id=name==='ALL'?'sb-ALL':'sb-'+name.replace(/[^a-zA-Z0-9]/g,'_');
+  document.getElementById(id)?.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const sf=document.getElementById('statusFilter').value;
+  filteredRows = storeRows.filter(r=>{
+    if(selectedMerch!=='ALL'&&r.merchandiser!==selectedMerch) return false;
+    if(q&&!r.customer_name.toLowerCase().includes(q)&&!r.customer_id.includes(q)&&!r.merchandiser.toLowerCase().includes(q)) return false;
+    if(sf&&r.status!==sf) return false;
+    return true;
+  });
+  if(sortCol) filteredRows.sort((a,b)=>typeof a[sortCol]==='string'?a[sortCol].localeCompare(b[sortCol])*sortDir:(a[sortCol]-b[sortCol])*sortDir);
+  updateStats();
+  renderTable();
+}
+
+function updateStats(){
+  const rows=filteredRows;
+  const tt=rows.reduce((s,r)=>s+r.target,0);
+  const ta=rows.reduce((s,r)=>s+r.actual,0);
+  const pct=tt>0?ta/tt:0;
+  const comm=rows.reduce((s,r)=>s+r.commission,0);
+  const qual=rows.filter(r=>r.pct>=0.8&&r.actual>0).length;
+  document.getElementById('s-stores').textContent=rows.length;
+  document.getElementById('s-target').textContent=fmtM(tt);
+  document.getElementById('s-actual').textContent=ta>0?fmtM(ta):'—';
+  document.getElementById('s-pct').textContent=ta>0?fmtPct(pct):'—';
+  document.getElementById('s-comm').textContent=comm>0?fmtComm(comm):'—';
+  document.getElementById('s-qual').textContent=qual+' / '+rows.length;
+  const isReal = REAL_TARGET_MONTHS.has(currentPeriod);
+  document.getElementById('monthLabel').textContent = MONTHS[currentPeriod] + (isReal?' · Real Targets':'· Budget Targets');
+}
+
+function pctBar(pct){
+  if(!pct) return `<div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill fill-red" style="width:0"></div></div><span class="pct-text" style="color:var(--muted)">—</span></div>`;
+  const w=Math.min(pct*100,100);
+  const cls=pct>=1?'fill-green':pct>=0.8?'fill-amber':'fill-red';
+  const col=pct>=1?'var(--green)':pct>=0.8?'var(--amber)':'var(--red)';
+  return `<div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill ${cls}" style="width:${w}%"></div></div><span class="pct-text" style="color:${col}">${fmtPct(pct)}</span></div>`;
+}
+function pillFor(pct){
+  const s=statusOf(pct);
+  if(s==='100') return '<span class="pill pill-green">✅ 100%+</span>';
+  if(s==='80')  return '<span class="pill pill-amber">🟡 80–99%</span>';
+  if(s==='nodata') return '<span class="pill pill-grey">No data</span>';
+  return '<span class="pill pill-red">❌ Below 80%</span>';
+}
+
+function renderTable(){
+  const c=document.getElementById('mainContent');
+  if(!filteredRows.length){c.innerHTML='<div class="empty"><p>No stores match the filters.</p></div>';return;}
+  const showMerch = selectedMerch==='ALL';
+  const isReal = REAL_TARGET_MONTHS.has(currentPeriod);
+  c.innerHTML=`
+    <div class="view-title">${selectedMerch==='ALL'?'All Stores':selectedMerch}</div>
+    <div class="view-sub">${filteredRows.length} stores · ${MONTHS[currentPeriod]} · <span class="source-tag ${isReal?'real':''}">${isReal?'Real targets uploaded':'Budget targets'}</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('customer_id')" class="${sortCol==='customer_id'?'sort-'+(sortDir>0?'asc':'desc'):''}">Customer ID</th>
+            <th onclick="sortBy('customer_name')" class="${sortCol==='customer_name'?'sort-'+(sortDir>0?'asc':'desc'):''}">Store Name</th>
+            ${showMerch?`<th onclick="sortBy('merchandiser')">Merchandiser</th>`:''}
+            <th onclick="sortBy('target')" style="text-align:right">Target</th>
+            <th onclick="sortBy('actual')" style="text-align:right">Actual</th>
+            <th onclick="sortBy('pct')">Achievement</th>
+            <th onclick="sortBy('commission')" style="text-align:right">Commission</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filteredRows.map(r=>`<tr>
+            <td class="td-id">${r.customer_id}</td>
+            <td class="td-name">${r.customer_name}</td>
+            ${showMerch?`<td class="td-merch">${r.merchandiser}</td>`:''}
+            <td class="td-num">${fmt(r.target)}</td>
+            <td class="td-num td-actual">${r.actual>0?fmt(r.actual):'<span style="color:var(--muted)">—</span>'}</td>
+            <td>${pctBar(r.pct)}</td>
+            <td class="td-num td-comm">${fmtComm(r.commission)}</td>
+            <td>${pillFor(r.pct)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function sortBy(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}
+  applyFilters();
+}
+
+function switchMonth(period, el){
+  currentPeriod=period;
+  document.querySelectorAll('.month-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  selectedMerch='ALL';
+  document.querySelectorAll('.sidebar-item').forEach(e=>e.classList.remove('active'));
+  document.getElementById('sb-ALL')?.classList.add('active');
+  loadData();
+}
+
+// ── UPLOAD ACTUALS MODAL ──────────────────────────────────────────
+let parsedRows = [];
+let rawLines = [];
+let csvHeaders = [];
+
+function openModal(){
+  document.getElementById('acu-modal').classList.add('open');
+  document.getElementById('upload-period-label').textContent = MONTHS[currentPeriod];
+  document.getElementById('upload-period').value = currentPeriod;
+  document.getElementById('step1').style.display = 'block';
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('csv-file').value = '';
+  document.getElementById('csv-paste').value = '';
+  document.getElementById('parse-status').textContent = '';
+  document.getElementById('upload-status').textContent = '';
+  document.getElementById('push-btn').style.display = 'none';
+  parsedRows = []; rawLines = []; csvHeaders = [];
+}
+function closeModal(){ document.getElementById('acu-modal').classList.remove('open'); }
+
+function handleCSV(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadRawText(ev.target.result);
+  reader.readAsText(file);
+}
+function handlePaste(e){ if(e.target.value.trim()) loadRawText(e.target.value); }
+
+function loadRawText(text){
+  rawLines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if(rawLines.length < 2){
+    document.getElementById('parse-status').textContent = 'File needs at least a header row + data rows.';
+    return;
+  }
+  const firstLine = rawLines[0];
+  const delim = firstLine.includes('\t') ? '\t' : ',';
+  csvHeaders = firstLine.split(delim).map(h => h.trim().replace(/^["']|["']$/g,''));
+
+  document.getElementById('step2').style.display = 'block';
+  document.getElementById('found-headers').textContent = csvHeaders.map((h,i) => `[${i}] ${h}`).join('  ·  ');
+
+  const cidSel = document.getElementById('col-cid');
+  const amtSel = document.getElementById('col-amt');
+  cidSel.innerHTML = amtSel.innerHTML = csvHeaders.map((h,i) => `<option value="${i}">${h}</option>`).join('');
+
+  const cidGuess = csvHeaders.findIndex(h => {
+    const l = h.toLowerCase();
+    return l.includes('customer') || l === 'cust id' || l === 'custid' || l.includes('acct') || l === 'id' || l.includes('code') || l.includes('number') || l.includes('no.');
+  });
+  const amtGuess = csvHeaders.findIndex(h => {
+    const l = h.toLowerCase();
+    return l.includes('amount') || l.includes('total') || l.includes('sales') || l.includes('net') || l.includes('revenue') || l.includes('invoice') || l.includes('balance');
+  });
+  if(cidGuess >= 0) cidSel.value = cidGuess;
+  if(amtGuess >= 0) amtSel.value = amtGuess;
+
+  const firstDataCols = rawLines[1].split(delim).map(c => c.trim().replace(/^["']|["']$/g,''));
+  const sampleId = firstDataCols[cidSel.value] || '';
+  if(sampleId.toUpperCase().startsWith('C') && sampleId.length === 10){
+    document.querySelector('input[name="cid-fmt"][value="as-is"]').checked = true;
+  } else if(/^\d+$/.test(sampleId) && sampleId.length <= 6){
+    document.querySelector('input[name="cid-fmt"][value="pad"]').checked = true;
+  } else if(/^\d{9}$/.test(sampleId)){
+    document.querySelector('input[name="cid-fmt"][value="prefix"]').checked = true;
+  }
+
+  repreview();
+}
+
+function formatCID(raw){
+  const fmt = document.querySelector('input[name="cid-fmt"]:checked')?.value || 'as-is';
+  const clean = (raw || '').trim().replace(/^["']|["']$/g,'');
+  if(fmt === 'as-is') return clean;
+  if(fmt === 'pad'){
+    const num = clean.replace(/\D/g,'');
+    return 'C' + num.padStart(9,'0');
+  }
+  if(fmt === 'prefix') return 'C' + clean.replace(/^C/i,'');
+  return clean;
+}
+
+function repreview(){
+  if(!rawLines.length) return;
+  const delim = rawLines[0].includes('\t') ? '\t' : ',';
+  const cidIdx = parseInt(document.getElementById('col-cid').value);
+  const amtIdx = parseInt(document.getElementById('col-amt').value);
+
+  const totals = {};
+  for(let i = 1; i < rawLines.length; i++){
+    const cols = rawLines[i].split(delim).map(c => c.trim().replace(/^["']|["']$/g,''));
+    const rawCid = cols[cidIdx] || '';
+    const cid = formatCID(rawCid);
+    const amtStr = (cols[amtIdx] || '0').replace(/[$,\s]/g,'').replace(/\((.+)\)/, '-$1');
+    const amt = parseFloat(amtStr) || 0;
+    if(!cid) continue;
+    totals[cid] = (totals[cid] || 0) + amt;
+  }
+
+  parsedRows = Object.entries(totals).map(([cid, amt]) => ({
+    customer_id: cid,
+    customer_name: null,
+    period: document.getElementById('upload-period').value,
+    actual_amount: Math.round(amt * 100) / 100,
+    source: 'csv_upload'
+  }));
+
+  const matched = parsedRows.filter(r => MERCH_MAP[r.customer_id]).length;
+  const sample = parsedRows.slice(0, 6);
+
+  document.getElementById('col-preview').innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#eef2ff;font-family:var(--mono);font-size:9px">
+        <th style="padding:3px 8px;text-align:left">Customer ID (formatted)</th>
+        <th style="padding:3px 8px;text-align:right">Amount</th>
+        <th style="padding:3px 8px">In Dashboard?</th>
+      </tr>
+      ${sample.map(r => `<tr style="border-bottom:1px solid #eee">
+        <td style="padding:3px 8px;font-family:var(--mono);font-size:10px">${r.customer_id}</td>
+        <td style="padding:3px 8px;text-align:right;font-family:var(--mono);font-size:10px">$${r.actual_amount.toLocaleString()}</td>
+        <td style="padding:3px 8px;font-size:10px">${MERCH_MAP[r.customer_id] ? '<span style="color:var(--green)">✓ '+MERCH_MAP[r.customer_id]+'</span>' : '<span style="color:var(--red)">✗ not found</span>'}</td>
+      </tr>`).join('')}
+      ${parsedRows.length > 6 ? `<tr><td colspan="3" style="padding:3px 8px;color:var(--muted);font-size:9px">... and ${parsedRows.length - 6} more rows</td></tr>` : ''}
+    </table>`;
+
+  document.getElementById('match-info').innerHTML = matched > 0
+    ? `<span style="color:var(--green);font-weight:600">✅ ${matched} of ${parsedRows.length} customers match the dashboard stores</span>`
+    : `<span style="color:var(--red);font-weight:600">⚠ No customer IDs matched — check the ID column and format settings above</span>`;
+
+  document.getElementById('push-btn').style.display = matched > 0 ? 'inline-flex' : 'none';
+  document.getElementById('push-btn').textContent = `⬆ Push ${parsedRows.length} actuals to Supabase`;
+}
+
+function showStatus(msg, type){
+  const el = document.getElementById('upload-status');
+  el.textContent = msg;
+  el.style.color = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--muted)';
+}
+
+async function pushActuals(){
+  if(!parsedRows.length){ showStatus('No data to upload.', 'error'); return; }
+  const btn = document.getElementById('push-btn');
+  btn.disabled = true; btn.textContent = '⏳ Uploading…';
+  try {
+    for(let i = 0; i < parsedRows.length; i += 500){
+      const chunk = parsedRows.slice(i, i + 500);
+      const resp = await fetch(`${SUPA}/rest/v1/monthly_actuals`, {
+        method: 'POST',
+        headers: HDR,
+        body: JSON.stringify(chunk)
+      });
+      if(!resp.ok) throw new Error('Supabase: ' + (await resp.text()).slice(0, 200));
+    }
+    toast(`✅ Uploaded ${parsedRows.length} actuals for ${MONTHS[parsedRows[0].period]}`, 'success');
+    document.getElementById('lastSyncTime').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    closeModal();
+    loadData();
+  } catch(e){
+    showStatus('❌ ' + e.message, 'error');
+    toast('❌ Upload failed', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function refreshFromDB(){
+  const btn = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  btn.disabled = true;
+  icon.outerHTML = '<span class="spinner" id="refreshIcon"></span>';
+  try {
+    toast('Refreshing actuals from Supabase...');
+    const rpcHeaders = Object.assign({}, HDR, {'Prefer': 'resolution=merge-duplicates'});
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+    let resp;
+    try {
+      resp = await fetch(`${SUPA}/rest/v1/rpc/refresh_current_month`, {
+        method: 'POST',
+        headers: rpcHeaders,
+        body: JSON.stringify({}),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if(!resp.ok){
+      const errText = await resp.text();
+      if(errText.includes('57014') || errText.includes('timeout') || errText.includes('canceling')){
+        toast('Refresh running - reloading data...');
+        await new Promise(r => setTimeout(r, 2000));
+        await loadData();
+        document.getElementById('lastSyncTime').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+        return;
+      }
+      throw new Error(errText.slice(0, 200));
+    }
+    const result = await resp.json();
+    const period = result.period || '';
+    const msg = period ? (MONTHS[period]||period) + ': ' + result.customers + ' stores, $' + result.total_m + 'M' : 'Actuals updated';
+    toast('Refreshed! ' + msg, 'success');
+    document.getElementById('lastSyncTime').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+    await loadData();
+  } catch(e){
+    if(e.name === 'AbortError'){
+      toast('Refresh running in background - reloading...', 'success');
+      await loadData();
+    } else {
+      toast('Refresh failed: ' + e.message, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    document.getElementById('refreshIcon').outerHTML = '<span id="refreshIcon">&#8635;</span>';
+  }
+}
+
+function runSync(){ openModal(); }
+
+function exportCSV(){
+  const rows=[['Customer ID','Store Name','Merchandiser','Target','Actual','Achievement %','Commission','Status']];
+  filteredRows.forEach(r=>rows.push([r.customer_id,r.customer_name,r.merchandiser,r.target.toFixed(0),r.actual.toFixed(0),(r.pct*100).toFixed(1)+'%',r.commission.toFixed(2),r.status]));
+  const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=`DFL_${currentPeriod}_${selectedMerch==='ALL'?'AllStores':selectedMerch.replace(/\s+/g,'_')}.csv`; a.click();
+  toast('⬇ CSV exported','success');
+}
+
+function toast(msg,type=''){
+  const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',3500);
+}
+
+document.querySelectorAll('.month-tab').forEach(tab=>{
+  const m=tab.dataset.m;
+  if(REAL_TARGET_MONTHS.has(m)){
+    tab.classList.remove('budget-only');
+    const mtag=tab.querySelector('.mtag');
+    if(mtag){mtag.style.background='#4ade80';}
+    tab.title='Real targets uploaded';
+  } else {
+    tab.title='Budget targets (from budget_2026)';
+  }
+});
+
+loadData();
+</script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Management — DFL Staff Portal</title>
+<link rel="manifest" href="/app/manifest.json">
+<meta name="theme-color" content="#0f2044">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --red:#dc2626; --red-bg:#fef2f2;
+    --shadow:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -1px rgba(0,0,0,0.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* NAV */
+  nav {
+    background:var(--navy); height:56px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 32px; position:sticky; top:0; z-index:100;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a {
+    color:rgba(255,255,255,0.65); text-decoration:none;
+    font-size:13px; font-weight:500; padding:6px 14px;
+    border-radius:6px; transition:all 0.15s;
+  }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color:#fbbf24; }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+
+  /* LOGIN */
+  .login-wrap {
+    display:flex; align-items:center; justify-content:center;
+    min-height:calc(100vh - 56px);
+  }
+  .login-box {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:36px 32px;
+    width:100%; max-width:360px;
+    box-shadow:var(--shadow-md);
+  }
+  .login-icon { font-size:32px; text-align:center; margin-bottom:16px; }
+  .login-title { font-size:18px; font-weight:700; text-align:center; margin-bottom:4px; }
+  .login-sub { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:24px; }
+  .login-error {
+    background:var(--red-bg); color:var(--red);
+    font-size:12px; padding:8px 12px; border-radius:6px;
+    margin-bottom:14px; display:none;
+  }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12px; font-weight:500; margin-bottom:6px; color:var(--text-muted); }
+  .field input {
+    width:100%; padding:10px 12px; border:1px solid var(--border);
+    border-radius:7px; font-size:14px; font-family:'Inter',sans-serif;
+    outline:none; transition:border 0.15s;
+  }
+  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+  .btn-primary {
+    width:100%; padding:11px; background:var(--accent); color:#fff;
+    border:none; border-radius:7px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s;
+  }
+  .btn-primary:hover { background:#1d4ed8; }
+
+  /* MAIN PANEL */
+  .main-panel { display:none; flex-direction:column; height:calc(100vh - 56px); }
+
+  /* PAGE HEADER */
+  .page-header { background:var(--navy2); padding:24px 32px 28px; flex-shrink:0; }
+  .page-header-inner { max-width:none; }
+  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:6px; }
+  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
+  .breadcrumb a:hover { color:rgba(255,255,255,0.7); }
+  .page-header h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
+
+  /* TABS BAR */
+  .tabs-bar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 32px; display:flex; gap:0; flex-shrink:0;
+  }
+  .tab-btn {
+    padding:14px 20px; font-size:13px; font-weight:500;
+    color:var(--text-muted); border:none; background:none;
+    cursor:pointer; border-bottom:2px solid transparent;
+    margin-bottom:-1px; transition:all 0.15s;
+    font-family:'Inter',sans-serif; white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* IFRAME PANELS */
+  .panels { flex:1; overflow:hidden; }
+  .panel { display:none; width:100%; height:100%; }
+  .panel.active { display:block; }
+  .panel iframe { width:100%; height:100%; border:none; display:block; }
+
+  /* MOBILE */
+  @media (max-width: 640px) {
+    nav .nav-links { display:none; }
+    nav .nav-title { font-size:13px; }
+    .tabs-bar { padding:0 16px; overflow-x:auto; }
+    .page-header { padding:18px 16px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+  </div>
+  <div class="nav-links">
+    <a href="/app/admin/" class="mgmt">Admin</a>
+    <a href="/app/management/" class="mgmt active">Management</a>
+    <a href="/app/index.html">Home</a>
+    <a href="/app/specials.html">Specials</a>
+    <a href="/app/dashboards.html">Dashboards</a>
+    <a href="/app/forms.html">Forms</a>
+    <a href="/app/assets.html">Assets</a>
+  </div>
+</nav>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-icon">📊</div>
+    <div class="login-title">Management Area</div>
+    <div class="login-sub">Enter the password to access management tools</div>
+    <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwInput" placeholder="Enter password"
+             onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Enter</button>
+  </div>
+</div>
+
+<!-- MAIN PANEL -->
+<div class="main-panel" id="mainPanel">
+
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="breadcrumb"><a href="/app/index.html">Home</a> / Management</div>
+      <h1>Management</h1>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <!-- ============================================================
+         ADD/REMOVE TAB BUTTONS HERE AS YOU ADD MORE HTMLs
+         Copy a tab-btn line and update:
+           - onclick: showPanel('your-panel-id', this)
+           - label text
+         ============================================================ -->
+    <button class="tab-btn active" onclick="showPanel('panel-4', this)">Merchandiser Performance Dashboard</button>
+    <button class="tab-btn active" onclick="showPanel('panel-5', this)">Merchandiser Incentive Dashboard</button>
+    <button class="tab-btn active" onclick="showPanel('panel-1', this)">Category Intelligence</button>
+    <button class="tab-btn" onclick="showPanel('panel-2', this)">Key Account Dashboard</button>
+    <button class="tab-btn" onclick="showPanel('panel-3', this)">Rep Performance Dashboard</button>
+    <!-- ADD MORE TABS HERE -->
+  </div>
+
+  <div class="panels" id="panels">
+
+    <!-- ============================================================
+         REPLACE THE src="" VALUES BELOW WITH YOUR GITHUB PAGES URLS
+         Format: /app/management/your-file.html
+         OR full URL if hosted elsewhere
+         ============================================================ -->
+
+    <div class="panel active" id="panel-1">
+      <iframe src="/app/management/category-intel.html"
+              title="Category Intelligence"></iframe>
+    </div>
+
+    <div class="panel" id="panel-2">
+      <iframe src="/app/management/key-accounts.html"
+              title="Key Account Dashboard"></iframe>
+    </div>
+
+    <div class="panel" id="panel-3">
+      <iframe src="/app/management/rep-performance.html"
+              title="Rep Performance Dashboard"></iframe>
+    </div>
+
+    <div class="panel" id="panel-4">
+      <iframe src="/app/management/merch-dashboard.html"
+              title="Merchandiser Performance Dashboard"></iframe>
+    </div>
+
+    <div class="panel" id="panel-5">
+      <iframe src="/app/management/merch-incentive.html"
+              title="Merchandiser Incentive Dashboard"></iframe>
+    </div>
+
+    <!-- ADD MORE PANELS HERE — copy the block above -->
+
+  </div>
+
+</div>
+
+<script>
+  // ================================================================
+  // CHANGE THIS PASSWORD TO YOUR PREFERRED MANAGEMENT PASSWORD
+  // Keep it different from the admin password
+  // ================================================================
+  const MGMT_PASSWORD = 'dflmgmt2026';
+
+  function doLogin() {
+    const pw = document.getElementById('pwInput').value;
+    if (pw === MGMT_PASSWORD) {
+      document.getElementById('loginWrap').style.display = 'none';
+      const panel = document.getElementById('mainPanel');
+      panel.style.display = 'flex';
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  }
+
+  function showPanel(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

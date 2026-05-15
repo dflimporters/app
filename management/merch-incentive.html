@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Importers · HR Payroll & Incentive Dashboard 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0d1117; --paper: #f7f5f0; --cream: #fdfcf9;
+  --accent: #1a3a8f; --accent2: #e8380d; --gold: #b8860b;
+  --green: #166534; --green-light: #dcfce7; --green-text: #14532d;
+  --amber: #92400e; --amber-light: #fef3c7;
+  --red: #991b1b; --red-light: #fee2e2;
+  --muted: #6b7280; --border: #e5e0d8; --border-dark: #d1c9bc;
+  --tl-west: #d97706; --tl-kgn: #1d4ed8; --tl-sc: #15803d; --tl-steliz: #7c3aed;
+  --mono: 'DM Mono', monospace; --display: 'Playfair Display', serif; --body: 'DM Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 13px; min-height: 100vh; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; font-size: 11px; }
+  .page-break { page-break-before: always; }
+  table { font-size: 10px; }
+  .tl-card { break-inside: avoid; box-shadow: none !important; }
+}
+
+/* ── HEADER ── */
+.doc-header { background: var(--ink); padding: 24px 40px; border-bottom: 3px solid var(--accent2); display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; position: sticky; top: 0; z-index: 200; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo-box { width: 42px; height: 42px; background: var(--accent2); display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 13px; color: #fff; flex-shrink: 0; }
+.doc-title { font-family: var(--display); font-size: 20px; color: #fff; line-height: 1.1; }
+.doc-sub { font-family: var(--mono); font-size: 9px; color: #8a9ab5; letter-spacing: 1.5px; margin-top: 3px; }
+.doc-meta { text-align: right; }
+.doc-meta .meta-label { font-family: var(--mono); font-size: 8px; color: #6b7a99; letter-spacing: 1px; }
+.doc-meta .meta-val { font-family: var(--mono); font-size: 11px; color: #c8d3e8; margin-top: 1px; }
+.confidential-badge { display: inline-flex; align-items: center; gap: 4px; background: #451a03; color: #fb923c; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; padding: 3px 8px; border-radius: 3px; margin-top: 6px; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; display: inline-block; margin-right: 4px; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+/* ── NAV TABS ── */
+.nav-tabs { background: var(--ink); border-bottom: 1px solid #1e2640; padding: 0 40px; display: flex; gap: 0; }
+.nav-tab { padding: 11px 20px; font-family: var(--mono); font-size: 10px; letter-spacing: .8px; color: #6b7a99; cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: all .15s; }
+.nav-tab:hover { color: #c8d3e8; }
+.nav-tab.active { color: #fff; border-bottom-color: var(--accent2); }
+
+/* ── CONTROLS ── */
+.controls-bar { background: var(--cream); border-bottom: 1px solid var(--border); padding: 10px 40px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ctrl-group { display: flex; align-items: center; gap: 7px; }
+.ctrl-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+select, input[type=text] { padding: 6px 10px; border: 1px solid var(--border-dark); border-radius: 5px; font-family: var(--body); font-size: 11px; background: #fff; color: var(--ink); outline: none; cursor: pointer; }
+select:focus, input[type=text]:focus { border-color: var(--accent); }
+.ml-auto { margin-left: auto; }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 5px; font-family: var(--body); font-size: 11px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #142d70; }
+.btn-outline { background: #fff; color: var(--ink); border: 1px solid var(--border-dark); }
+.btn-outline:hover { background: var(--paper); }
+
+/* ── GRAND SUMMARY STRIP ── */
+.grand-strip { background: var(--ink); padding: 14px 40px; display: flex; gap: 0; border-bottom: 1px solid #1e2640; }
+.gs-item { flex: 1; text-align: center; padding: 6px 16px; border-right: 1px solid #1e2640; }
+.gs-item:last-child { border-right: none; }
+.gs-val { font-family: var(--display); font-size: 20px; color: #fff; line-height: 1; }
+.gs-val.gold { color: #fbbf24; }
+.gs-val.green { color: #4ade80; }
+.gs-val.amber { color: #f59e0b; }
+.gs-lbl { font-family: var(--mono); font-size: 8px; color: #6b7a99; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; }
+
+/* ── PERIOD TABS ── */
+.period-tabs { background: #fff; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; gap: 0; overflow-x: auto; }
+.period-tab { padding: 9px 16px; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; display: flex; align-items: center; gap: 5px; }
+.period-tab:hover { color: var(--ink); }
+.period-tab.active { color: var(--accent); border-bottom-color: var(--accent2); font-weight: 600; }
+.period-tab .tab-sub { font-size: 8px; color: var(--muted); }
+.period-tab .has-dot { width: 5px; height: 5px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+
+/* ── PAGE ── */
+.page { max-width: 1280px; margin: 0 auto; padding: 24px 40px 60px; }
+.section-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; margin-top: 28px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+.section-title { font-family: var(--display); font-size: 16px; }
+.section-count { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+.section-total { margin-left: auto; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--green-text); }
+
+/* ── MERCH TABLE ── */
+.table-wrap { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.05); margin-bottom: 28px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead { background: var(--ink); }
+thead th { padding: 10px 14px; text-align: left; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: #8a9ab5; text-transform: uppercase; white-space: nowrap; cursor: pointer; user-select: none; }
+thead th:hover { color: #fff; }
+thead th.num { text-align: right; }
+thead th.sort-asc::after { content: ' ↑'; color: var(--accent2); }
+thead th.sort-desc::after { content: ' ↓'; color: var(--accent2); }
+tbody tr { border-bottom: 1px solid #f3f0ea; transition: background .1s; }
+tbody tr:hover { background: #faf8f5; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr.zero-comm { opacity: .55; }
+tbody td { padding: 9px 14px; vertical-align: middle; }
+.td-rank { font-family: var(--mono); font-size: 9px; color: var(--muted); width: 28px; }
+.td-name { font-weight: 600; color: var(--ink); }
+.td-num { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.td-comm { font-family: var(--mono); text-align: right; font-weight: 700; white-space: nowrap; }
+.td-comm.has-comm { color: var(--green-text); }
+.td-comm.no-comm { color: var(--muted); }
+.totals-row td { background: #f0f4ff; font-weight: 700; border-top: 2px solid var(--accent); }
+.totals-row .td-name { font-family: var(--mono); font-size: 9px; letter-spacing: .8px; text-transform: uppercase; color: var(--accent); }
+.totals-row .td-comm { color: var(--accent); font-size: 13px; }
+
+.pct-bar-wrap { display: flex; align-items: center; gap: 7px; min-width: 110px; }
+.pct-bar { flex: 1; height: 4px; background: #ede9e0; border-radius: 2px; overflow: hidden; }
+.pct-fill { height: 100%; border-radius: 2px; }
+.fill-green { background: var(--green); }
+.fill-amber { background: #d97706; }
+.fill-red { background: #dc2626; }
+.pct-text { font-family: var(--mono); font-size: 10px; min-width: 40px; text-align: right; font-weight: 600; }
+
+.pill { display: inline-block; padding: 2px 7px; border-radius: 20px; font-family: var(--mono); font-size: 8px; font-weight: 600; white-space: nowrap; }
+.pill-green { background: var(--green-light); color: var(--green-text); }
+.pill-amber { background: var(--amber-light); color: var(--amber); }
+.pill-red { background: var(--red-light); color: var(--red); }
+.pill-grey { background: #f1f0ee; color: #9ca3af; }
+
+/* ── TL CARDS ── */
+.tl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 18px; margin-bottom: 28px; }
+.tl-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.05); }
+.tl-card.west  { border-top: 3px solid var(--tl-west); }
+.tl-card.kgn   { border-top: 3px solid var(--tl-kgn); }
+.tl-card.sc    { border-top: 3px solid var(--tl-sc); }
+.tl-card.steliz{ border-top: 3px solid var(--tl-steliz); }
+.tl-head { padding: 14px 18px 12px; display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.tl-name { font-family: var(--display); font-size: 17px; font-weight: 900; color: var(--ink); }
+.tl-region { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; margin-top: 3px; }
+.tl-region.west   { color: var(--tl-west); }
+.tl-region.kgn    { color: var(--tl-kgn); }
+.tl-region.sc     { color: var(--tl-sc); }
+.tl-region.steliz { color: var(--tl-steliz); }
+.tl-earn { font-family: var(--display); font-size: 24px; font-weight: 900; color: var(--gold); text-align: right; line-height: 1; }
+.tl-earn-lbl { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 3px; text-align: right; }
+.kpi-row { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+.kpi { flex: 1; padding: 8px 14px; border-right: 1px solid var(--border); text-align: center; }
+.kpi:last-child { border-right: none; }
+.kpi-val { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--ink); }
+.kpi-val.green { color: var(--green); }
+.kpi-val.amber { color: #d97706; }
+.kpi-val.gold  { color: var(--gold); }
+.kpi-lbl { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: .8px; margin-top: 1px; }
+.tl-merch-row { display: grid; grid-template-columns: 1fr 52px 52px 52px 90px 70px; align-items: center; padding: 7px 18px; border-bottom: 1px solid #f3f0ea; }
+.tl-merch-row:last-child { border-bottom: none; }
+.tl-merch-row:hover { background: #faf8f5; }
+.tl-merch-hdr { background: #f7f5f0; padding: 5px 18px; display: grid; grid-template-columns: 1fr 52px 52px 52px 90px 70px; border-bottom: 1px solid var(--border); }
+.tl-hcol { font-family: var(--mono); font-size: 8px; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; text-align: center; }
+.tl-hcol:first-child { text-align: left; }
+.tl-merch-name { font-size: 11px; font-weight: 500; color: var(--ink); }
+.tl-col-c { font-family: var(--mono); font-size: 11px; text-align: center; color: var(--muted); }
+.tl-col-earn { font-family: var(--mono); font-size: 11px; text-align: center; font-weight: 700; }
+.tl-col-earn.has { color: var(--gold); }
+.tl-col-earn.no { color: var(--muted); }
+.pct-mini-wrap { display: flex; align-items: center; gap: 5px; justify-content: center; }
+.pct-mini-bar { width: 34px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.pct-mini-fill { height: 100%; border-radius: 2px; }
+.pct-mini-txt { font-family: var(--mono); font-size: 9px; min-width: 30px; text-align: right; }
+.tl-totals { display: grid; grid-template-columns: 1fr 52px 52px 52px 90px 70px; align-items: center; padding: 8px 18px; background: #fafaf7; border-top: 1px solid var(--border-dark); }
+.tl-totals-lbl { font-family: var(--mono); font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+.tl-totals-val { font-family: var(--mono); font-size: 11px; font-weight: 700; text-align: center; }
+.tl-totals-earn { font-family: var(--display); font-size: 14px; font-weight: 900; text-align: center; color: var(--gold); }
+
+.doc-footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-family: var(--mono); font-size: 8px; color: var(--muted); }
+
+.loading { text-align: center; padding: 60px; color: var(--muted); }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; margin-bottom: 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* yearly table */
+.yearly-wrap { overflow-x: auto; }
+.period-col { min-width: 72px; }
+</style>
+</head>
+<body>
+
+<div class="doc-header no-print">
+  <div class="brand">
+    <div class="logo-box">DFL</div>
+    <div>
+      <div class="doc-title">HR Payroll & Incentive Dashboard</div>
+      <div class="doc-sub">DFL Importers &amp; Distributors Ltd · 2026 · Merchandiser Commission + Team Leader Incentive</div>
+    </div>
+  </div>
+  <div class="doc-meta">
+    <div class="meta-label">Prepared for</div>
+    <div class="meta-val">Human Resources Department</div>
+    <div class="meta-label" style="margin-top:6px">Generated</div>
+    <div class="meta-val" id="genDate">—</div>
+    <div class="confidential-badge">⚑ Confidential · HR Use Only</div>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs no-print">
+  <div class="nav-tab active" onclick="switchSection('merch',this)">📊 Merchandiser Commission</div>
+  <div class="nav-tab" onclick="switchSection('tl',this)">🏆 Team Leader Incentive</div>
+  <div class="nav-tab" onclick="switchSection('combined',this)">💰 Combined Payroll Summary</div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-bar no-print">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Search</span>
+    <input type="text" id="searchInput" placeholder="Filter by name…" oninput="renderAll()" style="width:180px">
+  </div>
+  <div class="ctrl-group" id="ctrlFilter">
+    <span class="ctrl-label">Show</span>
+    <select id="filterComm" onchange="renderAll()">
+      <option value="">All</option>
+      <option value="paid">Payable only</option>
+      <option value="zero">Zero only</option>
+    </select>
+  </div>
+  <div class="ctrl-group" id="ctrlSort">
+    <span class="ctrl-label">Sort</span>
+    <select id="sortMode" onchange="renderAll()">
+      <option value="name">Name A–Z</option>
+      <option value="comm_desc">Amount High–Low</option>
+      <option value="pct_desc">Achievement High–Low</option>
+    </select>
+  </div>
+  <div class="ctrl-group" id="ctrlView">
+    <span class="ctrl-label">View</span>
+    <select id="viewMode" onchange="renderAll()">
+      <option value="period">By Period</option>
+      <option value="yearly">Full Year</option>
+    </select>
+  </div>
+  <div class="ml-auto" style="display:flex;gap:8px">
+    <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-primary" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+</div>
+
+<!-- GRAND SUMMARY -->
+<div class="grand-strip" id="grandStrip">
+  <div class="gs-item"><div class="gs-val" id="g-period">—</div><div class="gs-lbl">Period</div></div>
+  <div class="gs-item"><div class="gs-val" id="g-merch-reps">—</div><div class="gs-lbl">Merchandisers</div></div>
+  <div class="gs-item"><div class="gs-val green" id="g-merch-comm">—</div><div class="gs-lbl">Merch Commission</div></div>
+  <div class="gs-item"><div class="gs-val amber" id="g-tl-earn">—</div><div class="gs-lbl">TL Incentive</div></div>
+  <div class="gs-item"><div class="gs-val gold" id="g-total">—</div><div class="gs-lbl">Total Payroll</div></div>
+</div>
+
+<!-- PERIOD TABS -->
+<div class="period-tabs no-print" id="periodTabs"></div>
+
+<!-- MAIN PAGE -->
+<div class="page" id="mainPage">
+  <div class="loading"><div class="spinner"></div><p>Loading payroll data…</p></div>
+</div>
+
+<script>
+const SUPA = 'https://hzagwndglwhcepsirafi.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+const HDR  = { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+const MONTHS = {'202601':'January','202602':'February','202603':'March','202604':'April','202605':'May','202606':'June','202607':'July','202608':'August','202609':'September','202610':'October','202611':'November','202612':'December'};
+
+// ── TEAM LEADER CONFIG ────────────────────────────────────────────
+const TL_RATE_80  = 250;
+const TL_RATE_100 = 500;
+
+const ONEIL_STORES = ["C000004594","C000000239","C000008864","C000001581","C000003381","C000000186","C000000440","C000005461","C000002734","C000005156","C000002694","C000003535","C000009244","C000000522","C000005376","C000004566","C000004488","C000003824","C000009289","C000009378","C000005313","C000000442","C000001815","C000000045","C000000438","C000005008","C000006644","C000000441","C000007391","C000000942","C000001816","C000001516","C000002632","C000004401","C000008044","C000003385","C000001515","C000001810","C000000243","C000003306","C000001995","C000001888","C000002338","C000003373","C000005380","C000003109","C000005617","C000005035","C000003751","C000003064","C000005509","C000004785","C000004208","C000004278","C000003379","C000000546","C000000803","C000005690","C000007145","C000005995","C000007678","C000004605","C000005654","C000002685","C000002000","C000003737","C000007003","C000004625","C000004371","C000004664","C000003814","C000002727","C000001911","C000002053","C000002839","C000009185","C000001916","C000002345","C000000305","C000001532","C000007252","C000002233"];
+const SUSAN_STORES = ["C000000723","C000001528","C000005480","C000005669","C000005521","C000004672","C000003967","C000001812","C000002240","C000001663","C000005619","C000008690","C000008531","C000002918","C000003563","C000002593","C000005185","C000001284","C000001906","C000004380","C000002877","C000004805","C000007016","C000001951","C000002686","C000002609","C000005648","C000002294","C000006228","C000003411","C000004413","C000000836","C000001788","C000004442","C000001621","C000001739","C000004558","C000007455","C000002255","C000006231","C000005884","C000000758","C000007350","C000005186","C000004995","C000005300","C000000769","C000000569","C000007525","C000006973"];
+
+const TEAM_LEADERS = [
+  { id:'oneil',  name:'Oneil Carby',   region:'Western Jamaica — Mobay / Lucea / Sandy Bay', cssClass:'west',   storeIds: ONEIL_STORES, merchandisers:['Chris Eccleston','Fabian Williams','Delroy Tracey','Jason Anderson','Kemar Doeman','Latoya Smith','Marsha stewart','Oniel carby'] },
+  { id:'susan',  name:'Susan Blair',   region:'Western Jamaica — Falmouth / Mobay',          cssClass:'west',   storeIds: SUSAN_STORES, merchandisers:['Roxanne Taylor','Susan Blair'] },
+  { id:'angela', name:'Angela Whitter',region:'Kingston & Portmore',                          cssClass:'kgn',    storeIds: null, merchandisers:['Rushane Green','Damion Crawford','Ricardo Rhooms','Javiel Barton','Shanice Wynter','Andre Creary','Charles Wilson'] },
+  { id:'andrew', name:'Andrew Kennedy',region:'South Central — Mandeville / May Pen / Christiana', cssClass:'sc', storeIds: null, merchandisers:['Robert Clarke','Rayon Smith','Ricardo Davis','Carla Reid','Jovian Morgan','Ameline Brown-Price','Abina Clarke','Dominique McCalla','Oshine Cunningham','Darien Watson'] },
+  { id:'orian',  name:'Orian Bernard', region:'St. Elizabeth — Santa Cruz / Black River',    cssClass:'steliz', storeIds: null, merchandisers:['Junior Chin','Dwayne Granston','Melissa Ebanks','Prince Wanlis','Sadiek Murphy','Akeam McDonald','Keisha Dennis'] },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────
+let allMerchData = [];
+let storeData    = {};
+let currentPeriod = '202605';
+let currentSection = 'merch';
+let currentView = 'period';
+
+const fmt  = n => (!n && n!==0) ? '—' : '$' + Math.round(n).toLocaleString();
+const fmtC = n => (!n || n <= 0) ? '—' : '$' + parseFloat(n).toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtP = p => (!p || p == 0) ? '—' : parseFloat(p).toFixed(1) + '%';
+const fmtM = n => !n ? '—' : n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1000 ? '$'+(n/1000).toFixed(0)+'K' : '$'+Math.round(n);
+
+document.getElementById('genDate').textContent = new Date().toLocaleDateString('en-JM',{year:'numeric',month:'long',day:'numeric'});
+
+async function supa(path) {
+  const r = await fetch(`${SUPA}/rest/v1/${path}`, { headers: {...HDR,'Range':'0-9999','Prefer':'count=none'} });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadData() {
+  document.getElementById('mainPage').innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading payroll data…</p></div>';
+  try {
+    const [merch, stores] = await Promise.all([
+      supa(`merchandiser_summary?select=merchandiser_name,period,store_count,stores_qualified,stores_100,total_target,total_actual,achievement_pct,commission&merchandiser_name=neq.Chameka Anderson&order=merchandiser_name,period`),
+      supa(`full_year_dashboard?select=customer_id,target_amount,actual_amount,period&period=eq.${currentPeriod}&limit=9999`)
+    ]);
+    allMerchData = merch;
+    storeData = {};
+    stores.forEach(r => { storeData[r.customer_id] = r; });
+    buildPeriodTabs();
+    renderAll();
+    document.getElementById('genDate').textContent = new Date().toLocaleDateString('en-JM',{year:'numeric',month:'long',day:'numeric'});
+  } catch(e) {
+    document.getElementById('mainPage').innerHTML = `<div class="loading"><p style="color:#dc2626">Load failed: ${e.message}</p></div>`;
+  }
+}
+
+async function refreshStoreData() {
+  const stores = await supa(`full_year_dashboard?select=customer_id,target_amount,actual_amount,period&period=eq.${currentPeriod}&limit=9999`);
+  storeData = {};
+  stores.forEach(r => { storeData[r.customer_id] = r; });
+}
+
+function buildPeriodTabs() {
+  const periods = [...new Set(allMerchData.map(d => d.period))].sort();
+  const commByPeriod = {};
+  allMerchData.forEach(d => { commByPeriod[d.period] = (commByPeriod[d.period]||0) + parseFloat(d.commission||0); });
+  document.getElementById('periodTabs').innerHTML = periods.map(p =>
+    `<div class="period-tab ${p===currentPeriod?'active':''}" onclick="selectPeriod('${p}',this)">
+      <span class="has-dot"></span>${MONTHS[p]||p}
+      <span class="tab-sub">${fmtM(commByPeriod[p])}</span>
+    </div>`
+  ).join('');
+}
+
+async function selectPeriod(p, el) {
+  currentPeriod = p;
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  await refreshStoreData();
+  renderAll();
+}
+
+function switchSection(sec, el) {
+  currentSection = sec;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+
+// ── INCENTIVE CALCULATIONS ────────────────────────────────────────
+function calcTLByStores(storeIds) {
+  let s80 = 0, s100 = 0;
+  (storeIds||[]).forEach(cid => {
+    const s = storeData[cid];
+    if (!s) return;
+    const tgt = parseFloat(s.target_amount)||0;
+    const act = parseFloat(s.actual_amount)||0;
+    if (tgt <= 0) return;
+    const pct = act/tgt;
+    if (pct >= 1.0) s100++;
+    else if (pct >= 0.8) s80++;
+  });
+  return { s80, s100, earn: (s80*TL_RATE_80)+(s100*TL_RATE_100) };
+}
+
+function calcTLByMerch(merchandisers) {
+  const byMerch = {};
+  allMerchData.filter(d => d.period === currentPeriod).forEach(d => { byMerch[d.merchandiser_name] = d; });
+  let s80 = 0, s100 = 0;
+  merchandisers.forEach(m => {
+    const d = byMerch[m];
+    if (!d) return;
+    const q100 = parseInt(d.stores_100)||0;
+    const q80  = Math.max((parseInt(d.stores_qualified)||0)-q100, 0);
+    s100 += q100; s80 += q80;
+  });
+  return { s80, s100, earn: (s80*TL_RATE_80)+(s100*TL_RATE_100) };
+}
+
+function calcTL(tl) {
+  return tl.storeIds ? calcTLByStores(tl.storeIds) : calcTLByMerch(tl.merchandisers);
+}
+
+// ── GRAND SUMMARY ─────────────────────────────────────────────────
+function updateGrandStrip() {
+  const periodMerch = allMerchData.filter(d => d.period === currentPeriod);
+  const totalMerchComm = periodMerch.reduce((s,d) => s+parseFloat(d.commission||0), 0);
+  const totalTLEarn = TEAM_LEADERS.reduce((s,tl) => s+calcTL(tl).earn, 0);
+  document.getElementById('g-period').textContent = (MONTHS[currentPeriod]||currentPeriod)+' 2026';
+  document.getElementById('g-merch-reps').textContent = periodMerch.length;
+  document.getElementById('g-merch-comm').textContent = fmtC(totalMerchComm);
+  document.getElementById('g-tl-earn').textContent = fmtC(totalTLEarn);
+  document.getElementById('g-total').textContent = fmtC(totalMerchComm + totalTLEarn);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function pctBar(pct) {
+  const p = parseFloat(pct||0), w = Math.min(p,100);
+  const cls = p>=100?'fill-green':p>=80?'fill-amber':'fill-red';
+  const col = p>=100?'var(--green)':p>=80?'#92400e':'var(--red)';
+  return `<div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-fill ${cls}" style="width:${w}%"></div></div><span class="pct-text" style="color:${col}">${fmtP(p)}</span></div>`;
+}
+function pill(pct) {
+  const p = parseFloat(pct||0);
+  if(p>=100) return '<span class="pill pill-green">✅ 100%+</span>';
+  if(p>=80)  return '<span class="pill pill-amber">🟡 80–99%</span>';
+  if(p>0)    return '<span class="pill pill-red">❌ Below 80%</span>';
+  return '<span class="pill pill-grey">No data</span>';
+}
+function getFiltered(data) {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const fc = document.getElementById('filterComm').value;
+  return data.filter(d => {
+    if(q && !d.merchandiser_name.toLowerCase().includes(q)) return false;
+    if(fc==='paid' && parseFloat(d.commission||0)<=0) return false;
+    if(fc==='zero' && parseFloat(d.commission||0)>0) return false;
+    return true;
+  });
+}
+function getSorted(data) {
+  const mode = document.getElementById('sortMode').value;
+  return [...data].sort((a,b) => {
+    if(mode==='comm_desc') return parseFloat(b.commission||0)-parseFloat(a.commission||0);
+    if(mode==='pct_desc')  return parseFloat(b.achievement_pct||0)-parseFloat(a.achievement_pct||0);
+    return a.merchandiser_name.localeCompare(b.merchandiser_name);
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function renderAll() {
+  updateGrandStrip();
+  if(currentSection==='merch')    renderMerch();
+  else if(currentSection==='tl')  renderTL();
+  else                            renderCombined();
+}
+
+// MERCH COMMISSION
+function renderMerch() {
+  if(currentView==='yearly') { renderYearly(); return; }
+  const periodData = allMerchData.filter(d => d.period === currentPeriod);
+  const filtered = getSorted(getFiltered(periodData));
+  const label = (MONTHS[currentPeriod]||currentPeriod)+' 2026';
+  const totalComm = filtered.reduce((s,d) => s+parseFloat(d.commission||0), 0);
+  const paid = filtered.filter(d => parseFloat(d.commission||0)>0).length;
+
+  const rows = filtered.map((d,i) => {
+    const comm = parseFloat(d.commission||0);
+    const pct  = parseFloat(d.achievement_pct||0);
+    return `<tr class="${comm<=0?'zero-comm':''}">
+      <td class="td-rank">${i+1}</td>
+      <td class="td-name">${d.merchandiser_name}</td>
+      <td class="td-num">${d.stores_qualified} / ${d.store_count}</td>
+      <td>${pctBar(pct)}</td><td>${pill(pct)}</td>
+      <td class="td-num">${fmt(d.total_target)}</td>
+      <td class="td-num">${fmt(d.total_actual)}</td>
+      <td class="td-comm ${comm>0?'has-comm':'no-comm'}">${comm>0?fmtC(comm):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('mainPage').innerHTML = `
+    <div class="section-header">
+      <span class="section-title">${label} — Merchandiser Commission Payroll</span>
+      <span class="section-count">${filtered.length} reps · ${paid} payable</span>
+      <span class="section-total">Total: ${fmtC(totalComm)}</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th onclick="sortCol('merchandiser_name')">Merchandiser</th>
+        <th class="num">Qualified / Stores</th><th>Achievement</th><th>Status</th>
+        <th class="num">Target (J$)</th><th class="num">Actual (J$)</th><th class="num">Commission (J$)</th>
+      </tr></thead>
+      <tbody>${rows}
+        <tr class="totals-row">
+          <td></td><td class="td-name">PERIOD TOTAL</td>
+          <td class="td-num">${paid} payable</td><td></td><td></td>
+          <td class="td-num">${fmt(filtered.reduce((s,d)=>s+parseFloat(d.total_target||0),0))}</td>
+          <td class="td-num">${fmt(filtered.reduce((s,d)=>s+parseFloat(d.total_actual||0),0))}</td>
+          <td class="td-comm has-comm" style="font-size:13px">${fmtC(totalComm)}</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="doc-footer no-print">
+      <span>Commission Rate: 0.25% on qualifying store sales (≥80% of target)</span>
+      <span>CONFIDENTIAL · HR USE ONLY</span>
+    </div>`;
+}
+
+function renderYearly() {
+  const periods = [...new Set(allMerchData.map(d => d.period))].sort();
+  const reps = [...new Set(allMerchData.map(d => d.merchandiser_name))].sort();
+  const lookup = {};
+  allMerchData.forEach(d => { lookup[`${d.merchandiser_name}::${d.period}`] = d; });
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const fc = document.getElementById('filterComm').value;
+  const repTotals = reps.map(r => ({
+    name: r,
+    total: periods.reduce((s,p) => s+parseFloat((lookup[`${r}::${p}`]||{}).commission||0), 0),
+    byPeriod: Object.fromEntries(periods.map(p => [p, lookup[`${r}::${p}`]||null]))
+  })).filter(r => {
+    if(q && !r.name.toLowerCase().includes(q)) return false;
+    if(fc==='paid' && r.total<=0) return false;
+    if(fc==='zero' && r.total>0) return false;
+    return true;
+  }).sort((a,b) => document.getElementById('sortMode').value==='comm_desc' ? b.total-a.total : a.name.localeCompare(b.name));
+
+  const grandTotal = repTotals.reduce((s,r) => s+r.total, 0);
+  const ptotals = Object.fromEntries(periods.map(p => [p, repTotals.reduce((s,r) => s+parseFloat((lookup[`${r.name}::${p}`]||{}).commission||0), 0)]));
+
+  const rows = repTotals.map(r => {
+    const cells = periods.map(p => {
+      const d = r.byPeriod[p];
+      const c = d ? parseFloat(d.commission||0) : null;
+      return c>0 ? `<td class="td-comm has-comm">${fmtC(c)}</td>` : `<td class="td-num" style="color:#d1cfc4">—</td>`;
+    }).join('');
+    return `<tr class="${r.total<=0?'zero-comm':''}">
+      <td class="td-name">${r.name}</td>${cells}
+      <td class="td-comm ${r.total>0?'has-comm':'no-comm'}" style="border-left:2px solid var(--border);font-size:12px">${r.total>0?fmtC(r.total):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalCells = periods.map(p => `<td class="td-comm has-comm" style="font-size:11px">${ptotals[p]>0?fmtC(ptotals[p]):'—'}</td>`).join('');
+
+  document.getElementById('mainPage').innerHTML = `
+    <div class="section-header">
+      <span class="section-title">Full Year 2026 — Commission Summary</span>
+      <span class="section-count">${repTotals.length} merchandisers</span>
+      <span class="section-total">YTD Total: ${fmtC(grandTotal)}</span>
+    </div>
+    <div class="table-wrap yearly-wrap"><table>
+      <thead><tr>
+        <th>Merchandiser</th>
+        ${periods.map(p=>`<th class="num period-col">${(MONTHS[p]||p).slice(0,3)}</th>`).join('')}
+        <th class="num" style="border-left:2px solid #2a3350">YTD Total (J$)</th>
+      </tr></thead>
+      <tbody>${rows}
+        <tr class="totals-row">
+          <td class="td-name">GRAND TOTAL</td>${totalCells}
+          <td class="td-comm has-comm" style="font-size:14px;border-left:2px solid var(--accent)">${fmtC(grandTotal)}</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="doc-footer no-print"><span>Commission Rate: 0.25% on qualifying store sales (≥80% of target)</span><span>CONFIDENTIAL · HR USE ONLY</span></div>`;
+}
+
+// TEAM LEADER INCENTIVE
+function renderTL() {
+  const byMerch = {};
+  allMerchData.filter(d => d.period === currentPeriod).forEach(d => { byMerch[d.merchandiser_name] = d; });
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const tls = TEAM_LEADERS.filter(tl => !q || tl.name.toLowerCase().includes(q));
+  const totalEarn = tls.reduce((s,tl) => s+calcTL(tl).earn, 0);
+
+  const cards = tls.map(tl => {
+    const { s80, s100, earn } = calcTL(tl);
+    const totalStores = tl.storeIds ? tl.storeIds.length : tl.merchandisers.reduce((s,m) => s+(byMerch[m]?parseInt(byMerch[m].store_count):0), 0);
+    const totalTarget = tl.storeIds
+      ? tl.storeIds.reduce((s,cid) => s+parseFloat(storeData[cid]?.target_amount||0), 0)
+      : tl.merchandisers.reduce((s,m) => s+parseFloat(byMerch[m]?.total_target||0), 0);
+    const totalActual = tl.storeIds
+      ? tl.storeIds.reduce((s,cid) => s+parseFloat(storeData[cid]?.actual_amount||0), 0)
+      : tl.merchandisers.reduce((s,m) => s+parseFloat(byMerch[m]?.total_actual||0), 0);
+    const overallPct = totalTarget>0 ? (totalActual/totalTarget*100).toFixed(1) : 0;
+    const pctCol = overallPct>=100?'var(--green)':overallPct>=80?'#d97706':'var(--red)';
+
+    const merchRows = tl.merchandisers.map(m => {
+      const d = byMerch[m];
+      if(!d) return `<div class="tl-merch-row"><div class="tl-merch-name" style="color:var(--muted)">${m}</div><div class="tl-col-c">—</div><div class="tl-col-c">—</div><div class="tl-col-c">—</div><div class="tl-col-c">—</div><div class="tl-col-earn no">—</div></div>`;
+      const q100 = parseInt(d.stores_100)||0;
+      const q80  = Math.max((parseInt(d.stores_qualified)||0)-q100, 0);
+      const mEarn = (q80*TL_RATE_80)+(q100*TL_RATE_100);
+      const pct = parseFloat(d.achievement_pct)||0;
+      const bw = Math.min(pct,100);
+      const bc = pct>=100?'var(--green)':pct>=80?'#d97706':'var(--red)';
+      const ptc = pct>=100?'var(--green)':pct>=80?'#92400e':'var(--red)';
+      return `<div class="tl-merch-row">
+        <div class="tl-merch-name">${m}</div>
+        <div class="tl-col-c">${d.store_count}</div>
+        <div class="tl-col-c" style="color:${q80>0?'#d97706':'var(--muted)'}">${q80}</div>
+        <div class="tl-col-c" style="color:${q100>0?'var(--green)':'var(--muted)'}">${q100}</div>
+        <div style="display:flex;align-items:center;gap:4px;justify-content:center">
+          <div class="pct-mini-bar"><div class="pct-mini-fill" style="width:${bw}%;background:${bc}"></div></div>
+          <span class="pct-mini-txt" style="color:${ptc}">${pct.toFixed(0)}%</span>
+        </div>
+        <div class="tl-col-earn ${mEarn>0?'has':'no'}">${mEarn>0?fmtC(mEarn):'—'}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="tl-card ${tl.cssClass}">
+      <div class="tl-head">
+        <div>
+          <div class="tl-name">${tl.name}</div>
+          <div class="tl-region ${tl.cssClass}">${tl.region}</div>
+          ${tl.storeIds?`<div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:2px">${tl.storeIds.length} stores directly assigned</div>`:''}
+        </div>
+        <div><div class="tl-earn">${fmtC(earn)}</div><div class="tl-earn-lbl">Incentive Earned</div></div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-val">${totalStores}</div><div class="kpi-lbl">Stores</div></div>
+        <div class="kpi"><div class="kpi-val green">${s100}</div><div class="kpi-lbl">100%+ Stores</div></div>
+        <div class="kpi"><div class="kpi-val amber">${s80}</div><div class="kpi-lbl">80–99% Stores</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:${pctCol}">${overallPct}%</div><div class="kpi-lbl">Achievement</div></div>
+        <div class="kpi"><div class="kpi-val gold">${fmtC(earn)}</div><div class="kpi-lbl">Earned</div></div>
+      </div>
+      <div class="tl-merch-hdr">
+        <div class="tl-hcol">Merchandiser</div><div class="tl-hcol">Stores</div>
+        <div class="tl-hcol">80–99%</div><div class="tl-hcol">100%+</div>
+        <div class="tl-hcol">Achievement</div><div class="tl-hcol">Earned</div>
+      </div>
+      ${merchRows}
+      <div class="tl-totals">
+        <div class="tl-totals-lbl">TOTAL</div>
+        <div class="tl-totals-val">${totalStores}</div>
+        <div class="tl-totals-val" style="color:#d97706">${s80}</div>
+        <div class="tl-totals-val" style="color:var(--green)">${s100}</div>
+        <div class="tl-totals-val" style="color:${pctCol}">${overallPct}%</div>
+        <div class="tl-totals-earn">${fmtC(earn)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mainPage').innerHTML = `
+    <div class="section-header">
+      <span class="section-title">${(MONTHS[currentPeriod]||currentPeriod)} 2026 — Team Leader Incentive</span>
+      <span class="section-count">${tls.length} team leaders</span>
+      <span class="section-total">Total: ${fmtC(totalEarn)}</span>
+    </div>
+    <div class="tl-grid">${cards}</div>
+    <div class="doc-footer no-print">
+      <span>Incentive Rate: $250 per store ≥80% target · $500 per store ≥100% target</span>
+      <span>CONFIDENTIAL · HR USE ONLY</span>
+    </div>`;
+}
+
+// COMBINED PAYROLL
+function renderCombined() {
+  const periodMerch = allMerchData.filter(d => d.period === currentPeriod);
+  const totalMerchComm = periodMerch.reduce((s,d) => s+parseFloat(d.commission||0), 0);
+  const tlResults = TEAM_LEADERS.map(tl => ({ ...tl, ...calcTL(tl) }));
+  const totalTLEarn = tlResults.reduce((s,tl) => s+tl.earn, 0);
+  const grandTotal = totalMerchComm + totalTLEarn;
+  const label = (MONTHS[currentPeriod]||currentPeriod)+' 2026';
+  const paid = periodMerch.filter(d => parseFloat(d.commission||0)>0).length;
+
+  // Merch summary table
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = getSorted(getFiltered(periodMerch));
+  const merchRows = filtered.map((d,i) => {
+    const comm = parseFloat(d.commission||0);
+    return `<tr class="${comm<=0?'zero-comm':''}">
+      <td class="td-rank">${i+1}</td>
+      <td class="td-name">${d.merchandiser_name}</td>
+      <td class="td-num">${d.stores_qualified} / ${d.store_count}</td>
+      <td>${pctBar(parseFloat(d.achievement_pct||0))}</td>
+      <td class="td-num">${fmt(d.total_target)}</td>
+      <td class="td-num">${fmt(d.total_actual)}</td>
+      <td class="td-comm ${comm>0?'has-comm':'no-comm'}">${comm>0?fmtC(comm):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  // TL summary table
+  const tlRows = tlResults.map(tl => `<tr class="${tl.earn<=0?'zero-comm':''}">
+    <td class="td-name">${tl.name}</td>
+    <td class="td-num">${tl.storeIds?tl.storeIds.length:'—'} stores</td>
+    <td class="td-num" style="color:var(--green)">${tl.s100}</td>
+    <td class="td-num" style="color:#d97706">${tl.s80}</td>
+    <td class="td-comm ${tl.earn>0?'has-comm':'no-comm'}">${tl.earn>0?fmtC(tl.earn):'—'}</td>
+  </tr>`).join('');
+
+  document.getElementById('mainPage').innerHTML = `
+    <!-- Grand total banner -->
+    <div style="background:var(--ink);border-radius:10px;padding:20px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+      <div>
+        <div style="font-family:var(--display);font-size:14px;color:#8a9ab5;margin-bottom:4px">${label} — Total Payroll Obligation</div>
+        <div style="font-family:var(--display);font-size:36px;font-weight:900;color:#fbbf24;line-height:1">${fmtC(grandTotal)}</div>
+      </div>
+      <div style="display:flex;gap:32px;text-align:center">
+        <div><div style="font-family:var(--display);font-size:22px;color:#4ade80;font-weight:700">${fmtC(totalMerchComm)}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px">MERCH COMMISSION</div></div>
+        <div style="width:1px;background:#1e2640"></div>
+        <div><div style="font-family:var(--display);font-size:22px;color:#f59e0b;font-weight:700">${fmtC(totalTLEarn)}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px">TL INCENTIVE</div></div>
+        <div style="width:1px;background:#1e2640"></div>
+        <div><div style="font-family:var(--display);font-size:22px;color:#fff;font-weight:700">${paid} / ${periodMerch.length}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px">MERCH PAYABLE</div></div>
+      </div>
+    </div>
+
+    <!-- TL Summary -->
+    <div class="section-header">
+      <span class="section-title">Team Leader Incentive</span>
+      <span class="section-count">${tlResults.length} team leaders</span>
+      <span class="section-total">Total: ${fmtC(totalTLEarn)}</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Team Leader</th><th>Responsibility</th>
+        <th class="num">100%+ Stores</th><th class="num">80–99% Stores</th>
+        <th class="num">Incentive (J$)</th>
+      </tr></thead>
+      <tbody>${tlRows}
+        <tr class="totals-row">
+          <td class="td-name">TL TOTAL</td><td></td><td></td><td></td>
+          <td class="td-comm has-comm" style="font-size:13px">${fmtC(totalTLEarn)}</td>
+        </tr>
+      </tbody>
+    </table></div>
+
+    <!-- Merch Summary -->
+    <div class="section-header">
+      <span class="section-title">Merchandiser Commission</span>
+      <span class="section-count">${filtered.length} reps · ${paid} payable</span>
+      <span class="section-total">Total: ${fmtC(totalMerchComm)}</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>#</th><th>Merchandiser</th><th class="num">Qualified / Stores</th>
+        <th>Achievement</th><th class="num">Target (J$)</th>
+        <th class="num">Actual (J$)</th><th class="num">Commission (J$)</th>
+      </tr></thead>
+      <tbody>${merchRows}
+        <tr class="totals-row">
+          <td></td><td class="td-name">MERCH TOTAL</td>
+          <td class="td-num">${paid} payable</td><td></td>
+          <td class="td-num">${fmt(filtered.reduce((s,d)=>s+parseFloat(d.total_target||0),0))}</td>
+          <td class="td-num">${fmt(filtered.reduce((s,d)=>s+parseFloat(d.total_actual||0),0))}</td>
+          <td class="td-comm has-comm" style="font-size:13px">${fmtC(totalMerchComm)}</td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="doc-footer no-print">
+      <span>Merch: 0.25% on qualifying sales · TL: $250 per store ≥80% · $500 per store ≥100%</span>
+      <span>CONFIDENTIAL · HR USE ONLY</span>
+    </div>`;
+}
+
+function sortCol(col) {}
+
+// ── EXPORT ────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [];
+  const label = (MONTHS[currentPeriod]||currentPeriod)+' 2026';
+
+  if(currentSection==='merch' || currentSection==='combined') {
+    rows.push(['--- MERCHANDISER COMMISSION ---']);
+    rows.push(['Merchandiser','Stores Qualified','Total Stores','Achievement %','Target (J$)','Actual (J$)','Commission (J$)','Period']);
+    const periodData = getSorted(getFiltered(allMerchData.filter(d => d.period===currentPeriod)));
+    periodData.forEach(d => rows.push([d.merchandiser_name, d.stores_qualified, d.store_count, parseFloat(d.achievement_pct||0).toFixed(1)+'%', Math.round(d.total_target||0), Math.round(d.total_actual||0), parseFloat(d.commission||0).toFixed(2), label]));
+    rows.push([]);
+  }
+  if(currentSection==='tl' || currentSection==='combined') {
+    rows.push(['--- TEAM LEADER INCENTIVE ---']);
+    rows.push(['Team Leader','Region','Stores Responsible','100%+ Stores','80-99% Stores','Incentive (J$)','Period']);
+    TEAM_LEADERS.forEach(tl => {
+      const { s80, s100, earn } = calcTL(tl);
+      rows.push([tl.name, tl.region, tl.storeIds?tl.storeIds.length:'(merch-based)', s100, s80, earn.toFixed(2), label]);
+    });
+    rows.push([]);
+    rows.push(['GRAND TOTAL','','','','', TEAM_LEADERS.reduce((s,tl)=>s+calcTL(tl).earn,0).toFixed(2), label]);
+  }
+
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `DFL_Payroll_${currentSection}_${currentPeriod}.csv`;
+  a.click();
+}
+
+// ── VIEW MODE TOGGLE ──────────────────────────────────────────────
+document.getElementById('viewMode').addEventListener('change', function() {
+  currentView = this.value;
+  renderAll();
+});
+
+loadData();
+</script>
+</body>
+</html>

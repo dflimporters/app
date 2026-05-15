@@ -10,12 +10,12 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png",
+      "src": "/app/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png",
+      "src": "/app/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
