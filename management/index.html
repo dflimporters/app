@@ -44,6 +44,57 @@
   .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
   .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
 
+  /* HAMBURGER + MOBILE NAV */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 56px;
+    left: 0; right: 0;
+    background: rgba(12,26,58,0.98);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem;
+    z-index: 99;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-mobile-menu a:hover { color: #fff; background: rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color: #fff; background: rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color: #fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background: rgba(251,191,36,0.12); }
+  .mob-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
   /* LOGIN */
   .login-wrap {
     display:flex; align-items:center; justify-content:center;
@@ -110,12 +161,13 @@
   .panel.active { display:block; }
   .panel iframe { width:100%; height:100%; border:none; display:block; }
 
-  /* MOBILE */
   @media (max-width: 640px) {
-    nav .nav-links { display:none; }
-    nav .nav-title { font-size:13px; }
-    .tabs-bar { padding:0 16px; overflow-x:auto; }
-    .page-header { padding:18px 16px 22px; }
+    nav { padding: 0 16px; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-title { font-size: 13px; }
+    .tabs-bar { padding: 0 16px; overflow-x: auto; }
+    .page-header { padding: 18px 16px 22px; }
   }
 </style>
 </head>
@@ -137,7 +189,21 @@
     <a href="/app/forms.html">Forms</a>
     <a href="/app/assets.html">Assets</a>
   </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/app/admin/" class="mgmt">Admin</a>
+  <a href="/app/management/" class="mgmt active">Management</a>
+  <div class="mob-divider"></div>
+  <a href="/app/index.html">Home</a>
+  <a href="/app/specials.html">Specials</a>
+  <a href="/app/dashboards.html">Dashboards</a>
+  <a href="/app/forms.html">Forms</a>
+  <a href="/app/assets.html">Assets</a>
+</div>
 
 <!-- LOGIN -->
 <div class="login-wrap" id="loginWrap">
@@ -166,15 +232,9 @@
   </div>
 
   <div class="tabs-bar">
-    <!-- ============================================================
-         ADD/REMOVE TAB BUTTONS HERE AS YOU ADD MORE HTMLs
-         Copy a tab-btn line and update:
-           - onclick: showPanel('your-panel-id', this)
-           - label text
-         ============================================================ -->
     <button class="tab-btn active" onclick="showPanel('panel-4', this)">Merchandiser Performance Dashboard</button>
-    <button class="tab-btn active" onclick="showPanel('panel-5', this)">Merchandiser Incentive Dashboard</button>
-    <button class="tab-btn active" onclick="showPanel('panel-1', this)">Category Intelligence</button>
+    <button class="tab-btn" onclick="showPanel('panel-5', this)">Merchandiser Incentive Dashboard</button>
+    <button class="tab-btn" onclick="showPanel('panel-1', this)">Category Intelligence</button>
     <button class="tab-btn" onclick="showPanel('panel-2', this)">Key Account Dashboard</button>
     <button class="tab-btn" onclick="showPanel('panel-3', this)">Rep Performance Dashboard</button>
     <!-- ADD MORE TABS HERE -->
@@ -182,35 +242,24 @@
 
   <div class="panels" id="panels">
 
-    <!-- ============================================================
-         REPLACE THE src="" VALUES BELOW WITH YOUR GITHUB PAGES URLS
-         Format: /app/management/your-file.html
-         OR full URL if hosted elsewhere
-         ============================================================ -->
-
-    <div class="panel active" id="panel-1">
-      <iframe src="/app/management/category-intel.html"
-              title="Category Intelligence"></iframe>
-    </div>
-
-    <div class="panel" id="panel-2">
-      <iframe src="/app/management/key-account-management.html"
-              title="Key Account Dashboard"></iframe>
-    </div>
-
-    <div class="panel" id="panel-3">
-      <iframe src="/app/management/rep-performance.html"
-              title="Rep Performance Dashboard"></iframe>
-    </div>
-
-    <div class="panel" id="panel-4">
-      <iframe src="/app/management/merch-dashboard.html"
-              title="Merchandiser Performance Dashboard"></iframe>
+    <div class="panel active" id="panel-4">
+      <iframe src="/app/management/merch-dashboard.html" title="Merchandiser Performance Dashboard"></iframe>
     </div>
 
     <div class="panel" id="panel-5">
-      <iframe src="/app/management/merch-incentive.html"
-              title="Merchandiser Incentive Dashboard"></iframe>
+      <iframe src="/app/management/merch-incentive.html" title="Merchandiser Incentive Dashboard"></iframe>
+    </div>
+
+    <div class="panel" id="panel-1">
+      <iframe src="/app/management/category-intel.html" title="Category Intelligence"></iframe>
+    </div>
+
+    <div class="panel" id="panel-2">
+      <iframe src="/app/management/key-account-management.html" title="Key Account Dashboard"></iframe>
+    </div>
+
+    <div class="panel" id="panel-3">
+      <iframe src="/app/management/rep-performance.html" title="Rep Performance Dashboard"></iframe>
     </div>
 
     <!-- ADD MORE PANELS HERE — copy the block above -->
@@ -220,10 +269,6 @@
 </div>
 
 <script>
-  // ================================================================
-  // CHANGE THIS PASSWORD TO YOUR PREFERRED MANAGEMENT PASSWORD
-  // Keep it different from the admin password
-  // ================================================================
   const MGMT_PASSWORD = 'management';
 
   function doLogin() {
@@ -243,6 +288,20 @@
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
   }
+
+  // Hamburger menu
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('open');
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      hamburger.classList.remove('open');
+      mobileMenu.classList.remove('open');
+    });
+  });
 </script>
 
 </body>

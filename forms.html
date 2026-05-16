@@ -12,6 +12,7 @@
   :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
   nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
   .nav-left { display:flex; align-items:center; gap:14px; }
   .nav-logo { height:26px; filter:brightness(0) invert(1); }
@@ -22,8 +23,60 @@
   .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
   .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
   .nav-links a.mgmt { color:#fbbf24; }
-.nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
-.nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+
+  /* HAMBURGER + MOBILE NAV */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 56px;
+    left: 0; right: 0;
+    background: rgba(12,26,58,0.98);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem;
+    z-index: 99;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-mobile-menu a:hover { color: #fff; background: rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color: #fff; background: rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color: #fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background: rgba(251,191,36,0.12); }
+  .mob-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
   .page-header { background:var(--navy2); padding:32px 32px 36px; }
   .page-header-inner { max-width:1060px; margin:0 auto; }
   .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
@@ -40,17 +93,19 @@
   .form-desc { font-size:12px; color:var(--text-muted); }
   .form-arrow { color:var(--accent); font-size:16px; }
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
-    @media (max-width: 640px) {
-  .nav-links {
-    display: none;
+
+  @media (max-width: 640px) {
+    nav { padding: 0 16px; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-title { font-size: 13px; }
+    .page-header { padding: 24px 16px 28px; }
+    .content { padding: 24px 16px; }
   }
-  .nav-title {
-    font-size: 13px;
-  }
-}
 </style>
 </head>
 <body>
+
 <nav>
   <div class="nav-left">
     <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
@@ -66,17 +121,33 @@
     <a href="forms.html" class="active">Forms</a>
     <a href="assets.html">Assets</a>
   </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/app/admin/" class="mgmt">Admin</a>
+  <a href="/app/management/" class="mgmt">Management</a>
+  <div class="mob-divider"></div>
+  <a href="index.html">Home</a>
+  <a href="specials.html">Specials</a>
+  <a href="dashboards.html">Dashboards</a>
+  <a href="forms.html" class="active">Forms</a>
+  <a href="assets.html">Assets</a>
+</div>
+
 <div class="page-header">
   <div class="page-header-inner">
     <div class="breadcrumb"><a href="index.html">Home</a> / Forms & Links</div>
     <h1>Forms & Links</h1>
   </div>
 </div>
+
 <div class="content">
   <div class="section-label">Staff Forms</div>
   <div class="form-cards">
-    <a class="form-card" href="https://splendid-pink-aghclqaehs.edgeone.app/" target="_blank">
+    <a class="form-card" href="/app/rep-weekly-plan-form.html">
       <div class="form-icon">📋</div>
       <div class="form-info">
         <div class="form-title">Sales Rep Weekly Plan</div>
@@ -86,6 +157,23 @@
     </a>
   </div>
 </div>
+
 <footer>© 2026 DFL Importers · Internal use only</footer>
+
+<script>
+  // Hamburger menu
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('open');
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      hamburger.classList.remove('open');
+      mobileMenu.classList.remove('open');
+    });
+  });
+</script>
 </body>
 </html>
