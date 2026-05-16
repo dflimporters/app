@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL — Weekly Plan Submission</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:        #326BD3;
+    --blue-dark:   #2559b8;
+    --blue-light:  #e8f0fb;
+    --blue-mid:    #c2d5f5;
+    --navy:        #0D1B3E;
+    --bg:          #f0f4fa;
+    --surface:     #ffffff;
+    --surface2:    #f7f9fd;
+    --border:      #dde5f4;
+    --border2:     #c4d2ee;
+    --text:        #0D1B3E;
+    --text2:       #3a4e72;
+    --muted:       #6b7fa8;
+    --dim:         #a0aec8;
+    --green:       #16a34a;
+    --green-bg:    #dcfce7;
+    --green-border:#bbf7d0;
+    --amber:       #d97706;
+    --amber-bg:    #fef3c7;
+    --shadow-sm:   0 1px 3px rgba(13,27,62,0.07), 0 2px 8px rgba(13,27,62,0.04);
+    --shadow:      0 2px 8px rgba(13,27,62,0.08), 0 8px 24px rgba(13,27,62,0.06);
+    --shadow-lg:   0 4px 16px rgba(13,27,62,0.1), 0 12px 36px rgba(13,27,62,0.07);
+  }
+
+  body { min-height:100vh; background:var(--bg); font-family:'Open Sans',sans-serif; color:var(--text); padding:36px 20px 80px; }
+
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image:radial-gradient(circle,rgba(50,107,211,0.07) 1px,transparent 1px);
+    background-size:28px 28px; pointer-events:none; z-index:0;
+  }
+
+  .wrap { position:relative; z-index:1; }
+
+  /* Header */
+  .header { text-align:center; margin-bottom:40px; animation:fadeUp 0.45s ease both; }
+  .brand-pill { display:inline-flex; align-items:center; gap:8px; background:var(--navy); color:#fff; font-family:'Montserrat',sans-serif; font-weight:800; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; padding:5px 14px 5px 10px; border-radius:5px; margin-bottom:16px; }
+  .brand-dot { width:8px; height:8px; background:var(--blue); border-radius:50%; }
+  .header h1 { font-family:'Montserrat',sans-serif; font-size:clamp(28px,5vw,46px); font-weight:900; color:var(--navy); line-height:1.05; letter-spacing:-1px; }
+  .header h1 span { color:var(--blue); }
+  .header-sub { margin-top:10px; font-size:13px; color:var(--muted); font-weight:500; }
+  .week-badge { display:inline-block; background:var(--blue-light); color:var(--blue); font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; padding:3px 12px; border-radius:20px; margin-left:8px; vertical-align:middle; border:1px solid var(--blue-mid); }
+
+  /* Card */
+  .card { max-width:820px; margin:0 auto; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; box-shadow:var(--shadow-lg); animation:fadeUp 0.45s 0.08s ease both; }
+  .card-top { background:linear-gradient(135deg,var(--navy) 0%,#1a3166 100%); padding:20px 32px; display:flex; align-items:center; justify-content:space-between; }
+  .card-top-title { font-family:'Montserrat',sans-serif; font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:#fff; }
+  .card-top-sub { font-size:11px; color:rgba(255,255,255,0.45); margin-top:2px; font-weight:500; }
+  .progress-steps { display:flex; gap:5px; width:180px; }
+  .step-dot { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,0.15); transition:background 0.3s; }
+
+  .card-section { padding:28px 32px; border-bottom:1.5px solid var(--border); }
+  .section-label { font-family:'Montserrat',sans-serif; font-size:9px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; color:var(--blue); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--blue-mid); }
+
+  /* Fields */
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px; }
+  .field { display:flex; flex-direction:column; gap:7px; }
+
+  label { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text2); }
+
+  select, input[type="text"], input[type="number"], textarea {
+    background:var(--surface2); border:1.5px solid var(--border2); color:var(--text);
+    font-family:'Open Sans',sans-serif; font-size:13px; font-weight:500;
+    padding:10px 14px; border-radius:8px; outline:none; width:100%;
+    transition:border-color 0.18s,box-shadow 0.18s,background 0.18s;
+  }
+
+  select {
+    appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7fa8'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center; padding-right:36px;
+  }
+
+  select:focus, input:focus, textarea:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 3px rgba(50,107,211,0.1); }
+  textarea { resize:vertical; min-height:75px; line-height:1.65; }
+  .field-hint { font-size:11px; color:var(--muted); font-weight:500; margin-top:-2px; line-height:1.5; }
+
+  .field-error {
+    font-size:11px; color:var(--red); font-weight:600;
+    margin-top:-2px; line-height:1.5; display:none;
+  }
+
+  .field-invalid select,
+  .field-invalid input,
+  .field-invalid textarea {
+    border-color: var(--red) !important;
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.1) !important;
+  }
+
+  .field-invalid .zone-select {
+    border-color: var(--red) !important;
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.1) !important;
+  }
+
+  .field-invalid .field-error { display: block; }
+
+  /* Store checklist panel */
+  .store-checklist-wrap { position: relative; }
+
+  .store-checklist-panel {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    background: var(--surface);
+    border: 1.5px solid var(--blue);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(13,27,62,0.18);
+    max-height: 260px;
+    overflow-y: auto;
+    min-width: 280px;
+    max-width: 520px;
+  }
+
+  .store-checklist-panel.open { display: block; }
+
+  .store-checklist-panel::-webkit-scrollbar { width: 4px; }
+  .store-checklist-panel::-webkit-scrollbar-thumb { background: var(--blue-mid); border-radius: 2px; }
+
+  .store-checklist-search {
+    position: sticky; top: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+  }
+
+  .store-checklist-search input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: 'Open Sans', sans-serif;
+    outline: none;
+  }
+
+  .store-checklist-search input:focus { border-color: var(--blue); }
+
+  .store-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text2);
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+
+  .store-checklist-item:last-child { border-bottom: none; }
+  .store-checklist-item:hover { background: var(--blue-light); }
+  .store-checklist-item.checked { background: var(--blue-light); color: var(--blue); font-weight: 600; }
+
+  .store-checklist-item input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: var(--blue);
+    flex-shrink: 0;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 3px;
+  }
+
+  .store-checklist-tier {
+    font-size: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .store-checklist-confirm {
+    position: sticky; bottom: 0;
+    background: var(--surface);
+    border-top: 1.5px solid var(--blue-mid);
+    padding: 8px 10px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .store-confirm-btn {
+    flex: 1;
+    background: var(--blue);
+    border: none;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .store-confirm-btn:hover { background: var(--blue-dark); }
+
+  .store-cancel-btn {
+    background: transparent;
+    border: 1.5px solid var(--border2);
+    color: var(--muted);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  /* Custom store add row */
+  .custom-store-row {
+    display: none;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+  }
+
+  .custom-store-row.open { display: flex; }
+
+  .custom-store-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    color: var(--text);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    outline: none;
+  }
+  .custom-store-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(50,107,211,0.1); }
+
+  .custom-store-add-btn {
+    background: var(--blue);
+    border: none;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .custom-store-add-btn:hover { background: var(--blue-dark); }
+
+  .store-trigger-btn {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    color: var(--muted);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .store-trigger-btn:hover, .store-trigger-btn.open { border-color: var(--blue); }
+  .store-trigger-btn .trigger-arrow { font-size: 10px; opacity: 0.5; transition: transform 0.2s; }
+  .store-trigger-btn.open .trigger-arrow { transform: rotate(180deg); }
+
+  /* Zone checklist panel */
+  .zone-checklist-wrap { position: relative; }
+
+  .zone-trigger-btn {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    color: var(--muted);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .zone-trigger-btn:hover, .zone-trigger-btn.open { border-color: var(--blue); }
+  .zone-trigger-btn .trigger-arrow { font-size: 10px; opacity: 0.5; transition: transform 0.2s; }
+  .zone-trigger-btn.open .trigger-arrow { transform: rotate(180deg); }
+
+  .zone-checklist-panel {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    background: var(--surface);
+    border: 1.5px solid var(--blue);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(13,27,62,0.18);
+    max-height: 260px;
+    overflow-y: auto;
+    min-width: 280px;
+    max-width: 520px;
+  }
+
+  .zone-checklist-panel.open { display: block; }
+
+  /* Custom zone add */
+  .custom-zone-row {
+    display: none;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .custom-zone-row.open { display: flex; }
+
+  .custom-zone-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    color: var(--text);
+    font-family: 'Open Sans', sans-serif;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    outline: none;
+    text-transform: uppercase;
+  }
+  .custom-zone-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(50,107,211,0.1); }
+
+  .custom-zone-add-btn {
+    background: var(--navy);
+    border: none;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .custom-zone-add-btn:hover { background: #1a3166; }
+
+  /* Zone dropdown + selected chips */
+  .zone-select { width:100%; }
+
+  .selected-zones {
+    display:flex; flex-wrap:wrap; gap:6px;
+    min-height:0; margin-top:8px;
+  }
+
+  .selected-zone-chip {
+    display:inline-flex; align-items:center; gap:4px;
+    background:var(--blue-light); border:1.5px solid var(--blue);
+    color:var(--blue); font-family:'Montserrat',sans-serif;
+    font-size:9px; font-weight:700; letter-spacing:0.5px;
+    padding:4px 6px 4px 10px; border-radius:14px; text-transform:uppercase;
+    animation:chipIn 0.15s ease both;
+  }
+
+  @keyframes chipIn { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+
+  .chip-remove {
+    background:none; border:none; cursor:pointer; color:var(--blue);
+    font-size:13px; line-height:1; padding:0 2px; opacity:0.55;
+    transition:opacity 0.15s; display:flex; align-items:center;
+  }
+  .chip-remove:hover { opacity:1; }
+
+  /* Day blocks */
+  .day-grid { display:grid; gap:14px; }
+  .day-block { background:var(--surface2); border:1.5px solid var(--border); border-radius:10px; }
+  .day-block-header { display:flex; align-items:center; gap:12px; padding:10px 16px; background:var(--blue-light); border-bottom:1px solid var(--blue-mid); }
+  .day-tag { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:800; letter-spacing:1.5px; color:var(--navy); text-transform:uppercase; }
+  .day-date-label { font-size:11px; color:var(--muted); font-weight:500; }
+  .day-block-body { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+
+  /* Submit */
+  .submit-wrap { padding:28px 32px; background:var(--surface2); }
+  .btn-submit { width:100%; background:linear-gradient(135deg,var(--blue) 0%,#4a84e8 100%); border:none; color:#fff; font-family:'Montserrat',sans-serif; font-weight:800; font-size:13px; letter-spacing:2px; text-transform:uppercase; padding:18px; cursor:pointer; border-radius:10px; transition:all 0.18s; box-shadow:0 4px 14px rgba(50,107,211,0.3); }
+  .btn-submit:hover:not(:disabled) { background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%); transform:translateY(-1px); box-shadow:0 6px 20px rgba(50,107,211,0.38); }
+  .btn-submit:disabled { background:var(--border2); color:var(--dim); cursor:not-allowed; box-shadow:none; }
+  .submit-hint { text-align:center; font-size:11px; color:var(--muted); margin-top:12px; font-weight:500; }
+
+  /* Success */
+  #success { display:none; }
+  .success-header { background:linear-gradient(135deg,var(--navy) 0%,#1a3166 100%); padding:28px 32px; text-align:center; }
+  .success-ring { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,var(--blue),#4a84e8); display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px; box-shadow:0 6px 24px rgba(50,107,211,0.4); animation:scaleIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) both; }
+  .success-header h2 { font-family:'Montserrat',sans-serif; font-size:22px; font-weight:900; color:#fff; margin-bottom:4px; letter-spacing:-0.5px; }
+  .success-header p { color:rgba(255,255,255,0.55); font-size:12px; font-weight:500; }
+
+  .plan-summary { padding:28px 32px; }
+  .summary-title { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--blue); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .summary-title::after { content:''; flex:1; height:1px; background:var(--blue-mid); }
+  .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .summary-item { background:var(--surface2); border:1.5px solid var(--border); border-radius:8px; padding:12px 14px; }
+  .summary-item-label { font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .summary-item-value { font-size:13px; font-weight:600; color:var(--navy); line-height:1.5; }
+
+  .day-summary { background:var(--surface2); border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:20px; }
+  .day-summary-row { padding:11px 14px; border-bottom:1px solid var(--border); font-size:12px; }
+  .day-summary-row:last-child { border-bottom:none; }
+  .day-summary-name { font-family:'Montserrat',sans-serif; font-weight:800; color:var(--blue); font-size:11px; margin-bottom:5px; }
+  .day-summary-zones { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:5px; }
+  .day-summary-zone-chip { background:var(--blue-light); border:1px solid var(--blue-mid); color:var(--blue); font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px; text-transform:uppercase; }
+  .day-summary-stores { color:var(--text2); font-weight:500; line-height:1.6; }
+
+  .flags-box { background:var(--amber-bg); border:1.5px solid #fcd34d; border-left:4px solid var(--amber); border-radius:8px; padding:12px 16px; font-size:12px; color:#92400e; line-height:1.7; font-weight:500; margin-bottom:20px; display:flex; gap:10px; }
+
+  .share-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-whatsapp { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; background:#25D366; border:none; color:#fff; font-family:'Montserrat',sans-serif; font-weight:800; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:14px; border-radius:9px; cursor:pointer; transition:all 0.15s; box-shadow:0 2px 8px rgba(37,211,102,0.3); text-decoration:none; }
+  .btn-whatsapp:hover { background:#1fba59; transform:translateY(-1px); }
+  .btn-download {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--navy); border: none; color: #fff;
+    font-family: 'Montserrat', sans-serif; font-weight: 800;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 14px 22px; border-radius: 9px; cursor: pointer;
+    transition: all 0.15s; box-shadow: 0 2px 8px rgba(13,27,62,0.2);
+    white-space: nowrap;
+  }
+
+  .btn-download:hover { background: #1a3166; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(13,27,62,0.3); }
+  .btn-download:disabled { background: var(--border2); color: var(--dim); cursor: not-allowed; box-shadow: none; transform: none; }
+
+  .btn-reset { background:transparent; border:1.5px solid var(--border2); color:var(--text2); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; padding:14px 22px; cursor:pointer; border-radius:9px; letter-spacing:1px; text-transform:uppercase; transition:all 0.18s; }
+  .btn-reset:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); }
+
+  @keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes scaleIn { from{transform:scale(0.4);opacity:0} to{transform:scale(1);opacity:1} }
+
+  @media (max-width:620px) {
+    .field-row { grid-template-columns:1fr; }
+    .card-section, .submit-wrap, .plan-summary { padding:22px 18px; }
+    .card-top { flex-direction:column; align-items:flex-start; gap:12px; }
+    .progress-steps { width:100%; }
+    .summary-grid { grid-template-columns:1fr; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="brand-pill"><span class="brand-dot"></span>DFL Importers · Sales</div>
+    <h1>Weekly <span>Plan</span><br>Submission</h1>
+    <div class="header-sub" id="week-label">Loading week…</div>
+  </div>
+
+  <div class="card">
+
+    <div class="card-top">
+      <div>
+        <div class="card-top-title">Weekly Visit Plan</div>
+        <div class="card-top-sub">Takes less than 10 minutes · Submit every Friday</div>
+      </div>
+      <div class="progress-steps">
+        <div class="step-dot" id="step-1"></div>
+        <div class="step-dot" id="step-2"></div>
+        <div class="step-dot" id="step-3"></div>
+        <div class="step-dot" id="step-4"></div>
+      </div>
+    </div>
+
+    <div id="form-body">
+
+      <!-- 01: Identity -->
+      <div class="card-section">
+        <div class="section-label">01 — Who Are You?</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Your Name</label>
+            <select id="rep-select" onchange="filterZonesForRep();updateProgress()">
+              <option value="">Select your name…</option>
+              <option>Kimberly Brown</option>
+              <option>Eric Smith</option>
+              <option>Sheldon Brown</option>
+              <option>Clerett Holness</option>
+              <option>Antonio Williams</option>
+              <option>Dionne Rerrie</option>
+              <option>Desrick Simpson</option>
+              <option>Damita Samuels-Foster</option>
+              <option>Kawayne Evans</option>
+              <option>Kimmone Campbell</option>
+              <option>Everton Green</option>
+              <option>Yanique Desouza</option>
+              <option>Garreth Brown</option>
+              <option>Tudi-ann Lammie</option>
+              <option>Petronia Tinglin</option>
+              <option>Stacy-Ann Bennett Edwards</option>
+              <option>Ruth Ann Lewis</option>
+              <option>Christopher Russell</option>
+              <option>Tashelle Wilson</option>
+            </select>
+            <div class="field-error">Please select your name</div>
+          </div>
+          <div class="field">
+            <label>Week Commencing</label>
+            <input type="text" id="week-input" readonly style="color:var(--muted);cursor:default">
+          </div>
+        </div>
+      </div>
+
+      <!-- 02: Commitment -->
+      <div class="card-section">
+        <div class="section-label">02 — This Week's Commitment</div>
+        <div class="field-row">
+          <div class="field">
+            <label>What sales do you aim to achieve this week? ($)</label>
+            <input type="number" id="target-rev" placeholder="4,500,000" oninput="updateProgress()">
+            <div class="field-hint">Based on where you are in the month — what can you realistically achieve this week?</div>
+            <div class="field-error">Please enter your sales goal for the week</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03: Day-by-day -->
+      <div class="card-section">
+        <div class="section-label">03 — Day-by-Day Coverage</div>
+        <div id="day-grid-error" style="display:none;font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px">Please select at least one zone and store for the days you are working</div>
+        <div class="day-grid" id="day-grid"></div>
+      </div>
+
+      <!-- 04: Flags -->
+      <div class="card-section">
+        <div class="section-label">04 — Anything to Flag for Concern</div>
+        <div class="field">
+          <label>Pricing issues, competitor activity, account concerns, support needed</label>
+          <textarea id="flags" placeholder="Leave blank if nothing to flag this week…" style="min-height:65px"></textarea>
+        </div>
+      </div>
+
+      <div class="submit-wrap">
+        <button class="btn-submit" id="submit-btn" disabled onclick="submitPlan()">
+          Submit Weekly Plan →
+        </button>
+        <div class="submit-hint">Your plan goes to sales management immediately — you'll get a shareable summary on the next screen</div>
+      </div>
+
+    </div><!-- /form-body -->
+
+    <!-- Success + Summary -->
+    <div id="success">
+      <div class="success-header">
+        <div class="success-ring">✓</div>
+        <h2>Plan Submitted!</h2>
+        <p id="success-subtitle">Your weekly plan has been logged.</p>
+      </div>
+      <div class="plan-summary">
+        <div class="summary-title">Your Plan at a Glance</div>
+        <div class="summary-grid" id="summary-top"></div>
+        <div class="summary-title" style="margin-top:4px">Day-by-Day Coverage</div>
+        <div class="day-summary" id="summary-days"></div>
+        <div id="summary-flags"></div>
+        <div class="summary-title">Share Your Plan</div>
+        <div class="share-row">
+          <a id="whatsapp-btn" href="#" target="_blank" class="btn-whatsapp">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            Share on WhatsApp
+          </a>
+          <button class="btn-download" id="download-btn" onclick="downloadSummary()">⬇ Download</button>
+          <button class="btn-reset" onclick="resetForm()">Submit Another</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+
+// ── Rep → Zones lookup (derived from actual invoiced customers Feb-May 2026) ─
+const REP_ZONES = {
+  'Antonio Williams': ['SPANISHTOWN', 'OLDHARBOUR', 'KINGSTON'],
+  'Christopher Russell': ['KINGSTON', 'DOWNTOWN', 'OCHORIOS', 'OLDHARBOUR'],
+  'Clerett Holness': ['MANDEVILLE', 'CHRISTIANA', 'SPALDING', 'BROWNSTOWN'],
+  'Damita Samuels-Foster': ['SAV', 'WHITEHOUSE', 'DARLISTAN',  'PETERSIELD', 'GRANGEHILL'],
+  'Desrick Simpson': ['NEGRIL', 'SAV', 'GRANGEHILL', 'LITTLE LONDON', 'SHEFFIELD'],
+  'Dionne Rerrie': ['MOBAY', 'FALMOUTH', 'TRELAWNY'],
+  'Eric Smith': ['SANTACRUZ', 'NEWMARKET', 'LACOVIA', 'BRAES RIVER', 'MAGOTTY'],
+  'Everton Green': ['KINGSTON', 'LINSTEAD', 'EWARTON', 'DOWNTOWN'],
+  'Garreth Brown': ['KINGSTON', 'STONYHILL'],
+  'Kawayne Evans': ['PORTMORE', 'KINGSTON', 'SPANISHTOWN', 'STONYHILL', 'HARBOUR VIEW', 'OLDHARBOUR'],
+  'Kimberly Brown': ['MOBAY', 'LUCEA', 'GREEN ISLAND', 'ANCHOVY', 'ORANGE BAY'],
+  'Kimmone Campbell': ['STANNSBAY', 'OCHORIOS', 'BROWNSTOWN', 'RUNAWAYBAY', 'DISCOVERYBAY', 'CLAREMONT', 'GAYLE', 'PORTMARIA', 'ALEXANDRIA', 'ORACABESSA'],
+  'Petronia Tinglin': ['MORANTBAY', 'KINGSTON', 'DOWNTOWN', 'ALBION', 'PORTMORANT', 'YALLAHS'],
+  'Ruth Ann Lewis': ['PORTANTONIO', 'OCHORIOS', 'HIGHGATE', 'ANNOTTOBAY', 'PORTMARIA', 'ORACABESSA', 'BUFFBAY', 'GAYLE'],
+  'Sheldon Brown': ['JUNCTION', 'SOUTHFIELD', 'BLACKRIVER', 'TREASURE BEACH', 'ALLIGATOR POND'],
+  'Stacy-Ann Bennett Edwards': ['KINGSTON', 'DOWNTOWN', 'SPANISHTOWN', 'MOBAY', 'SAV', 'PORTMORE', 'OCHORIOS', 'FALMOUTH', 'MANDEVILLE', 'OLDHARBOUR', 'NEGRIL'],
+  'Tashelle Wilson': ['MOBAY', 'SAV', 'LUCEA', 'FALMOUTH', 'OCHORIOS', 'NEGRIL', 'WHITEHOUSE'],
+  'Tudi-ann Lammie': ['DOWNTOWN', 'KINGSTON', 'BUFFBAY', 'BROWNSTOWN'],
+  'Yanique Desouza': ['MAYPEN', 'FRANKFIELD', 'KELLITS', 'LIONELTOWN', 'CHAPLETON'],
+};
+
+// ── Rep → their specific store list (full Tier 1/2/3 from DFL database) ──────
+const REP_STORES = {
+  'Antonio Williams': ['SHOPPERS FAIR BRUNSWICK', 'AJANI\'S WHOLESALE', 'BETTA VALUE SUPERMARKET', 'BRAE\'S CASH & TAKE', 'CHUNG PHAT', 'FLASH WHOLESALE', 'GIANT SUPERMARKET LIMITED', 'HILO SPANISH TOWN', 'JERRY WHOLESALE', 'LOTTE MALL', 'MAINLAND SUPERMARKET LTD', 'MISTER CHEN SUPERMARKET', 'SAMPARS CASH & CARRY OLD HARBOUR', 'SHOP & SAVE SPANISH TOWN', 'SHOPPERS FAIR BURKE ROAD', 'SHUN DA SUPERMARKET', 'AJ\'S SUPERMARKET', 'BL RETAIL', 'C & M MEATS OLD HARBOUR', 'CAO SUPERMARKET', 'CHENS WHOLESALE SPANISH TOWN', 'HANNA\'S SUPERMARKET', 'HAPPY DAY SUPERSTORE', 'HARBOUR GROCERY', 'JACK FU WHOLESALE', 'JOHN JOHN WHOLESALE', 'K & K WHOLESALE SPANISH TOWN', 'LEE\'S S/MARKET (FORMERLY CHERISH)', 'LIU WANG SUPERMARKET', 'MIAO YI', 'MICHEAL WHOLESALE SPANISH TOWN', 'NEW FAIR 88/INDEPENDENT WHOLESALE', 'S MART WHOLESALE OLD HARBOUR', 'SINGH WHOLESALE', 'SU CHONG WHOLESALE', 'SWEET DEAL OLD HARBOUR', 'WALLACE IMPERIAL FOOD LTD', 'WAN YUAN', 'WELLINGTON STREET W/SALE', 'WEN REN CHEN SUPERMARKET', 'YIN HE', 'YUERAO WANG SUPERMARKET T/A CHEN\'SS/M'],
+  'Christopher Russell': ['CHANG\'S TRADING', 'CHANG\'S 2 EXPRESS', 'COUPLES TOWER ISLE', 'GODDARD CATERING GROUP (JAMAICA) LTD', 'MOTHERS ENTERPRISE', 'R HOTEL JAMAICA', 'TASTEE LTD', 'TERRA NOVA ALL SUITE HOTEL', 'B&E CATERERS & RESTAURANTS -WILLODENE', 'COUPLES SANS SOUCI', 'COURTYARD BY MARRIOTT', 'GUYS HILL HIGH SCHOOL', 'JAMAICA BROILERS GROUP LTD', 'JAMAICA FLOUR MILLS', 'OB\'S RESTAURANT AND CATETERS', 'ROK OPERATING COMPANY LTD T/A ROK HOTEL', 'SHORTWOOD TEACHERS COLLEGE', 'SIZZLIN SLOTS', 'TASTEE MANNINGS HILL'],
+  'Clerett Holness': ['FRESH VALU SUPERMARKET/GRACE CHAE', 'KIND SUPERMARKET LTD', 'MASTER MAC MANDEVILLE', 'PRICE GEL SUPERMARKET', 'PROGRESSIVE FOODS MANDEVILLE SUPERMARKET', 'URVILLS SUPERMARKET', 'C & H SUPERMARKET & WHOLESALE', 'EXTRA VALU', 'HAORIZI SUPERMARKET & WHOLESALE', 'HO\'S HUI MING TRADING SUPERMARKET', 'HO\'S HUI T/A LIANG\'S FOOD COMPANY (SPALDING)', 'HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO', 'J & W WHOLESALE MANDEVILLE', 'JIN XI AN YE SUPERMARKET', 'JUN SUPERMARKET', 'K-POP SUPERMARKET', 'LIAO J. SUPERMARKET FORMERLYTONY\'S', 'LINS WHOLESALE & RETAIL', 'MEGAMART MANDEVILLE', 'MOO PEN LTD', 'MY FRIENDS SUPERMARKET LTD', 'NASHVILLE TRADING', 'NEW GRAND MARKET', 'PEOPLES CHOICE TRADING', 'SHOPPERS FAIR MANCHESTER', 'SIBLING SUPERMARKET', 'STAR RIVER\'S SUPERMARKET & WHOLESALE', 'SUN MART formerly SELECTION WHOLESALE', 'SUPER PLUS MIDWAY', 'SURE SAVE', 'TRUST MART SUPERMARKET', 'WAVE SUPERMARKET FORMERLY QUICK SAVE', 'WIN\'S WAY SUPERMARKET MANDEVILLE', 'WINNER 88 FORMERL Y & W SUPERMARKET', 'ALEX SUPERMARKET T/A GREAT VALUE', 'B & B\'S BAKE ME AWAY LIMITED', 'BETTER VALUE', 'BROWN\'S TOWN SUPERMARKET', 'C & M MEATS MANDEVILLE', 'CHENS  SUPER  SAVE (7-11 SUPERSTORE)', 'CHINA\'S DELIGHT', 'DRAGON HOME T/A J & R PEOPLE\'S CHOICE', 'E\'S LIANG LIMITED', 'GOLDEN DRAGON', 'H & P BEST BARGAIN SUPERMARKET', 'H&L LUCKY SUPER WHOLESALE', 'HEAVENLY DELIGHT', 'HO\'S SUPERMARKET CHRISTIANA', 'J & W WHOLESALE HATFIELD', 'KEN CHIN', 'M & Y SUPERMARKET', 'MODERNWAY SUPER MART', 'N.H SUPERMARKET', 'OCEAN MALL SUPERMARKET', 'PORUS SUPERMARKET & W/SALE', 'PRIDE OF KARIS/C&S MEATS & GROCERIES', 'Q & J STAR SUPERMARKET', 'RAIL WAY SELL EVERY LIKKLE THING', 'RERRIE\'S RESTAURANT', 'SAM FO MEATS', 'SPECIAL CHOICE', 'SUN VALUE SUPERMARKET', 'SUPER FOODS', 'SUPER PLUS EXPRESS', 'SUPER PLUS PARK CRESCENT', 'TELLO\'S WHOLESALE', 'UNIQUE PACKAGING', 'WEN\'S SUPERMARKET', 'WIN\'S WAY WHOLESALE', 'Y & K SUPERMARKET', 'Z-ONE FOOD MART FORMERLY MAP W/SALE PORUS'],
+  'Damita Samuels-Foster': ['BESTCO SUPERMARKET-SAV', 'CHENMART SUPERMARKET & HABERDASHERY', 'LI\'S WHOLESALE', 'S K D WHOLESALE SAV(Formerly Y & W)', 'BETTER LIFE WHOLESALE', 'CHOICE FRESH FOODS SUPERMARKET & WHOLSALE', 'CONSUMER SUPERMARKET', 'FRESH CHOICE MEATS', 'HAOKE SUPERMARKET & WHOLESALE (Formerly Good Guest)', 'HONGCHEN FAMILY MART', 'HYH WHOLESALE', 'L & G SUPERMARKET', 'MILLERS SUPERMARKET', 'NEW DRAGON WHOLESALE SAV', 'ROGEORGE TRADING', 'SINGH MINI MART', 'SUPER LIFE SUPERMARKET', 'TECH ME HOME COMPANY/GOOD START', 'THIS ONE WHOLESALE', 'WAN XING SUPERMARKET', 'WONDERFUL SUPERMARKET', 'Z & W FORMERLY L&D WHOLESALE GRANGE HILL', 'ALEXDEL LIMITED', 'CNG SUPERMARKET & WHOLESALE', 'CORNWALL FOODS T/ASHOPPERS CHOICE', 'EARTH & OCEAN SUPERMARKET', 'FAMILY D & A DRAGON MART (Formerly Long Peng)', 'FIRST LOOK SUPERMARKET', 'GRANDEUR FOODS COMPANY LTD/ (GOOD START)', 'H.T.C SUPERMARKET DARLISTON', 'HAMMONDS CONSOLIDATED', 'ICON DISTRIBUTORS MINI MART', 'J & Z SUPERMARKET', 'LUE\'S LUCKY WHOLESALE', 'MEAT MAX DEPOT', 'NEW DRAGON WHITEHOUSE', 'NOR\'S RELIABLE SERVICE', 'PETERSFIELD HIGH SCHOOL.', 'PHOENIX PARK WHOLESALE & RETAIL', 'YU\'S SUPERMARKET & WHOLESALE'],
+  'Desrick Simpson': ['SHOPPERS FAIR SAVANNA-LA-MAR', 'YUNS SUPERMARKET', 'BEST VALUE WHOLESALE LITLE LONDON', 'CHANDON & SONS DISTRIBUTORS', 'D & Y SUPERMARKET WHOLESALE', 'GOLD STAR NEGRIL', 'HEALTHY CHOICE FRUITS & GROCERIES LTD', 'HILO NEGRIL', 'KENNEDY\'S MINI MART', 'LFA COUNTRY STORE NEGRIL', 'LONG PENG S/MARKET form Shoppers Delite', 'MEAT PLUS', 'MJ SHOPPING CENTER', 'NEGRIL BUS PARK SUPERMARKET', 'NEW PARADISE SUPERMARKET', 'QUALITY TRADERS', 'RED SUN', 'SNOW S/MARKET & WHOLESALE', 'SUN ISLAND FORMERLY GRANGE HILL SUPERMARK', 'TAT SUPERMARKET', 'YUN YANG SUPERMARKET', 'ACM SUPERMARKET & WHOLESALE', 'ANDREW HIBBERT', 'B & D MEAT \'N\' MINI MART', 'BIECO XP INTERNATIONAL LIMITED', 'DELVEBRIDGE SUPERMARKET & HARDWARE LTD', 'DIAS SUPERMARKET-GRANGE HILL', 'DWIGHT DALEY DISTRIBUTORS', 'HAMMONDS PASTRY & RESTAURANT LTD', 'HEALTHY DRIZZLE SUPERMARKET', 'HILO BOARDWALK', 'J & P SUPERMARKET & WHOLESALE', 'LAMEY SUPERMARKET', 'NEW SEA SUPERMARKET', 'RIA SUPERMARKET & WHOLESALE', 'SHEFFIELD SUPERMARKET', 'SIMMONDS FAMILY MEAT AND GROCERIES', 'VALUE  MASTER NEGRIL'],
+  'Dionne Rerrie': ['BEST VALUE SUPERMARKET', 'CHAMPION SUPERMARKET -FALMOUTH', 'CONSUMER MEAT PLUS CO. LTD', 'ORION WHOLESALE', 'SUPERMARKET MANELLI LIMITED', 'TESCO C/O W & L FALMOUTH', 'AJT CHEN FAMILY LTD', 'BETTER MEATS MOBAY', 'CHEN WINGO WHOLESALE', 'CHLOE\'S WHOLESALE & SUPERMARKET', 'CHOWS CASH & CARRY', 'ENERGY WHOLESALE', 'FENG 777 WHOLESALE & RETAIL LTD', 'FINNI WHOLESALE', 'FRESH VILLAGE SUPERMARKET', 'GONI MEI SUPERMARKET', 'H.TC SUPERMARKET MOBAY (#3)', 'HAKKA SHAWN #2', 'HAPPY SMART GROCERS LTD', 'HONG XIN FALMOUTH', 'HUIWEN COMPANY LTD FORMERLY HONG LI', 'JEDA WHOLESALE/CHENS JADA', 'K\'S WHOLESALE', 'META VARIETY', 'NEW CENTURY MOBAY', 'NEW DRAGON WHOLESALE', 'NEW WELCOME WHOLESALE MONTEGO BAY', 'OLE\' SUPERMARKET & WHOLESALE', 'ONE DEPOT TOO HOT TRADING', 'QIANHUI SUPERMARKET', 'SILVER STAR SUPERMARKET', 'STRANBERY WHOLESALE', 'WAGON WHOLESALE', 'WENERS WHOLESALE MOBAY', 'WENG & CHIN WHOLESALE', 'YANG WHOLESALE', 'YUNFENG WHOLESALE SUPERMARKET', '3 Q SUPERMARKET LIMITED', 'ANDRU WHOLESALE', 'ANDY\'S STORE', 'BIG FAMILY WHOLESALE & SUPERMARKET', 'CRYSTAL WHOLESALE', 'FANG MEGA FOOD WHOLESALE & SUPERMARKET', 'FENG\'S TRADING WHOLESALE', 'G P WHOLESALE', 'H.T.C SUPERMARKET', 'HILLSIDE ENTERPRISE LTD', 'JOEL & S LITTLE MART', 'K. BROMORES MEATS & GROCERY', 'L & B DISCOUNT LIMITED', 'L & X WHOLESALE LIMITED', 'LEICHENG WHOLESALE', 'MASTER MAC MOBAY', 'MIDWAY FAST FOOD', 'MOBAY MEAT PLUS', 'NEW CITY MINI MART', 'NEW CREEK WHOLESALE LTD', 'OUPAI SUPERMARKET LTD', 'PAYLESS MEAT MOBAY', 'RAK WHOLESALE STORE', 'RILEY MINI MART', 'ROYAL WHOLESALE', 'SAMFAR MEATS & GROCERIES LTD', 'SMILE CITY S/MARKET t/a HONG XIN FALMOUTH', 'SNAP-FRESH SUPERMARKET LIMITED', 'SOONG\'S SISTER SUPERMARKET', 'STAY N SHOP', 'STRAND MEGA SAVINGS W/SALE /FRMLYCLARISSA', 'SUPER MOON LTD', 'VALUE MEAT MART PHOENIX PLAZA', 'WENG CHIN'],
+  'Eric Smith': ['INTOWN SUPA SAVE SANTA', 'MAX VALUE', '168 SUPERMARKET', 'CHENYAN WHOLESALE & SUPERMARKET', 'CHJN SUPERMARKET FRMLY HUAO\'S  WHOLESALE', 'CRUZ SUPERSTORE', 'DOBBY\'S DISCOUNT WAREHOUSE', 'FEDLIN ENTERPRISE', 'HONG XIN SANTA', 'JIE JIE SUPERMARKET', 'JN SUPERMARKET TIKPOP FOOD', 'MID-ISLAND SERVICE STATION', 'MORRISON\'S VARIETY STORE', 'PRIME WHOLESALE', 'SANTA CENTRE SUPERMARKET LTD', 'SANTA CHOICE SUPERMARKET', 'SMITH SUPERMARKET', 'SUPER MAX FORMERLY MAXX MART', 'THE ONE SUPERCENTRE', 'TONEY\'S FRIED CHICKEN', 'XIONG MAGGOTY SUPERMARKET', 'ANDJOS DATA PROCESSING', 'BRAE\'S ONE STOP GROCERIES', 'CHAOZHI SUPERMARKET- SANTA CRUZ', 'DEE\'S RIVERSIDE CAFE', 'DERRICK SCOTT', 'JAVS MINI MART (FORMERLY E&S MINI MART)', 'JOJO\'S PIZZA & MORE', 'MARSHA SPIRIT LIQUOR AND WHOLESALE', 'MASTER LIQUOR & WHOLESALE', 'MENKE SUPERMARKET', 'MITCHELL\'S MID TOWN SUPERMARKET', 'NEW MART WHOLESALE', 'PRIME WHOLESALE BALACLAVA', 'SANTA CRUZ WHOLESALE & LIQUOR STORE', 'ST BESS INVESTMENT FORMERLY C MART', 'STEP ONE', 'TINY TOTS /A-Z BOOKSTORE'],
+  'Everton Green': ['FONGS FOOD', 'HANLUE BROS', 'HANLUE BROS #2', 'HAPPY VALUE SUPERMARKET', 'HILO CROSS ROADS', 'HOMELY SUPERMARKET FORMERLY LING FIE', 'JR\'S BARGAIN WORLD LINSTEAD', 'K & M MEAT CROSS ROAD', 'LINSTEAD WHOLESALE & LIQUOR STORE', 'MARVERLY FOODS LTD', 'MAXIM SUCCESSORS LTD', 'MEAT & GROCERY DEPOT', 'NK WHOLESALE', 'R & P GROCERY PLUS', 'SAMPARS CASH & CARRY CROSS ROADS', 'SHOPPERS DELITE', 'TIN LING SUPERMARKET', 'WAYNE DISCOUNT CENTER & CO LTD', '24 HOUR WHOLESALE', 'BRIDGE WHOLESALE (WISE CHOICE)', 'HANZ FORMERLY CONNIE\'S WHOLESALE', 'HOME ESSENTIAL /UNIVERSAL WHOLESALE', 'K & M MEAT- HALFWAY TREE', 'KING SUPERMARKET LINSTEAD', 'LALAPALOOZA RESTAURANT', 'LEONG ENTERPRISES CO. LTD', 'LILLY\'S ENTERPRISE', 'LONG WONG formerly CHENG LONG SHOP', 'MERITSUN DISTRIBUTORS', 'MICHELLE WHOLESALE', 'NENG WHOLESALE', 'NEW ATTRACTION LINSTEAD', 'REAL CHOICE SUPERMARKET', 'REDUCE MINI MART', 'SAMPARS SUPERMARKET BLVD', 'TOTAL DUNROBIN', 'YOUR WHOLESALE'],
+  'Garreth Brown': ['BROOKLYN CLOCK TOWER', 'BROOKLYN TWIN GATES', 'GENERAL FOODS LIGUANEA', 'HILO BARBICAN', 'HILO LIGUANEA.', 'LOSHUSAN NEW KINGSTON/ JOHN R WONG', 'LOSHUSAN SUPERMARKET', 'SUPER SHOPPERS FAIR BOULEVARD', 'HILO PAVILION', 'HUGHENDEN SUPERMARKET', 'LEES FOOD FAIR BOULEVARD', 'MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING', 'MASTER MAC STONY HILL', 'SAMPARS T/A SELECT GROCERS', 'SHOPPERS FAIR DUHANEY PARK', 'SHOPPERS FAIR LIGUANEA', 'SOVEREIGN SUPERMARKET- LIGUANEA', 'VARIETY 11- NO WEDNESDAY DELIVERY', 'WAN DEFU SUPERMARKET LIMITED', 'D & D WHOLESALE', 'FIRST CHOICE FOOD', 'FRESH APPROACH', 'GOLDEN GROCERY  SUPERMARKET', 'HILO BASIX (UWI)', 'HONG DA', 'KAMRINE ENTERPRISE', 'LING CHING', 'LOW PRICE TRADING', 'LUCKY CRAB SEAFOOD BAR AND GRILL', 'MUNDUS SUPPLIES LTD', 'NADINE', 'OFFICE SUPPLIES BROKERS LTD', 'OGM FARMS', 'PAPINE WHOLESALE', 'POTWAH RESTAURANT', 'TONG\'S WHOLESALE PAPINE', 'TOTAL SERVICE STATION  NEW KINGSTON', 'W T FEEDS', 'WORLDTRON TOTAL'],
+  'Kawayne Evans': ['FAMILY PRIDE', 'HILO PORTMORE PINES', 'JOONG PORTMORE', 'LEES FOOD FAIR RED HILLS ROAD', 'MASTER MAC FOOD STORE', 'MEGAMART KINGSTON', 'PROGRESSIVE FOODS PORTMORE', 'SHOPPERS FAIR PORTMORE MALL', 'SUPER VALU FRESH FOODS LTD', 'CANTON ENTERPRISE PORTMORE', 'HILO MANOR PARK', 'J\'S AND FAMILY TRADING', 'JIABAILI SUPERMARKET', 'K & M MEAT & GROCERY', 'MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING', 'MEGAMART PORTMORE', 'PORTMORE PINES SUPER VALUE LTD', 'SUPER VALUE  KINGSTON', 'SYDENHAM WHOLESALE', 'APEX ENERGY SYSTEM-HARBOUR VIEW', 'AUNT NELLY\'S WHOLESALE', 'BIG MAMA\'S WHOLESALE & RETAIL', 'FIRST CHOICE FOOD', 'FRESH APPROACH', 'GOLDEN BUDGET', 'HAPPY WHOLESALE PORTMORE', 'INDEPENDENCE CITY SUPERMARKET', 'JOY & PEACE', 'JURISHA WHOLESALE & RETAIL', 'LLAL\'S KITCHEN', 'LUCKY ENTERPRISE PORTMORE', 'MEMBERS RETAIL & WHOLESALE', 'NEW BAY MART', 'SHAMSHAN WHOLESALE', 'SNOW WHOLESALE', 'SOURCE FOODS', 'SUPER DEAL', 'TAWI KITCHEN', 'THRILLER WHOLESALE(ONE INVOICE AT A TIME)'],
+  'Kimberly Brown': ['348 SUPERMARKET LTD', 'CHERRIE\'S SUPERMARKET', 'LINS LIMITED ANCHOVY', 'PROGRESSIVE FOODS BOGUE', 'PROGRESSIVE FOODS WHITTER VILLAGE', 'AFRESH MARKET PLACE LTD', 'ALLEN WHOLESALE', 'BEAUTY CITY MEAT PLUS', 'BEST STAR /Formerly R & L STOP & SHOP', 'BOGUE VILLAGE SUPERMARKET', 'CONSUMER PARADISE WHOLESALE', 'DIRECT DEALS FOODS LIMITED', 'DOUBLE LUCKY SUPERMARKET', 'EXPRESS SUPERMARKET & CONVENIENCE STORE', 'FENDA DISTRIBUTORS', 'FIRST & LAST MINI MART', 'GRAND DEPOT LTD', 'GREENWOOD SUPERMARKET', 'GVS LIMITED', 'HERBERT\'S PROCESSING- UNION', 'HEWING WHOLESALE SUPERMARKET', 'HILO MOBAY', 'I & C SUPERMARKET', 'NAING SUPERMARKET', 'QIANG WHOLESALE/ANDYS WHOLESALE ANCHOVY', 'QUEEN\'S SUPERMARKET MT SALEM', 'SAVE A LOT SANDY BAY', 'SHANE WHOLESALE', 'SHOPPERS FAIR BLUE DIAMOND', 'SIUS SUPERMARKET MOBAY', 'SUN POWER', 'SUPER 99', 'TD BROTHERS LIMITED', 'UNITED SUPERMARKET', 'VALUE CITY WHOLESALE & SUPERMARKET', 'WANG WANG', 'WHITE HOUSE A PLUS TRAINING LTD', 'ALL MARKET STOP & SHOP', 'AMOR WHOLESALE & RETAIL', 'ARCL SUPERMARKET', 'BETHEL PRIMARY SCHOOL', 'C.N LIQUOR & FOODS LTD', 'CAMBRIDGE CASH N CARRY PL', 'CHINS BROTHERS CAMBRIDGE', 'CORNWALL PACKAGING', 'GURUNANAK AGENCY', 'HAI YAN SUPERMARKET', 'HALCGO COMPANY', 'HUADENG ZENG CAMBRIDGE WHOLESALE', 'HUMINITON FORMERLY NEWTON RESTAURANT', 'HUNTERS MINI MART & RESTAURANT', 'IVAN LEE', 'JHENCHAN TRADING', 'JK SUPERMARKET', 'KAIKAM WHOLESALE', 'LAIS BROTHERS MART', 'LEGEND SUPERMARKET', 'LILLIPUT MINI MART', 'LUCEA NO 1 WHOLESALE & SUPERMARKET', 'MD\'S SUPER SERVICE WHOLESALE', 'MING\'S SUPERMARKET', 'MNAV SUPERMARKET LTD', 'NEW GARDEN SUPERMARKET', 'POPULAR', 'R & C WHOLESALE & MEAT', 'RIVER RAFT LIMITED', 'SHARON WHOLESALE & SUPERMARKET', 'SS&P WHOLESALE', 'SUN GOLD MINIMART', 'SUN POWER WHOLESALE- #2', 'SUNNY FRESH COMPANY LTD', 'SUNNY\'S GROCERY', 'Y & F'],
+  'Kimmone Campbell': ['REXO SUPERMARKET', 'BEYOND SUPERMARKET', 'BOOT #2 SERVICE STATION', 'BRAVO SUPERMARKET', 'CHAMPION SUPERMARKET', 'COME AND BUY FORMERLY G2 TRADING', 'D GROUNDS DISTRIBUTIONS LTD', 'DAFA WHOLESALE', 'FOOD TO GO RESTAURANT', 'FU CHENG SUPERMARKET', 'GENERAL FOODS SUPERMARKET', 'HEWS SUPERMARKET', 'HO\'S SUPERMARKET ST ANNS BAY', 'HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO', 'LFA COUNTRY STORE LTD', 'MASTER MAC BROWNS TOWN', 'MCDONALD\'S SUPERSALE', 'PROGRESSIVE FOODS OCHO RIOS', 'QUICK MART SUPERMARKET & WHOLESALE', 'RELIABLE SUPERMARKET', 'RUNAWAY BAY EMPORIUM', 'TENGDA SUPERMARKET LTD', 'TIADONG SUPERMARKET', 'TRUST MART SUPERMARKET', 'TSO SUPERMARKET', '7/11 MEAT MART', 'A & G AGRI SUPPLIES', 'AJ SUPERMARKET', 'BEST VALUE SUPERMARKET & WHOLESALE', 'BOOT SERVICE STATION', 'BROWN\'S TOWN SUPERMARKET', 'CLAREMONT SUPERMARKET', 'CNJ WHOLESALE & RETAIL', 'EDGAR JOHNSON', 'ENA SUPERMARKET LTD', 'FITZROY RETAIL & WHOLESALE', 'GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM', 'KARIBBEAN KORNER(WHITE RIVER)', 'KEISHA KELLY', 'L & M MEATS', 'NEW HAMID WHOLESALE & RETAIL', 'NEW PLUS SUPERMARKET', 'NORTHERN SUPERMARKET', 'O K MINI MART', 'ORVELL ARIS', 'OUT-A-TOWN SUPERMARKET & WHOLESALE', 'S & S ASSOCIATES C/O COOL OASIS', 'S & W WHOLESALE', 'SALEM FRESHCO SUPERMARKET', 'SALEM WHOLESALE', 'SAMPARS CASH & CARRY ST ANNS BAY', 'SANDY YE SUPERMARKET', 'SAVING PLUS SUPERMARKET', 'SELECTION MART', 'SOPHIA\'S LIMITED', 'SOURCE WAT-A-DEAL WHOLESALE', 'SQUARE ONE', 'SUN VALUE SUPERMARKET', 'THE MEAT PLACE', 'TIME MARKET'],
+  'Petronia Tinglin': ['AFRESH SUPERMARKET- KINGSTON', 'CHONG SANG & SONS', 'CLASSIC SUPER SHOP', 'COFFEE EXPRESS', 'DOWNTOWN PAYLESS', 'GIBBO TRADING- WINDWARD ROAD', 'JACAN FOOD DISTRIBUTORS', 'JANA ENTERPRISES LTD', 'JOONG MORANT BAY & WHOLESALE Ltd', 'KAREY\'S WHOLESALE', 'MEAT PLUS WHOLESALE', 'PEOPLES BAZZAAR', 'SHOPPERS FAIR HARBOUR VIEW', 'THE NEW MARKET ROAD WHOLESALE & RETAIL', 'ANY MONEY SUPERMARKET', 'BOBO WHOLESALE MORANT BAY', 'CHEERFUL TRADING CO. LTD', 'COFFEE TRADERS LIMITED', 'COST U LESS-KINGSTON', 'ESSENTIAL DISCOUNT MART', 'GLOBAL MEAT', 'HOWARD WILLIAMS', 'K & M - GILTRESS', 'NECESSITIES AND MORE', 'PALANCE GROCERIES AND MEATS', 'Q MART', 'S FOODS LTD', 'SUPER  MIX DISTRIBUTORS', 'VINYARDS SUPERMARKET', 'WEST SUPERMARKET & COMPANY LIMITED (FORMERLY MORRIS SUPERETTE)', 'WINSOMES SUPERMARKET & WHOLESALE'],
+  'Richard Gordon': ['CHANG\'S TRADING', 'MARGARITAVILLE LIMITED', 'SEAWIND KEY INVESTMENTS (USD)', 'WORLD CENTRAL KITCHEN (USD)', 'BUSH CAY WEST -EXCELLENCE RESORTS USD', 'CHANG\'S 2 EXPRESS', 'EXCELLENCE RESORTS', 'GRAN BAHIA PRINCIPE', 'IBEROSTAR HOTEL', 'OCEAN CORAL SPRING RESORT (FELICITOS LTD)', 'RIU CLUBHOTEL NEGRIL', 'RIU CLUBHOTEL OCHO RIOS', 'RIU JAMAICOTEL LTD. T/A HOTEL RIU REGGAE', 'RIU MOBAY', 'RIU PALACE AQUARELLE', 'RIU PALACE MOBAY', 'RIU PALACE NEGRIL', 'ROYALTON NEGRIL RESORT & SPA', 'ROYALTON WHITE SANDS', 'SANDALS RESORTS INTERNATIONAL', 'DYNAMIC PACKING LTD', 'IBEROSTAR HOTEL- USD', 'JAMAICA BROILERS GROUP LTD', 'JEWEL GRANDE RESORT', 'MINOTT EQUIPMENT & CHEMICALS', 'MRL MANAGEMENT LIMITED (USD)'],
+  'Ruth Ann Lewis': ['A & J RAMTULLA ENTERPRISE LIMITED', 'G & L WHOLESALE', 'TRUE FLAVA GROCERIES/FOR EVER GREEN #2', 'AEON SUPERMARKET C/O BETTER & BETTER', 'B D R TRADING', 'BOB\'S SUPERCENTER', 'CHA-ROB SUPERMARKET', 'GIANT FAMILY MART LTD', 'HIGHGATE TOWN SHOP.', 'HO-SUE SUPERMARKET', 'HONG FA WHOLESALE', 'JIN LONG WHOLESALE', 'LING FEI WHOLESALE(TONG REN)', 'MARY SHINE ENTERPRISE', 'McDONALD ORACABESSA', 'PETAL VARIETY STORE- WEST STREET', 'PETALS VARIETY- 42 WILLIAMS STREET', 'POPEYE MINI MART', '168 WHOLESALE PORT ANTONIO', '7/11 MEAT MART', 'AAA SUPERMARKET(L&Y)', 'AJ SUPERMARKET', 'BOOT SERVICE STATION', 'ER CARRIERS LLC LTD', 'FOR EVERGREEN W/SALE', 'FUJI FRESH CO.LTD', 'GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM', 'HOWARD PAULWELL KILDARE', 'JIAN PEI SUPERMARKET', 'JIANG WHOLESALE', 'KAMLYN WHOLESALE', 'KARIBBEAN KORNER(WHITE RIVER)', 'NEW ATTRACTION', 'OUT-A-TOWN SUPERMARKET & WHOLESALE', 'PEATS SELF SERVE', 'PETALS MEAT & GROCEY- BLAKE STREET', 'PORT ANTONIO PRIMARY SCHOOL', 'SANDY YE SUPERMARKET', 'SAVING PLUS SUPERMARKET', 'SEGGIES VARIETY STORE', 'SELECTION MART', 'SOURCE WAT-A-DEAL WHOLESALE', 'THE MEAT PLACE', 'TIME MARKET', 'TINA\'S SUPERMARKET & WHOLESALE', 'UMI SUPERMARKET LIMITED', 'WILLIAMS SUPERMARKET- ANNOTTO BAY'],
+  'Sheldon Brown': ['INTOWN SUPER SAVE B RIVER', 'A & B SUPERMARKET & WHOLESALE', 'ALLIGATOR POND WHOLESALE', 'ANNA FOODS SUPERMARKET', 'BEST PICK SUPERMARKET & WHOLESALE', 'DAILY VALUE SUPERMARKET', 'EWS AFFORDABLE GROCERIES & WHOLESALE', 'GLOBAL EGG FARM', 'HUAWEI formerWESTERN SUPERMARKET JUNCTION', 'INTOWN SUPER SAVE JUNCTION', 'JACKY YANG WHOLESALE FORMERLY TOP HILL', 'LILLY WANG SUPERMARKET', 'MAC FOODS/ SUPER PLUS WHOLESALE 193', 'MARTIN ST BESS LIQUOR STORE', 'MORGANS VARIETY STORE', 'NEW MART WHOLESALE & RETAIL', 'RT MART LIMITED', 'S N C SUPERMARKET', 'SHOPPERS FAIR JUNCTION', 'SOUTHCO SUPERMARKET', 'SOUTHERN SUPPLIES AND SERVICES', 'V.S WHOLESALE', 'WENLI SUPERMARKET & WHOLESALE', 'XIAOWAN SUPERMARKET', '468 SUPERMARKET', 'ANNIEMART SAVE AND MORE LIMITED', 'BUTT UP MINI MART', 'CR WHOLESALE LIQUORS & MORE', 'DRO EBANKS MINIMART/ROSE BAR & GROCERY', 'EVANS  WHOLESALE JUNCTION', 'FOOD PLANET SUPERMARKET', 'FOUR ROAD SHOPPER CENTRE', 'GREGO\'S SEA FOOD', 'HAMPTON HIGH SCHOOL', 'JAKE\'S RESTAURANT', 'JUNCTION LIQUOR STORE & MINI MART', 'KANJAS RESTAURANT', 'LINDO STEPHENSON\'S GROCERY', 'LUANA SHOPPING CENTRE', 'MIGEL & JOE MINI MART', 'MOW\'S MINI MART & WHOLESALE', 'OGZO JERK CENTRE', 'PINBIAO SUPERMARKET FRMLY ECLIPSE', 'PRICE RITE LIQUOR STORE & WHOLESALE', 'SOUTHERN J SUPERMARKET fly ECLIPSE', 'SUNRISE BAKERY BLACK RIVER', 'THADDYS MINI MART', 'V EBANKS FARM LTD', 'WILLIAMS CASH & CARRY', 'YUFEI HUANG MINI MART'],
+  'Stacy-Ann Bennett Edwards': ['HILO BARBICAN', 'HILO LIGUANEA.', 'RAINFOREST SEAFOODS', 'CITY FLAME BUFFET & GRILL LTD-BAYSIDE (PORTMORE)', 'EMPIRE RESTAURANT AND HOTEL SUPPLIES', 'GODDARD CATERING GROUP (JAMAICA) LTD', 'HILO MANOR PARK', 'HILO SPANISH TOWN', 'ISLAND GRILL', 'KINGSTON JERK', 'KNUTSFORD EXPRESS SERVICE LTD', 'MOTHERS ENTERPRISE', 'R HOTEL JAMAICA', 'RIU CLUBHOTEL NEGRIL', 'RIU CLUBHOTEL OCHO RIOS', 'RIU JAMAICOTEL LTD. T/A HOTEL RIU REGGAE', 'RIU MOBAY', 'RIU PALACE AQUARELLE', 'RIU PALACE MOBAY', 'RIU PALACE NEGRIL', 'SERRON PHARMACEUTICAL LTD', 'TASTEE LTD', 'TERRA NOVA ALL SUITE HOTEL', 'THE JAMAICA PEGASUS', 'B&E CATERERS & RESTAURANTS -WILLODENE', 'BRAND\' EM FOOD & BEVERAGE LTD', 'CATERERS IN MOTION', 'CITY FLAME BUFFET & GRILL LTD- ANGELS PLAZA', 'COURTYARD BY MARRIOTT', 'DOMDRI MEAT & SEASONING', 'GOLF VIEW HOTEL', 'HILO BOARDWALK', 'HOSPITALITY EXPERTS LTD', 'JAMAICA FLOUR MILLS', 'JUZ BUDDZ LIMITED', 'KARLEEN SMITH & CO- KINGSTON PUBLIC HOSPITAL', 'KARLEEN SMITH & CO- SPANISH TOWN', 'KIM SPENCE', 'MARY  BROWN\'S CORNER TEXACO', 'MEDIA PLANNERS', 'MINOTT EQUIPMENT & CHEMICALS', 'MYSTIC THAI', 'OB\'S RESTAURANT AND CATETERS', 'OMNIA PLUS TRADING LTD', 'PATSY LYN CATERERS LTD', 'RESTAURANT ASSOCIATES LTD (BURGER KING)', 'ROK OPERATING COMPANY LTD T/A ROK HOTEL', 'SIZZLIN SLOTS', 'TASTE OF LIFE LTD/CHILLIN\'', 'TASTEE MANNINGS HILL', 'TIMBER LOUNGE', 'TOYOTA JAMAICA LTD', 'VERI-LICIOUS SWEET TREAT', 'ZMG DISTRIBUTORS T/A FROMAGE BISTRO'],
+  'Tashelle Wilson': ['MARGARITAVILLE LIMITED', 'CHUKKA CARIBBEAN', 'COUPLES SWEPT AWAY', 'HESCOV INVESTMENTS LTD', 'IBEROSTAR HOTEL', 'S HOTEL MONTEGO BAY', 'TIME & PATIENCE BAKERY', 'TRYALL CLUB', 'USD-ROYAL DECAMERON MOBAY', 'BELLEFIELD GREAT HOUSE', 'CHINA HOUSE RESTAURANT', 'CMK BAKERY LTD', 'COUPLES NEGRIL', 'GOOD EATS RESTAURANT', 'HOSPITALITY EXPERTS LTD', 'IN-THING RESTAURANT', 'KUYABA NEGRIL LTD', 'NEGRIL WOODSTOCK ENTERPRISE', 'OLD JOE RESTUARANT', 'PELICAN RESTUARANT', 'PEPPA\'S RESTAURANT', 'PIER 1 RESTAURANT', 'SAN MICHELE LTD ( BLUEFIELDS VILLA)', 'SCOTCHIES DRAX HALL', 'SCOTCHIES MOBAY', 'SEA GARDENS BEACH RESORT', 'STANLEY\'S PATTIES', 'TAYNEY LTD', 'TENSING PEN HOTEL', 'TREASURE HUNT', 'TRYALL MARKET', 'VIP ATTRACTIONS LTD', 'WHITE SANDS NEGRIL HOTEL', 'XEDOS DIVERS LIMITED'],
+  'Tudi-ann Lammie': ['WIN WIN WORLDWIDE INTERNATIONAL', 'AMBIANCE SALES LIMITED', 'BONROY WHOLESALE', 'GENESIS WHOLESALE', 'GIBBO TRADING - HARBOUR STREET', 'JACKIE CHEN W/SALE formerlyGINA WHOLESALE', 'KINGS WHOLESALE', 'LAMBERT 3G LIMITED (FORMALLY PAULINE W/SALE)', 'LIANG WHOLESALE', 'MASTER MAC DOWNTOWN', 'ODEON GROCERY', 'SAMPARS CASH & CARRY', 'TRIPLE C\'S WHOLESALE', 'UNIVERSAL CASH & CARRY', 'VALUE NEXUS WHOLESALE', 'WINNERS WHOLESALE', 'XXTRA TRADING', 'ZHIFU WHOLESALE LTD', 'ZIDA WHOLESALE', 'BARRY WHOLESALE', 'BLACKS HARDWARE AND WHOLESALE', 'C & M MEATS DOWNTOWN', 'CHINA GARDEN RESTAURANT', 'CONTINENTAL ENTERPRISE', 'DONNA WHOLESALE', 'EMPEROR WHOLESALE', 'ERICA & CAMILLE FASHION & GROCERY ENTERPRISE', 'FABIAN SERVICES', 'FAI CHI WHOLESALE', 'GAVIN CHEN WHOLESALE', 'HEXING WHOLESALE', 'HOWARD PAULWELL KILDARE', 'HOWARD WILLIAMS', 'J & J SPANISH TOWN ROAD', 'KAY\'S WHOLESALE', 'KEN WHOLESALE DOWNTOWN', 'KENNY LI WHOLESALE FRM RICKY', 'KIMBY\'S CATERING SERVICE', 'KIMI & EVEN WHOLESALE', 'MAYROSE DISTRIBUTORS', 'MEGA DEAL WHOLESALE', 'McGYVER WHOLESALE', 'NICK WHOLESALE', 'OGM FARMS', 'OMAR T/A HUBERT HENRY', 'PRICE GEL SUPERMARKET- DOWNTOWN', 'SCOOP FOR SCOOP', 'SUPER STAR WHOLESALE', 'TOP WHOLESALE', 'WING CHUNG WHOLESALE', 'Y & S WHOLESALE'],
+  'Yanique Desouza': ['BARGAINS WHOLESALE & SUPERMARKET', 'MAP WHOLESALE LIONEL TOWN', 'NATIONAL SELF SERVE BROOKS AVENUE', 'SELECT GROCERS SUPERMARKET', 'STOPLIGHT WHOLESALE', 'SUPER SHOPPERS FAIR MAYPEN', 'ABC SUPERMARKET', 'ABC WHOLESALE MAYPEN', 'APEX SUPERMARKET & MEAT', 'C & M GOOD VALUE SUPERMARKET LTD', 'C & M MEATS 37 MAIN STREET', 'FAIR DEAL WHOLESALE & SELF-SERVE', 'FLLOYD\'S FAMILY SUPERMARKET & WSALE', 'FOOD PALACE', 'GREAT VALUE SUPERMARKET & WHOLESALE', 'GREEN ORIGIN SUPERMARKET', 'HOSKIN SUPERMARKET', 'JR\'S BARGAIN WORLD SEVENS ROAD', 'LAVENDA SUPERMARKET', 'MAY PEN HOSPITAL', 'NEW CENTURY WHOLESALE CHAPELTON', 'SAMUEL SUPERMARKET', 'SONG HUI SUPERMARKET', 'VALUE MART MAY PEN', 'WELLDAY SUPERMARKET (FRANKFIELD SMKT)', 'WILSON\'S CASH & CARRY', 'YANG FA SUPERMARKET & WHOLESALE', '2628 INVESTMENTS LTD', 'ANYI SUPERMARKET & WHOLESALE', 'BOBO WHOLESALE CHAPLETON', 'CHURCH TRENDS LTD', 'FAMILY DOLLAR SUPERMARKET', 'FYAH SIDE', 'HEART TRUST CLARENDON', 'KES\' SUPERMARKET (formerly Best Choice)', 'LAVENDA SUPERMARKET- KELLITS', 'LUCKY SIDE SUPERMARKET (MAY PEN)', 'LUI\'S SUPERMARKET', 'MASS KEN', 'NEW POWER SUPERMARKET', 'NIGEL VARIETY STORE', 'TERSCO SUPERMARKET AND WHOLESALE'],
+};
+
+// ── Zone → Stores lookup (Tier 1★ Tier 2● from DFL customer database) ─────
+const ZONE_STORES = {
+  'ALBION': [
+    {name: 'JACAN FOOD DISTRIBUTORS', tier: 'Tier 2', label: '● JACAN FOOD DISTRIBUTORS'},
+    {name: 'WINSOMES SUPERMARKET & WHOLESALE', tier: 'Tier 3', label: '○ WINSOMES SUPERMARKET & WHOLESALE'},
+  ],
+  'ALEXANDRIA': [
+    {name: 'CNJ WHOLESALE & RETAIL', tier: 'Tier 3', label: '○ CNJ WHOLESALE & RETAIL'},
+    {name: 'JIN WHOLESALE', tier: 'Tier 3', label: '○ JIN WHOLESALE'},
+  ],
+  'ALLIGATOR POND': [
+    {name: 'ANNIEMART SAVE AND MORE LIMITED', tier: 'Tier 3', label: '○ ANNIEMART SAVE AND MORE LIMITED'},
+    {name: 'YUFEI HUANG MINI MART', tier: 'Tier 3', label: '○ YUFEI HUANG MINI MART'},
+  ],
+  'ANCHOVY': [
+    {name: 'QIANG WHOLESALE/ANDYS WHOLESALE ANCHOVY', tier: 'Tier 2', label: '● QIANG WHOLESALE/ANDYS WHOLESALE ANCHOVY'},
+    {name: 'WANG WANG', tier: 'Tier 2', label: '● WANG WANG'},
+    {name: 'HALCGO COMPANY', tier: 'Tier 3', label: '○ HALCGO COMPANY'},
+    {name: 'POPULAR', tier: 'Tier 3', label: '○ POPULAR'},
+    {name: 'R & C WHOLESALE & MEAT', tier: 'Tier 3', label: '○ R & C WHOLESALE & MEAT'},
+  ],
+  'ANNOTTOBAY': [
+    {name: 'AEON SUPERMARKET C/O BETTER & BETTER', tier: 'Tier 2', label: '● AEON SUPERMARKET C/O BETTER & BETTER'},
+    {name: 'BOB\'S SUPERCENTER', tier: 'Tier 2', label: '● BOB\'S SUPERCENTER'},
+    {name: 'JIN LONG WHOLESALE', tier: 'Tier 2', label: '● JIN LONG WHOLESALE'},
+    {name: 'WILLIAMS SUPERMARKET- ANNOTTO BAY', tier: 'Tier 3', label: '○ WILLIAMS SUPERMARKET- ANNOTTO BAY'},
+  ],
+  'BLACKRIVER': [
+    {name: 'INTOWN SUPER SAVE B RIVER', tier: 'Tier 1', label: '★ INTOWN SUPER SAVE B RIVER'},
+    {name: 'ANNA FOODS SUPERMARKET', tier: 'Tier 2', label: '● ANNA FOODS SUPERMARKET'},
+    {name: 'GLOBAL EGG FARM', tier: 'Tier 2', label: '● GLOBAL EGG FARM'},
+    {name: 'MAC FOODS/ SUPER PLUS WHOLESALE 193', tier: 'Tier 2', label: '● MAC FOODS/ SUPER PLUS WHOLESALE 193'},
+    {name: 'S N C SUPERMARKET', tier: 'Tier 2', label: '● S N C SUPERMARKET'},
+    {name: 'LUANA SHOPPING CENTRE', tier: 'Tier 3', label: '○ LUANA SHOPPING CENTRE'},
+    {name: 'SUNRISE BAKERY BLACK RIVER', tier: 'Tier 3', label: '○ SUNRISE BAKERY BLACK RIVER'},
+    {name: 'THADDYS MINI MART', tier: 'Tier 3', label: '○ THADDYS MINI MART'},
+  ],
+  'BOG WALK': [
+    {name: 'LESCO STATIONERY', tier: 'Tier 2', label: '● LESCO STATIONERY'},
+    {name: 'TRADE WINDS CITRUS', tier: 'Tier 3', label: '○ TRADE WINDS CITRUS'},
+  ],
+  'BROWNSTOWN': [
+    {name: 'BEYOND SUPERMARKET', tier: 'Tier 2', label: '● BEYOND SUPERMARKET'},
+    {name: 'COME AND BUY FORMERLY G2 TRADING', tier: 'Tier 2', label: '● COME AND BUY FORMERLY G2 TRADING'},
+    {name: 'HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO', tier: 'Tier 2', label: '● HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO'},
+    {name: 'MASTER MAC BROWNS TOWN', tier: 'Tier 2', label: '● MASTER MAC BROWNS TOWN'},
+    {name: 'TENGDA SUPERMARKET LTD', tier: 'Tier 2', label: '● TENGDA SUPERMARKET LTD'},
+    {name: 'TRUST MART SUPERMARKET', tier: 'Tier 2', label: '● TRUST MART SUPERMARKET'},
+  ],
+  'CHRISTIANA': [
+    {name: 'PRICE GEL SUPERMARKET', tier: 'Tier 1', label: '★ PRICE GEL SUPERMARKET'},
+    {name: 'EXTRA VALU', tier: 'Tier 2', label: '● EXTRA VALU'},
+    {name: 'JUN SUPERMARKET', tier: 'Tier 2', label: '● JUN SUPERMARKET'},
+    {name: 'SIBLING SUPERMARKET', tier: 'Tier 2', label: '● SIBLING SUPERMARKET'},
+    {name: 'WAVE SUPERMARKET FORMERLY QUICK SAVE', tier: 'Tier 2', label: '● WAVE SUPERMARKET FORMERLY QUICK SAVE'},
+  ],
+  'DARLISTAN': [
+    {name: 'CHENMART SUPERMARKET & HABERDASHERY', tier: 'Tier 1', label: '★ CHENMART SUPERMARKET & HABERDASHERY'},
+    {name: 'MILLERS SUPERMARKET', tier: 'Tier 2', label: '● MILLERS SUPERMARKET'},
+  ],
+  'DISCOVERYBAY': [
+    {name: 'DAFA WHOLESALE', tier: 'Tier 2', label: '● DAFA WHOLESALE'},
+    {name: 'RELIABLE SUPERMARKET', tier: 'Tier 2', label: '● RELIABLE SUPERMARKET'},
+  ],
+  'DOWNTOWN': [
+    {name: 'PENNFLO IMPORTS LTD', tier: 'Tier 1', label: '★ PENNFLO IMPORTS LTD'},
+    {name: 'PRICE SMART JAMAICA LIMITED', tier: 'Tier 1', label: '★ PRICE SMART JAMAICA LIMITED'},
+    {name: 'WIN WIN WORLDWIDE INTERNATIONAL', tier: 'Tier 1', label: '★ WIN WIN WORLDWIDE INTERNATIONAL'},
+    {name: 'AMBIANCE SALES LIMITED', tier: 'Tier 2', label: '● AMBIANCE SALES LIMITED'},
+    {name: 'BONROY WHOLESALE', tier: 'Tier 2', label: '● BONROY WHOLESALE'},
+    {name: 'GENESIS WHOLESALE', tier: 'Tier 2', label: '● GENESIS WHOLESALE'},
+    {name: 'GIBBO TRADING - HARBOUR STREET', tier: 'Tier 2', label: '● GIBBO TRADING - HARBOUR STREET'},
+    {name: 'GODDARD CATERING GROUP (JAMAICA) LTD', tier: 'Tier 2', label: '● GODDARD CATERING GROUP (JAMAICA) LTD'},
+    {name: 'KAREY\'S WHOLESALE', tier: 'Tier 2', label: '● KAREY\'S WHOLESALE'},
+    {name: 'KINGS WHOLESALE', tier: 'Tier 2', label: '● KINGS WHOLESALE'},
+    {name: 'LIANG WHOLESALE', tier: 'Tier 2', label: '● LIANG WHOLESALE'},
+    {name: 'MASTER MAC DOWNTOWN', tier: 'Tier 2', label: '● MASTER MAC DOWNTOWN'},
+    {name: 'SAMPARS CASH & CARRY', tier: 'Tier 2', label: '● SAMPARS CASH & CARRY'},
+    {name: 'TRIPLE C\'S WHOLESALE', tier: 'Tier 2', label: '● TRIPLE C\'S WHOLESALE'},
+    {name: 'UNIVERSAL CASH & CARRY', tier: 'Tier 2', label: '● UNIVERSAL CASH & CARRY'},
+    {name: 'WINNERS WHOLESALE', tier: 'Tier 2', label: '● WINNERS WHOLESALE'},
+  ],
+  'EWARTON': [
+    {name: 'TIN LING SUPERMARKET', tier: 'Tier 2', label: '● TIN LING SUPERMARKET'},
+  ],
+  'FALMOUTH': [
+    {name: 'CHAMPION SUPERMARKET -FALMOUTH', tier: 'Tier 1', label: '★ CHAMPION SUPERMARKET -FALMOUTH'},
+    {name: 'ORION WHOLESALE', tier: 'Tier 1', label: '★ ORION WHOLESALE'},
+    {name: 'TESCO C/O W & L FALMOUTH', tier: 'Tier 1', label: '★ TESCO C/O W & L FALMOUTH'},
+    {name: 'CAMPBELLS EGG FARM', tier: 'Tier 2', label: '● CAMPBELLS EGG FARM'},
+    {name: 'CHLOE\'S WHOLESALE & SUPERMARKET', tier: 'Tier 2', label: '● CHLOE\'S WHOLESALE & SUPERMARKET'},
+    {name: 'ENERGY WHOLESALE', tier: 'Tier 2', label: '● ENERGY WHOLESALE'},
+    {name: 'FENG 777 WHOLESALE & RETAIL LTD', tier: 'Tier 2', label: '● FENG 777 WHOLESALE & RETAIL LTD'},
+    {name: 'FINNI WHOLESALE', tier: 'Tier 2', label: '● FINNI WHOLESALE'},
+    {name: 'GONI MEI SUPERMARKET', tier: 'Tier 2', label: '● GONI MEI SUPERMARKET'},
+    {name: 'HONG XIN FALMOUTH', tier: 'Tier 2', label: '● HONG XIN FALMOUTH'},
+    {name: 'WENG & CHIN WHOLESALE', tier: 'Tier 2', label: '● WENG & CHIN WHOLESALE'},
+    {name: 'YUNFENG WHOLESALE SUPERMARKET', tier: 'Tier 2', label: '● YUNFENG WHOLESALE SUPERMARKET'},
+  ],
+  'FRANKFIELD': [
+    {name: 'LAVENDA SUPERMARKET', tier: 'Tier 2', label: '● LAVENDA SUPERMARKET'},
+    {name: 'SAMUEL SUPERMARKET', tier: 'Tier 2', label: '● SAMUEL SUPERMARKET'},
+    {name: 'WELLDAY SUPERMARKET (FRANKFIELD SMKT)', tier: 'Tier 2', label: '● WELLDAY SUPERMARKET (FRANKFIELD SMKT)'},
+  ],
+  'GRANGEHILL': [
+    {name: 'SNOW S/MARKET & WHOLESALE', tier: 'Tier 2', label: '● SNOW S/MARKET & WHOLESALE'},
+    {name: 'SUN ISLAND FORMERLY GRANGE HILL SUPERMARK', tier: 'Tier 2', label: '● SUN ISLAND FORMERLY GRANGE HILL SUPERMARK'},
+    {name: 'TAT SUPERMARKET', tier: 'Tier 2', label: '● TAT SUPERMARKET'},
+    {name: 'YUN YANG SUPERMARKET', tier: 'Tier 2', label: '● YUN YANG SUPERMARKET'},
+  ],
+  'GREEN ISLAND': [
+    {name: 'DIRECT DEALS FOODS LIMITED', tier: 'Tier 2', label: '● DIRECT DEALS FOODS LIMITED'},
+    {name: 'FENDA DISTRIBUTORS', tier: 'Tier 2', label: '● FENDA DISTRIBUTORS'},
+  ],
+  'HIGHGATE': [
+    {name: 'TRUE FLAVA GROCERIES/FOR EVER GREEN #2', tier: 'Tier 1', label: '★ TRUE FLAVA GROCERIES/FOR EVER GREEN #2'},
+    {name: 'CHA-ROB SUPERMARKET', tier: 'Tier 2', label: '● CHA-ROB SUPERMARKET'},
+    {name: 'HIGHGATE TOWN SHOP.', tier: 'Tier 2', label: '● HIGHGATE TOWN SHOP.'},
+    {name: 'HO-SUE SUPERMARKET', tier: 'Tier 2', label: '● HO-SUE SUPERMARKET'},
+    {name: 'HONG FA WHOLESALE', tier: 'Tier 2', label: '● HONG FA WHOLESALE'},
+  ],
+  'JUNCTION': [
+    {name: 'A & B SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● A & B SUPERMARKET & WHOLESALE'},
+    {name: 'ALLIGATOR POND WHOLESALE', tier: 'Tier 2', label: '● ALLIGATOR POND WHOLESALE'},
+    {name: 'BEST PICK SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● BEST PICK SUPERMARKET & WHOLESALE'},
+    {name: 'DAILY VALUE SUPERMARKET', tier: 'Tier 2', label: '● DAILY VALUE SUPERMARKET'},
+    {name: 'INTOWN SUPER SAVE JUNCTION', tier: 'Tier 2', label: '● INTOWN SUPER SAVE JUNCTION'},
+    {name: 'SHOPPERS FAIR JUNCTION', tier: 'Tier 2', label: '● SHOPPERS FAIR JUNCTION'},
+  ],
+  'KELLITS': [
+    {name: 'BARGAINS WHOLESALE & SUPERMARKET', tier: 'Tier 1', label: '★ BARGAINS WHOLESALE & SUPERMARKET'},
+    {name: 'FAIR DEAL WHOLESALE & SELF-SERVE', tier: 'Tier 2', label: '● FAIR DEAL WHOLESALE & SELF-SERVE'},
+  ],
+  'KINGSTON': [
+    {name: 'BROOKLYN CLOCK TOWER', tier: 'Tier 1', label: '★ BROOKLYN CLOCK TOWER'},
+    {name: 'BROOKLYN TWIN GATES', tier: 'Tier 1', label: '★ BROOKLYN TWIN GATES'},
+    {name: 'CHANG\'S TRADING', tier: 'Tier 1', label: '★ CHANG\'S TRADING'},
+    {name: 'FAMILY PRIDE', tier: 'Tier 1', label: '★ FAMILY PRIDE'},
+    {name: 'GENERAL FOODS LIGUANEA', tier: 'Tier 1', label: '★ GENERAL FOODS LIGUANEA'},
+    {name: 'HILO BARBICAN', tier: 'Tier 1', label: '★ HILO BARBICAN'},
+    {name: 'HILO LIGUANEA.', tier: 'Tier 1', label: '★ HILO LIGUANEA.'},
+    {name: 'LEES FOOD FAIR RED HILLS ROAD', tier: 'Tier 1', label: '★ LEES FOOD FAIR RED HILLS ROAD'},
+    {name: 'LOSHUSAN NEW KINGSTON/ JOHN R WONG', tier: 'Tier 1', label: '★ LOSHUSAN NEW KINGSTON/ JOHN R WONG'},
+    {name: 'LOSHUSAN SUPERMARKET', tier: 'Tier 1', label: '★ LOSHUSAN SUPERMARKET'},
+    {name: 'MEGAMART KINGSTON', tier: 'Tier 1', label: '★ MEGAMART KINGSTON'},
+    {name: 'RAINFOREST SEAFOODS', tier: 'Tier 1', label: '★ RAINFOREST SEAFOODS'},
+    {name: 'SUPER SHOPPERS FAIR BOULEVARD', tier: 'Tier 1', label: '★ SUPER SHOPPERS FAIR BOULEVARD'},
+    {name: 'SUPER VALU FRESH FOODS LTD', tier: 'Tier 1', label: '★ SUPER VALU FRESH FOODS LTD'},
+    {name: 'AFRESH SUPERMARKET- KINGSTON', tier: 'Tier 2', label: '● AFRESH SUPERMARKET- KINGSTON'},
+    {name: 'HILO CROSS ROADS', tier: 'Tier 2', label: '● HILO CROSS ROADS'},
+    {name: 'HILO MANOR PARK', tier: 'Tier 2', label: '● HILO MANOR PARK'},
+    {name: 'HILO PAVILION', tier: 'Tier 2', label: '● HILO PAVILION'},
+    {name: 'ISLAND GRILL', tier: 'Tier 2', label: '● ISLAND GRILL'},
+    {name: 'LEES FOOD FAIR BOULEVARD', tier: 'Tier 2', label: '● LEES FOOD FAIR BOULEVARD'},
+    {name: 'MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING', tier: 'Tier 2', label: '● MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING'},
+    {name: 'MEGAMART  WAREHOUSE', tier: 'Tier 2', label: '● MEGAMART  WAREHOUSE'},
+    {name: 'SAMPARS CASH & CARRY CROSS ROADS', tier: 'Tier 2', label: '● SAMPARS CASH & CARRY CROSS ROADS'},
+    {name: 'SAMPARS T/A SELECT GROCERS', tier: 'Tier 2', label: '● SAMPARS T/A SELECT GROCERS'},
+    {name: 'SHOPPERS FAIR DUHANEY PARK', tier: 'Tier 2', label: '● SHOPPERS FAIR DUHANEY PARK'},
+    {name: 'SHOPPERS FAIR LIGUANEA', tier: 'Tier 2', label: '● SHOPPERS FAIR LIGUANEA'},
+    {name: 'SOVEREIGN SUPERMARKET- LIGUANEA', tier: 'Tier 2', label: '● SOVEREIGN SUPERMARKET- LIGUANEA'},
+    {name: 'SUPER VALUE  KINGSTON', tier: 'Tier 2', label: '● SUPER VALUE  KINGSTON'},
+    {name: 'TASTEE LTD', tier: 'Tier 2', label: '● TASTEE LTD'},
+    {name: 'WAN DEFU SUPERMARKET LIMITED', tier: 'Tier 2', label: '● WAN DEFU SUPERMARKET LIMITED'},
+  ],
+  'LIONELTOWN': [
+    {name: 'MAP WHOLESALE LIONEL TOWN', tier: 'Tier 1', label: '★ MAP WHOLESALE LIONEL TOWN'},
+  ],
+  'LUCEA': [
+    {name: 'CHERRIE\'S SUPERMARKET', tier: 'Tier 1', label: '★ CHERRIE\'S SUPERMARKET'},
+    {name: 'ALLEN WHOLESALE', tier: 'Tier 2', label: '● ALLEN WHOLESALE'},
+    {name: 'DOUBLE LUCKY SUPERMARKET', tier: 'Tier 2', label: '● DOUBLE LUCKY SUPERMARKET'},
+    {name: 'GRAND PALLADIUM JAMAICA', tier: 'Tier 2', label: '● GRAND PALLADIUM JAMAICA'},
+    {name: 'HEWING WHOLESALE SUPERMARKET', tier: 'Tier 2', label: '● HEWING WHOLESALE SUPERMARKET'},
+    {name: 'NAING SUPERMARKET', tier: 'Tier 2', label: '● NAING SUPERMARKET'},
+    {name: 'SUN POWER', tier: 'Tier 2', label: '● SUN POWER'},
+    {name: 'TRYALL CLUB', tier: 'Tier 2', label: '● TRYALL CLUB'},
+    {name: 'UNITED SUPERMARKET', tier: 'Tier 2', label: '● UNITED SUPERMARKET'},
+  ],
+  'MANDEVILLE': [
+    {name: 'FRESH VALU SUPERMARKET/GRACE CHAE', tier: 'Tier 1', label: '★ FRESH VALU SUPERMARKET/GRACE CHAE'},
+    {name: 'MASTER MAC MANDEVILLE', tier: 'Tier 1', label: '★ MASTER MAC MANDEVILLE'},
+    {name: 'PROGRESSIVE FOODS MANDEVILLE SUPERMARKET', tier: 'Tier 1', label: '★ PROGRESSIVE FOODS MANDEVILLE SUPERMARKET'},
+    {name: 'URVILLS SUPERMARKET', tier: 'Tier 1', label: '★ URVILLS SUPERMARKET'},
+    {name: 'C & H SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● C & H SUPERMARKET & WHOLESALE'},
+    {name: 'HAORIZI SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● HAORIZI SUPERMARKET & WHOLESALE'},
+    {name: 'J & W WHOLESALE MANDEVILLE', tier: 'Tier 2', label: '● J & W WHOLESALE MANDEVILLE'},
+    {name: 'MEGAMART MANDEVILLE', tier: 'Tier 2', label: '● MEGAMART MANDEVILLE'},
+    {name: 'SHOPPERS FAIR MANCHESTER', tier: 'Tier 2', label: '● SHOPPERS FAIR MANCHESTER'},
+    {name: 'SUPER PLUS MIDWAY', tier: 'Tier 2', label: '● SUPER PLUS MIDWAY'},
+    {name: 'WIN\'S WAY SUPERMARKET MANDEVILLE', tier: 'Tier 2', label: '● WIN\'S WAY SUPERMARKET MANDEVILLE'},
+  ],
+  'MAYPEN': [
+    {name: 'NATIONAL SELF SERVE BROOKS AVENUE', tier: 'Tier 1', label: '★ NATIONAL SELF SERVE BROOKS AVENUE'},
+    {name: 'SELECT GROCERS SUPERMARKET', tier: 'Tier 1', label: '★ SELECT GROCERS SUPERMARKET'},
+    {name: 'STOPLIGHT WHOLESALE', tier: 'Tier 1', label: '★ STOPLIGHT WHOLESALE'},
+    {name: 'SUPER SHOPPERS FAIR MAYPEN', tier: 'Tier 1', label: '★ SUPER SHOPPERS FAIR MAYPEN'},
+    {name: 'ABC WHOLESALE MAYPEN', tier: 'Tier 2', label: '● ABC WHOLESALE MAYPEN'},
+    {name: 'APEX SUPERMARKET & MEAT', tier: 'Tier 2', label: '● APEX SUPERMARKET & MEAT'},
+    {name: 'C & M GOOD VALUE SUPERMARKET LTD', tier: 'Tier 2', label: '● C & M GOOD VALUE SUPERMARKET LTD'},
+    {name: 'FLLOYD\'S FAMILY SUPERMARKET & WSALE', tier: 'Tier 2', label: '● FLLOYD\'S FAMILY SUPERMARKET & WSALE'},
+    {name: 'FOOD PALACE', tier: 'Tier 2', label: '● FOOD PALACE'},
+    {name: 'GREAT VALUE SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● GREAT VALUE SUPERMARKET & WHOLESALE'},
+  ],
+  'MOBAY': [
+    {name: '348 SUPERMARKET LTD', tier: 'Tier 1', label: '★ 348 SUPERMARKET LTD'},
+    {name: 'ANDY CHEN MOBAY', tier: 'Tier 1', label: '★ ANDY CHEN MOBAY'},
+    {name: 'BEST VALUE SUPERMARKET', tier: 'Tier 1', label: '★ BEST VALUE SUPERMARKET'},
+    {name: 'CONSUMER MEAT PLUS CO. LTD', tier: 'Tier 1', label: '★ CONSUMER MEAT PLUS CO. LTD'},
+    {name: 'LINS LIMITED ANCHOVY', tier: 'Tier 1', label: '★ LINS LIMITED ANCHOVY'},
+    {name: 'MARGARITAVILLE LIMITED', tier: 'Tier 1', label: '★ MARGARITAVILLE LIMITED'},
+    {name: 'PROGRESSIVE FOODS BOGUE', tier: 'Tier 1', label: '★ PROGRESSIVE FOODS BOGUE'},
+    {name: 'PROGRESSIVE FOODS WHITTER VILLAGE', tier: 'Tier 1', label: '★ PROGRESSIVE FOODS WHITTER VILLAGE'},
+    {name: 'SEAWIND KEY INVESTMENTS (USD)', tier: 'Tier 1', label: '★ SEAWIND KEY INVESTMENTS (USD)'},
+    {name: 'SUPERMARKET MANELLI LIMITED', tier: 'Tier 1', label: '★ SUPERMARKET MANELLI LIMITED'},
+    {name: 'AFRESH MARKET PLACE LTD', tier: 'Tier 2', label: '● AFRESH MARKET PLACE LTD'},
+    {name: 'BEAUTY CITY MEAT PLUS', tier: 'Tier 2', label: '● BEAUTY CITY MEAT PLUS'},
+    {name: 'BOGUE VILLAGE SUPERMARKET', tier: 'Tier 2', label: '● BOGUE VILLAGE SUPERMARKET'},
+    {name: 'CHEN WINGO WHOLESALE', tier: 'Tier 2', label: '● CHEN WINGO WHOLESALE'},
+    {name: 'CHOWS CASH & CARRY', tier: 'Tier 2', label: '● CHOWS CASH & CARRY'},
+    {name: 'CONSUMER PARADISE WHOLESALE', tier: 'Tier 2', label: '● CONSUMER PARADISE WHOLESALE'},
+    {name: 'EXPRESS SUPERMARKET & CONVENIENCE STORE', tier: 'Tier 2', label: '● EXPRESS SUPERMARKET & CONVENIENCE STORE'},
+    {name: 'FRESH VILLAGE SUPERMARKET', tier: 'Tier 2', label: '● FRESH VILLAGE SUPERMARKET'},
+    {name: 'GRAND DEPOT LTD', tier: 'Tier 2', label: '● GRAND DEPOT LTD'},
+    {name: 'HILO MOBAY', tier: 'Tier 2', label: '● HILO MOBAY'},
+    {name: 'IBEROSTAR HOTEL', tier: 'Tier 2', label: '● IBEROSTAR HOTEL'},
+    {name: 'NEW DRAGON WHOLESALE', tier: 'Tier 2', label: '● NEW DRAGON WHOLESALE'},
+    {name: 'RIU MOBAY', tier: 'Tier 2', label: '● RIU MOBAY'},
+    {name: 'SANDALS RESORTS INTERNATIONAL', tier: 'Tier 2', label: '● SANDALS RESORTS INTERNATIONAL'},
+    {name: 'SHOPPERS FAIR BLUE DIAMOND', tier: 'Tier 2', label: '● SHOPPERS FAIR BLUE DIAMOND'},
+    {name: 'VALUE CITY WHOLESALE & SUPERMARKET', tier: 'Tier 2', label: '● VALUE CITY WHOLESALE & SUPERMARKET'},
+  ],
+  'MORANTBAY': [
+    {name: 'CHONG SANG & SONS', tier: 'Tier 2', label: '● CHONG SANG & SONS'},
+    {name: 'DOWNTOWN PAYLESS', tier: 'Tier 2', label: '● DOWNTOWN PAYLESS'},
+    {name: 'JOONG MORANT BAY & WHOLESALE Ltd', tier: 'Tier 2', label: '● JOONG MORANT BAY & WHOLESALE Ltd'},
+    {name: 'MEAT PLUS WHOLESALE', tier: 'Tier 2', label: '● MEAT PLUS WHOLESALE'},
+    {name: 'PEOPLES BAZZAAR', tier: 'Tier 2', label: '● PEOPLES BAZZAAR'},
+  ],
+  'NEGRIL': [
+    {name: 'YUNS SUPERMARKET', tier: 'Tier 1', label: '★ YUNS SUPERMARKET'},
+    {name: 'BBNH RESORTS LTD. T/A ROYALTON NEGRIL (USD)', tier: 'Tier 2', label: '● BBNH RESORTS LTD. T/A ROYALTON NEGRIL (USD)'},
+    {name: 'CHANDON & SONS DISTRIBUTORS', tier: 'Tier 2', label: '● CHANDON & SONS DISTRIBUTORS'},
+    {name: 'GOLD STAR NEGRIL', tier: 'Tier 2', label: '● GOLD STAR NEGRIL'},
+    {name: 'HILO NEGRIL', tier: 'Tier 2', label: '● HILO NEGRIL'},
+    {name: 'QUALITY TRADERS', tier: 'Tier 2', label: '● QUALITY TRADERS'},
+  ],
+  'OCHORIOS': [
+    {name: 'REXO SUPERMARKET', tier: 'Tier 1', label: '★ REXO SUPERMARKET'},
+    {name: 'CHAMPION SUPERMARKET', tier: 'Tier 2', label: '● CHAMPION SUPERMARKET'},
+    {name: 'COUPLES TOWER ISLE', tier: 'Tier 2', label: '● COUPLES TOWER ISLE'},
+    {name: 'GENERAL FOODS SUPERMARKET', tier: 'Tier 2', label: '● GENERAL FOODS SUPERMARKET'},
+    {name: 'PROGRESSIVE FOODS OCHO RIOS', tier: 'Tier 2', label: '● PROGRESSIVE FOODS OCHO RIOS'},
+    {name: 'SANDALS DUNN\'S RIVER', tier: 'Tier 2', label: '● SANDALS DUNN\'S RIVER'},
+  ],
+  'OLDHARBOUR': [
+    {name: 'BETTA VALUE SUPERMARKET', tier: 'Tier 2', label: '● BETTA VALUE SUPERMARKET'},
+    {name: 'CHUNG PHAT', tier: 'Tier 2', label: '● CHUNG PHAT'},
+    {name: 'GIANT SUPERMARKET LIMITED', tier: 'Tier 2', label: '● GIANT SUPERMARKET LIMITED'},
+    {name: 'SAMPARS CASH & CARRY OLD HARBOUR', tier: 'Tier 2', label: '● SAMPARS CASH & CARRY OLD HARBOUR'},
+    {name: 'SYDENHAM WHOLESALE', tier: 'Tier 2', label: '● SYDENHAM WHOLESALE'},
+  ],
+  'PORTANTONIO': [
+    {name: 'A & J RAMTULLA ENTERPRISE LIMITED', tier: 'Tier 1', label: '★ A & J RAMTULLA ENTERPRISE LIMITED'},
+    {name: 'G & L WHOLESALE', tier: 'Tier 1', label: '★ G & L WHOLESALE'},
+    {name: 'MARY SHINE ENTERPRISE', tier: 'Tier 2', label: '● MARY SHINE ENTERPRISE'},
+    {name: 'PETAL VARIETY STORE- WEST STREET', tier: 'Tier 2', label: '● PETAL VARIETY STORE- WEST STREET'},
+  ],
+  'PORTMARIA': [
+    {name: 'GIANT FAMILY MART LTD', tier: 'Tier 2', label: '● GIANT FAMILY MART LTD'},
+    {name: 'LING FEI WHOLESALE(TONG REN)', tier: 'Tier 2', label: '● LING FEI WHOLESALE(TONG REN)'},
+  ],
+  'PORTMORE': [
+    {name: 'HILO PORTMORE PINES', tier: 'Tier 1', label: '★ HILO PORTMORE PINES'},
+    {name: 'JOONG PORTMORE', tier: 'Tier 1', label: '★ JOONG PORTMORE'},
+    {name: 'MASTER MAC FOOD STORE', tier: 'Tier 1', label: '★ MASTER MAC FOOD STORE'},
+    {name: 'PROGRESSIVE FOODS PORTMORE', tier: 'Tier 1', label: '★ PROGRESSIVE FOODS PORTMORE'},
+    {name: 'SHOPPERS FAIR PORTMORE MALL', tier: 'Tier 1', label: '★ SHOPPERS FAIR PORTMORE MALL'},
+    {name: 'CANTON ENTERPRISE PORTMORE', tier: 'Tier 2', label: '● CANTON ENTERPRISE PORTMORE'},
+    {name: 'J\'S AND FAMILY TRADING', tier: 'Tier 2', label: '● J\'S AND FAMILY TRADING'},
+    {name: 'K & M MEAT & GROCERY', tier: 'Tier 2', label: '● K & M MEAT & GROCERY'},
+    {name: 'MEGAMART PORTMORE', tier: 'Tier 2', label: '● MEGAMART PORTMORE'},
+    {name: 'PORTMORE PINES SUPER VALUE LTD', tier: 'Tier 2', label: '● PORTMORE PINES SUPER VALUE LTD'},
+  ],
+  'RUNAWAYBAY': [
+    {name: 'BAY WEST FOOD COURT LTD', tier: 'Tier 2', label: '● BAY WEST FOOD COURT LTD'},
+    {name: 'FU CHENG SUPERMARKET', tier: 'Tier 2', label: '● FU CHENG SUPERMARKET'},
+    {name: 'LFA COUNTRY STORE LTD', tier: 'Tier 2', label: '● LFA COUNTRY STORE LTD'},
+    {name: 'RUNAWAY BAY EMPORIUM', tier: 'Tier 2', label: '● RUNAWAY BAY EMPORIUM'},
+  ],
+  'SANTACRUZ': [
+    {name: 'INTOWN SUPA SAVE SANTA', tier: 'Tier 1', label: '★ INTOWN SUPA SAVE SANTA'},
+    {name: 'MAX VALUE', tier: 'Tier 1', label: '★ MAX VALUE'},
+    {name: '168 SUPERMARKET', tier: 'Tier 2', label: '● 168 SUPERMARKET'},
+    {name: 'CHENYAN WHOLESALE & SUPERMARKET', tier: 'Tier 2', label: '● CHENYAN WHOLESALE & SUPERMARKET'},
+    {name: 'DOBBY\'S DISCOUNT WAREHOUSE', tier: 'Tier 2', label: '● DOBBY\'S DISCOUNT WAREHOUSE'},
+    {name: 'HONG XIN SANTA', tier: 'Tier 2', label: '● HONG XIN SANTA'},
+    {name: 'PRIME WHOLESALE', tier: 'Tier 2', label: '● PRIME WHOLESALE'},
+    {name: 'SANTA CENTRE SUPERMARKET LTD', tier: 'Tier 2', label: '● SANTA CENTRE SUPERMARKET LTD'},
+    {name: 'THE ONE SUPERCENTRE', tier: 'Tier 2', label: '● THE ONE SUPERCENTRE'},
+  ],
+  'SAV': [
+    {name: 'BESTCO SUPERMARKET-SAV', tier: 'Tier 1', label: '★ BESTCO SUPERMARKET-SAV'},
+    {name: 'LI\'S WHOLESALE', tier: 'Tier 1', label: '★ LI\'S WHOLESALE'},
+    {name: 'S K D WHOLESALE SAV(Formerly Y & W)', tier: 'Tier 1', label: '★ S K D WHOLESALE SAV(Formerly Y & W)'},
+    {name: 'SHOPPERS FAIR SAVANNA-LA-MAR', tier: 'Tier 1', label: '★ SHOPPERS FAIR SAVANNA-LA-MAR'},
+    {name: 'BETTER LIFE WHOLESALE', tier: 'Tier 2', label: '● BETTER LIFE WHOLESALE'},
+    {name: 'CHOICE FRESH FOODS SUPERMARKET & WHOLSALE', tier: 'Tier 2', label: '● CHOICE FRESH FOODS SUPERMARKET & WHOLSALE'},
+    {name: 'COUPLES SWEPT AWAY', tier: 'Tier 2', label: '● COUPLES SWEPT AWAY'},
+    {name: 'D & Y SUPERMARKET WHOLESALE', tier: 'Tier 2', label: '● D & Y SUPERMARKET WHOLESALE'},
+    {name: 'HEDONISM II', tier: 'Tier 2', label: '● HEDONISM II'},
+    {name: 'ICON DISTRIBUTORS', tier: 'Tier 2', label: '● ICON DISTRIBUTORS'},
+    {name: 'L & G SUPERMARKET', tier: 'Tier 2', label: '● L & G SUPERMARKET'},
+    {name: 'MEAT PLUS', tier: 'Tier 2', label: '● MEAT PLUS'},
+    {name: 'NEW PARADISE SUPERMARKET', tier: 'Tier 2', label: '● NEW PARADISE SUPERMARKET'},
+    {name: 'SUPER LIFE SUPERMARKET', tier: 'Tier 2', label: '● SUPER LIFE SUPERMARKET'},
+  ],
+  'SOUTHFIELD': [
+    {name: 'EWS AFFORDABLE GROCERIES & WHOLESALE', tier: 'Tier 2', label: '● EWS AFFORDABLE GROCERIES & WHOLESALE'},
+    {name: 'SOUTHCO SUPERMARKET', tier: 'Tier 2', label: '● SOUTHCO SUPERMARKET'},
+    {name: 'V.S WHOLESALE', tier: 'Tier 2', label: '● V.S WHOLESALE'},
+    {name: 'WENLI SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● WENLI SUPERMARKET & WHOLESALE'},
+  ],
+  'SPALDING': [
+    {name: 'KIND SUPERMARKET LTD', tier: 'Tier 1', label: '★ KIND SUPERMARKET LTD'},
+    {name: 'SUN MART formerly SELECTION WHOLESALE', tier: 'Tier 2', label: '● SUN MART formerly SELECTION WHOLESALE'},
+  ],
+  'SPANISHTOWN': [
+    {name: 'PROGRESSIVE GROCERS', tier: 'Tier 1', label: '★ PROGRESSIVE GROCERS'},
+    {name: 'SHOPPERS FAIR BRUNSWICK', tier: 'Tier 1', label: '★ SHOPPERS FAIR BRUNSWICK'},
+    {name: 'AJANI\'S WHOLESALE', tier: 'Tier 2', label: '● AJANI\'S WHOLESALE'},
+    {name: 'FLASH WHOLESALE', tier: 'Tier 2', label: '● FLASH WHOLESALE'},
+    {name: 'HILO SPANISH TOWN', tier: 'Tier 2', label: '● HILO SPANISH TOWN'},
+    {name: 'LOTTE MALL', tier: 'Tier 2', label: '● LOTTE MALL'},
+    {name: 'MAINLAND SUPERMARKET LTD', tier: 'Tier 2', label: '● MAINLAND SUPERMARKET LTD'},
+    {name: 'SHOPPERS FAIR BURKE ROAD', tier: 'Tier 2', label: '● SHOPPERS FAIR BURKE ROAD'},
+  ],
+  'STANNSBAY': [
+    {name: 'BOOT #2 SERVICE STATION', tier: 'Tier 2', label: '● BOOT #2 SERVICE STATION'},
+    {name: 'BRAVO SUPERMARKET', tier: 'Tier 2', label: '● BRAVO SUPERMARKET'},
+    {name: 'GRAN BAHIA PRINCIPE', tier: 'Tier 2', label: '● GRAN BAHIA PRINCIPE'},
+    {name: 'GRAND MUTHU CLUB CARIBBEAN', tier: 'Tier 2', label: '● GRAND MUTHU CLUB CARIBBEAN'},
+    {name: 'HO\'S SUPERMARKET ST ANNS BAY', tier: 'Tier 2', label: '● HO\'S SUPERMARKET ST ANNS BAY'},
+    {name: 'QUICK MART SUPERMARKET & WHOLESALE', tier: 'Tier 2', label: '● QUICK MART SUPERMARKET & WHOLESALE'},
+    {name: 'TSO SUPERMARKET', tier: 'Tier 2', label: '● TSO SUPERMARKET'},
+  ],
+  'STONYHILL': [
+    {name: 'MASTER MAC STONY HILL', tier: 'Tier 2', label: '● MASTER MAC STONY HILL'},
+  ],
+  'TREASURE BEACH': [
+    {name: 'SOUTHERN SUPPLIES AND SERVICES', tier: 'Tier 2', label: '● SOUTHERN SUPPLIES AND SERVICES'},
+  ],
+  'TRELAWNY': [
+    {name: 'BUSH CAY WEST -EXCELLENCE RESORTS USD', tier: 'Tier 2', label: '● BUSH CAY WEST -EXCELLENCE RESORTS USD'},
+    {name: 'EXCELLENCE RESORTS', tier: 'Tier 2', label: '● EXCELLENCE RESORTS'},
+    {name: 'OCEAN CORAL SPRING RESORT (FELICITOS LTD)', tier: 'Tier 2', label: '● OCEAN CORAL SPRING RESORT (FELICITOS LTD)'},
+    {name: 'ROYALTON WHITE SANDS', tier: 'Tier 2', label: '● ROYALTON WHITE SANDS'},
+  ],
+  'WHITEHOUSE': [
+    {name: 'CONSUMER SUPERMARKET', tier: 'Tier 2', label: '● CONSUMER SUPERMARKET'},
+    {name: 'FRESH CHOICE MEATS', tier: 'Tier 2', label: '● FRESH CHOICE MEATS'},
+    {name: 'HONGCHEN FAMILY MART', tier: 'Tier 2', label: '● HONGCHEN FAMILY MART'},
+  ],
+  'YALLAHS': [
+    {name: 'THE NEW MARKET ROAD WHOLESALE & RETAIL', tier: 'Tier 2', label: '● THE NEW MARKET ROAD WHOLESALE & RETAIL'},
+  ],
+};
+
+// ── Supabase config ──────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+
+// ── Shipping zones (real, field-relevant only) ─────────────────────────────
+const SHIPPING_ZONES = [
+  'ABOVE ROCKS','ALEXANDRIA','ALLIGATOR POND','ANCHOVY','ANNOTTOBAY',
+  'BLACKRIVER','BOG WALK','BROWNSTOWN','BUFFBAY',
+  'CHRISTIANA','CLARENDON','CLAREMONT',
+  'DARLISTAN','DISCOVERYBAY','DOWNTOWN',
+  'EWARTON',
+  'FALMOUTH','FRANKFIELD',
+  'GRANGEHILL','GREEN ISLAND',
+  'HIGHGATE','HOPEWELL',
+  'JUNCTION',
+  'KELLITS','KINGSTON','KINGSTONOFFICE',
+  'LACOVIA','LINSTEAD','LIONELTOWN','LITTLE LONDON','LUCEA',
+  'MAGOTTY','MANDEVILLE','MAYPEN','MOBAY','MONEAGUE','MORANTBAY',
+  'NEGRIL',
+  'OCHORIOS','OLDHARBOUR','ORACABESSA',
+  'PAPINE','PORTANTONIO','PORTMARIA','PORTMORE','PORTMORANT',
+  'RUNAWAYBAY',
+  'SANTACRUZ','SAV','SEAFORTH','STELIZABETH','STMARY',
+  'STANNSBAY','STCATHERINE','STONYHILL','STTHOMAS',
+  'SOUTHFIELD','SPALDING',
+  'SPANISHTOWN',
+  'TRELAWNY','TREASURE BEACH',
+  'WHITEHOUSE','YALLAHS',
+].sort();
+
+
+
+
+
+// ── Week dates ──────────────────────────────────────────────────────────────
+function getWeekDates() {
+  const now = new Date();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7) + 7);
+  mon.setHours(0,0,0,0);
+  const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+  const fmt = d => d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+  return { label:`Week of ${fmt(mon)} – ${fmt(fri)}`, value:`${fmt(mon)} – ${fmt(fri)}`, monday:mon };
+}
+
+const { label, value, monday } = getWeekDates();
+document.getElementById('week-label').innerHTML =
+  `${label} <span class="week-badge">Submit every Friday</span>`;
+document.getElementById('week-input').value = value;
+
+// ── Day selected zones state ────────────────────────────────────────────────
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const dayZones = { 0:[], 1:[], 2:[], 3:[], 4:[] };
+
+// ── Build day blocks ────────────────────────────────────────────────────────
+const grid = document.getElementById('day-grid');
+
+DAYS.forEach((day, i) => {
+  const date = new Date(monday);
+  date.setDate(monday.getDate() + i);
+  const dateStr = date.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+
+  const zoneOptions = SHIPPING_ZONES
+    .map(z => `<option value="${z}">${z}</option>`)
+    .join('');
+  // Note: filtered dynamically when rep is selected - see filterZonesForRep()
+
+  const block = document.createElement('div');
+  block.className = 'day-block';
+  block.innerHTML = `
+    <div class="day-block-header">
+      <div class="day-tag">${day}</div>
+      <div class="day-date-label">${dateStr}</div>
+    </div>
+    <div class="day-block-body">
+      <div class="field">
+        <label>Zones to Cover</label>
+        <div class="zone-checklist-wrap" id="zone-wrap-${i}">
+          <button type="button" class="zone-trigger-btn" id="zone-trigger-${i}"
+            onpointerdown="handleZoneTrigger(event,${i})">
+            <span id="zone-trigger-label-${i}">Select zones to cover…</span>
+            <span class="trigger-arrow">▼</span>
+          </button>
+          <div class="zone-checklist-panel" id="zone-panel-${i}">
+            <div class="store-checklist-search">
+              <input type="text" placeholder="Search zones…"
+                oninput="filterZoneList(${i}, this.value)"
+                id="zone-search-${i}">
+            </div>
+            <div id="zone-list-${i}"></div>
+            <div class="store-checklist-confirm">
+              <button class="store-confirm-btn" onclick="confirmZones(${i})">✓ Done</button>
+              <button class="store-cancel-btn" onclick="closeZonePicker(${i})">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="toggleCustomZone(${i})"
+          id="custom-zone-toggle-${i}"
+          style="background:none;border:none;color:var(--muted);font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer;padding:2px 0 0;letter-spacing:0.5px;text-align:left">
+          + Add a zone not on the list
+        </button>
+        <div class="custom-zone-row" id="custom-zone-row-${i}">
+          <input type="text" class="custom-zone-input" id="custom-zone-input-${i}"
+            placeholder="Type zone name…"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomZone(${i})}">
+          <button type="button" class="custom-zone-add-btn" onclick="addCustomZone(${i})">+ Add</button>
+        </div>
+        <div class="selected-zones" id="selected-zones-${i}"></div>
+      </div>
+      <div class="field" id="stores-field-${i}">
+        <label>Key Stores to Visit</label>
+        <div class="store-checklist-wrap" id="store-wrap-${i}">
+          <button type="button" class="store-trigger-btn" id="store-trigger-${i}"
+            onpointerdown="handleStoreTrigger(event,${i})" disabled>
+            <span id="store-trigger-label-${i}">Select zones above to load stores…</span>
+            <span class="trigger-arrow">▼</span>
+          </button>
+          <div class="store-checklist-panel" id="store-panel-${i}">
+            <div class="store-checklist-search">
+              <input type="text" placeholder="Search stores…"
+                oninput="filterStoreList(${i}, this.value)"
+                id="store-search-${i}">
+            </div>
+            <div id="store-list-${i}"></div>
+            <div class="store-checklist-confirm">
+              <button class="store-confirm-btn" onclick="confirmStores(${i})">✓ Done</button>
+              <button class="store-cancel-btn" onclick="closeStorePicker(${i})">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="toggleCustomStore(${i})"
+          id="custom-toggle-${i}"
+          style="background:none;border:none;color:var(--muted);font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer;padding:2px 0 0;letter-spacing:0.5px;text-align:left">
+          + Add a store not on the list
+        </button>
+        <div class="custom-store-row" id="custom-row-${i}">
+          <input type="text" class="custom-store-input" id="custom-input-${i}"
+            placeholder="Type store name…"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomStore(${i})}">
+          <button type="button" class="custom-store-add-btn" onclick="addCustomStore(${i})">+ Add</button>
+        </div>
+        <div class="selected-zones" id="selected-stores-${i}" style="margin-top:8px"></div>
+        <div id="store-err-${i}" style="display:none;font-size:11px;color:var(--amber);font-weight:600;margin-top:4px">Please select at least one store for this day</div>
+        <div class="field-hint">Your priority stores for the day</div>
+      </div>
+    </div>`;
+  grid.appendChild(block);
+});
+
+// ── Zone checklist ────────────────────────────────────────────────────────────
+const dayZonesPending = {0:[], 1:[], 2:[], 3:[], 4:[]};
+
+function getZonesForRep() {
+  const rep = document.getElementById('rep-select').value;
+  return (rep && REP_ZONES[rep]) ? REP_ZONES[rep] : SHIPPING_ZONES;
+}
+
+function positionZonePanel(panel, trigger) {
+  const rect    = trigger.getBoundingClientRect();
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const viewH   = window.innerHeight;
+  const panelH  = 260;
+  const spaceBelow = viewH - rect.bottom;
+  const topBelow = rect.bottom + scrollY + 4;
+  const topAbove = rect.top   + scrollY - panelH - 4;
+  panel.style.top   = (spaceBelow >= panelH || spaceBelow >= rect.top ? topBelow : topAbove) + 'px';
+  panel.style.left  = (rect.left + scrollX) + 'px';
+  panel.style.width = rect.width + 'px';
+}
+
+function toggleZonePicker(dayIndex) {
+  const panel   = document.getElementById('zone-panel-' + dayIndex);
+  const trigger = document.getElementById('zone-trigger-' + dayIndex);
+  const isOpen  = panel.classList.contains('open');
+
+  // Close all OTHER panels (not this one)
+  for (let i = 0; i < 5; i++) {
+    if (i !== dayIndex) {
+      document.getElementById('zone-panel-' + i)?.classList.remove('open');
+      document.getElementById('zone-trigger-' + i)?.classList.remove('open');
+    }
+    // Always close store panels
+    document.getElementById('store-panel-' + i)?.classList.remove('open');
+    document.getElementById('store-trigger-' + i)?.classList.remove('open');
+  }
+
+  if (isOpen) {
+    closeZonePicker(dayIndex);
+  } else {
+    dayZonesPending[dayIndex] = [...dayZones[dayIndex]];
+    if (panel.parentElement !== document.body) document.body.appendChild(panel);
+    positionZonePanel(panel, trigger);
+    panel.classList.add('open');
+    trigger.classList.add('open');
+    buildZoneList(dayIndex, '');
+    const s = document.getElementById('zone-search-' + dayIndex);
+    if (s) s.value = '';
+  }
+}
+
+function closeZonePicker(dayIndex) {
+  dayZonesPending[dayIndex] = [];
+  document.getElementById('zone-panel-' + dayIndex)?.classList.remove('open');
+  document.getElementById('zone-trigger-' + dayIndex)?.classList.remove('open');
+}
+
+function buildZoneList(dayIndex, filter) {
+  const listEl  = document.getElementById('zone-list-' + dayIndex);
+  const zones   = getZonesForRep();
+  const selected = new Set(dayZones[dayIndex]);
+  const pending  = new Set(dayZonesPending[dayIndex]);
+  const fl = filter.toLowerCase();
+  const filtered = fl ? zones.filter(z => z.toLowerCase().includes(fl)) : zones;
+  if (!filtered.length) {
+    listEl.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--dim)">No zones found</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(z => {
+    const isChecked = selected.has(z) || pending.has(z);
+    const safe = z.replace(/"/g, '&quot;');
+    return '<label class="store-checklist-item' + (isChecked ? ' checked' : '') + '">'
+      + '<input type="checkbox"' + (isChecked ? ' checked' : '')
+      + ' data-day="' + dayIndex + '" data-zone="' + safe + '" onchange="toggleZonePending(this)">'
+      + '<span>' + z + '</span></label>';
+  }).join('');
+}
+
+function filterZoneList(dayIndex, val) { buildZoneList(dayIndex, val); }
+
+function toggleZonePending(checkbox) {
+  const dayIndex = Number(checkbox.dataset.day);
+  const zone     = checkbox.dataset.zone;
+  if (checkbox.checked) {
+    if (!dayZonesPending[dayIndex].includes(zone)) dayZonesPending[dayIndex].push(zone);
+    checkbox.closest('.store-checklist-item').classList.add('checked');
+  } else {
+    dayZonesPending[dayIndex] = dayZonesPending[dayIndex].filter(z => z !== zone);
+    dayZones[dayIndex]        = dayZones[dayIndex].filter(z => z !== zone);
+    checkbox.closest('.store-checklist-item').classList.remove('checked');
+  }
+}
+
+function confirmZones(dayIndex) {
+  const listEl = document.getElementById('zone-list-' + dayIndex);
+  const checkedBoxes = listEl ? [...listEl.querySelectorAll('input[type="checkbox"]:checked')].map(b => b.dataset.zone) : [];
+  const allZoneSet = new Set([...SHIPPING_ZONES, ...getZonesForRep()]);
+  const custom = dayZones[dayIndex].filter(z => !allZoneSet.has(z));
+  dayZones[dayIndex] = [...new Set([...checkedBoxes, ...custom])];
+  closeZonePicker(dayIndex);
+  renderZoneChips(dayIndex);
+  refreshZoneTriggerLabel(dayIndex);
+  refreshStorePicker(dayIndex);
+  updateProgress();
+}
+
+function renderZoneChips(dayIndex) {
+  const container = document.getElementById('selected-zones-' + dayIndex);
+  container.innerHTML = dayZones[dayIndex].map(zone => {
+    const safe = zone.replace(/"/g, '&quot;');
+    return '<div class="selected-zone-chip">'
+      + zone
+      + '<button class="chip-remove" type="button" data-day="' + dayIndex + '" data-zone="' + safe + '" onclick="removeZoneByData(this)">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeZoneByData(btn) {
+  const dayIndex = Number(btn.dataset.day);
+  dayZones[dayIndex] = dayZones[dayIndex].filter(z => z !== btn.dataset.zone);
+  renderZoneChips(dayIndex);
+  refreshZoneTriggerLabel(dayIndex);
+  refreshStorePicker(dayIndex);
+  updateProgress();
+}
+
+function refreshZoneTriggerLabel(dayIndex) {
+  const label = document.getElementById('zone-trigger-label-' + dayIndex);
+  if (!label) return;
+  const count = dayZones[dayIndex].length;
+  label.textContent = count > 0
+    ? count + ' zone' + (count > 1 ? 's' : '') + ' selected — tap to edit'
+    : 'Select zones to cover…';
+}
+
+// ── Filter zones when rep is selected ────────────────────────────────────────
+function filterZonesForRep() {
+  // Refresh store dropdowns since rep affects which stores show
+  const rep = document.getElementById('rep-select').value;
+  const allowedZones = rep && REP_ZONES[rep] ? REP_ZONES[rep] : SHIPPING_ZONES;
+
+  for (let i = 0; i < 5; i++) {
+    const selectEl = document.getElementById('zone-select-' + i);
+    const currentVal = selectEl.value;
+
+    // Rebuild options filtered to rep's zones
+    selectEl.innerHTML = '<option value="">Select a zone to add…</option>' +
+      allowedZones.map(z => `<option value="${z}">${z}</option>`).join('');
+
+    // Restore value if still valid
+    if (allowedZones.includes(currentVal)) selectEl.value = currentVal;
+
+    // Remove any chips for zones no longer in this rep's territory
+    const removed = dayZones[i].filter(z => !allowedZones.includes(z));
+    removed.forEach(z => {
+      dayZones[i] = dayZones[i].filter(x => x !== z);
+      const container = document.getElementById('selected-zones-' + i);
+      container.querySelectorAll('.selected-zone-chip').forEach(chip => {
+        if (chip.dataset && chip.dataset.zone === z) chip.remove();
+      });
+    });
+
+    if (removed.length > 0) refreshStorePicker(i);
+  }
+  // Refresh all store dropdowns for new rep filter
+  for (let i = 0; i < 5; i++) refreshStorePicker(i);
+}
+
+// ── Store state per day ───────────────────────────────────────────────────────
+const dayStores    = {0:[], 1:[], 2:[], 3:[], 4:[]};
+const dayPending   = {0:[], 1:[], 2:[], 3:[], 4:[]}; // checked but not confirmed
+
+// ── Rep → Zone → Stores (full zone-aware lookup from DFL database) ──────────
+const REP_STORES_ZONED = {
+  'Antonio Williams': {
+    'KINGSTON': [{name:'SINGH WHOLESALE',tier:'Tier 3',label:'○ SINGH WHOLESALE'}],
+    'OLDHARBOUR': [{name:'BETTA VALUE SUPERMARKET',tier:'Tier 2',label:'● BETTA VALUE SUPERMARKET'}, {name:'CHUNG PHAT',tier:'Tier 2',label:'● CHUNG PHAT'}, {name:'GIANT SUPERMARKET LIMITED',tier:'Tier 2',label:'● GIANT SUPERMARKET LIMITED'}, {name:'SAMPARS CASH & CARRY OLD HARBOUR',tier:'Tier 2',label:'● SAMPARS CASH & CARRY OLD HARBOUR'}, {name:'SHUN DA SUPERMARKET',tier:'Tier 2',label:'● SHUN DA SUPERMARKET'}, {name:'BL RETAIL',tier:'Tier 3',label:'○ BL RETAIL'}, {name:'C & M MEATS OLD HARBOUR',tier:'Tier 3',label:'○ C & M MEATS OLD HARBOUR'}, {name:'HAPPY DAY SUPERSTORE',tier:'Tier 3',label:'○ HAPPY DAY SUPERSTORE'}, {name:'HARBOUR GROCERY',tier:'Tier 3',label:'○ HARBOUR GROCERY'}, {name:'LEE\'S S/MARKET (FORMERLY CHERISH)',tier:'Tier 3',label:'○ LEE\'S S/MARKET (FORMERLY CHERISH)'}, {name:'MIAO YI',tier:'Tier 3',label:'○ MIAO YI'}, {name:'S MART WHOLESALE OLD HARBOUR',tier:'Tier 3',label:'○ S MART WHOLESALE OLD HARBOUR'}, {name:'SWEET DEAL OLD HARBOUR',tier:'Tier 3',label:'○ SWEET DEAL OLD HARBOUR'}, {name:'WALLACE IMPERIAL FOOD LTD',tier:'Tier 3',label:'○ WALLACE IMPERIAL FOOD LTD'}],
+    'SPANISHTOWN': [{name:'SHOPPERS FAIR BRUNSWICK',tier:'Tier 1',label:'★ SHOPPERS FAIR BRUNSWICK'}, {name:'AJANI\'S WHOLESALE',tier:'Tier 2',label:'● AJANI\'S WHOLESALE'}, {name:'BRAE\'S CASH & TAKE',tier:'Tier 2',label:'● BRAE\'S CASH & TAKE'}, {name:'FLASH WHOLESALE',tier:'Tier 2',label:'● FLASH WHOLESALE'}, {name:'HILO SPANISH TOWN',tier:'Tier 2',label:'● HILO SPANISH TOWN'}, {name:'JERRY WHOLESALE',tier:'Tier 2',label:'● JERRY WHOLESALE'}, {name:'LOTTE MALL',tier:'Tier 2',label:'● LOTTE MALL'}, {name:'MAINLAND SUPERMARKET LTD',tier:'Tier 2',label:'● MAINLAND SUPERMARKET LTD'}, {name:'MISTER CHEN SUPERMARKET',tier:'Tier 2',label:'● MISTER CHEN SUPERMARKET'}, {name:'SHOP & SAVE SPANISH TOWN',tier:'Tier 2',label:'● SHOP & SAVE SPANISH TOWN'}, {name:'SHOPPERS FAIR BURKE ROAD',tier:'Tier 2',label:'● SHOPPERS FAIR BURKE ROAD'}, {name:'AJ\'S SUPERMARKET',tier:'Tier 3',label:'○ AJ\'S SUPERMARKET'}, {name:'CAO SUPERMARKET',tier:'Tier 3',label:'○ CAO SUPERMARKET'}, {name:'CHENS WHOLESALE SPANISH TOWN',tier:'Tier 3',label:'○ CHENS WHOLESALE SPANISH TOWN'}, {name:'HANNA\'S SUPERMARKET',tier:'Tier 3',label:'○ HANNA\'S SUPERMARKET'}, {name:'JACK FU WHOLESALE',tier:'Tier 3',label:'○ JACK FU WHOLESALE'}, {name:'JOHN JOHN WHOLESALE',tier:'Tier 3',label:'○ JOHN JOHN WHOLESALE'}, {name:'K & K WHOLESALE SPANISH TOWN',tier:'Tier 3',label:'○ K & K WHOLESALE SPANISH TOWN'}, {name:'LIU WANG SUPERMARKET',tier:'Tier 3',label:'○ LIU WANG SUPERMARKET'}, {name:'MICHEAL WHOLESALE SPANISH TOWN',tier:'Tier 3',label:'○ MICHEAL WHOLESALE SPANISH TOWN'}, {name:'NEW FAIR 88/INDEPENDENT WHOLESALE',tier:'Tier 3',label:'○ NEW FAIR 88/INDEPENDENT WHOLESALE'}, {name:'SU CHONG WHOLESALE',tier:'Tier 3',label:'○ SU CHONG WHOLESALE'}, {name:'WAN YUAN',tier:'Tier 3',label:'○ WAN YUAN'}, {name:'WELLINGTON STREET W/SALE',tier:'Tier 3',label:'○ WELLINGTON STREET W/SALE'}, {name:'WEN REN CHEN SUPERMARKET',tier:'Tier 3',label:'○ WEN REN CHEN SUPERMARKET'}, {name:'YIN HE',tier:'Tier 3',label:'○ YIN HE'}, {name:'YUERAO WANG SUPERMARKET T/A CHEN\'SS/M',tier:'Tier 3',label:'○ YUERAO WANG SUPERMARKET T/A CHEN\'SS/M'}],
+  },
+  'Christopher Russell': {
+    'DOWNTOWN': [{name:'GODDARD CATERING GROUP (JAMAICA) LTD',tier:'Tier 2',label:'● GODDARD CATERING GROUP (JAMAICA) LTD'}, {name:'JAMAICA FLOUR MILLS',tier:'Tier 3',label:'○ JAMAICA FLOUR MILLS'}, {name:'OB\'S RESTAURANT AND CATETERS',tier:'Tier 3',label:'○ OB\'S RESTAURANT AND CATETERS'}, {name:'ROK OPERATING COMPANY LTD T/A ROK HOTEL',tier:'Tier 3',label:'○ ROK OPERATING COMPANY LTD T/A ROK HOTEL'}],
+    'GUYS HILL': [{name:'GUYS HILL HIGH SCHOOL',tier:'Tier 3',label:'○ GUYS HILL HIGH SCHOOL'}],
+    'KINGSTON': [{name:'CHANG\'S TRADING',tier:'Tier 1',label:'★ CHANG\'S TRADING'}, {name:'MOTHERS ENTERPRISE',tier:'Tier 2',label:'● MOTHERS ENTERPRISE'}, {name:'R HOTEL JAMAICA',tier:'Tier 2',label:'● R HOTEL JAMAICA'}, {name:'TASTEE LTD',tier:'Tier 2',label:'● TASTEE LTD'}, {name:'TERRA NOVA ALL SUITE HOTEL',tier:'Tier 2',label:'● TERRA NOVA ALL SUITE HOTEL'}, {name:'COURTYARD BY MARRIOTT',tier:'Tier 3',label:'○ COURTYARD BY MARRIOTT'}, {name:'SHORTWOOD TEACHERS COLLEGE',tier:'Tier 3',label:'○ SHORTWOOD TEACHERS COLLEGE'}, {name:'SIZZLIN SLOTS',tier:'Tier 3',label:'○ SIZZLIN SLOTS'}, {name:'TASTEE MANNINGS HILL',tier:'Tier 3',label:'○ TASTEE MANNINGS HILL'}],
+    'OCHORIOS': [{name:'CHANG\'S 2 EXPRESS',tier:'Tier 2',label:'● CHANG\'S 2 EXPRESS'}, {name:'COUPLES TOWER ISLE',tier:'Tier 2',label:'● COUPLES TOWER ISLE'}, {name:'COUPLES SANS SOUCI',tier:'Tier 3',label:'○ COUPLES SANS SOUCI'}],
+    'OLDHARBOUR': [{name:'B&E CATERERS & RESTAURANTS -WILLODENE',tier:'Tier 3',label:'○ B&E CATERERS & RESTAURANTS -WILLODENE'}, {name:'JAMAICA BROILERS GROUP LTD',tier:'Tier 3',label:'○ JAMAICA BROILERS GROUP LTD'}],
+  },
+  'Clerett Holness': {
+    'BROWNSTOWN': [{name:'HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO',tier:'Tier 2',label:'● HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO'}, {name:'TRUST MART SUPERMARKET',tier:'Tier 2',label:'● TRUST MART SUPERMARKET'}, {name:'BROWN\'S TOWN SUPERMARKET',tier:'Tier 3',label:'○ BROWN\'S TOWN SUPERMARKET'}, {name:'SUN VALUE SUPERMARKET',tier:'Tier 3',label:'○ SUN VALUE SUPERMARKET'}],
+    'CHRISTIANA': [{name:'PRICE GEL SUPERMARKET',tier:'Tier 1',label:'★ PRICE GEL SUPERMARKET'}, {name:'EXTRA VALU',tier:'Tier 2',label:'● EXTRA VALU'}, {name:'JUN SUPERMARKET',tier:'Tier 2',label:'● JUN SUPERMARKET'}, {name:'SIBLING SUPERMARKET',tier:'Tier 2',label:'● SIBLING SUPERMARKET'}, {name:'WAVE SUPERMARKET FORMERLY QUICK SAVE',tier:'Tier 2',label:'● WAVE SUPERMARKET FORMERLY QUICK SAVE'}, {name:'ALEX SUPERMARKET T/A GREAT VALUE',tier:'Tier 3',label:'○ ALEX SUPERMARKET T/A GREAT VALUE'}, {name:'CHENS  SUPER  SAVE (7-11 SUPERSTORE)',tier:'Tier 3',label:'○ CHENS  SUPER  SAVE (7-11 SUPERSTORE)'}, {name:'DRAGON HOME T/A J & R PEOPLE\'S CHOICE',tier:'Tier 3',label:'○ DRAGON HOME T/A J & R PEOPLE\'S CHOICE'}, {name:'E\'S LIANG LIMITED',tier:'Tier 3',label:'○ E\'S LIANG LIMITED'}, {name:'H&L LUCKY SUPER WHOLESALE',tier:'Tier 3',label:'○ H&L LUCKY SUPER WHOLESALE'}, {name:'HO\'S SUPERMARKET CHRISTIANA',tier:'Tier 3',label:'○ HO\'S SUPERMARKET CHRISTIANA'}, {name:'KEN CHIN',tier:'Tier 3',label:'○ KEN CHIN'}, {name:'N.H SUPERMARKET',tier:'Tier 3',label:'○ N.H SUPERMARKET'}, {name:'SAM FO MEATS',tier:'Tier 3',label:'○ SAM FO MEATS'}, {name:'SPECIAL CHOICE',tier:'Tier 3',label:'○ SPECIAL CHOICE'}, {name:'WIN\'S WAY WHOLESALE',tier:'Tier 3',label:'○ WIN\'S WAY WHOLESALE'}],
+    'MANDEVILLE': [{name:'FRESH VALU SUPERMARKET/GRACE CHAE',tier:'Tier 1',label:'★ FRESH VALU SUPERMARKET/GRACE CHAE'}, {name:'MASTER MAC MANDEVILLE',tier:'Tier 1',label:'★ MASTER MAC MANDEVILLE'}, {name:'PROGRESSIVE FOODS MANDEVILLE SUPERMARKET',tier:'Tier 1',label:'★ PROGRESSIVE FOODS MANDEVILLE SUPERMARKET'}, {name:'URVILLS SUPERMARKET',tier:'Tier 1',label:'★ URVILLS SUPERMARKET'}, {name:'C & H SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● C & H SUPERMARKET & WHOLESALE'}, {name:'HAORIZI SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● HAORIZI SUPERMARKET & WHOLESALE'}, {name:'HO\'S HUI MING TRADING SUPERMARKET',tier:'Tier 2',label:'● HO\'S HUI MING TRADING SUPERMARKET'}, {name:'J & W WHOLESALE MANDEVILLE',tier:'Tier 2',label:'● J & W WHOLESALE MANDEVILLE'}, {name:'JIN XI AN YE SUPERMARKET',tier:'Tier 2',label:'● JIN XI AN YE SUPERMARKET'}, {name:'K-POP SUPERMARKET',tier:'Tier 2',label:'● K-POP SUPERMARKET'}, {name:'LIAO J. SUPERMARKET FORMERLYTONY\'S',tier:'Tier 2',label:'● LIAO J. SUPERMARKET FORMERLYTONY\'S'}, {name:'LINS WHOLESALE & RETAIL',tier:'Tier 2',label:'● LINS WHOLESALE & RETAIL'}, {name:'MEGAMART MANDEVILLE',tier:'Tier 2',label:'● MEGAMART MANDEVILLE'}, {name:'MOO PEN LTD',tier:'Tier 2',label:'● MOO PEN LTD'}, {name:'NASHVILLE TRADING',tier:'Tier 2',label:'● NASHVILLE TRADING'}, {name:'NEW GRAND MARKET',tier:'Tier 2',label:'● NEW GRAND MARKET'}, {name:'PEOPLES CHOICE TRADING',tier:'Tier 2',label:'● PEOPLES CHOICE TRADING'}, {name:'SHOPPERS FAIR MANCHESTER',tier:'Tier 2',label:'● SHOPPERS FAIR MANCHESTER'}, {name:'STAR RIVER\'S SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● STAR RIVER\'S SUPERMARKET & WHOLESALE'}, {name:'SUPER PLUS MIDWAY',tier:'Tier 2',label:'● SUPER PLUS MIDWAY'}, {name:'SURE SAVE',tier:'Tier 2',label:'● SURE SAVE'}, {name:'WIN\'S WAY SUPERMARKET MANDEVILLE',tier:'Tier 2',label:'● WIN\'S WAY SUPERMARKET MANDEVILLE'}, {name:'WINNER 88 FORMERL Y & W SUPERMARKET',tier:'Tier 2',label:'● WINNER 88 FORMERL Y & W SUPERMARKET'}, {name:'B & B\'S BAKE ME AWAY LIMITED',tier:'Tier 3',label:'○ B & B\'S BAKE ME AWAY LIMITED'}, {name:'BETTER VALUE',tier:'Tier 3',label:'○ BETTER VALUE'}, {name:'C & M MEATS MANDEVILLE',tier:'Tier 3',label:'○ C & M MEATS MANDEVILLE'}, {name:'CHINA\'S DELIGHT',tier:'Tier 3',label:'○ CHINA\'S DELIGHT'}, {name:'GOLDEN DRAGON',tier:'Tier 3',label:'○ GOLDEN DRAGON'}, {name:'H & P BEST BARGAIN SUPERMARKET',tier:'Tier 3',label:'○ H & P BEST BARGAIN SUPERMARKET'}, {name:'HEAVENLY DELIGHT',tier:'Tier 3',label:'○ HEAVENLY DELIGHT'}, {name:'J & W WHOLESALE HATFIELD',tier:'Tier 3',label:'○ J & W WHOLESALE HATFIELD'}, {name:'M & Y SUPERMARKET',tier:'Tier 3',label:'○ M & Y SUPERMARKET'}, {name:'MODERNWAY SUPER MART',tier:'Tier 3',label:'○ MODERNWAY SUPER MART'}, {name:'OCEAN MALL SUPERMARKET',tier:'Tier 3',label:'○ OCEAN MALL SUPERMARKET'}, {name:'PORUS SUPERMARKET & W/SALE',tier:'Tier 3',label:'○ PORUS SUPERMARKET & W/SALE'}, {name:'PRIDE OF KARIS/C&S MEATS & GROCERIES',tier:'Tier 3',label:'○ PRIDE OF KARIS/C&S MEATS & GROCERIES'}, {name:'Q & J STAR SUPERMARKET',tier:'Tier 3',label:'○ Q & J STAR SUPERMARKET'}, {name:'RAIL WAY SELL EVERY LIKKLE THING',tier:'Tier 3',label:'○ RAIL WAY SELL EVERY LIKKLE THING'}, {name:'RERRIE\'S RESTAURANT',tier:'Tier 3',label:'○ RERRIE\'S RESTAURANT'}, {name:'SUPER FOODS',tier:'Tier 3',label:'○ SUPER FOODS'}, {name:'SUPER PLUS EXPRESS',tier:'Tier 3',label:'○ SUPER PLUS EXPRESS'}, {name:'SUPER PLUS PARK CRESCENT',tier:'Tier 3',label:'○ SUPER PLUS PARK CRESCENT'}, {name:'TELLO\'S WHOLESALE',tier:'Tier 3',label:'○ TELLO\'S WHOLESALE'}, {name:'UNIQUE PACKAGING',tier:'Tier 3',label:'○ UNIQUE PACKAGING'}, {name:'WEN\'S SUPERMARKET',tier:'Tier 3',label:'○ WEN\'S SUPERMARKET'}, {name:'Y & K SUPERMARKET',tier:'Tier 3',label:'○ Y & K SUPERMARKET'}, {name:'Z-ONE FOOD MART FORMERLY MAP W/SALE PORUS',tier:'Tier 3',label:'○ Z-ONE FOOD MART FORMERLY MAP W/SALE PORUS'}],
+    'SPALDING': [{name:'KIND SUPERMARKET LTD',tier:'Tier 1',label:'★ KIND SUPERMARKET LTD'}, {name:'HO\'S HUI T/A LIANG\'S FOOD COMPANY (SPALDING)',tier:'Tier 2',label:'● HO\'S HUI T/A LIANG\'S FOOD COMPANY (SPALDING)'}, {name:'MY FRIENDS SUPERMARKET LTD',tier:'Tier 2',label:'● MY FRIENDS SUPERMARKET LTD'}, {name:'SUN MART formerly SELECTION WHOLESALE',tier:'Tier 2',label:'● SUN MART formerly SELECTION WHOLESALE'}],
+  },
+  'Damita Samuels-Foster': {
+    'DARLISTAN': [{name:'CHENMART SUPERMARKET & HABERDASHERY',tier:'Tier 1',label:'★ CHENMART SUPERMARKET & HABERDASHERY'}, {name:'MILLERS SUPERMARKET',tier:'Tier 2',label:'● MILLERS SUPERMARKET'}, {name:'CNG SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ CNG SUPERMARKET & WHOLESALE'}, {name:'GRANDEUR FOODS COMPANY LTD/ (GOOD START)',tier:'Tier 3',label:'○ GRANDEUR FOODS COMPANY LTD/ (GOOD START)'}, {name:'H.T.C SUPERMARKET DARLISTON',tier:'Tier 3',label:'○ H.T.C SUPERMARKET DARLISTON'}],
+    'GRANGEHILL': [{name:'HAMMONDS CONSOLIDATED',tier:'Tier 3',label:'○ HAMMONDS CONSOLIDATED'}],
+    'PETERSIELD': [{name:'SINGH MINI MART',tier:'Tier 2',label:'● SINGH MINI MART'}, {name:'MEAT MAX DEPOT',tier:'Tier 3',label:'○ MEAT MAX DEPOT'}],
+    'SAV': [{name:'BESTCO SUPERMARKET-SAV',tier:'Tier 1',label:'★ BESTCO SUPERMARKET-SAV'}, {name:'LI\'S WHOLESALE',tier:'Tier 1',label:'★ LI\'S WHOLESALE'}, {name:'S K D WHOLESALE SAV(Formerly Y & W)',tier:'Tier 1',label:'★ S K D WHOLESALE SAV(Formerly Y & W)'}, {name:'BETTER LIFE WHOLESALE',tier:'Tier 2',label:'● BETTER LIFE WHOLESALE'}, {name:'CHOICE FRESH FOODS SUPERMARKET & WHOLSALE',tier:'Tier 2',label:'● CHOICE FRESH FOODS SUPERMARKET & WHOLSALE'}, {name:'HAOKE SUPERMARKET & WHOLESALE (Formerly Good Guest)',tier:'Tier 2',label:'● HAOKE SUPERMARKET & WHOLESALE (Formerly Good Guest)'}, {name:'HYH WHOLESALE',tier:'Tier 2',label:'● HYH WHOLESALE'}, {name:'L & G SUPERMARKET',tier:'Tier 2',label:'● L & G SUPERMARKET'}, {name:'NEW DRAGON WHOLESALE SAV',tier:'Tier 2',label:'● NEW DRAGON WHOLESALE SAV'}, {name:'ROGEORGE TRADING',tier:'Tier 2',label:'● ROGEORGE TRADING'}, {name:'SUPER LIFE SUPERMARKET',tier:'Tier 2',label:'● SUPER LIFE SUPERMARKET'}, {name:'TECH ME HOME COMPANY/GOOD START',tier:'Tier 2',label:'● TECH ME HOME COMPANY/GOOD START'}, {name:'THIS ONE WHOLESALE',tier:'Tier 2',label:'● THIS ONE WHOLESALE'}, {name:'WAN XING SUPERMARKET',tier:'Tier 2',label:'● WAN XING SUPERMARKET'}, {name:'WONDERFUL SUPERMARKET',tier:'Tier 2',label:'● WONDERFUL SUPERMARKET'}, {name:'Z & W FORMERLY L&D WHOLESALE GRANGE HILL',tier:'Tier 2',label:'● Z & W FORMERLY L&D WHOLESALE GRANGE HILL'}, {name:'ALEXDEL LIMITED',tier:'Tier 3',label:'○ ALEXDEL LIMITED'}, {name:'CORNWALL FOODS T/ASHOPPERS CHOICE',tier:'Tier 3',label:'○ CORNWALL FOODS T/ASHOPPERS CHOICE'}, {name:'EARTH & OCEAN SUPERMARKET',tier:'Tier 3',label:'○ EARTH & OCEAN SUPERMARKET'}, {name:'FAMILY D & A DRAGON MART (Formerly Long Peng)',tier:'Tier 3',label:'○ FAMILY D & A DRAGON MART (Formerly Long Peng)'}, {name:'FIRST LOOK SUPERMARKET',tier:'Tier 3',label:'○ FIRST LOOK SUPERMARKET'}, {name:'ICON DISTRIBUTORS MINI MART',tier:'Tier 3',label:'○ ICON DISTRIBUTORS MINI MART'}, {name:'LUE\'S LUCKY WHOLESALE',tier:'Tier 3',label:'○ LUE\'S LUCKY WHOLESALE'}, {name:'PETERSFIELD HIGH SCHOOL.',tier:'Tier 3',label:'○ PETERSFIELD HIGH SCHOOL.'}, {name:'PHOENIX PARK WHOLESALE & RETAIL',tier:'Tier 3',label:'○ PHOENIX PARK WHOLESALE & RETAIL'}, {name:'YU\'S SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ YU\'S SUPERMARKET & WHOLESALE'}],
+    'WHITEHOUSE': [{name:'CONSUMER SUPERMARKET',tier:'Tier 2',label:'● CONSUMER SUPERMARKET'}, {name:'FRESH CHOICE MEATS',tier:'Tier 2',label:'● FRESH CHOICE MEATS'}, {name:'HONGCHEN FAMILY MART',tier:'Tier 2',label:'● HONGCHEN FAMILY MART'}, {name:'J & Z SUPERMARKET',tier:'Tier 3',label:'○ J & Z SUPERMARKET'}, {name:'NEW DRAGON WHITEHOUSE',tier:'Tier 3',label:'○ NEW DRAGON WHITEHOUSE'}, {name:'NOR\'S RELIABLE SERVICE',tier:'Tier 3',label:'○ NOR\'S RELIABLE SERVICE'}],
+  },
+  'Desrick Simpson': {
+    'GRANGEHILL': [{name:'SNOW S/MARKET & WHOLESALE',tier:'Tier 2',label:'● SNOW S/MARKET & WHOLESALE'}, {name:'SUN ISLAND FORMERLY GRANGE HILL SUPERMARK',tier:'Tier 2',label:'● SUN ISLAND FORMERLY GRANGE HILL SUPERMARK'}, {name:'TAT SUPERMARKET',tier:'Tier 2',label:'● TAT SUPERMARKET'}, {name:'YUN YANG SUPERMARKET',tier:'Tier 2',label:'● YUN YANG SUPERMARKET'}, {name:'DIAS SUPERMARKET-GRANGE HILL',tier:'Tier 3',label:'○ DIAS SUPERMARKET-GRANGE HILL'}, {name:'J & P SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ J & P SUPERMARKET & WHOLESALE'}],
+    'LITTLE LONDON': [{name:'MJ SHOPPING CENTER',tier:'Tier 2',label:'● MJ SHOPPING CENTER'}, {name:'HEALTHY DRIZZLE SUPERMARKET',tier:'Tier 3',label:'○ HEALTHY DRIZZLE SUPERMARKET'}, {name:'SIMMONDS FAMILY MEAT AND GROCERIES',tier:'Tier 3',label:'○ SIMMONDS FAMILY MEAT AND GROCERIES'}],
+    'NEGRIL': [{name:'YUNS SUPERMARKET',tier:'Tier 1',label:'★ YUNS SUPERMARKET'}, {name:'BEST VALUE WHOLESALE LITLE LONDON',tier:'Tier 2',label:'● BEST VALUE WHOLESALE LITLE LONDON'}, {name:'CHANDON & SONS DISTRIBUTORS',tier:'Tier 2',label:'● CHANDON & SONS DISTRIBUTORS'}, {name:'GOLD STAR NEGRIL',tier:'Tier 2',label:'● GOLD STAR NEGRIL'}, {name:'HILO NEGRIL',tier:'Tier 2',label:'● HILO NEGRIL'}, {name:'LFA COUNTRY STORE NEGRIL',tier:'Tier 2',label:'● LFA COUNTRY STORE NEGRIL'}, {name:'NEGRIL BUS PARK SUPERMARKET',tier:'Tier 2',label:'● NEGRIL BUS PARK SUPERMARKET'}, {name:'QUALITY TRADERS',tier:'Tier 2',label:'● QUALITY TRADERS'}, {name:'RED SUN',tier:'Tier 2',label:'● RED SUN'}, {name:'B & D MEAT \'N\' MINI MART',tier:'Tier 3',label:'○ B & D MEAT \'N\' MINI MART'}, {name:'BIECO XP INTERNATIONAL LIMITED',tier:'Tier 3',label:'○ BIECO XP INTERNATIONAL LIMITED'}, {name:'DELVEBRIDGE SUPERMARKET & HARDWARE LTD',tier:'Tier 3',label:'○ DELVEBRIDGE SUPERMARKET & HARDWARE LTD'}, {name:'DWIGHT DALEY DISTRIBUTORS',tier:'Tier 3',label:'○ DWIGHT DALEY DISTRIBUTORS'}, {name:'HILO BOARDWALK',tier:'Tier 3',label:'○ HILO BOARDWALK'}, {name:'SHEFFIELD SUPERMARKET',tier:'Tier 3',label:'○ SHEFFIELD SUPERMARKET'}, {name:'VALUE  MASTER NEGRIL',tier:'Tier 3',label:'○ VALUE  MASTER NEGRIL'}],
+    'SAV': [{name:'SHOPPERS FAIR SAVANNA-LA-MAR',tier:'Tier 1',label:'★ SHOPPERS FAIR SAVANNA-LA-MAR'}, {name:'D & Y SUPERMARKET WHOLESALE',tier:'Tier 2',label:'● D & Y SUPERMARKET WHOLESALE'}, {name:'HEALTHY CHOICE FRUITS & GROCERIES LTD',tier:'Tier 2',label:'● HEALTHY CHOICE FRUITS & GROCERIES LTD'}, {name:'KENNEDY\'S MINI MART',tier:'Tier 2',label:'● KENNEDY\'S MINI MART'}, {name:'LONG PENG S/MARKET form Shoppers Delite',tier:'Tier 2',label:'● LONG PENG S/MARKET form Shoppers Delite'}, {name:'MEAT PLUS',tier:'Tier 2',label:'● MEAT PLUS'}, {name:'NEW PARADISE SUPERMARKET',tier:'Tier 2',label:'● NEW PARADISE SUPERMARKET'}, {name:'ACM SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ ACM SUPERMARKET & WHOLESALE'}, {name:'HAMMONDS PASTRY & RESTAURANT LTD',tier:'Tier 3',label:'○ HAMMONDS PASTRY & RESTAURANT LTD'}, {name:'NEW SEA SUPERMARKET',tier:'Tier 3',label:'○ NEW SEA SUPERMARKET'}, {name:'RIA SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ RIA SUPERMARKET & WHOLESALE'}],
+    'SHEFFIELD': [{name:'ANDREW HIBBERT',tier:'Tier 3',label:'○ ANDREW HIBBERT'}, {name:'LAMEY SUPERMARKET',tier:'Tier 3',label:'○ LAMEY SUPERMARKET'}],
+  },
+  'Dionne Rerrie': {
+    'FALMOUTH': [{name:'CHAMPION SUPERMARKET -FALMOUTH',tier:'Tier 1',label:'★ CHAMPION SUPERMARKET -FALMOUTH'}, {name:'ORION WHOLESALE',tier:'Tier 1',label:'★ ORION WHOLESALE'}, {name:'TESCO C/O W & L FALMOUTH',tier:'Tier 1',label:'★ TESCO C/O W & L FALMOUTH'}, {name:'CHLOE\'S WHOLESALE & SUPERMARKET',tier:'Tier 2',label:'● CHLOE\'S WHOLESALE & SUPERMARKET'}, {name:'ENERGY WHOLESALE',tier:'Tier 2',label:'● ENERGY WHOLESALE'}, {name:'FENG 777 WHOLESALE & RETAIL LTD',tier:'Tier 2',label:'● FENG 777 WHOLESALE & RETAIL LTD'}, {name:'FINNI WHOLESALE',tier:'Tier 2',label:'● FINNI WHOLESALE'}, {name:'GONI MEI SUPERMARKET',tier:'Tier 2',label:'● GONI MEI SUPERMARKET'}, {name:'HONG XIN FALMOUTH',tier:'Tier 2',label:'● HONG XIN FALMOUTH'}, {name:'WENG & CHIN WHOLESALE',tier:'Tier 2',label:'● WENG & CHIN WHOLESALE'}, {name:'YUNFENG WHOLESALE SUPERMARKET',tier:'Tier 2',label:'● YUNFENG WHOLESALE SUPERMARKET'}, {name:'LEICHENG WHOLESALE',tier:'Tier 3',label:'○ LEICHENG WHOLESALE'}, {name:'OUPAI SUPERMARKET LTD',tier:'Tier 3',label:'○ OUPAI SUPERMARKET LTD'}, {name:'RAK WHOLESALE STORE',tier:'Tier 3',label:'○ RAK WHOLESALE STORE'}, {name:'SMILE CITY S/MARKET t/a HONG XIN FALMOUTH',tier:'Tier 3',label:'○ SMILE CITY S/MARKET t/a HONG XIN FALMOUTH'}, {name:'STAY N SHOP',tier:'Tier 3',label:'○ STAY N SHOP'}],
+    'MOBAY': [{name:'BEST VALUE SUPERMARKET',tier:'Tier 1',label:'★ BEST VALUE SUPERMARKET'}, {name:'CONSUMER MEAT PLUS CO. LTD',tier:'Tier 1',label:'★ CONSUMER MEAT PLUS CO. LTD'}, {name:'SUPERMARKET MANELLI LIMITED',tier:'Tier 1',label:'★ SUPERMARKET MANELLI LIMITED'}, {name:'AJT CHEN FAMILY LTD',tier:'Tier 2',label:'● AJT CHEN FAMILY LTD'}, {name:'BETTER MEATS MOBAY',tier:'Tier 2',label:'● BETTER MEATS MOBAY'}, {name:'CHEN WINGO WHOLESALE',tier:'Tier 2',label:'● CHEN WINGO WHOLESALE'}, {name:'CHOWS CASH & CARRY',tier:'Tier 2',label:'● CHOWS CASH & CARRY'}, {name:'FRESH VILLAGE SUPERMARKET',tier:'Tier 2',label:'● FRESH VILLAGE SUPERMARKET'}, {name:'H.TC SUPERMARKET MOBAY (#3)',tier:'Tier 2',label:'● H.TC SUPERMARKET MOBAY (#3)'}, {name:'HAKKA SHAWN #2',tier:'Tier 2',label:'● HAKKA SHAWN #2'}, {name:'HAPPY SMART GROCERS LTD',tier:'Tier 2',label:'● HAPPY SMART GROCERS LTD'}, {name:'HUIWEN COMPANY LTD FORMERLY HONG LI',tier:'Tier 2',label:'● HUIWEN COMPANY LTD FORMERLY HONG LI'}, {name:'JEDA WHOLESALE/CHENS JADA',tier:'Tier 2',label:'● JEDA WHOLESALE/CHENS JADA'}, {name:'K\'S WHOLESALE',tier:'Tier 2',label:'● K\'S WHOLESALE'}, {name:'META VARIETY',tier:'Tier 2',label:'● META VARIETY'}, {name:'NEW CENTURY MOBAY',tier:'Tier 2',label:'● NEW CENTURY MOBAY'}, {name:'NEW DRAGON WHOLESALE',tier:'Tier 2',label:'● NEW DRAGON WHOLESALE'}, {name:'NEW WELCOME WHOLESALE MONTEGO BAY',tier:'Tier 2',label:'● NEW WELCOME WHOLESALE MONTEGO BAY'}, {name:'OLE\' SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● OLE\' SUPERMARKET & WHOLESALE'}, {name:'ONE DEPOT TOO HOT TRADING',tier:'Tier 2',label:'● ONE DEPOT TOO HOT TRADING'}, {name:'QIANHUI SUPERMARKET',tier:'Tier 2',label:'● QIANHUI SUPERMARKET'}, {name:'SILVER STAR SUPERMARKET',tier:'Tier 2',label:'● SILVER STAR SUPERMARKET'}, {name:'STRANBERY WHOLESALE',tier:'Tier 2',label:'● STRANBERY WHOLESALE'}, {name:'WAGON WHOLESALE',tier:'Tier 2',label:'● WAGON WHOLESALE'}, {name:'WENERS WHOLESALE MOBAY',tier:'Tier 2',label:'● WENERS WHOLESALE MOBAY'}, {name:'YANG WHOLESALE',tier:'Tier 2',label:'● YANG WHOLESALE'}, {name:'3 Q SUPERMARKET LIMITED',tier:'Tier 3',label:'○ 3 Q SUPERMARKET LIMITED'}, {name:'ANDRU WHOLESALE',tier:'Tier 3',label:'○ ANDRU WHOLESALE'}, {name:'ANDY\'S STORE',tier:'Tier 3',label:'○ ANDY\'S STORE'}, {name:'CRYSTAL WHOLESALE',tier:'Tier 3',label:'○ CRYSTAL WHOLESALE'}, {name:'FANG MEGA FOOD WHOLESALE & SUPERMARKET',tier:'Tier 3',label:'○ FANG MEGA FOOD WHOLESALE & SUPERMARKET'}, {name:'FENG\'S TRADING WHOLESALE',tier:'Tier 3',label:'○ FENG\'S TRADING WHOLESALE'}, {name:'G P WHOLESALE',tier:'Tier 3',label:'○ G P WHOLESALE'}, {name:'H.T.C SUPERMARKET',tier:'Tier 3',label:'○ H.T.C SUPERMARKET'}, {name:'K. BROMORES MEATS & GROCERY',tier:'Tier 3',label:'○ K. BROMORES MEATS & GROCERY'}, {name:'L & X WHOLESALE LIMITED',tier:'Tier 3',label:'○ L & X WHOLESALE LIMITED'}, {name:'MASTER MAC MOBAY',tier:'Tier 3',label:'○ MASTER MAC MOBAY'}, {name:'MOBAY MEAT PLUS',tier:'Tier 3',label:'○ MOBAY MEAT PLUS'}, {name:'NEW CITY MINI MART',tier:'Tier 3',label:'○ NEW CITY MINI MART'}, {name:'NEW CREEK WHOLESALE LTD',tier:'Tier 3',label:'○ NEW CREEK WHOLESALE LTD'}, {name:'PAYLESS MEAT MOBAY',tier:'Tier 3',label:'○ PAYLESS MEAT MOBAY'}, {name:'RILEY MINI MART',tier:'Tier 3',label:'○ RILEY MINI MART'}, {name:'ROYAL WHOLESALE',tier:'Tier 3',label:'○ ROYAL WHOLESALE'}, {name:'SAMFAR MEATS & GROCERIES LTD',tier:'Tier 3',label:'○ SAMFAR MEATS & GROCERIES LTD'}, {name:'SNAP-FRESH SUPERMARKET LIMITED',tier:'Tier 3',label:'○ SNAP-FRESH SUPERMARKET LIMITED'}, {name:'SOONG\'S SISTER SUPERMARKET',tier:'Tier 3',label:'○ SOONG\'S SISTER SUPERMARKET'}, {name:'STRAND MEGA SAVINGS W/SALE /FRMLYCLARISSA',tier:'Tier 3',label:'○ STRAND MEGA SAVINGS W/SALE /FRMLYCLARISSA'}, {name:'SUPER MOON LTD',tier:'Tier 3',label:'○ SUPER MOON LTD'}, {name:'VALUE MEAT MART PHOENIX PLAZA',tier:'Tier 3',label:'○ VALUE MEAT MART PHOENIX PLAZA'}, {name:'WENG CHIN',tier:'Tier 3',label:'○ WENG CHIN'}],
+    'TRELAWNY': [{name:'BIG FAMILY WHOLESALE & SUPERMARKET',tier:'Tier 3',label:'○ BIG FAMILY WHOLESALE & SUPERMARKET'}, {name:'HILLSIDE ENTERPRISE LTD',tier:'Tier 3',label:'○ HILLSIDE ENTERPRISE LTD'}, {name:'JOEL & S LITTLE MART',tier:'Tier 3',label:'○ JOEL & S LITTLE MART'}, {name:'L & B DISCOUNT LIMITED',tier:'Tier 3',label:'○ L & B DISCOUNT LIMITED'}, {name:'MIDWAY FAST FOOD',tier:'Tier 3',label:'○ MIDWAY FAST FOOD'}],
+  },
+  'Eric Smith': {
+    'BRAES RIVER': [{name:'BRAE\'S ONE STOP GROCERIES',tier:'Tier 3',label:'○ BRAE\'S ONE STOP GROCERIES'}, {name:'DEE\'S RIVERSIDE CAFE',tier:'Tier 3',label:'○ DEE\'S RIVERSIDE CAFE'}],
+    'LACOVIA': [{name:'JAVS MINI MART (FORMERLY E&S MINI MART)',tier:'Tier 3',label:'○ JAVS MINI MART (FORMERLY E&S MINI MART)'}, {name:'MENKE SUPERMARKET',tier:'Tier 3',label:'○ MENKE SUPERMARKET'}, {name:'MITCHELL\'S MID TOWN SUPERMARKET',tier:'Tier 3',label:'○ MITCHELL\'S MID TOWN SUPERMARKET'}, {name:'PRIME WHOLESALE BALACLAVA',tier:'Tier 3',label:'○ PRIME WHOLESALE BALACLAVA'}],
+    'MAGOTTY': [{name:'XIONG MAGGOTY SUPERMARKET',tier:'Tier 2',label:'● XIONG MAGGOTY SUPERMARKET'}],
+    'NEWMARKET': [{name:'CHJN SUPERMARKET FRMLY HUAO\'S  WHOLESALE',tier:'Tier 2',label:'● CHJN SUPERMARKET FRMLY HUAO\'S  WHOLESALE'}, {name:'JIE JIE SUPERMARKET',tier:'Tier 2',label:'● JIE JIE SUPERMARKET'}, {name:'TONEY\'S FRIED CHICKEN',tier:'Tier 2',label:'● TONEY\'S FRIED CHICKEN'}, {name:'NEW MART WHOLESALE',tier:'Tier 3',label:'○ NEW MART WHOLESALE'}],
+    'SANTACRUZ': [{name:'INTOWN SUPA SAVE SANTA',tier:'Tier 1',label:'★ INTOWN SUPA SAVE SANTA'}, {name:'MAX VALUE',tier:'Tier 1',label:'★ MAX VALUE'}, {name:'168 SUPERMARKET',tier:'Tier 2',label:'● 168 SUPERMARKET'}, {name:'CHENYAN WHOLESALE & SUPERMARKET',tier:'Tier 2',label:'● CHENYAN WHOLESALE & SUPERMARKET'}, {name:'CRUZ SUPERSTORE',tier:'Tier 2',label:'● CRUZ SUPERSTORE'}, {name:'DOBBY\'S DISCOUNT WAREHOUSE',tier:'Tier 2',label:'● DOBBY\'S DISCOUNT WAREHOUSE'}, {name:'FEDLIN ENTERPRISE',tier:'Tier 2',label:'● FEDLIN ENTERPRISE'}, {name:'HONG XIN SANTA',tier:'Tier 2',label:'● HONG XIN SANTA'}, {name:'JN SUPERMARKET TIKPOP FOOD',tier:'Tier 2',label:'● JN SUPERMARKET TIKPOP FOOD'}, {name:'MID-ISLAND SERVICE STATION',tier:'Tier 2',label:'● MID-ISLAND SERVICE STATION'}, {name:'MORRISON\'S VARIETY STORE',tier:'Tier 2',label:'● MORRISON\'S VARIETY STORE'}, {name:'PRIME WHOLESALE',tier:'Tier 2',label:'● PRIME WHOLESALE'}, {name:'SANTA CENTRE SUPERMARKET LTD',tier:'Tier 2',label:'● SANTA CENTRE SUPERMARKET LTD'}, {name:'SANTA CHOICE SUPERMARKET',tier:'Tier 2',label:'● SANTA CHOICE SUPERMARKET'}, {name:'SMITH SUPERMARKET',tier:'Tier 2',label:'● SMITH SUPERMARKET'}, {name:'SUPER MAX FORMERLY MAXX MART',tier:'Tier 2',label:'● SUPER MAX FORMERLY MAXX MART'}, {name:'THE ONE SUPERCENTRE',tier:'Tier 2',label:'● THE ONE SUPERCENTRE'}, {name:'ANDJOS DATA PROCESSING',tier:'Tier 3',label:'○ ANDJOS DATA PROCESSING'}, {name:'CHAOZHI SUPERMARKET- SANTA CRUZ',tier:'Tier 3',label:'○ CHAOZHI SUPERMARKET- SANTA CRUZ'}, {name:'DERRICK SCOTT',tier:'Tier 3',label:'○ DERRICK SCOTT'}, {name:'JOJO\'S PIZZA & MORE',tier:'Tier 3',label:'○ JOJO\'S PIZZA & MORE'}, {name:'MARSHA SPIRIT LIQUOR AND WHOLESALE',tier:'Tier 3',label:'○ MARSHA SPIRIT LIQUOR AND WHOLESALE'}, {name:'MASTER LIQUOR & WHOLESALE',tier:'Tier 3',label:'○ MASTER LIQUOR & WHOLESALE'}, {name:'SANTA CRUZ WHOLESALE & LIQUOR STORE',tier:'Tier 3',label:'○ SANTA CRUZ WHOLESALE & LIQUOR STORE'}, {name:'ST BESS INVESTMENT FORMERLY C MART',tier:'Tier 3',label:'○ ST BESS INVESTMENT FORMERLY C MART'}, {name:'STEP ONE',tier:'Tier 3',label:'○ STEP ONE'}, {name:'TINY TOTS /A-Z BOOKSTORE',tier:'Tier 3',label:'○ TINY TOTS /A-Z BOOKSTORE'}],
+  },
+  'Everton Green': {
+    'DOWNTOWN': [{name:'LILLY\'S ENTERPRISE',tier:'Tier 3',label:'○ LILLY\'S ENTERPRISE'}],
+    'EWARTON': [{name:'TIN LING SUPERMARKET',tier:'Tier 2',label:'● TIN LING SUPERMARKET'}, {name:'HOME ESSENTIAL /UNIVERSAL WHOLESALE',tier:'Tier 3',label:'○ HOME ESSENTIAL /UNIVERSAL WHOLESALE'}],
+    'KINGSTON': [{name:'HILO CROSS ROADS',tier:'Tier 2',label:'● HILO CROSS ROADS'}, {name:'K & M MEAT CROSS ROAD',tier:'Tier 2',label:'● K & M MEAT CROSS ROAD'}, {name:'MARVERLY FOODS LTD',tier:'Tier 2',label:'● MARVERLY FOODS LTD'}, {name:'MAXIM SUCCESSORS LTD',tier:'Tier 2',label:'● MAXIM SUCCESSORS LTD'}, {name:'MEAT & GROCERY DEPOT',tier:'Tier 2',label:'● MEAT & GROCERY DEPOT'}, {name:'NK WHOLESALE',tier:'Tier 2',label:'● NK WHOLESALE'}, {name:'SAMPARS CASH & CARRY CROSS ROADS',tier:'Tier 2',label:'● SAMPARS CASH & CARRY CROSS ROADS'}, {name:'SHOPPERS DELITE',tier:'Tier 2',label:'● SHOPPERS DELITE'}, {name:'WAYNE DISCOUNT CENTER & CO LTD',tier:'Tier 2',label:'● WAYNE DISCOUNT CENTER & CO LTD'}, {name:'BRIDGE WHOLESALE (WISE CHOICE)',tier:'Tier 3',label:'○ BRIDGE WHOLESALE (WISE CHOICE)'}, {name:'HANZ FORMERLY CONNIE\'S WHOLESALE',tier:'Tier 3',label:'○ HANZ FORMERLY CONNIE\'S WHOLESALE'}, {name:'K & M MEAT- HALFWAY TREE',tier:'Tier 3',label:'○ K & M MEAT- HALFWAY TREE'}, {name:'LALAPALOOZA RESTAURANT',tier:'Tier 3',label:'○ LALAPALOOZA RESTAURANT'}, {name:'LONG WONG formerly CHENG LONG SHOP',tier:'Tier 3',label:'○ LONG WONG formerly CHENG LONG SHOP'}, {name:'MERITSUN DISTRIBUTORS',tier:'Tier 3',label:'○ MERITSUN DISTRIBUTORS'}, {name:'MICHELLE WHOLESALE',tier:'Tier 3',label:'○ MICHELLE WHOLESALE'}, {name:'REDUCE MINI MART',tier:'Tier 3',label:'○ REDUCE MINI MART'}, {name:'SAMPARS SUPERMARKET BLVD',tier:'Tier 3',label:'○ SAMPARS SUPERMARKET BLVD'}, {name:'TOTAL DUNROBIN',tier:'Tier 3',label:'○ TOTAL DUNROBIN'}],
+    'LINSTEAD': [{name:'FONGS FOOD',tier:'Tier 2',label:'● FONGS FOOD'}, {name:'HANLUE BROS',tier:'Tier 2',label:'● HANLUE BROS'}, {name:'HANLUE BROS #2',tier:'Tier 2',label:'● HANLUE BROS #2'}, {name:'HAPPY VALUE SUPERMARKET',tier:'Tier 2',label:'● HAPPY VALUE SUPERMARKET'}, {name:'HOMELY SUPERMARKET FORMERLY LING FIE',tier:'Tier 2',label:'● HOMELY SUPERMARKET FORMERLY LING FIE'}, {name:'JR\'S BARGAIN WORLD LINSTEAD',tier:'Tier 2',label:'● JR\'S BARGAIN WORLD LINSTEAD'}, {name:'LINSTEAD WHOLESALE & LIQUOR STORE',tier:'Tier 2',label:'● LINSTEAD WHOLESALE & LIQUOR STORE'}, {name:'R & P GROCERY PLUS',tier:'Tier 2',label:'● R & P GROCERY PLUS'}, {name:'24 HOUR WHOLESALE',tier:'Tier 3',label:'○ 24 HOUR WHOLESALE'}, {name:'KING SUPERMARKET LINSTEAD',tier:'Tier 3',label:'○ KING SUPERMARKET LINSTEAD'}, {name:'LEONG ENTERPRISES CO. LTD',tier:'Tier 3',label:'○ LEONG ENTERPRISES CO. LTD'}, {name:'NENG WHOLESALE',tier:'Tier 3',label:'○ NENG WHOLESALE'}, {name:'NEW ATTRACTION LINSTEAD',tier:'Tier 3',label:'○ NEW ATTRACTION LINSTEAD'}, {name:'REAL CHOICE SUPERMARKET',tier:'Tier 3',label:'○ REAL CHOICE SUPERMARKET'}, {name:'YOUR WHOLESALE',tier:'Tier 3',label:'○ YOUR WHOLESALE'}],
+  },
+  'Garreth Brown': {
+    'KINGSTON': [{name:'BROOKLYN CLOCK TOWER',tier:'Tier 1',label:'★ BROOKLYN CLOCK TOWER'}, {name:'BROOKLYN TWIN GATES',tier:'Tier 1',label:'★ BROOKLYN TWIN GATES'}, {name:'GENERAL FOODS LIGUANEA',tier:'Tier 1',label:'★ GENERAL FOODS LIGUANEA'}, {name:'HILO BARBICAN',tier:'Tier 1',label:'★ HILO BARBICAN'}, {name:'HILO LIGUANEA.',tier:'Tier 1',label:'★ HILO LIGUANEA.'}, {name:'LOSHUSAN NEW KINGSTON/ JOHN R WONG',tier:'Tier 1',label:'★ LOSHUSAN NEW KINGSTON/ JOHN R WONG'}, {name:'LOSHUSAN SUPERMARKET',tier:'Tier 1',label:'★ LOSHUSAN SUPERMARKET'}, {name:'SUPER SHOPPERS FAIR BOULEVARD',tier:'Tier 1',label:'★ SUPER SHOPPERS FAIR BOULEVARD'}, {name:'HILO PAVILION',tier:'Tier 2',label:'● HILO PAVILION'}, {name:'HUGHENDEN SUPERMARKET',tier:'Tier 2',label:'● HUGHENDEN SUPERMARKET'}, {name:'LEES FOOD FAIR BOULEVARD',tier:'Tier 2',label:'● LEES FOOD FAIR BOULEVARD'}, {name:'MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING',tier:'Tier 2',label:'● MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING'}, {name:'SAMPARS T/A SELECT GROCERS',tier:'Tier 2',label:'● SAMPARS T/A SELECT GROCERS'}, {name:'SHOPPERS FAIR DUHANEY PARK',tier:'Tier 2',label:'● SHOPPERS FAIR DUHANEY PARK'}, {name:'SHOPPERS FAIR LIGUANEA',tier:'Tier 2',label:'● SHOPPERS FAIR LIGUANEA'}, {name:'SOVEREIGN SUPERMARKET- LIGUANEA',tier:'Tier 2',label:'● SOVEREIGN SUPERMARKET- LIGUANEA'}, {name:'VARIETY 11- NO WEDNESDAY DELIVERY',tier:'Tier 2',label:'● VARIETY 11- NO WEDNESDAY DELIVERY'}, {name:'WAN DEFU SUPERMARKET LIMITED',tier:'Tier 2',label:'● WAN DEFU SUPERMARKET LIMITED'}, {name:'D & D WHOLESALE',tier:'Tier 3',label:'○ D & D WHOLESALE'}, {name:'FIRST CHOICE FOOD',tier:'Tier 3',label:'○ FIRST CHOICE FOOD'}, {name:'FRESH APPROACH',tier:'Tier 3',label:'○ FRESH APPROACH'}, {name:'GOLDEN GROCERY  SUPERMARKET',tier:'Tier 3',label:'○ GOLDEN GROCERY  SUPERMARKET'}, {name:'HILO BASIX (UWI)',tier:'Tier 3',label:'○ HILO BASIX (UWI)'}, {name:'HONG DA',tier:'Tier 3',label:'○ HONG DA'}, {name:'KAMRINE ENTERPRISE',tier:'Tier 3',label:'○ KAMRINE ENTERPRISE'}, {name:'LING CHING',tier:'Tier 3',label:'○ LING CHING'}, {name:'LUCKY CRAB SEAFOOD BAR AND GRILL',tier:'Tier 3',label:'○ LUCKY CRAB SEAFOOD BAR AND GRILL'}, {name:'MUNDUS SUPPLIES LTD',tier:'Tier 3',label:'○ MUNDUS SUPPLIES LTD'}, {name:'NADINE',tier:'Tier 3',label:'○ NADINE'}, {name:'OFFICE SUPPLIES BROKERS LTD',tier:'Tier 3',label:'○ OFFICE SUPPLIES BROKERS LTD'}, {name:'PAPINE WHOLESALE',tier:'Tier 3',label:'○ PAPINE WHOLESALE'}, {name:'POTWAH RESTAURANT',tier:'Tier 3',label:'○ POTWAH RESTAURANT'}, {name:'TONG\'S WHOLESALE PAPINE',tier:'Tier 3',label:'○ TONG\'S WHOLESALE PAPINE'}, {name:'TOTAL SERVICE STATION  NEW KINGSTON',tier:'Tier 3',label:'○ TOTAL SERVICE STATION  NEW KINGSTON'}, {name:'W T FEEDS',tier:'Tier 3',label:'○ W T FEEDS'}, {name:'WORLDTRON TOTAL',tier:'Tier 3',label:'○ WORLDTRON TOTAL'}],
+    'KITSON TOWN': [{name:'OGM FARMS',tier:'Tier 3',label:'○ OGM FARMS'}],
+    'STONYHILL': [{name:'MASTER MAC STONY HILL',tier:'Tier 2',label:'● MASTER MAC STONY HILL'}, {name:'LOW PRICE TRADING',tier:'Tier 3',label:'○ LOW PRICE TRADING'}],
+  },
+  'Kawayne Evans': {
+    'HARBOUR VIEW': [{name:'APEX ENERGY SYSTEM-HARBOUR VIEW',tier:'Tier 3',label:'○ APEX ENERGY SYSTEM-HARBOUR VIEW'}],
+    'KINGSTON': [{name:'FAMILY PRIDE',tier:'Tier 1',label:'★ FAMILY PRIDE'}, {name:'LEES FOOD FAIR RED HILLS ROAD',tier:'Tier 1',label:'★ LEES FOOD FAIR RED HILLS ROAD'}, {name:'MEGAMART KINGSTON',tier:'Tier 1',label:'★ MEGAMART KINGSTON'}, {name:'SUPER VALU FRESH FOODS LTD',tier:'Tier 1',label:'★ SUPER VALU FRESH FOODS LTD'}, {name:'HILO MANOR PARK',tier:'Tier 2',label:'● HILO MANOR PARK'}, {name:'MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING',tier:'Tier 2',label:'● MASTER MAC FOOD STORE- SUPERMARKET CONSTANT SPRING'}, {name:'SUPER VALUE  KINGSTON',tier:'Tier 2',label:'● SUPER VALUE  KINGSTON'}, {name:'FIRST CHOICE FOOD',tier:'Tier 3',label:'○ FIRST CHOICE FOOD'}, {name:'FRESH APPROACH',tier:'Tier 3',label:'○ FRESH APPROACH'}, {name:'SNOW WHOLESALE',tier:'Tier 3',label:'○ SNOW WHOLESALE'}, {name:'TAWI KITCHEN',tier:'Tier 3',label:'○ TAWI KITCHEN'}],
+    'OLDHARBOUR': [{name:'SYDENHAM WHOLESALE',tier:'Tier 2',label:'● SYDENHAM WHOLESALE'}],
+    'PORTMORE': [{name:'HILO PORTMORE PINES',tier:'Tier 1',label:'★ HILO PORTMORE PINES'}, {name:'JOONG PORTMORE',tier:'Tier 1',label:'★ JOONG PORTMORE'}, {name:'MASTER MAC FOOD STORE',tier:'Tier 1',label:'★ MASTER MAC FOOD STORE'}, {name:'PROGRESSIVE FOODS PORTMORE',tier:'Tier 1',label:'★ PROGRESSIVE FOODS PORTMORE'}, {name:'SHOPPERS FAIR PORTMORE MALL',tier:'Tier 1',label:'★ SHOPPERS FAIR PORTMORE MALL'}, {name:'CANTON ENTERPRISE PORTMORE',tier:'Tier 2',label:'● CANTON ENTERPRISE PORTMORE'}, {name:'J\'S AND FAMILY TRADING',tier:'Tier 2',label:'● J\'S AND FAMILY TRADING'}, {name:'K & M MEAT & GROCERY',tier:'Tier 2',label:'● K & M MEAT & GROCERY'}, {name:'MEGAMART PORTMORE',tier:'Tier 2',label:'● MEGAMART PORTMORE'}, {name:'PORTMORE PINES SUPER VALUE LTD',tier:'Tier 2',label:'● PORTMORE PINES SUPER VALUE LTD'}, {name:'AUNT NELLY\'S WHOLESALE',tier:'Tier 3',label:'○ AUNT NELLY\'S WHOLESALE'}, {name:'BIG MAMA\'S WHOLESALE & RETAIL',tier:'Tier 3',label:'○ BIG MAMA\'S WHOLESALE & RETAIL'}, {name:'GOLDEN BUDGET',tier:'Tier 3',label:'○ GOLDEN BUDGET'}, {name:'HAPPY WHOLESALE PORTMORE',tier:'Tier 3',label:'○ HAPPY WHOLESALE PORTMORE'}, {name:'INDEPENDENCE CITY SUPERMARKET',tier:'Tier 3',label:'○ INDEPENDENCE CITY SUPERMARKET'}, {name:'JURISHA WHOLESALE & RETAIL',tier:'Tier 3',label:'○ JURISHA WHOLESALE & RETAIL'}, {name:'LLAL\'S KITCHEN',tier:'Tier 3',label:'○ LLAL\'S KITCHEN'}, {name:'LUCKY ENTERPRISE PORTMORE',tier:'Tier 3',label:'○ LUCKY ENTERPRISE PORTMORE'}, {name:'MEMBERS RETAIL & WHOLESALE',tier:'Tier 3',label:'○ MEMBERS RETAIL & WHOLESALE'}, {name:'NEW BAY MART',tier:'Tier 3',label:'○ NEW BAY MART'}, {name:'SHAMSHAN WHOLESALE',tier:'Tier 3',label:'○ SHAMSHAN WHOLESALE'}, {name:'SOURCE FOODS',tier:'Tier 3',label:'○ SOURCE FOODS'}, {name:'SUPER DEAL',tier:'Tier 3',label:'○ SUPER DEAL'}, {name:'THRILLER WHOLESALE(ONE INVOICE AT A TIME)',tier:'Tier 3',label:'○ THRILLER WHOLESALE(ONE INVOICE AT A TIME)'}],
+    'SPANISHTOWN': [{name:'JIABAILI SUPERMARKET',tier:'Tier 2',label:'● JIABAILI SUPERMARKET'}],
+    'STONYHILL': [{name:'JOY & PEACE',tier:'Tier 3',label:'○ JOY & PEACE'}],
+  },
+  'Kimberly Brown': {
+    'ANCHOVY': [{name:'QIANG WHOLESALE/ANDYS WHOLESALE ANCHOVY',tier:'Tier 2',label:'● QIANG WHOLESALE/ANDYS WHOLESALE ANCHOVY'}, {name:'WANG WANG',tier:'Tier 2',label:'● WANG WANG'}, {name:'HALCGO COMPANY',tier:'Tier 3',label:'○ HALCGO COMPANY'}, {name:'POPULAR',tier:'Tier 3',label:'○ POPULAR'}, {name:'R & C WHOLESALE & MEAT',tier:'Tier 3',label:'○ R & C WHOLESALE & MEAT'}],
+    'GREEN ISLAND': [{name:'DIRECT DEALS FOODS LIMITED',tier:'Tier 2',label:'● DIRECT DEALS FOODS LIMITED'}, {name:'FENDA DISTRIBUTORS',tier:'Tier 2',label:'● FENDA DISTRIBUTORS'}, {name:'ALL MARKET STOP & SHOP',tier:'Tier 3',label:'○ ALL MARKET STOP & SHOP'}, {name:'C.N LIQUOR & FOODS LTD',tier:'Tier 3',label:'○ C.N LIQUOR & FOODS LTD'}, {name:'IVAN LEE',tier:'Tier 3',label:'○ IVAN LEE'}, {name:'SUN GOLD MINIMART',tier:'Tier 3',label:'○ SUN GOLD MINIMART'}, {name:'SUN POWER WHOLESALE- #2',tier:'Tier 3',label:'○ SUN POWER WHOLESALE- #2'}, {name:'SUNNY FRESH COMPANY LTD',tier:'Tier 3',label:'○ SUNNY FRESH COMPANY LTD'}],
+    'LUCEA': [{name:'CHERRIE\'S SUPERMARKET',tier:'Tier 1',label:'★ CHERRIE\'S SUPERMARKET'}, {name:'ALLEN WHOLESALE',tier:'Tier 2',label:'● ALLEN WHOLESALE'}, {name:'BEST STAR /Formerly R & L STOP & SHOP',tier:'Tier 2',label:'● BEST STAR /Formerly R & L STOP & SHOP'}, {name:'DOUBLE LUCKY SUPERMARKET',tier:'Tier 2',label:'● DOUBLE LUCKY SUPERMARKET'}, {name:'HEWING WHOLESALE SUPERMARKET',tier:'Tier 2',label:'● HEWING WHOLESALE SUPERMARKET'}, {name:'NAING SUPERMARKET',tier:'Tier 2',label:'● NAING SUPERMARKET'}, {name:'SAVE A LOT SANDY BAY',tier:'Tier 2',label:'● SAVE A LOT SANDY BAY'}, {name:'SHANE WHOLESALE',tier:'Tier 2',label:'● SHANE WHOLESALE'}, {name:'SUN POWER',tier:'Tier 2',label:'● SUN POWER'}, {name:'UNITED SUPERMARKET',tier:'Tier 2',label:'● UNITED SUPERMARKET'}, {name:'WHITE HOUSE A PLUS TRAINING LTD',tier:'Tier 2',label:'● WHITE HOUSE A PLUS TRAINING LTD'}, {name:'AMOR WHOLESALE & RETAIL',tier:'Tier 3',label:'○ AMOR WHOLESALE & RETAIL'}, {name:'BETHEL PRIMARY SCHOOL',tier:'Tier 3',label:'○ BETHEL PRIMARY SCHOOL'}, {name:'HUNTERS MINI MART & RESTAURANT',tier:'Tier 3',label:'○ HUNTERS MINI MART & RESTAURANT'}, {name:'KAIKAM WHOLESALE',tier:'Tier 3',label:'○ KAIKAM WHOLESALE'}, {name:'LUCEA NO 1 WHOLESALE & SUPERMARKET',tier:'Tier 3',label:'○ LUCEA NO 1 WHOLESALE & SUPERMARKET'}, {name:'MD\'S SUPER SERVICE WHOLESALE',tier:'Tier 3',label:'○ MD\'S SUPER SERVICE WHOLESALE'}, {name:'NEW GARDEN SUPERMARKET',tier:'Tier 3',label:'○ NEW GARDEN SUPERMARKET'}, {name:'SHARON WHOLESALE & SUPERMARKET',tier:'Tier 3',label:'○ SHARON WHOLESALE & SUPERMARKET'}, {name:'SS&P WHOLESALE',tier:'Tier 3',label:'○ SS&P WHOLESALE'}, {name:'SUNNY\'S GROCERY',tier:'Tier 3',label:'○ SUNNY\'S GROCERY'}],
+    'MOBAY': [{name:'348 SUPERMARKET LTD',tier:'Tier 1',label:'★ 348 SUPERMARKET LTD'}, {name:'LINS LIMITED ANCHOVY',tier:'Tier 1',label:'★ LINS LIMITED ANCHOVY'}, {name:'PROGRESSIVE FOODS BOGUE',tier:'Tier 1',label:'★ PROGRESSIVE FOODS BOGUE'}, {name:'PROGRESSIVE FOODS WHITTER VILLAGE',tier:'Tier 1',label:'★ PROGRESSIVE FOODS WHITTER VILLAGE'}, {name:'AFRESH MARKET PLACE LTD',tier:'Tier 2',label:'● AFRESH MARKET PLACE LTD'}, {name:'BEAUTY CITY MEAT PLUS',tier:'Tier 2',label:'● BEAUTY CITY MEAT PLUS'}, {name:'BOGUE VILLAGE SUPERMARKET',tier:'Tier 2',label:'● BOGUE VILLAGE SUPERMARKET'}, {name:'CONSUMER PARADISE WHOLESALE',tier:'Tier 2',label:'● CONSUMER PARADISE WHOLESALE'}, {name:'EXPRESS SUPERMARKET & CONVENIENCE STORE',tier:'Tier 2',label:'● EXPRESS SUPERMARKET & CONVENIENCE STORE'}, {name:'GRAND DEPOT LTD',tier:'Tier 2',label:'● GRAND DEPOT LTD'}, {name:'GREENWOOD SUPERMARKET',tier:'Tier 2',label:'● GREENWOOD SUPERMARKET'}, {name:'GVS LIMITED',tier:'Tier 2',label:'● GVS LIMITED'}, {name:'HERBERT\'S PROCESSING- UNION',tier:'Tier 2',label:'● HERBERT\'S PROCESSING- UNION'}, {name:'HILO MOBAY',tier:'Tier 2',label:'● HILO MOBAY'}, {name:'I & C SUPERMARKET',tier:'Tier 2',label:'● I & C SUPERMARKET'}, {name:'QUEEN\'S SUPERMARKET MT SALEM',tier:'Tier 2',label:'● QUEEN\'S SUPERMARKET MT SALEM'}, {name:'SHOPPERS FAIR BLUE DIAMOND',tier:'Tier 2',label:'● SHOPPERS FAIR BLUE DIAMOND'}, {name:'SIUS SUPERMARKET MOBAY',tier:'Tier 2',label:'● SIUS SUPERMARKET MOBAY'}, {name:'SUPER 99',tier:'Tier 2',label:'● SUPER 99'}, {name:'VALUE CITY WHOLESALE & SUPERMARKET',tier:'Tier 2',label:'● VALUE CITY WHOLESALE & SUPERMARKET'}, {name:'ARCL SUPERMARKET',tier:'Tier 3',label:'○ ARCL SUPERMARKET'}, {name:'CAMBRIDGE CASH N CARRY PL',tier:'Tier 3',label:'○ CAMBRIDGE CASH N CARRY PL'}, {name:'CHINS BROTHERS CAMBRIDGE',tier:'Tier 3',label:'○ CHINS BROTHERS CAMBRIDGE'}, {name:'CORNWALL PACKAGING',tier:'Tier 3',label:'○ CORNWALL PACKAGING'}, {name:'GURUNANAK AGENCY',tier:'Tier 3',label:'○ GURUNANAK AGENCY'}, {name:'HAI YAN SUPERMARKET',tier:'Tier 3',label:'○ HAI YAN SUPERMARKET'}, {name:'HUADENG ZENG CAMBRIDGE WHOLESALE',tier:'Tier 3',label:'○ HUADENG ZENG CAMBRIDGE WHOLESALE'}, {name:'HUMINITON FORMERLY NEWTON RESTAURANT',tier:'Tier 3',label:'○ HUMINITON FORMERLY NEWTON RESTAURANT'}, {name:'JHENCHAN TRADING',tier:'Tier 3',label:'○ JHENCHAN TRADING'}, {name:'JK SUPERMARKET',tier:'Tier 3',label:'○ JK SUPERMARKET'}, {name:'LAIS BROTHERS MART',tier:'Tier 3',label:'○ LAIS BROTHERS MART'}, {name:'LEGEND SUPERMARKET',tier:'Tier 3',label:'○ LEGEND SUPERMARKET'}, {name:'LILLIPUT MINI MART',tier:'Tier 3',label:'○ LILLIPUT MINI MART'}, {name:'MING\'S SUPERMARKET',tier:'Tier 3',label:'○ MING\'S SUPERMARKET'}, {name:'MNAV SUPERMARKET LTD',tier:'Tier 3',label:'○ MNAV SUPERMARKET LTD'}, {name:'RIVER RAFT LIMITED',tier:'Tier 3',label:'○ RIVER RAFT LIMITED'}, {name:'Y & F',tier:'Tier 3',label:'○ Y & F'}],
+    'ORANGE BAY': [{name:'FIRST & LAST MINI MART',tier:'Tier 2',label:'● FIRST & LAST MINI MART'}, {name:'TD BROTHERS LIMITED',tier:'Tier 2',label:'● TD BROTHERS LIMITED'}],
+  },
+  'Kimmone Campbell': {
+    'ALEXANDRIA': [{name:'CNJ WHOLESALE & RETAIL',tier:'Tier 3',label:'○ CNJ WHOLESALE & RETAIL'}],
+    'BROWNSTOWN': [{name:'BEYOND SUPERMARKET',tier:'Tier 2',label:'● BEYOND SUPERMARKET'}, {name:'COME AND BUY FORMERLY G2 TRADING',tier:'Tier 2',label:'● COME AND BUY FORMERLY G2 TRADING'}, {name:'HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO',tier:'Tier 2',label:'● HUNTLEY AVENUE WHOLESALE FORMERLY BESTCO'}, {name:'MASTER MAC BROWNS TOWN',tier:'Tier 2',label:'● MASTER MAC BROWNS TOWN'}, {name:'TENGDA SUPERMARKET LTD',tier:'Tier 2',label:'● TENGDA SUPERMARKET LTD'}, {name:'TRUST MART SUPERMARKET',tier:'Tier 2',label:'● TRUST MART SUPERMARKET'}, {name:'BROWN\'S TOWN SUPERMARKET',tier:'Tier 3',label:'○ BROWN\'S TOWN SUPERMARKET'}, {name:'SUN VALUE SUPERMARKET',tier:'Tier 3',label:'○ SUN VALUE SUPERMARKET'}],
+    'CLAREMONT': [{name:'MCDONALD\'S SUPERSALE',tier:'Tier 2',label:'● MCDONALD\'S SUPERSALE'}, {name:'CLAREMONT SUPERMARKET',tier:'Tier 3',label:'○ CLAREMONT SUPERMARKET'}, {name:'EDGAR JOHNSON',tier:'Tier 3',label:'○ EDGAR JOHNSON'}],
+    'DISCOVERYBAY': [{name:'DAFA WHOLESALE',tier:'Tier 2',label:'● DAFA WHOLESALE'}, {name:'RELIABLE SUPERMARKET',tier:'Tier 2',label:'● RELIABLE SUPERMARKET'}, {name:'ENA SUPERMARKET LTD',tier:'Tier 3',label:'○ ENA SUPERMARKET LTD'}, {name:'FITZROY RETAIL & WHOLESALE',tier:'Tier 3',label:'○ FITZROY RETAIL & WHOLESALE'}],
+    'GAYLE': [{name:'GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM',tier:'Tier 3',label:'○ GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM'}, {name:'OUT-A-TOWN SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ OUT-A-TOWN SUPERMARKET & WHOLESALE'}, {name:'TIME MARKET',tier:'Tier 3',label:'○ TIME MARKET'}],
+    'OCHORIOS': [{name:'REXO SUPERMARKET',tier:'Tier 1',label:'★ REXO SUPERMARKET'}, {name:'CHAMPION SUPERMARKET',tier:'Tier 2',label:'● CHAMPION SUPERMARKET'}, {name:'FOOD TO GO RESTAURANT',tier:'Tier 2',label:'● FOOD TO GO RESTAURANT'}, {name:'GENERAL FOODS SUPERMARKET',tier:'Tier 2',label:'● GENERAL FOODS SUPERMARKET'}, {name:'PROGRESSIVE FOODS OCHO RIOS',tier:'Tier 2',label:'● PROGRESSIVE FOODS OCHO RIOS'}, {name:'AJ SUPERMARKET',tier:'Tier 3',label:'○ AJ SUPERMARKET'}, {name:'BOOT SERVICE STATION',tier:'Tier 3',label:'○ BOOT SERVICE STATION'}, {name:'KARIBBEAN KORNER(WHITE RIVER)',tier:'Tier 3',label:'○ KARIBBEAN KORNER(WHITE RIVER)'}, {name:'ORVELL ARIS',tier:'Tier 3',label:'○ ORVELL ARIS'}, {name:'SANDY YE SUPERMARKET',tier:'Tier 3',label:'○ SANDY YE SUPERMARKET'}, {name:'SELECTION MART',tier:'Tier 3',label:'○ SELECTION MART'}, {name:'SOPHIA\'S LIMITED',tier:'Tier 3',label:'○ SOPHIA\'S LIMITED'}, {name:'SOURCE WAT-A-DEAL WHOLESALE',tier:'Tier 3',label:'○ SOURCE WAT-A-DEAL WHOLESALE'}, {name:'THE MEAT PLACE',tier:'Tier 3',label:'○ THE MEAT PLACE'}],
+    'ORACABESSA': [{name:'SAVING PLUS SUPERMARKET',tier:'Tier 3',label:'○ SAVING PLUS SUPERMARKET'}],
+    'PORTMARIA': [{name:'7/11 MEAT MART',tier:'Tier 3',label:'○ 7/11 MEAT MART'}],
+    'RUNAWAYBAY': [{name:'FU CHENG SUPERMARKET',tier:'Tier 2',label:'● FU CHENG SUPERMARKET'}, {name:'LFA COUNTRY STORE LTD',tier:'Tier 2',label:'● LFA COUNTRY STORE LTD'}, {name:'RUNAWAY BAY EMPORIUM',tier:'Tier 2',label:'● RUNAWAY BAY EMPORIUM'}, {name:'L & M MEATS',tier:'Tier 3',label:'○ L & M MEATS'}, {name:'NEW PLUS SUPERMARKET',tier:'Tier 3',label:'○ NEW PLUS SUPERMARKET'}, {name:'NORTHERN SUPERMARKET',tier:'Tier 3',label:'○ NORTHERN SUPERMARKET'}, {name:'SALEM FRESHCO SUPERMARKET',tier:'Tier 3',label:'○ SALEM FRESHCO SUPERMARKET'}, {name:'SALEM WHOLESALE',tier:'Tier 3',label:'○ SALEM WHOLESALE'}],
+    'STANNSBAY': [{name:'BOOT #2 SERVICE STATION',tier:'Tier 2',label:'● BOOT #2 SERVICE STATION'}, {name:'BRAVO SUPERMARKET',tier:'Tier 2',label:'● BRAVO SUPERMARKET'}, {name:'D GROUNDS DISTRIBUTIONS LTD',tier:'Tier 2',label:'● D GROUNDS DISTRIBUTIONS LTD'}, {name:'HEWS SUPERMARKET',tier:'Tier 2',label:'● HEWS SUPERMARKET'}, {name:'HO\'S SUPERMARKET ST ANNS BAY',tier:'Tier 2',label:'● HO\'S SUPERMARKET ST ANNS BAY'}, {name:'QUICK MART SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● QUICK MART SUPERMARKET & WHOLESALE'}, {name:'TIADONG SUPERMARKET',tier:'Tier 2',label:'● TIADONG SUPERMARKET'}, {name:'TSO SUPERMARKET',tier:'Tier 2',label:'● TSO SUPERMARKET'}, {name:'A & G AGRI SUPPLIES',tier:'Tier 3',label:'○ A & G AGRI SUPPLIES'}, {name:'BEST VALUE SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ BEST VALUE SUPERMARKET & WHOLESALE'}, {name:'KEISHA KELLY',tier:'Tier 3',label:'○ KEISHA KELLY'}, {name:'NEW HAMID WHOLESALE & RETAIL',tier:'Tier 3',label:'○ NEW HAMID WHOLESALE & RETAIL'}, {name:'O K MINI MART',tier:'Tier 3',label:'○ O K MINI MART'}, {name:'S & S ASSOCIATES C/O COOL OASIS',tier:'Tier 3',label:'○ S & S ASSOCIATES C/O COOL OASIS'}, {name:'S & W WHOLESALE',tier:'Tier 3',label:'○ S & W WHOLESALE'}, {name:'SAMPARS CASH & CARRY ST ANNS BAY',tier:'Tier 3',label:'○ SAMPARS CASH & CARRY ST ANNS BAY'}, {name:'SQUARE ONE',tier:'Tier 3',label:'○ SQUARE ONE'}],
+  },
+  'Petronia Tinglin': {
+    'ALBION': [{name:'JACAN FOOD DISTRIBUTORS',tier:'Tier 2',label:'● JACAN FOOD DISTRIBUTORS'}, {name:'WINSOMES SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ WINSOMES SUPERMARKET & WHOLESALE'}],
+    'BROWNSTOWN': [{name:'HOWARD WILLIAMS',tier:'Tier 3',label:'○ HOWARD WILLIAMS'}],
+    'DOWNTOWN': [{name:'GIBBO TRADING- WINDWARD ROAD',tier:'Tier 2',label:'● GIBBO TRADING- WINDWARD ROAD'}, {name:'KAREY\'S WHOLESALE',tier:'Tier 2',label:'● KAREY\'S WHOLESALE'}, {name:'SHOPPERS FAIR HARBOUR VIEW',tier:'Tier 2',label:'● SHOPPERS FAIR HARBOUR VIEW'}, {name:'K & M - GILTRESS',tier:'Tier 3',label:'○ K & M - GILTRESS'}, {name:'VINYARDS SUPERMARKET',tier:'Tier 3',label:'○ VINYARDS SUPERMARKET'}],
+    'KINGSTON': [{name:'AFRESH SUPERMARKET- KINGSTON',tier:'Tier 2',label:'● AFRESH SUPERMARKET- KINGSTON'}, {name:'COFFEE EXPRESS',tier:'Tier 2',label:'● COFFEE EXPRESS'}, {name:'JANA ENTERPRISES LTD',tier:'Tier 2',label:'● JANA ENTERPRISES LTD'}, {name:'CHEERFUL TRADING CO. LTD',tier:'Tier 3',label:'○ CHEERFUL TRADING CO. LTD'}, {name:'COFFEE TRADERS LIMITED',tier:'Tier 3',label:'○ COFFEE TRADERS LIMITED'}, {name:'COST U LESS-KINGSTON',tier:'Tier 3',label:'○ COST U LESS-KINGSTON'}, {name:'Q MART',tier:'Tier 3',label:'○ Q MART'}, {name:'S FOODS LTD',tier:'Tier 3',label:'○ S FOODS LTD'}],
+    'MORANTBAY': [{name:'CHONG SANG & SONS',tier:'Tier 2',label:'● CHONG SANG & SONS'}, {name:'DOWNTOWN PAYLESS',tier:'Tier 2',label:'● DOWNTOWN PAYLESS'}, {name:'JOONG MORANT BAY & WHOLESALE Ltd',tier:'Tier 2',label:'● JOONG MORANT BAY & WHOLESALE Ltd'}, {name:'MEAT PLUS WHOLESALE',tier:'Tier 2',label:'● MEAT PLUS WHOLESALE'}, {name:'PEOPLES BAZZAAR',tier:'Tier 2',label:'● PEOPLES BAZZAAR'}, {name:'ANY MONEY SUPERMARKET',tier:'Tier 3',label:'○ ANY MONEY SUPERMARKET'}, {name:'BOBO WHOLESALE MORANT BAY',tier:'Tier 3',label:'○ BOBO WHOLESALE MORANT BAY'}, {name:'ESSENTIAL DISCOUNT MART',tier:'Tier 3',label:'○ ESSENTIAL DISCOUNT MART'}, {name:'GLOBAL MEAT',tier:'Tier 3',label:'○ GLOBAL MEAT'}, {name:'PALANCE GROCERIES AND MEATS',tier:'Tier 3',label:'○ PALANCE GROCERIES AND MEATS'}, {name:'SUPER  MIX DISTRIBUTORS',tier:'Tier 3',label:'○ SUPER  MIX DISTRIBUTORS'}],
+    'PORTMORANT': [{name:'CLASSIC SUPER SHOP',tier:'Tier 2',label:'● CLASSIC SUPER SHOP'}, {name:'WEST SUPERMARKET & COMPANY LIMITED (FORMERLY MORRIS SUPERETTE)',tier:'Tier 3',label:'○ WEST SUPERMARKET & COMPANY LIMITED (FORMERLY MORRIS SUPERETTE)'}],
+    'YALLAHS': [{name:'THE NEW MARKET ROAD WHOLESALE & RETAIL',tier:'Tier 2',label:'● THE NEW MARKET ROAD WHOLESALE & RETAIL'}, {name:'NECESSITIES AND MORE',tier:'Tier 3',label:'○ NECESSITIES AND MORE'}],
+  },
+  'Ruth Ann Lewis': {
+    'ANNOTTOBAY': [{name:'AEON SUPERMARKET C/O BETTER & BETTER',tier:'Tier 2',label:'● AEON SUPERMARKET C/O BETTER & BETTER'}, {name:'BOB\'S SUPERCENTER',tier:'Tier 2',label:'● BOB\'S SUPERCENTER'}, {name:'JIN LONG WHOLESALE',tier:'Tier 2',label:'● JIN LONG WHOLESALE'}, {name:'WILLIAMS SUPERMARKET- ANNOTTO BAY',tier:'Tier 3',label:'○ WILLIAMS SUPERMARKET- ANNOTTO BAY'}],
+    'BUFFBAY': [{name:'B D R TRADING',tier:'Tier 2',label:'● B D R TRADING'}, {name:'HOWARD PAULWELL KILDARE',tier:'Tier 3',label:'○ HOWARD PAULWELL KILDARE'}, {name:'PEATS SELF SERVE',tier:'Tier 3',label:'○ PEATS SELF SERVE'}],
+    'GAYLE': [{name:'GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM',tier:'Tier 3',label:'○ GAYLE TOWN CENTRE FORMERLY KADIAN GRAHAM'}, {name:'OUT-A-TOWN SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ OUT-A-TOWN SUPERMARKET & WHOLESALE'}, {name:'TIME MARKET',tier:'Tier 3',label:'○ TIME MARKET'}],
+    'HIGHGATE': [{name:'TRUE FLAVA GROCERIES/FOR EVER GREEN #2',tier:'Tier 1',label:'★ TRUE FLAVA GROCERIES/FOR EVER GREEN #2'}, {name:'CHA-ROB SUPERMARKET',tier:'Tier 2',label:'● CHA-ROB SUPERMARKET'}, {name:'HIGHGATE TOWN SHOP.',tier:'Tier 2',label:'● HIGHGATE TOWN SHOP.'}, {name:'HO-SUE SUPERMARKET',tier:'Tier 2',label:'● HO-SUE SUPERMARKET'}, {name:'HONG FA WHOLESALE',tier:'Tier 2',label:'● HONG FA WHOLESALE'}, {name:'AAA SUPERMARKET(L&Y)',tier:'Tier 3',label:'○ AAA SUPERMARKET(L&Y)'}, {name:'FOR EVERGREEN W/SALE',tier:'Tier 3',label:'○ FOR EVERGREEN W/SALE'}, {name:'SEGGIES VARIETY STORE',tier:'Tier 3',label:'○ SEGGIES VARIETY STORE'}],
+    'OCHORIOS': [{name:'AJ SUPERMARKET',tier:'Tier 3',label:'○ AJ SUPERMARKET'}, {name:'BOOT SERVICE STATION',tier:'Tier 3',label:'○ BOOT SERVICE STATION'}, {name:'JIAN PEI SUPERMARKET',tier:'Tier 3',label:'○ JIAN PEI SUPERMARKET'}, {name:'KARIBBEAN KORNER(WHITE RIVER)',tier:'Tier 3',label:'○ KARIBBEAN KORNER(WHITE RIVER)'}, {name:'SANDY YE SUPERMARKET',tier:'Tier 3',label:'○ SANDY YE SUPERMARKET'}, {name:'SELECTION MART',tier:'Tier 3',label:'○ SELECTION MART'}, {name:'SOURCE WAT-A-DEAL WHOLESALE',tier:'Tier 3',label:'○ SOURCE WAT-A-DEAL WHOLESALE'}, {name:'THE MEAT PLACE',tier:'Tier 3',label:'○ THE MEAT PLACE'}],
+    'ORACABESSA': [{name:'McDONALD ORACABESSA',tier:'Tier 2',label:'● McDONALD ORACABESSA'}, {name:'SAVING PLUS SUPERMARKET',tier:'Tier 3',label:'○ SAVING PLUS SUPERMARKET'}, {name:'TINA\'S SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ TINA\'S SUPERMARKET & WHOLESALE'}],
+    'PORTANTONIO': [{name:'A & J RAMTULLA ENTERPRISE LIMITED',tier:'Tier 1',label:'★ A & J RAMTULLA ENTERPRISE LIMITED'}, {name:'G & L WHOLESALE',tier:'Tier 1',label:'★ G & L WHOLESALE'}, {name:'MARY SHINE ENTERPRISE',tier:'Tier 2',label:'● MARY SHINE ENTERPRISE'}, {name:'PETAL VARIETY STORE- WEST STREET',tier:'Tier 2',label:'● PETAL VARIETY STORE- WEST STREET'}, {name:'PETALS VARIETY- 42 WILLIAMS STREET',tier:'Tier 2',label:'● PETALS VARIETY- 42 WILLIAMS STREET'}, {name:'POPEYE MINI MART',tier:'Tier 2',label:'● POPEYE MINI MART'}, {name:'168 WHOLESALE PORT ANTONIO',tier:'Tier 3',label:'○ 168 WHOLESALE PORT ANTONIO'}, {name:'FUJI FRESH CO.LTD',tier:'Tier 3',label:'○ FUJI FRESH CO.LTD'}, {name:'JIANG WHOLESALE',tier:'Tier 3',label:'○ JIANG WHOLESALE'}, {name:'KAMLYN WHOLESALE',tier:'Tier 3',label:'○ KAMLYN WHOLESALE'}, {name:'NEW ATTRACTION',tier:'Tier 3',label:'○ NEW ATTRACTION'}, {name:'PETALS MEAT & GROCEY- BLAKE STREET',tier:'Tier 3',label:'○ PETALS MEAT & GROCEY- BLAKE STREET'}, {name:'PORT ANTONIO PRIMARY SCHOOL',tier:'Tier 3',label:'○ PORT ANTONIO PRIMARY SCHOOL'}, {name:'UMI SUPERMARKET LIMITED',tier:'Tier 3',label:'○ UMI SUPERMARKET LIMITED'}],
+    'PORTMARIA': [{name:'GIANT FAMILY MART LTD',tier:'Tier 2',label:'● GIANT FAMILY MART LTD'}, {name:'LING FEI WHOLESALE(TONG REN)',tier:'Tier 2',label:'● LING FEI WHOLESALE(TONG REN)'}, {name:'7/11 MEAT MART',tier:'Tier 3',label:'○ 7/11 MEAT MART'}, {name:'ER CARRIERS LLC LTD',tier:'Tier 3',label:'○ ER CARRIERS LLC LTD'}],
+  },
+  'Sheldon Brown': {
+    'ALLIGATOR POND': [{name:'ANNIEMART SAVE AND MORE LIMITED',tier:'Tier 3',label:'○ ANNIEMART SAVE AND MORE LIMITED'}, {name:'YUFEI HUANG MINI MART',tier:'Tier 3',label:'○ YUFEI HUANG MINI MART'}],
+    'BLACKRIVER': [{name:'INTOWN SUPER SAVE B RIVER',tier:'Tier 1',label:'★ INTOWN SUPER SAVE B RIVER'}, {name:'ANNA FOODS SUPERMARKET',tier:'Tier 2',label:'● ANNA FOODS SUPERMARKET'}, {name:'GLOBAL EGG FARM',tier:'Tier 2',label:'● GLOBAL EGG FARM'}, {name:'MAC FOODS/ SUPER PLUS WHOLESALE 193',tier:'Tier 2',label:'● MAC FOODS/ SUPER PLUS WHOLESALE 193'}, {name:'S N C SUPERMARKET',tier:'Tier 2',label:'● S N C SUPERMARKET'}, {name:'LUANA SHOPPING CENTRE',tier:'Tier 3',label:'○ LUANA SHOPPING CENTRE'}, {name:'SUNRISE BAKERY BLACK RIVER',tier:'Tier 3',label:'○ SUNRISE BAKERY BLACK RIVER'}, {name:'THADDYS MINI MART',tier:'Tier 3',label:'○ THADDYS MINI MART'}],
+    'JUNCTION': [{name:'A & B SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● A & B SUPERMARKET & WHOLESALE'}, {name:'ALLIGATOR POND WHOLESALE',tier:'Tier 2',label:'● ALLIGATOR POND WHOLESALE'}, {name:'BEST PICK SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● BEST PICK SUPERMARKET & WHOLESALE'}, {name:'DAILY VALUE SUPERMARKET',tier:'Tier 2',label:'● DAILY VALUE SUPERMARKET'}, {name:'HUAWEI formerWESTERN SUPERMARKET JUNCTION',tier:'Tier 2',label:'● HUAWEI formerWESTERN SUPERMARKET JUNCTION'}, {name:'INTOWN SUPER SAVE JUNCTION',tier:'Tier 2',label:'● INTOWN SUPER SAVE JUNCTION'}, {name:'JACKY YANG WHOLESALE FORMERLY TOP HILL',tier:'Tier 2',label:'● JACKY YANG WHOLESALE FORMERLY TOP HILL'}, {name:'LILLY WANG SUPERMARKET',tier:'Tier 2',label:'● LILLY WANG SUPERMARKET'}, {name:'MARTIN ST BESS LIQUOR STORE',tier:'Tier 2',label:'● MARTIN ST BESS LIQUOR STORE'}, {name:'MORGANS VARIETY STORE',tier:'Tier 2',label:'● MORGANS VARIETY STORE'}, {name:'NEW MART WHOLESALE & RETAIL',tier:'Tier 2',label:'● NEW MART WHOLESALE & RETAIL'}, {name:'RT MART LIMITED',tier:'Tier 2',label:'● RT MART LIMITED'}, {name:'SHOPPERS FAIR JUNCTION',tier:'Tier 2',label:'● SHOPPERS FAIR JUNCTION'}, {name:'468 SUPERMARKET',tier:'Tier 3',label:'○ 468 SUPERMARKET'}, {name:'CR WHOLESALE LIQUORS & MORE',tier:'Tier 3',label:'○ CR WHOLESALE LIQUORS & MORE'}, {name:'DRO EBANKS MINIMART/ROSE BAR & GROCERY',tier:'Tier 3',label:'○ DRO EBANKS MINIMART/ROSE BAR & GROCERY'}, {name:'EVANS  WHOLESALE JUNCTION',tier:'Tier 3',label:'○ EVANS  WHOLESALE JUNCTION'}, {name:'FOOD PLANET SUPERMARKET',tier:'Tier 3',label:'○ FOOD PLANET SUPERMARKET'}, {name:'FOUR ROAD SHOPPER CENTRE',tier:'Tier 3',label:'○ FOUR ROAD SHOPPER CENTRE'}, {name:'GREGO\'S SEA FOOD',tier:'Tier 3',label:'○ GREGO\'S SEA FOOD'}, {name:'JUNCTION LIQUOR STORE & MINI MART',tier:'Tier 3',label:'○ JUNCTION LIQUOR STORE & MINI MART'}, {name:'KANJAS RESTAURANT',tier:'Tier 3',label:'○ KANJAS RESTAURANT'}, {name:'LINDO STEPHENSON\'S GROCERY',tier:'Tier 3',label:'○ LINDO STEPHENSON\'S GROCERY'}, {name:'OGZO JERK CENTRE',tier:'Tier 3',label:'○ OGZO JERK CENTRE'}, {name:'PINBIAO SUPERMARKET FRMLY ECLIPSE',tier:'Tier 3',label:'○ PINBIAO SUPERMARKET FRMLY ECLIPSE'}, {name:'PRICE RITE LIQUOR STORE & WHOLESALE',tier:'Tier 3',label:'○ PRICE RITE LIQUOR STORE & WHOLESALE'}],
+    'SOUTHFIELD': [{name:'EWS AFFORDABLE GROCERIES & WHOLESALE',tier:'Tier 2',label:'● EWS AFFORDABLE GROCERIES & WHOLESALE'}, {name:'SOUTHCO SUPERMARKET',tier:'Tier 2',label:'● SOUTHCO SUPERMARKET'}, {name:'V.S WHOLESALE',tier:'Tier 2',label:'● V.S WHOLESALE'}, {name:'WENLI SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● WENLI SUPERMARKET & WHOLESALE'}, {name:'XIAOWAN SUPERMARKET',tier:'Tier 2',label:'● XIAOWAN SUPERMARKET'}, {name:'BUTT UP MINI MART',tier:'Tier 3',label:'○ BUTT UP MINI MART'}, {name:'HAMPTON HIGH SCHOOL',tier:'Tier 3',label:'○ HAMPTON HIGH SCHOOL'}, {name:'JAKE\'S RESTAURANT',tier:'Tier 3',label:'○ JAKE\'S RESTAURANT'}, {name:'MIGEL & JOE MINI MART',tier:'Tier 3',label:'○ MIGEL & JOE MINI MART'}, {name:'MOW\'S MINI MART & WHOLESALE',tier:'Tier 3',label:'○ MOW\'S MINI MART & WHOLESALE'}, {name:'WILLIAMS CASH & CARRY',tier:'Tier 3',label:'○ WILLIAMS CASH & CARRY'}],
+    'TREASURE BEACH': [{name:'SOUTHERN SUPPLIES AND SERVICES',tier:'Tier 2',label:'● SOUTHERN SUPPLIES AND SERVICES'}, {name:'SOUTHERN J SUPERMARKET fly ECLIPSE',tier:'Tier 3',label:'○ SOUTHERN J SUPERMARKET fly ECLIPSE'}, {name:'V EBANKS FARM LTD',tier:'Tier 3',label:'○ V EBANKS FARM LTD'}],
+  },
+  'Stacy-Ann Bennett Edwards': {
+    'DOWNTOWN': [{name:'GODDARD CATERING GROUP (JAMAICA) LTD',tier:'Tier 2',label:'● GODDARD CATERING GROUP (JAMAICA) LTD'}, {name:'JAMAICA FLOUR MILLS',tier:'Tier 3',label:'○ JAMAICA FLOUR MILLS'}, {name:'KARLEEN SMITH & CO- KINGSTON PUBLIC HOSPITAL',tier:'Tier 3',label:'○ KARLEEN SMITH & CO- KINGSTON PUBLIC HOSPITAL'}, {name:'OB\'S RESTAURANT AND CATETERS',tier:'Tier 3',label:'○ OB\'S RESTAURANT AND CATETERS'}, {name:'ROK OPERATING COMPANY LTD T/A ROK HOTEL',tier:'Tier 3',label:'○ ROK OPERATING COMPANY LTD T/A ROK HOTEL'}, {name:'TOYOTA JAMAICA LTD',tier:'Tier 3',label:'○ TOYOTA JAMAICA LTD'}],
+    'FALMOUTH': [{name:'RIU PALACE AQUARELLE',tier:'Tier 2',label:'● RIU PALACE AQUARELLE'}],
+    'KINGSTON': [{name:'HILO BARBICAN',tier:'Tier 1',label:'★ HILO BARBICAN'}, {name:'HILO LIGUANEA.',tier:'Tier 1',label:'★ HILO LIGUANEA.'}, {name:'RAINFOREST SEAFOODS',tier:'Tier 1',label:'★ RAINFOREST SEAFOODS'}, {name:'EMPIRE RESTAURANT AND HOTEL SUPPLIES',tier:'Tier 2',label:'● EMPIRE RESTAURANT AND HOTEL SUPPLIES'}, {name:'HILO MANOR PARK',tier:'Tier 2',label:'● HILO MANOR PARK'}, {name:'ISLAND GRILL',tier:'Tier 2',label:'● ISLAND GRILL'}, {name:'KINGSTON JERK',tier:'Tier 2',label:'● KINGSTON JERK'}, {name:'MOTHERS ENTERPRISE',tier:'Tier 2',label:'● MOTHERS ENTERPRISE'}, {name:'R HOTEL JAMAICA',tier:'Tier 2',label:'● R HOTEL JAMAICA'}, {name:'SERRON PHARMACEUTICAL LTD',tier:'Tier 2',label:'● SERRON PHARMACEUTICAL LTD'}, {name:'TASTEE LTD',tier:'Tier 2',label:'● TASTEE LTD'}, {name:'TERRA NOVA ALL SUITE HOTEL',tier:'Tier 2',label:'● TERRA NOVA ALL SUITE HOTEL'}, {name:'THE JAMAICA PEGASUS',tier:'Tier 2',label:'● THE JAMAICA PEGASUS'}, {name:'BRAND\' EM FOOD & BEVERAGE LTD',tier:'Tier 3',label:'○ BRAND\' EM FOOD & BEVERAGE LTD'}, {name:'CATERERS IN MOTION',tier:'Tier 3',label:'○ CATERERS IN MOTION'}, {name:'COURTYARD BY MARRIOTT',tier:'Tier 3',label:'○ COURTYARD BY MARRIOTT'}, {name:'DOMDRI MEAT & SEASONING',tier:'Tier 3',label:'○ DOMDRI MEAT & SEASONING'}, {name:'MARY  BROWN\'S CORNER TEXACO',tier:'Tier 3',label:'○ MARY  BROWN\'S CORNER TEXACO'}, {name:'MEDIA PLANNERS',tier:'Tier 3',label:'○ MEDIA PLANNERS'}, {name:'MINOTT EQUIPMENT & CHEMICALS',tier:'Tier 3',label:'○ MINOTT EQUIPMENT & CHEMICALS'}, {name:'MYSTIC THAI',tier:'Tier 3',label:'○ MYSTIC THAI'}, {name:'OMNIA PLUS TRADING LTD',tier:'Tier 3',label:'○ OMNIA PLUS TRADING LTD'}, {name:'PATSY LYN CATERERS LTD',tier:'Tier 3',label:'○ PATSY LYN CATERERS LTD'}, {name:'RESTAURANT ASSOCIATES LTD (BURGER KING)',tier:'Tier 3',label:'○ RESTAURANT ASSOCIATES LTD (BURGER KING)'}, {name:'SIZZLIN SLOTS',tier:'Tier 3',label:'○ SIZZLIN SLOTS'}, {name:'TASTE OF LIFE LTD/CHILLIN\'',tier:'Tier 3',label:'○ TASTE OF LIFE LTD/CHILLIN\''}, {name:'TASTEE MANNINGS HILL',tier:'Tier 3',label:'○ TASTEE MANNINGS HILL'}, {name:'VERI-LICIOUS SWEET TREAT',tier:'Tier 3',label:'○ VERI-LICIOUS SWEET TREAT'}, {name:'ZMG DISTRIBUTORS T/A FROMAGE BISTRO',tier:'Tier 3',label:'○ ZMG DISTRIBUTORS T/A FROMAGE BISTRO'}],
+    'MANDEVILLE': [{name:'GOLF VIEW HOTEL',tier:'Tier 3',label:'○ GOLF VIEW HOTEL'}],
+    'MOBAY': [{name:'KNUTSFORD EXPRESS SERVICE LTD',tier:'Tier 2',label:'● KNUTSFORD EXPRESS SERVICE LTD'}, {name:'RIU JAMAICOTEL LTD. T/A HOTEL RIU REGGAE',tier:'Tier 2',label:'● RIU JAMAICOTEL LTD. T/A HOTEL RIU REGGAE'}, {name:'RIU MOBAY',tier:'Tier 2',label:'● RIU MOBAY'}, {name:'RIU PALACE MOBAY',tier:'Tier 2',label:'● RIU PALACE MOBAY'}, {name:'HOSPITALITY EXPERTS LTD',tier:'Tier 3',label:'○ HOSPITALITY EXPERTS LTD'}],
+    'NEGRIL': [{name:'HILO BOARDWALK',tier:'Tier 3',label:'○ HILO BOARDWALK'}],
+    'OCHORIOS': [{name:'RIU CLUBHOTEL OCHO RIOS',tier:'Tier 2',label:'● RIU CLUBHOTEL OCHO RIOS'}],
+    'OLDHARBOUR': [{name:'B&E CATERERS & RESTAURANTS -WILLODENE',tier:'Tier 3',label:'○ B&E CATERERS & RESTAURANTS -WILLODENE'}],
+    'PORTMORE': [{name:'CITY FLAME BUFFET & GRILL LTD-BAYSIDE (PORTMORE)',tier:'Tier 2',label:'● CITY FLAME BUFFET & GRILL LTD-BAYSIDE (PORTMORE)'}, {name:'TIMBER LOUNGE',tier:'Tier 3',label:'○ TIMBER LOUNGE'}],
+    'SAV': [{name:'RIU CLUBHOTEL NEGRIL',tier:'Tier 2',label:'● RIU CLUBHOTEL NEGRIL'}, {name:'RIU PALACE NEGRIL',tier:'Tier 2',label:'● RIU PALACE NEGRIL'}],
+    'SPANISHTOWN': [{name:'HILO SPANISH TOWN',tier:'Tier 2',label:'● HILO SPANISH TOWN'}, {name:'CITY FLAME BUFFET & GRILL LTD- ANGELS PLAZA',tier:'Tier 3',label:'○ CITY FLAME BUFFET & GRILL LTD- ANGELS PLAZA'}, {name:'JUZ BUDDZ LIMITED',tier:'Tier 3',label:'○ JUZ BUDDZ LIMITED'}, {name:'KARLEEN SMITH & CO- SPANISH TOWN',tier:'Tier 3',label:'○ KARLEEN SMITH & CO- SPANISH TOWN'}, {name:'KIM SPENCE',tier:'Tier 3',label:'○ KIM SPENCE'}],
+  },
+  'Tashelle Wilson': {
+    'FALMOUTH': [{name:'CHUKKA CARIBBEAN',tier:'Tier 2',label:'● CHUKKA CARIBBEAN'}, {name:'GOOD EATS RESTAURANT',tier:'Tier 3',label:'○ GOOD EATS RESTAURANT'}],
+    'LUCEA': [{name:'TRYALL CLUB',tier:'Tier 2',label:'● TRYALL CLUB'}, {name:'TRYALL MARKET',tier:'Tier 3',label:'○ TRYALL MARKET'}],
+    'MOBAY': [{name:'MARGARITAVILLE LIMITED',tier:'Tier 1',label:'★ MARGARITAVILLE LIMITED'}, {name:'HESCOV INVESTMENTS LTD',tier:'Tier 2',label:'● HESCOV INVESTMENTS LTD'}, {name:'IBEROSTAR HOTEL',tier:'Tier 2',label:'● IBEROSTAR HOTEL'}, {name:'S HOTEL MONTEGO BAY',tier:'Tier 2',label:'● S HOTEL MONTEGO BAY'}, {name:'TIME & PATIENCE BAKERY',tier:'Tier 2',label:'● TIME & PATIENCE BAKERY'}, {name:'USD-ROYAL DECAMERON MOBAY',tier:'Tier 2',label:'● USD-ROYAL DECAMERON MOBAY'}, {name:'BELLEFIELD GREAT HOUSE',tier:'Tier 3',label:'○ BELLEFIELD GREAT HOUSE'}, {name:'CHINA HOUSE RESTAURANT',tier:'Tier 3',label:'○ CHINA HOUSE RESTAURANT'}, {name:'CMK BAKERY LTD',tier:'Tier 3',label:'○ CMK BAKERY LTD'}, {name:'HOSPITALITY EXPERTS LTD',tier:'Tier 3',label:'○ HOSPITALITY EXPERTS LTD'}, {name:'OLD JOE RESTUARANT',tier:'Tier 3',label:'○ OLD JOE RESTUARANT'}, {name:'PELICAN RESTUARANT',tier:'Tier 3',label:'○ PELICAN RESTUARANT'}, {name:'PEPPA\'S RESTAURANT',tier:'Tier 3',label:'○ PEPPA\'S RESTAURANT'}, {name:'PIER 1 RESTAURANT',tier:'Tier 3',label:'○ PIER 1 RESTAURANT'}, {name:'SCOTCHIES MOBAY',tier:'Tier 3',label:'○ SCOTCHIES MOBAY'}, {name:'SEA GARDENS BEACH RESORT',tier:'Tier 3',label:'○ SEA GARDENS BEACH RESORT'}, {name:'STANLEY\'S PATTIES',tier:'Tier 3',label:'○ STANLEY\'S PATTIES'}, {name:'TAYNEY LTD',tier:'Tier 3',label:'○ TAYNEY LTD'}, {name:'TREASURE HUNT',tier:'Tier 3',label:'○ TREASURE HUNT'}, {name:'VIP ATTRACTIONS LTD',tier:'Tier 3',label:'○ VIP ATTRACTIONS LTD'}, {name:'XEDOS DIVERS LIMITED',tier:'Tier 3',label:'○ XEDOS DIVERS LIMITED'}],
+    'NEGRIL': [{name:'KUYABA NEGRIL LTD',tier:'Tier 3',label:'○ KUYABA NEGRIL LTD'}],
+    'OCHORIOS': [{name:'SCOTCHIES DRAX HALL',tier:'Tier 3',label:'○ SCOTCHIES DRAX HALL'}],
+    'SAV': [{name:'COUPLES SWEPT AWAY',tier:'Tier 2',label:'● COUPLES SWEPT AWAY'}, {name:'COUPLES NEGRIL',tier:'Tier 3',label:'○ COUPLES NEGRIL'}, {name:'IN-THING RESTAURANT',tier:'Tier 3',label:'○ IN-THING RESTAURANT'}, {name:'NEGRIL WOODSTOCK ENTERPRISE',tier:'Tier 3',label:'○ NEGRIL WOODSTOCK ENTERPRISE'}, {name:'TENSING PEN HOTEL',tier:'Tier 3',label:'○ TENSING PEN HOTEL'}, {name:'WHITE SANDS NEGRIL HOTEL',tier:'Tier 3',label:'○ WHITE SANDS NEGRIL HOTEL'}],
+    'WHITEHOUSE': [{name:'SAN MICHELE LTD ( BLUEFIELDS VILLA)',tier:'Tier 3',label:'○ SAN MICHELE LTD ( BLUEFIELDS VILLA)'}],
+  },
+  'Tudi-ann Lammie': {
+    'BROWNSTOWN': [{name:'HOWARD WILLIAMS',tier:'Tier 3',label:'○ HOWARD WILLIAMS'}],
+    'BUFFBAY': [{name:'HOWARD PAULWELL KILDARE',tier:'Tier 3',label:'○ HOWARD PAULWELL KILDARE'}],
+    'DOWNTOWN': [{name:'WIN WIN WORLDWIDE INTERNATIONAL',tier:'Tier 1',label:'★ WIN WIN WORLDWIDE INTERNATIONAL'}, {name:'AMBIANCE SALES LIMITED',tier:'Tier 2',label:'● AMBIANCE SALES LIMITED'}, {name:'BONROY WHOLESALE',tier:'Tier 2',label:'● BONROY WHOLESALE'}, {name:'GENESIS WHOLESALE',tier:'Tier 2',label:'● GENESIS WHOLESALE'}, {name:'GIBBO TRADING - HARBOUR STREET',tier:'Tier 2',label:'● GIBBO TRADING - HARBOUR STREET'}, {name:'JACKIE CHEN W/SALE formerlyGINA WHOLESALE',tier:'Tier 2',label:'● JACKIE CHEN W/SALE formerlyGINA WHOLESALE'}, {name:'KINGS WHOLESALE',tier:'Tier 2',label:'● KINGS WHOLESALE'}, {name:'LAMBERT 3G LIMITED (FORMALLY PAULINE W/SALE)',tier:'Tier 2',label:'● LAMBERT 3G LIMITED (FORMALLY PAULINE W/SALE)'}, {name:'LIANG WHOLESALE',tier:'Tier 2',label:'● LIANG WHOLESALE'}, {name:'MASTER MAC DOWNTOWN',tier:'Tier 2',label:'● MASTER MAC DOWNTOWN'}, {name:'ODEON GROCERY',tier:'Tier 2',label:'● ODEON GROCERY'}, {name:'SAMPARS CASH & CARRY',tier:'Tier 2',label:'● SAMPARS CASH & CARRY'}, {name:'TRIPLE C\'S WHOLESALE',tier:'Tier 2',label:'● TRIPLE C\'S WHOLESALE'}, {name:'UNIVERSAL CASH & CARRY',tier:'Tier 2',label:'● UNIVERSAL CASH & CARRY'}, {name:'VALUE NEXUS WHOLESALE',tier:'Tier 2',label:'● VALUE NEXUS WHOLESALE'}, {name:'WINNERS WHOLESALE',tier:'Tier 2',label:'● WINNERS WHOLESALE'}, {name:'XXTRA TRADING',tier:'Tier 2',label:'● XXTRA TRADING'}, {name:'ZHIFU WHOLESALE LTD',tier:'Tier 2',label:'● ZHIFU WHOLESALE LTD'}, {name:'ZIDA WHOLESALE',tier:'Tier 2',label:'● ZIDA WHOLESALE'}, {name:'BARRY WHOLESALE',tier:'Tier 3',label:'○ BARRY WHOLESALE'}, {name:'BLACKS HARDWARE AND WHOLESALE',tier:'Tier 3',label:'○ BLACKS HARDWARE AND WHOLESALE'}, {name:'C & M MEATS DOWNTOWN',tier:'Tier 3',label:'○ C & M MEATS DOWNTOWN'}, {name:'CONTINENTAL ENTERPRISE',tier:'Tier 3',label:'○ CONTINENTAL ENTERPRISE'}, {name:'DONNA WHOLESALE',tier:'Tier 3',label:'○ DONNA WHOLESALE'}, {name:'EMPEROR WHOLESALE',tier:'Tier 3',label:'○ EMPEROR WHOLESALE'}, {name:'ERICA & CAMILLE FASHION & GROCERY ENTERPRISE',tier:'Tier 3',label:'○ ERICA & CAMILLE FASHION & GROCERY ENTERPRISE'}, {name:'FABIAN SERVICES',tier:'Tier 3',label:'○ FABIAN SERVICES'}, {name:'FAI CHI WHOLESALE',tier:'Tier 3',label:'○ FAI CHI WHOLESALE'}, {name:'GAVIN CHEN WHOLESALE',tier:'Tier 3',label:'○ GAVIN CHEN WHOLESALE'}, {name:'HEXING WHOLESALE',tier:'Tier 3',label:'○ HEXING WHOLESALE'}, {name:'J & J SPANISH TOWN ROAD',tier:'Tier 3',label:'○ J & J SPANISH TOWN ROAD'}, {name:'KAY\'S WHOLESALE',tier:'Tier 3',label:'○ KAY\'S WHOLESALE'}, {name:'KEN WHOLESALE DOWNTOWN',tier:'Tier 3',label:'○ KEN WHOLESALE DOWNTOWN'}, {name:'KENNY LI WHOLESALE FRM RICKY',tier:'Tier 3',label:'○ KENNY LI WHOLESALE FRM RICKY'}, {name:'KIMI & EVEN WHOLESALE',tier:'Tier 3',label:'○ KIMI & EVEN WHOLESALE'}, {name:'MAYROSE DISTRIBUTORS',tier:'Tier 3',label:'○ MAYROSE DISTRIBUTORS'}, {name:'MEGA DEAL WHOLESALE',tier:'Tier 3',label:'○ MEGA DEAL WHOLESALE'}, {name:'McGYVER WHOLESALE',tier:'Tier 3',label:'○ McGYVER WHOLESALE'}, {name:'NICK WHOLESALE',tier:'Tier 3',label:'○ NICK WHOLESALE'}, {name:'PRICE GEL SUPERMARKET- DOWNTOWN',tier:'Tier 3',label:'○ PRICE GEL SUPERMARKET- DOWNTOWN'}, {name:'SUPER STAR WHOLESALE',tier:'Tier 3',label:'○ SUPER STAR WHOLESALE'}, {name:'TOP WHOLESALE',tier:'Tier 3',label:'○ TOP WHOLESALE'}, {name:'WING CHUNG WHOLESALE',tier:'Tier 3',label:'○ WING CHUNG WHOLESALE'}, {name:'Y & S WHOLESALE',tier:'Tier 3',label:'○ Y & S WHOLESALE'}],
+    'KINGSTON': [{name:'CHINA GARDEN RESTAURANT',tier:'Tier 3',label:'○ CHINA GARDEN RESTAURANT'}, {name:'KIMBY\'S CATERING SERVICE',tier:'Tier 3',label:'○ KIMBY\'S CATERING SERVICE'}, {name:'OMAR T/A HUBERT HENRY',tier:'Tier 3',label:'○ OMAR T/A HUBERT HENRY'}, {name:'SCOOP FOR SCOOP',tier:'Tier 3',label:'○ SCOOP FOR SCOOP'}],
+    'KITSON TOWN': [{name:'OGM FARMS',tier:'Tier 3',label:'○ OGM FARMS'}],
+  },
+  'Yanique Desouza': {
+    'CHAPLETON': [{name:'NEW CENTURY WHOLESALE CHAPELTON',tier:'Tier 2',label:'● NEW CENTURY WHOLESALE CHAPELTON'}],
+    'FRANKFIELD': [{name:'LAVENDA SUPERMARKET',tier:'Tier 2',label:'● LAVENDA SUPERMARKET'}, {name:'SAMUEL SUPERMARKET',tier:'Tier 2',label:'● SAMUEL SUPERMARKET'}, {name:'WELLDAY SUPERMARKET (FRANKFIELD SMKT)',tier:'Tier 2',label:'● WELLDAY SUPERMARKET (FRANKFIELD SMKT)'}, {name:'BOBO WHOLESALE CHAPLETON',tier:'Tier 3',label:'○ BOBO WHOLESALE CHAPLETON'}, {name:'NEW POWER SUPERMARKET',tier:'Tier 3',label:'○ NEW POWER SUPERMARKET'}],
+    'KELLITS': [{name:'BARGAINS WHOLESALE & SUPERMARKET',tier:'Tier 1',label:'★ BARGAINS WHOLESALE & SUPERMARKET'}, {name:'FAIR DEAL WHOLESALE & SELF-SERVE',tier:'Tier 2',label:'● FAIR DEAL WHOLESALE & SELF-SERVE'}, {name:'LAVENDA SUPERMARKET- KELLITS',tier:'Tier 3',label:'○ LAVENDA SUPERMARKET- KELLITS'}],
+    'LIONELTOWN': [{name:'MAP WHOLESALE LIONEL TOWN',tier:'Tier 1',label:'★ MAP WHOLESALE LIONEL TOWN'}, {name:'TERSCO SUPERMARKET AND WHOLESALE',tier:'Tier 3',label:'○ TERSCO SUPERMARKET AND WHOLESALE'}],
+    'MAYPEN': [{name:'NATIONAL SELF SERVE BROOKS AVENUE',tier:'Tier 1',label:'★ NATIONAL SELF SERVE BROOKS AVENUE'}, {name:'SELECT GROCERS SUPERMARKET',tier:'Tier 1',label:'★ SELECT GROCERS SUPERMARKET'}, {name:'STOPLIGHT WHOLESALE',tier:'Tier 1',label:'★ STOPLIGHT WHOLESALE'}, {name:'SUPER SHOPPERS FAIR MAYPEN',tier:'Tier 1',label:'★ SUPER SHOPPERS FAIR MAYPEN'}, {name:'ABC SUPERMARKET',tier:'Tier 2',label:'● ABC SUPERMARKET'}, {name:'ABC WHOLESALE MAYPEN',tier:'Tier 2',label:'● ABC WHOLESALE MAYPEN'}, {name:'APEX SUPERMARKET & MEAT',tier:'Tier 2',label:'● APEX SUPERMARKET & MEAT'}, {name:'C & M GOOD VALUE SUPERMARKET LTD',tier:'Tier 2',label:'● C & M GOOD VALUE SUPERMARKET LTD'}, {name:'C & M MEATS 37 MAIN STREET',tier:'Tier 2',label:'● C & M MEATS 37 MAIN STREET'}, {name:'FLLOYD\'S FAMILY SUPERMARKET & WSALE',tier:'Tier 2',label:'● FLLOYD\'S FAMILY SUPERMARKET & WSALE'}, {name:'FOOD PALACE',tier:'Tier 2',label:'● FOOD PALACE'}, {name:'GREAT VALUE SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● GREAT VALUE SUPERMARKET & WHOLESALE'}, {name:'GREEN ORIGIN SUPERMARKET',tier:'Tier 2',label:'● GREEN ORIGIN SUPERMARKET'}, {name:'HOSKIN SUPERMARKET',tier:'Tier 2',label:'● HOSKIN SUPERMARKET'}, {name:'JR\'S BARGAIN WORLD SEVENS ROAD',tier:'Tier 2',label:'● JR\'S BARGAIN WORLD SEVENS ROAD'}, {name:'MAY PEN HOSPITAL',tier:'Tier 2',label:'● MAY PEN HOSPITAL'}, {name:'SONG HUI SUPERMARKET',tier:'Tier 2',label:'● SONG HUI SUPERMARKET'}, {name:'VALUE MART MAY PEN',tier:'Tier 2',label:'● VALUE MART MAY PEN'}, {name:'WILSON\'S CASH & CARRY',tier:'Tier 2',label:'● WILSON\'S CASH & CARRY'}, {name:'YANG FA SUPERMARKET & WHOLESALE',tier:'Tier 2',label:'● YANG FA SUPERMARKET & WHOLESALE'}, {name:'2628 INVESTMENTS LTD',tier:'Tier 3',label:'○ 2628 INVESTMENTS LTD'}, {name:'ANYI SUPERMARKET & WHOLESALE',tier:'Tier 3',label:'○ ANYI SUPERMARKET & WHOLESALE'}, {name:'CHURCH TRENDS LTD',tier:'Tier 3',label:'○ CHURCH TRENDS LTD'}, {name:'FAMILY DOLLAR SUPERMARKET',tier:'Tier 3',label:'○ FAMILY DOLLAR SUPERMARKET'}, {name:'FYAH SIDE',tier:'Tier 3',label:'○ FYAH SIDE'}, {name:'HEART TRUST CLARENDON',tier:'Tier 3',label:'○ HEART TRUST CLARENDON'}, {name:'KES\' SUPERMARKET (formerly Best Choice)',tier:'Tier 3',label:'○ KES\' SUPERMARKET (formerly Best Choice)'}, {name:'LUCKY SIDE SUPERMARKET (MAY PEN)',tier:'Tier 3',label:'○ LUCKY SIDE SUPERMARKET (MAY PEN)'}, {name:'LUI\'S SUPERMARKET',tier:'Tier 3',label:'○ LUI\'S SUPERMARKET'}, {name:'MASS KEN',tier:'Tier 3',label:'○ MASS KEN'}, {name:'NIGEL VARIETY STORE',tier:'Tier 3',label:'○ NIGEL VARIETY STORE'}],
+  },
+};
+
+function getStoresForZones(zones) {
+  const rep = document.getElementById('rep-select').value;
+
+  // If a rep is selected, use REP_STORES_ZONED which has full zone-aware data
+  if (rep && REP_STORES_ZONED[rep]) {
+    const repZoneData = REP_STORES_ZONED[rep];
+    const seen = new Set();
+    const result = [];
+    zones.forEach(zone => {
+      (repZoneData[zone] || []).forEach(s => {
+        if (!seen.has(s.name)) { seen.add(s.name); result.push(s); }
+      });
+    });
+    result.sort((a,b) => {
+      const to = {'Tier 1':0,'Tier 2':1,'Tier 3':2};
+      return (to[a.tier]||2)-(to[b.tier]||2) || a.name.localeCompare(b.name);
+    });
+    return result;
+  }
+
+  // Fallback: use ZONE_STORES for unknown reps
+  const seen = new Set();
+  const result = [];
+  zones.forEach(zone => {
+    (ZONE_STORES[zone] || []).forEach(s => {
+      if (!seen.has(s.name)) { seen.add(s.name); result.push(s); }
+    });
+  });
+  result.sort((a,b) => {
+    const to = {'Tier 1':0,'Tier 2':1,'Tier 3':2};
+    return (to[a.tier]||2)-(to[b.tier]||2) || a.name.localeCompare(b.name);
+  });
+  return result;
+}
+
+function refreshStorePicker(dayIndex) {
+  const zones   = dayZones[dayIndex];
+  const trigger = document.getElementById('store-trigger-' + dayIndex);
+  const label   = document.getElementById('store-trigger-label-' + dayIndex);
+  const listEl  = document.getElementById('store-list-' + dayIndex);
+  const searchEl = document.getElementById('store-search-' + dayIndex);
+
+  if (zones.length === 0) {
+    label.textContent = 'Select zones above to load stores…';
+    trigger.disabled = true;
+    listEl.innerHTML = '';
+    return;
+  }
+
+  trigger.disabled = false;
+  const count = dayStores[dayIndex].length;
+  label.textContent = count > 0
+    ? count + ' store' + (count > 1 ? 's' : '') + ' selected — tap to edit'
+    : 'Tap to select stores…';
+
+  buildStoreList(dayIndex, '');
+  if (searchEl) searchEl.value = '';
+}
+
+function buildStoreList(dayIndex, filter) {
+  const listEl  = document.getElementById('store-list-' + dayIndex);
+  const stores  = getStoresForZones(dayZones[dayIndex]);
+  const selected = new Set(dayStores[dayIndex]);
+  const pending  = new Set(dayPending[dayIndex]);
+  const fl = filter.toLowerCase();
+
+  const filtered = fl ? stores.filter(s => s.name.toLowerCase().includes(fl)) : stores;
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--dim)">No stores found</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(s => {
+    const isChecked = selected.has(s.name) || pending.has(s.name);
+    const tierSym   = s.tier === 'Tier 1' ? '★' : s.tier === 'Tier 2' ? '●' : '○';
+    const safeStore = s.name.replace(/"/g, '&quot;');
+    return '<label class="store-checklist-item' + (isChecked ? ' checked' : '') + '">'
+      + '<input type="checkbox"' + (isChecked ? ' checked' : '')
+      + ' data-day="' + dayIndex + '" data-store="' + safeStore + '" onchange="togglePendingByData(this)">'
+      + '<span>' + s.name + '</span>'
+      + '<span class="store-checklist-tier">' + tierSym + '</span>'
+      + '</label>';
+  }).join('');
+}
+
+function filterStoreList(dayIndex, val) {
+  buildStoreList(dayIndex, val);
+}
+
+function togglePendingByData(checkbox) {
+  const dayIndex  = Number(checkbox.dataset.day);
+  const storeName = checkbox.dataset.store;
+  togglePending(dayIndex, checkbox, storeName);
+}
+
+function togglePending(dayIndex, checkbox, storeName) {
+  const arr = dayPending[dayIndex];
+  const sel = dayStores[dayIndex];
+  if (checkbox.checked) {
+    if (!arr.includes(storeName) && !sel.includes(storeName)) arr.push(storeName);
+    checkbox.closest('.store-checklist-item').classList.add('checked');
+  } else {
+    dayPending[dayIndex] = arr.filter(s => s !== storeName);
+    // Also uncheck if already confirmed
+    dayStores[dayIndex] = sel.filter(s => s !== storeName);
+    checkbox.closest('.store-checklist-item').classList.remove('checked');
+  }
+}
+
+function positionPanel(panel, trigger) {
+  const rect    = trigger.getBoundingClientRect();
+  const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+  const viewH   = window.innerHeight;
+  const panelH  = 260;
+
+  // Use pageY so position stays correct regardless of scroll
+  const topBelow = rect.bottom + scrollY + 4;
+  const topAbove = rect.top   + scrollY - panelH - 4;
+  const spaceBelow = viewH - rect.bottom;
+
+  panel.style.top   = (spaceBelow >= panelH || spaceBelow >= rect.top ? topBelow : topAbove) + 'px';
+  panel.style.left  = (rect.left + scrollX) + 'px';
+  panel.style.width = rect.width + 'px';
+}
+
+// ── Touch-safe trigger handlers ──────────────────────────────────────────────
+// Use pointerdown to fire exactly once on both touch and mouse
+function handleStoreTrigger(e, dayIndex) {
+  if (e.type !== 'pointerdown') return;
+  e.preventDefault();
+  e.stopPropagation();
+  toggleStorePicker(dayIndex);
+}
+
+function handleZoneTrigger(e, dayIndex) {
+  if (e.type !== 'pointerdown') return;
+  e.preventDefault();
+  e.stopPropagation();
+  toggleZonePicker(dayIndex);
+}
+
+function toggleStorePicker(dayIndex) {
+  const panel   = document.getElementById('store-panel-' + dayIndex);
+  const trigger = document.getElementById('store-trigger-' + dayIndex);
+  if (trigger.disabled) return;
+  const isOpen = panel.classList.contains('open');
+
+  // Close all OTHER panels (not this one)
+  for (let i = 0; i < 5; i++) {
+    if (i !== dayIndex) {
+      document.getElementById('store-panel-' + i)?.classList.remove('open');
+      document.getElementById('store-trigger-' + i)?.classList.remove('open');
+    }
+    // Always close zone panels
+    document.getElementById('zone-panel-' + i)?.classList.remove('open');
+    document.getElementById('zone-trigger-' + i)?.classList.remove('open');
+  }
+
+  if (isOpen) {
+    // Already open — close it
+    closeStorePicker(dayIndex);
+  } else {
+    // Open it
+    dayPending[dayIndex] = [...dayStores[dayIndex]];
+    if (panel.parentElement !== document.body) document.body.appendChild(panel);
+    positionPanel(panel, trigger);
+    panel.classList.add('open');
+    trigger.classList.add('open');
+    buildStoreList(dayIndex, '');
+    const searchEl = document.getElementById('store-search-' + dayIndex);
+    if (searchEl) searchEl.value = '';
+  }
+}
+
+// Close panels only on significant resize (not mobile keyboard popup)
+let _lastWindowWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  const widthChange = Math.abs(window.innerWidth - _lastWindowWidth);
+  _lastWindowWidth = window.innerWidth;
+  // Only close on horizontal resize (orientation change) not vertical (keyboard)
+  if (widthChange > 50) {
+    for (let i = 0; i < 5; i++) {
+      const sp = document.getElementById('store-panel-' + i);
+      if (sp && sp.classList.contains('open')) closeStorePicker(i);
+      const zp = document.getElementById('zone-panel-' + i);
+      if (zp && zp.classList.contains('open')) closeZonePicker(i);
+    }
+  }
+});
+
+function closeStorePicker(dayIndex) {
+  dayPending[dayIndex] = [];
+  document.getElementById('store-panel-' + dayIndex)?.classList.remove('open');
+  document.getElementById('store-trigger-' + dayIndex)?.classList.remove('open');
+}
+
+function confirmStores(dayIndex) {
+  // Merge pending into confirmed, avoid duplicates
+  const pending = dayPending[dayIndex];
+  const current = dayStores[dayIndex];
+  // Start fresh from what's checked in the panel (pending = full checked state)
+  dayStores[dayIndex] = [...new Set([...current.filter(s => {
+    // Keep stores still checked
+    const panel = document.getElementById('store-list-' + dayIndex);
+    const boxes = panel ? panel.querySelectorAll('input[type="checkbox"]') : [];
+    for (const b of boxes) {
+      const label = b.closest('.store-checklist-item')?.querySelector('span')?.textContent;
+      if (label === s) return b.checked;
+    }
+    return true;
+  }), ...pending])];
+
+  closeStorePicker(dayIndex);
+  renderStoreChips(dayIndex);
+  refreshStorePicker(dayIndex);
+  updateProgress();
+}
+
+function renderStoreChips(dayIndex) {
+  const container = document.getElementById('selected-stores-' + dayIndex);
+  container.innerHTML = dayStores[dayIndex].map(name => {
+    const safe = name.replace(/"/g, '&quot;');
+    return '<div class="selected-zone-chip" style="max-width:100%">'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">' + name + '</span>'
+      + '<button class="chip-remove" type="button" data-day="' + dayIndex + '" data-store="' + safe + '" onclick="removeStoreByData(this)">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeStoreByData(btn) {
+  removeStore(Number(btn.dataset.day), btn.dataset.store);
+
+}
+function removeStore(dayIndex, storeName) {
+  dayStores[dayIndex] = dayStores[dayIndex].filter(s => s !== storeName);
+  renderStoreChips(dayIndex);
+  refreshStorePicker(dayIndex);
+  updateProgress();
+}
+
+// Custom store not on list
+function toggleCustomStore(dayIndex) {
+  const row = document.getElementById('custom-row-' + dayIndex);
+  const btn = document.getElementById('custom-toggle-' + dayIndex);
+  const isOpen = row.classList.contains('open');
+  row.classList.toggle('open', !isOpen);
+  btn.textContent = isOpen ? '+ Add a store not on the list' : '− Cancel';
+  if (!isOpen) document.getElementById('custom-input-' + dayIndex).focus();
+}
+
+function addCustomStore(dayIndex) {
+  const input = document.getElementById('custom-input-' + dayIndex);
+  const name  = input.value.trim();
+  if (!name) return;
+  if (!dayStores[dayIndex].includes(name)) {
+    dayStores[dayIndex].push(name);
+    renderStoreChips(dayIndex);
+    refreshStorePicker(dayIndex);
+    updateProgress();
+  }
+  input.value = '';
+  toggleCustomStore(dayIndex); // close the row
+}
+
+// ── Custom zone add ──────────────────────────────────────────────────────────
+function toggleCustomZone(dayIndex) {
+  const row    = document.getElementById('custom-zone-row-' + dayIndex);
+  const btn    = document.getElementById('custom-zone-toggle-' + dayIndex);
+  const isOpen = row.classList.contains('open');
+  row.classList.toggle('open', !isOpen);
+  btn.textContent = isOpen ? '+ Add a zone not on the list' : '− Cancel';
+  if (!isOpen) {
+    const input = document.getElementById('custom-zone-input-' + dayIndex);
+    input.value = '';
+    input.focus();
+  }
+}
+
+function addCustomZone(dayIndex) {
+  const input = document.getElementById('custom-zone-input-' + dayIndex);
+  const zone  = input.value.trim().toUpperCase();
+  if (!zone) return;
+
+  // Add it as a zone chip — same as addZone but without dropdown
+  if (!dayZones[dayIndex].includes(zone)) {
+    dayZones[dayIndex].push(zone);
+
+    const container = document.getElementById('selected-zones-' + dayIndex);
+    const chip = document.createElement('div');
+    chip.className = 'selected-zone-chip';
+    chip.dataset.zone = zone;
+    chip.innerHTML = zone + '<button class="chip-remove" type="button" title="Remove ' + zone + '">✕</button>';
+    chip.querySelector('.chip-remove').addEventListener('click', () => removeZone(dayIndex, zone, chip));
+    container.appendChild(chip);
+
+    // Load stores for this zone too
+    refreshStorePicker(dayIndex);
+    updateProgress();
+  }
+
+  input.value = '';
+  toggleCustomZone(dayIndex);
+}
+
+// ── Progress ─────────────────────────────────────────────────────────────────
+function updateProgress() {
+  const hasRep  = !!document.getElementById('rep-select').value;
+  const hasGoal = !!document.getElementById('target-rev').value;
+  const hasDays = Object.values(dayZones).some(z => z.length > 0);
+  const steps   = [hasRep, hasGoal, hasDays, true];
+
+  steps.forEach((done, i) => {
+    const el = document.getElementById('step-' + (i + 1));
+    if (el) el.style.background = done ? '#326BD3' : 'rgba(255,255,255,0.15)';
+  });
+
+  document.getElementById('submit-btn').disabled = !(hasRep && hasDays);
+}
+
+// ── Validation helpers ───────────────────────────────────────────────────────
+function setFieldError(fieldEl, errorEl, msg) {
+  fieldEl.classList.add('field-invalid');
+  if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; }
+}
+
+function clearFieldError(fieldEl, errorEl) {
+  fieldEl.classList.remove('field-invalid');
+  if (errorEl) errorEl.style.display = 'none';
+}
+
+function validateForm() {
+  let valid = true;
+
+  // Rep name
+  const repField = document.getElementById('rep-select').closest('.field');
+  const repErr   = repField ? repField.querySelector('.field-error') : null;
+  if (!document.getElementById('rep-select').value) {
+    setFieldError(repField, repErr, 'Please select your name');
+    valid = false;
+  } else { clearFieldError(repField, repErr); }
+
+  // Sales goal
+  const goalField = document.getElementById('target-rev').closest('.field');
+  const goalErr   = goalField ? goalField.querySelector('.field-error') : null;
+  if (!document.getElementById('target-rev').value) {
+    setFieldError(goalField, goalErr, 'Please enter your sales goal for the week');
+    valid = false;
+  } else { clearFieldError(goalField, goalErr); }
+
+  // At least one day must have a zone selected
+  const hasDays = Object.values(dayZones).some(z => z.length > 0);
+  if (!hasDays) {
+    // Highlight the first day block
+    const firstDayBlock = document.querySelector('.day-block');
+    if (firstDayBlock) firstDayBlock.style.borderColor = 'var(--red)';
+    // Show error near day grid
+    const dayErr = document.getElementById('day-grid-error');
+    if (dayErr) { dayErr.style.display = 'block'; }
+    valid = false;
+  } else {
+    const firstDayBlock = document.querySelector('.day-block');
+    if (firstDayBlock) firstDayBlock.style.borderColor = '';
+    const dayErr = document.getElementById('day-grid-error');
+    if (dayErr) dayErr.style.display = 'none';
+  }
+
+  // Each day that has a zone must also have at least one store selected
+  let missingStore = false;
+  DAYS.forEach((d, i) => {
+    const block = document.getElementById('day-block-' + i);
+    const storeErr = document.getElementById('store-err-' + i);
+    if (dayZones[i].length > 0 && dayStores[i].length === 0) {
+      if (block) block.style.borderColor = 'var(--amber)';
+      if (storeErr) storeErr.style.display = 'block';
+      missingStore = true;
+    } else {
+      if (block) block.style.borderColor = '';
+      if (storeErr) storeErr.style.display = 'none';
+    }
+  });
+  if (missingStore) valid = false;
+
+  return valid;
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────────
+async function submitPlan() {
+  if (!validateForm()) {
+    // Scroll to first error
+    const firstErr = document.querySelector('.field-invalid, [style*="border-color: var(--red)"]');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = 'Submitting…';
+  btn.disabled = true;
+
+  const plan = {
+    rep:     document.getElementById('rep-select').value,
+    week:    value,
+    goalRev: document.getElementById('target-rev').value,
+    visits:  dayStores[0].length + dayStores[1].length + dayStores[2].length + dayStores[3].length + dayStores[4].length,
+    days: DAYS.map((d, i) => ({
+      day:    d,
+      zones:  [...dayZones[i]],
+      stores: [...dayStores[i]],
+    })),
+    flags: document.getElementById('flags').value.trim(),
+    submittedAt: new Date().toISOString(),
+  };
+
+  try {
+    // Upsert to Supabase (update if same rep + week already exists)
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_plans`, {
+      method: 'POST',
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        salesperson:     plan.rep,
+        week_commencing: plan.week,
+        sales_goal:      plan.goalRev ? Number(plan.goalRev) : null,
+        days:            plan.days,
+        flags:           plan.flags || null,
+        submitted_at:    plan.submittedAt,
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+
+    document.getElementById('form-body').style.display = 'none';
+    showSuccess(plan);
+
+  } catch(e) {
+    console.error('Submit failed:', e);
+    btn.disabled = false;
+    btn.textContent = 'Submit Weekly Plan →';
+    btn.style.background = 'var(--red)';
+    btn.textContent = 'Failed — tap to retry';
+    setTimeout(() => {
+      btn.style.background = '';
+      btn.textContent = 'Submit Weekly Plan →';
+    }, 3000);
+  }
+}
+
+// ── Success screen ────────────────────────────────────────────────────────────
+function showSuccess(plan) {
+  document.getElementById('success').style.display = 'block';
+  document.getElementById('success-subtitle').textContent = `${plan.rep} · ${plan.week}`;
+
+  document.getElementById('summary-top').innerHTML = `
+    <div class="summary-item">
+      <div class="summary-item-label">Rep</div>
+      <div class="summary-item-value">${plan.rep}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Week</div>
+      <div class="summary-item-value">${plan.week}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Invoice Goal This Week</div>
+      <div class="summary-item-value">${plan.goalRev ? '$' + Number(plan.goalRev).toLocaleString() : 'Not set'}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-item-label">Planned Store Visits</div>
+      <div class="summary-item-value">${plan.visits + ' stores across ' + plan.days.filter(d => d.stores).length + ' days'}</div>
+    </div>`;
+
+  const activeDays = plan.days.filter(d => d.zones.length > 0);
+  document.getElementById('summary-days').innerHTML = activeDays.map(d => `
+    <div class="day-summary-row">
+      <div class="day-summary-name">${d.day}</div>
+      <div class="day-summary-zones">
+        ${d.zones.map(z => `<span class="day-summary-zone-chip">${z}</span>`).join('')}
+      </div>
+      <div class="day-summary-stores">${d.stores || '<em style="color:var(--dim)">No key stores listed</em>'}</div>
+    </div>`).join('');
+
+  document.getElementById('summary-flags').innerHTML = plan.flags
+    ? `<div class="summary-title" style="margin-top:4px">Flag for Scott</div>
+       <div class="flags-box"><span style="font-size:18px">⚠️</span><div>${plan.flags}</div></div>`
+    : '';
+
+  document.getElementById('whatsapp-btn').href =
+    `https://wa.me/?text=${encodeURIComponent(buildWhatsApp(plan))}`;
+}
+
+// ── Download summary as image ────────────────────────────────────────────────
+async function downloadSummary() {
+  const btn = document.getElementById('download-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const summaryEl = document.querySelector('.plan-summary');
+
+    const canvas = await html2canvas(summaryEl, {
+      scale: 2,                    // retina quality
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+    });
+
+    // Convert to PNG and trigger download
+    const link = document.createElement('a');
+    const rep   = document.getElementById('rep-select').value || 'rep';
+    const week  = document.getElementById('week-input').value || 'week';
+    link.download = 'DFL-WeeklyPlan-' + rep.replace(/\s+/g, '-') + '-' + week.replace(/\s+/g, '') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    btn.disabled = false;
+    btn.textContent = '⬇ Download';
+  } catch(e) {
+    console.error('Download failed:', e);
+    btn.disabled = false;
+    btn.textContent = '⬇ Try Again';
+    setTimeout(() => { btn.textContent = '⬇ Download'; }, 3000);
+  }
+}
+
+// ── WhatsApp message ──────────────────────────────────────────────────────────
+function buildWhatsApp(plan) {
+  const lines = [
+    `📋 *DFL Weekly Plan — ${plan.rep}*`,
+    `📅 ${plan.week}`,
+    ``,
+    `💰 *Invoice Goal:* ${plan.goalRev ? '$' + Number(plan.goalRev).toLocaleString() : 'Not set'}`,
+    `🚗 *Planned Visits:* ${plan.visits + ' stores across ' + plan.days.filter(d => d.stores).length + ' days'}`,
+    ``,
+    `📍 *Day-by-Day:*`,
+  ];
+  plan.days.filter(d => d.zones.length > 0).forEach(d => {
+    lines.push(`*${d.day}* — ${d.zones.join(', ')}`);
+    if (d.stores) lines.push(`  Stores: ${d.stores}`);
+  });
+  if (plan.flags) { lines.push(''); lines.push(`⚠️ *Flag:* ${plan.flags}`); }
+  lines.push(''); lines.push(`_Submitted via DFL Sales Dashboard_`);
+  return lines.join('\n');
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function resetForm() {
+  document.getElementById('form-body').style.display = 'block';
+  document.getElementById('success').style.display = 'none';
+  document.getElementById('rep-select').value = '';
+  document.getElementById('target-rev').value = '';
+  document.getElementById('flags').value = '';
+
+  DAYS.forEach((d, i) => {
+    dayZones[i] = [];
+    dayStores[i] = [];
+    // Reset custom zone row
+    const czRow    = document.getElementById('custom-zone-row-' + i);
+    const czInput  = document.getElementById('custom-zone-input-' + i);
+    const czToggle = document.getElementById('custom-zone-toggle-' + i);
+    if (czRow)    czRow.classList.remove('open');
+    if (czInput)  czInput.value = '';
+    if (czToggle) czToggle.textContent = '+ Add a zone not on the list';
+
+    document.getElementById('zone-select-' + i).innerHTML =
+      '<option value="">Select a zone to add…</option>' +
+      SHIPPING_ZONES.map(z => '<option value="' + z + '">' + z + '</option>').join('');
+    document.getElementById('selected-zones-' + i).innerHTML = '';
+    // Reset store selects and chips
+    dayStores[i] = [];
+    dayPending[i] = [];
+    document.getElementById('selected-stores-' + i).innerHTML = '';
+    document.getElementById('store-list-' + i).innerHTML = '';
+    const trigger = document.getElementById('store-trigger-' + i);
+    const label   = document.getElementById('store-trigger-label-' + i);
+    const panel   = document.getElementById('store-panel-' + i);
+    if (trigger) { trigger.disabled = true; trigger.classList.remove('open'); }
+    if (label)   label.textContent = 'Select zones above to load stores…';
+    if (panel)   panel.classList.remove('open');
+    const customRow = document.getElementById('custom-row-' + i);
+    const customInput = document.getElementById('custom-input-' + i);
+    const customToggle = document.getElementById('custom-toggle-' + i);
+    if (customRow)   customRow.classList.remove('open');
+    if (customInput) customInput.value = '';
+    if (customToggle) customToggle.textContent = '+ Add a store not on the list';
+  });
+
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step-' + i);
+    if (el) el.style.background = 'rgba(255,255,255,0.15)';
+  }
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('submit-btn').textContent = 'Submit Weekly Plan →';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
