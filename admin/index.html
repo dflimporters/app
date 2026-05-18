@@ -75,6 +75,32 @@
   .toast.success { background:#166534; color:#fff; }
   .toast.error { background:#991b1b; color:#fff; }
 
+ /* Image upload zone */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg);
+  position: relative;
+}
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-bg); }
+.upload-zone.has-image { padding: 8px; border-style: solid; border-color: var(--accent); }
+.upload-icon { font-size: 28px; margin-bottom: 6px; }
+.upload-text { font-size: 13px; font-weight: 500; color: var(--text); }
+.upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.upload-preview { display: none; width: 100%; max-height: 160px; object-fit: contain; border-radius: 6px; }
+.upload-zone.has-image .upload-icon,
+.upload-zone.has-image .upload-text,
+.upload-zone.has-image .upload-hint { display: none; }
+.upload-zone.has-image .upload-preview { display: block; }
+.upload-status { font-size: 11px; margin-top: 6px; min-height: 16px; }
+.upload-status.uploading { color: var(--accent); }
+.upload-status.done { color: var(--green); }
+.upload-status.error { color: var(--red); } 
+
   /* LIST */
   .items-list { display:flex; flex-direction:column; gap:10px; }
   .item-row { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow); }
@@ -184,11 +210,20 @@
           </div>
         </div>
         <div class="form-row full">
-          <div class="form-field">
-            <label>Image URL (upload to Supabase Storage and paste URL)</label>
-            <input type="url" id="f-image" placeholder="https://...">
-          </div>
-        </div>
+  <div class="form-field">
+    <label>Product Image</label>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('f-image-file').click()">
+      <div class="upload-icon">📷</div>
+      <div class="upload-text">Click to choose an image</div>
+      <div class="upload-hint">JPG, PNG, WEBP — max 5MB</div>
+      <img class="upload-preview" id="uploadPreview" src="" alt="">
+    </div>
+    <input type="file" id="f-image-file" accept="image/*" style="display:none" onchange="handleImagePick(this)">
+    <div class="upload-status" id="uploadStatus"></div>
+    <!-- hidden field stores the final URL -->
+    <input type="hidden" id="f-image">
+  </div>
+</div>
         <div class="form-actions">
           <button class="btn-submit" id="submitBtn" onclick="submitSpecial()">Add to Portal</button>
           <button class="btn-reset" onclick="resetForm()">Clear</button>
@@ -284,11 +319,17 @@
   }
 
   function resetForm() {
-    ['f-name','f-desc','f-price','f-price-notes','f-category','f-valid','f-image'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    document.getElementById('f-type').value = 'Special';
-  }
+  ['f-name','f-desc','f-price','f-price-notes','f-category','f-valid'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-type').value = 'Special';
+  document.getElementById('f-image').value = '';
+  document.getElementById('f-image-file').value = '';
+  document.getElementById('uploadPreview').src = '';
+  document.getElementById('uploadZone').classList.remove('has-image');
+  document.getElementById('uploadStatus').textContent = '';
+  document.getElementById('uploadStatus').className = 'upload-status';
+}
 
   async function loadItems() {
     const list = document.getElementById('itemsList');
@@ -348,6 +389,70 @@
     }
     btn.disabled = false;
   }
+
+  async function handleImagePick(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Client-side size check (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image must be under 5MB', 'error');
+    return;
+  }
+
+  // Show a local preview immediately so you can see the image
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('uploadPreview');
+    const zone = document.getElementById('uploadZone');
+    preview.src = e.target.result;
+    zone.classList.add('has-image');
+  };
+  reader.readAsDataURL(file);
+
+  // Upload to Supabase Storage
+  const status = document.getElementById('uploadStatus');
+  status.textContent = 'Uploading…';
+  status.className = 'upload-status uploading';
+
+  // Build a unique filename: timestamp + original name
+  const ext = file.name.split('.').pop();
+  const filename = `specials/${Date.now()}.${ext}`;
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/Assets/${filename}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': file.type,
+          'x-upsert': 'true'
+        },
+        body: file
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || 'Upload failed');
+    }
+
+    // Build the public URL and store it in the hidden field
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/Assets/${filename}`;
+    document.getElementById('f-image').value = publicUrl;
+    status.textContent = '✓ Image uploaded';
+    status.className = 'upload-status done';
+
+  } catch(e) {
+    status.textContent = `Upload failed: ${e.message}`;
+    status.className = 'upload-status error';
+    document.getElementById('f-image').value = '';
+  }
+}
+
+
 </script>
 </body>
 </html>
