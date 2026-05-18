@@ -317,6 +317,16 @@ async function loadSkuData(period) {
     salesOffset += salesPageSize;
   }
 
+  // Debug — log sales fetch results
+  const salesKeys = Object.keys(salesBySkuDay);
+  console.log(`[Stock OOS] Sales fetch complete. SKUs with sales data: ${salesKeys.length}`);
+  if (salesKeys.length > 0) {
+    const sample = salesKeys[0];
+    console.log(`[Stock OOS] Sample SKU ${sample}:`, salesBySkuDay[sample]);
+  } else {
+    console.warn('[Stock OOS] salesBySkuDay is empty — no sales data loaded');
+  }
+
   // Combine
   const result = Object.values(skuMap).map(s => {
     const sal = salesBySkuDay[s.inventory_id];
