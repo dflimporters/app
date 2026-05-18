@@ -245,7 +245,7 @@ function getMonthShort(period) {
 
 // ── Load available periods from stock_snapshots ────────────────────────────
 async function loadPeriods() {
-  const rows = await sb('stock_snapshots', 'select=snapshot_date&order=snapshot_date.desc');
+  const rows = await sb('stock_snapshots', 'select=snapshot_date&order=snapshot_date.desc&limit=1000');
   const periods = [...new Set(rows.map(r => r.snapshot_date.slice(0, 7)))];
   return periods;
 }
@@ -254,11 +254,23 @@ async function loadPeriods() {
 async function loadSkuData(period) {
   const { startStr, endStr } = getPeriodBounds(period);
 
-  // Snapshots for the period
-  const snapshots = await sb('stock_snapshots',
-    `select=inventory_id,description,item_class,snapshot_date,on_hand,is_out_of_stock` +
-    `&snapshot_date=gte.${startStr}&snapshot_date=lte.${endStr}&order=inventory_id,snapshot_date`
-  );
+  // Snapshots for the period — paginate and exclude hardcoded non-standard SKUs
+  const EXCLUDED_SKUS = ['10001897']; // Pricesmart Covebay 8oz Hot Cup - made-to-order only
+  let snapshots = [];
+  let snapOffset = 0;
+  const snapPageSize = 1000;
+  while (true) {
+    const page = await fetch(
+      `${SUPA_URL}/rest/v1/stock_snapshots?select=inventory_id,description,item_class,snapshot_date,on_hand,is_out_of_stock` +
+      `&snapshot_date=gte.${startStr}&snapshot_date=lte.${endStr}` +
+      `&order=inventory_id,snapshot_date&limit=${snapPageSize}&offset=${snapOffset}`,
+      { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }
+    );
+    const rows = await page.json();
+    snapshots.push(...rows.filter(r => !EXCLUDED_SKUS.includes(r.inventory_id)));
+    if (rows.length < snapPageSize) break;
+    snapOffset += snapPageSize;
+  }
 
   if (!snapshots.length) return [];
 
