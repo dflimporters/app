@@ -292,19 +292,28 @@ async function loadSkuData(period) {
     }
   }
 
-  // Sales for the period
-  const salesRes = await sb('invoiced_items',
-    `select=inventory_id,ext_amount,invoice_date` +
-    `&invoice_date=gte.${startStr}&invoice_date=lte.${endStr}` +
-    `&tran_type=neq.CRM&ext_amount=gt.0`
-  );
-
+  // Sales for the period — paginate to avoid default 1000-row limit
   const salesBySkuDay = {};
-  for (const row of salesRes) {
-    const id = row.inventory_id;
-    if (!salesBySkuDay[id]) salesBySkuDay[id] = { total: 0, days: new Set() };
-    salesBySkuDay[id].total += parseFloat(row.ext_amount);
-    salesBySkuDay[id].days.add(row.invoice_date.slice(0, 10));
+  let salesOffset = 0;
+  const salesPageSize = 1000;
+  while (true) {
+    const salesRes = await fetch(
+      `${SUPA_URL}/rest/v1/invoiced_items?select=inventory_id,ext_amount,invoice_date` +
+      `&invoice_date=gte.${startStr}&invoice_date=lte.${endStr}` +
+      `&tran_type=neq.CRM&ext_amount=gt.0` +
+      `&limit=${salesPageSize}&offset=${salesOffset}`,
+      { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Prefer': 'count=exact' } }
+    );
+    if (!salesRes.ok) throw new Error(`Sales fetch failed: ${salesRes.status}`);
+    const rows = await salesRes.json();
+    for (const row of rows) {
+      const id = row.inventory_id;
+      if (!salesBySkuDay[id]) salesBySkuDay[id] = { total: 0, days: new Set() };
+      salesBySkuDay[id].total += parseFloat(row.ext_amount);
+      salesBySkuDay[id].days.add(row.invoice_date.slice(0, 10));
+    }
+    if (rows.length < salesPageSize) break;
+    salesOffset += salesPageSize;
   }
 
   // Combine
