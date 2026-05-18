@@ -9,10 +9,11 @@
 <title>Forms & Links — DFL Staff Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
+  /* NAV */
   nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
   .nav-left { display:flex; align-items:center; gap:14px; }
   .nav-logo { height:26px; filter:brightness(0) invert(1); }
@@ -26,86 +27,48 @@
   .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
   .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
 
-  /* HAMBURGER + MOBILE NAV */
-  .nav-hamburger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    flex-shrink: 0;
-  }
-  .nav-hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 2px;
-    transition: transform 0.25s, opacity 0.25s;
-  }
-  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
-  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .nav-mobile-menu {
-    display: none;
-    position: fixed;
-    top: 56px;
-    left: 0; right: 0;
-    background: rgba(12,26,58,0.98);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 0.75rem 1.25rem 1.25rem;
-    z-index: 99;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-mobile-menu.open { display: flex; }
-  .nav-mobile-menu a {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: rgba(255,255,255,0.75);
-    text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .nav-mobile-menu a:hover { color: #fff; background: rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color: #fff; background: rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color: #fbbf24; }
-  .nav-mobile-menu a.mgmt:hover { background: rgba(251,191,36,0.12); }
-  .mob-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+  /* HAMBURGER */
+  .nav-hamburger { display:none; flex-direction:column; gap:5px; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
+  .nav-hamburger span { display:block; width:22px; height:2px; background:rgba(255,255,255,0.8); border-radius:2px; transition:transform 0.25s,opacity 0.25s; }
+  .nav-hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity:0; }
+  .nav-hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-  .page-header { background:var(--navy2); padding:32px 32px 36px; }
-  .page-header-inner { max-width:1060px; margin:0 auto; }
-  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
-  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
-  .page-header h1 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
-  .content { max-width:1060px; margin:0 auto; padding:32px; }
-  .section-label { font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:14px; }
-  .form-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-bottom:40px; }
-  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; box-shadow:var(--shadow); text-decoration:none; color:var(--text); transition:all 0.18s; display:flex; align-items:center; gap:16px; }
-  .form-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:#bfdbfe; }
-  .form-icon { width:42px; height:42px; background:var(--accent-bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-  .form-info { flex:1; }
-  .form-title { font-size:14px; font-weight:600; margin-bottom:3px; }
-  .form-desc { font-size:12px; color:var(--text-muted); }
-  .form-arrow { color:var(--accent); font-size:16px; }
-  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
+  /* MOBILE MENU */
+  .nav-mobile-menu { display:none; position:fixed; top:56px; left:0; right:0; background:rgba(12,26,58,0.98); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.08); padding:0.75rem 1.25rem 1.25rem; z-index:99; flex-direction:column; gap:2px; }
+  .nav-mobile-menu.open { display:flex; }
+  .nav-mobile-menu a { font-family:'Inter',sans-serif; font-size:14px; color:rgba(255,255,255,0.75); text-decoration:none; padding:10px 12px; border-radius:8px; transition:color 0.15s,background 0.15s; }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color:#fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
 
+  /* TABS BAR */
+  .tabs-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 32px; display:flex; gap:0; }
+  .tab-btn { padding:14px 20px; font-size:13px; font-weight:500; color:var(--text-muted); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.15s; font-family:'Inter',sans-serif; white-space:nowrap; }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  /* IFRAME PANELS */
+  /* calc: 100vh minus nav (56px) minus tabs bar (45px) */
+  .tab-content { display:none; height:calc(100vh - 56px - 45px); }
+  .tab-content.active { display:block; }
+  .tab-content iframe { width:100%; height:100%; border:none; display:block; }
+
+  /* MOBILE */
   @media (max-width: 640px) {
-    nav { padding: 0 16px; }
-    .nav-links { display: none; }
-    .nav-hamburger { display: flex; }
-    .nav-title { font-size: 13px; }
-    .page-header { padding: 24px 16px 28px; }
-    .content { padding: 24px 16px; }
+    nav { padding:0 16px; }
+    .nav-links { display:none; }
+    .nav-hamburger { display:flex; }
+    .nav-title { font-size:13px; }
+    .tabs-bar { padding:0 16px; overflow-x:auto; }
   }
 </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav>
   <div class="nav-left">
     <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
@@ -126,6 +89,7 @@
   </button>
 </nav>
 
+<!-- MOBILE MENU -->
 <div class="nav-mobile-menu" id="mobileMenu">
   <a href="/app/admin/" class="mgmt">Admin</a>
   <a href="/app/management/" class="mgmt">Management</a>
@@ -137,31 +101,22 @@
   <a href="assets.html">Assets</a>
 </div>
 
-<div class="page-header">
-  <div class="page-header-inner">
-    <div class="breadcrumb"><a href="index.html">Home</a> / Forms & Links</div>
-    <h1>Forms & Links</h1>
-  </div>
+<!-- TABS BAR -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="showTab('weekly-plan', this)">📋 Sales Rep Weekly Plan</button>
+  <!-- ADD MORE TAB BUTTONS HERE -->
+  <!-- Example: <button class="tab-btn" onclick="showTab('leave-request', this)">🗓 Leave Request</button> -->
 </div>
 
-<div class="content">
-  <div class="section-label">Staff Forms</div>
-  <div class="form-cards">
-    <a class="form-card" href="/app/rep-weekly-plan-form.html">
-      <div class="form-icon">📋</div>
-      <div class="form-info">
-        <div class="form-title">Sales Rep Weekly Plan</div>
-        <div class="form-desc">Submit your weekly sales plan and targets</div>
-      </div>
-      <div class="form-arrow">→</div>
-    </a>
-  </div>
+<!-- TAB CONTENT / IFRAMES -->
+<div class="tab-content active" id="tab-weekly-plan">
+  <iframe src="/app/rep-weekly-plan-form.html" title="Sales Rep Weekly Plan"></iframe>
 </div>
-
-<footer>© 2026 DFL Importers · Internal use only</footer>
+<!-- ADD MORE PANELS HERE — copy the block above and match the id to your tab button -->
+<!-- Example: <div class="tab-content" id="tab-leave-request"><iframe src="/app/leave-request-form.html" title="Leave Request"></iframe></div> -->
 
 <script>
-  // Hamburger menu
+  // Hamburger
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
   hamburger.addEventListener('click', () => {
@@ -174,6 +129,14 @@
       mobileMenu.classList.remove('open');
     });
   });
+
+  // Tabs
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+  }
 </script>
 </body>
 </html>
