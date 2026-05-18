@@ -255,7 +255,14 @@ async function loadSkuData(period) {
   const { startStr, endStr } = getPeriodBounds(period);
 
   // Snapshots for the period — paginate and exclude hardcoded non-standard SKUs
-  const EXCLUDED_SKUS = ['10001897']; // Pricesmart Covebay 8oz Hot Cup - made-to-order only
+  const EXCLUDED_SKUS = [
+    '10001897', // Pricesmart Covebay 8oz Hot Cup - 5X200
+    '10002180', // Pricesmart Covebay 12oz Smoothie Cup
+    '10002188', // Pricesmart - Covebay 6" Clamshell
+    '10003323', // Covebay Curry Goat Bagasse - Pricesmart
+    '10003324', // Covebay Burger Box Bagasse - Pricesmart
+    '10003325', // Covebay 7x7 2 Compartment Bagasse - Pricesmart
+  ];
   let snapshots = [];
   let snapOffset = 0;
   const snapPageSize = 1000;
