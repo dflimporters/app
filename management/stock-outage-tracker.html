@@ -292,45 +292,21 @@ async function loadSkuData(period) {
     }
   }
 
-  // Sales for the period — paginate to avoid default 1000-row limit
-  // invoice_date is timestamptz so use timestamp bounds for reliable filtering
+  // Sales for the period — server-side aggregation via RPC (avoids REST filter issues)
+  const salesRows = await rpc('get_sales_by_sku', { p_start: startStr, p_end: endStr });
   const salesBySkuDay = {};
-  let salesOffset = 0;
-  const salesPageSize = 1000;
-  while (true) {
-    const salesRes = await fetch(
-      `${SUPA_URL}/rest/v1/invoiced_items?select=inventory_id,ext_amount,invoice_date` +
-      `&invoice_date=gte.${startStr}T00:00:00Z&invoice_date=lte.${endStr}T23:59:59Z` +
-      `&tran_type=neq.CRM&ext_amount=gt.0` +
-      `&limit=${salesPageSize}&offset=${salesOffset}`,
-      { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }
-    );
-    if (!salesRes.ok) throw new Error(`Sales fetch failed: ${salesRes.status}`);
-    const rows = await salesRes.json();
-    for (const row of rows) {
-      const id = row.inventory_id;
-      if (!salesBySkuDay[id]) salesBySkuDay[id] = { total: 0, days: new Set() };
-      salesBySkuDay[id].total += parseFloat(row.ext_amount);
-      salesBySkuDay[id].days.add(row.invoice_date.slice(0, 10));
-    }
-    if (rows.length < salesPageSize) break;
-    salesOffset += salesPageSize;
-  }
-
-  // Debug — log sales fetch results
-  const salesKeys = Object.keys(salesBySkuDay);
-  console.log(`[Stock OOS] Sales fetch complete. SKUs with sales data: ${salesKeys.length}`);
-  if (salesKeys.length > 0) {
-    const sample = salesKeys[0];
-    console.log(`[Stock OOS] Sample SKU ${sample}:`, salesBySkuDay[sample]);
-  } else {
-    console.warn('[Stock OOS] salesBySkuDay is empty — no sales data loaded');
+  for (const row of salesRows) {
+    salesBySkuDay[row.inventory_id] = {
+      total: parseFloat(row.total_sales),
+      days: { size: parseInt(row.sales_days) },
+      avg_daily: parseFloat(row.avg_daily)
+    };
   }
 
   // Combine
   const result = Object.values(skuMap).map(s => {
     const sal = salesBySkuDay[s.inventory_id];
-    const avgDailySales = sal && sal.days.size > 0 ? sal.total / sal.days.size : 0;
+    const avgDailySales = sal ? (sal.avg_daily || (sal.total / sal.days.size)) : 0;
     const estLostSales = avgDailySales * s.days_oos;
     return {
       ...s,
