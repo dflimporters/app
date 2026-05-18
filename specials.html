@@ -129,6 +129,7 @@
     background:var(--surface); border:1px solid var(--border);
     border-radius:10px; overflow:hidden;
     box-shadow:var(--shadow); transition:all 0.18s;
+    cursor:pointer;
   }
   .card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:#bfdbfe; }
   .card-img {
@@ -154,6 +155,20 @@
   .card-price.notes { font-size:11px; font-weight:400; color:var(--text-muted); }
   .card-expiry { font-size:11px; color:var(--text-dim); }
 
+  /* Expiry badges on cards */
+  .badge-expiring {
+    display:inline-block; font-size:10px; font-weight:600;
+    padding:2px 7px; border-radius:4px;
+    background:#fffbeb; color:#b45309;
+    border:1px solid #fde68a;
+  }
+  .badge-expired {
+    display:inline-block; font-size:10px; font-weight:600;
+    padding:2px 7px; border-radius:4px;
+    background:#fef2f2; color:#dc2626;
+    border:1px solid #fecaca;
+  }
+
   .empty { text-align:center; padding:80px 20px; color:var(--text-dim); grid-column:1/-1; }
   .empty-icon { font-size:36px; margin-bottom:12px; }
   .empty p { font-size:14px; }
@@ -168,6 +183,67 @@
 
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); }
 
+  /* ── MODAL ── */
+  .modal-backdrop {
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,0.75);
+    align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .modal-backdrop.open { display:flex; animation:fadeIn 0.18s ease; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+  .modal {
+    background:var(--surface); border-radius:14px;
+    width:100%; max-width:520px; max-height:90vh;
+    overflow-y:auto; position:relative;
+    animation:slideUp 0.2s ease;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  }
+  @keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+  .modal-close {
+    position:absolute; top:12px; right:12px; z-index:10;
+    width:32px; height:32px; border-radius:50%;
+    background:rgba(0,0,0,0.45); color:#fff; border:none;
+    font-size:18px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background 0.15s;
+  }
+  .modal-close:hover { background:rgba(0,0,0,0.7); }
+
+  .modal-img {
+    width:100%; height:280px;
+    background:linear-gradient(135deg, #e0e7ff, #dbeafe);
+    display:flex; align-items:center; justify-content:center;
+    font-size:60px; border-radius:14px 14px 0 0;
+  }
+  .modal-img img { width:100%; height:100%; object-fit:contain; border-radius:14px 14px 0 0; }
+
+  .modal-body { padding:24px; }
+  .modal-type { margin-bottom:10px; }
+  .modal-name { font-size:20px; font-weight:700; color:var(--navy); margin-bottom:10px; line-height:1.3; }
+  .modal-desc { font-size:14px; color:var(--text-muted); line-height:1.6; margin-bottom:16px; }
+
+  .modal-meta { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+  .modal-meta-row { display:flex; gap:8px; align-items:baseline; font-size:13px; }
+  .modal-meta-label { color:var(--text-dim); font-weight:500; min-width:80px; }
+  .modal-meta-value { color:var(--text); font-weight:500; }
+  .modal-meta-value.price { font-size:18px; font-weight:700; color:var(--navy); }
+
+  /* Two action buttons side by side */
+  .modal-actions { display:flex; gap:10px; }
+  .modal-btn {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px; border:none; border-radius:8px;
+    font-size:14px; font-weight:600; cursor:pointer;
+    font-family:'Inter',sans-serif; transition:background 0.15s;
+  }
+  .modal-btn-share { background:var(--navy); color:#fff; }
+  .modal-btn-share:hover { background:var(--navy2); }
+  .modal-btn-download { background:var(--accent); color:#fff; }
+  .modal-btn-download:hover { background:#1d4ed8; }
+
   @media (max-width: 640px) {
     nav { padding: 0 16px; }
     .nav-links { display: none; }
@@ -176,6 +252,11 @@
     .page-header { padding: 24px 16px 28px; }
     .toolbar { padding: 16px 16px 0; }
     .grid { padding: 16px 16px 48px; }
+    /* Modal slides up from bottom on mobile like a drawer */
+    .modal-backdrop { padding:0; align-items:flex-end; }
+    .modal { max-width:100%; max-height:92vh; border-radius:16px 16px 0 0; }
+    .modal-img { height:220px; border-radius:16px 16px 0 0; }
+    .modal-img img { border-radius:16px 16px 0 0; }
   }
 </style>
 </head>
@@ -230,6 +311,24 @@
   <div class="spinner"><div class="spin"></div></div>
 </div>
 
+<!-- MODAL LIGHTBOX -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="handleBackdropClick(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-img" id="modalImg"></div>
+    <div class="modal-body">
+      <div class="modal-type" id="modalType"></div>
+      <div class="modal-name" id="modalName"></div>
+      <div class="modal-desc" id="modalDesc"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-share" id="modalShare" onclick="shareImage()">↑ Share</button>
+        <button class="modal-btn modal-btn-download" id="modalDownload" onclick="downloadImage()">⬇ Download</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
 <script>
@@ -238,19 +337,50 @@
 
   let all = [];
   let current = 'all';
+  let activeImageUrl = '';
+  let activeItemName = '';
 
+  // ── Expiry helpers ──────────────────────────────────────────────────────────
+  function getExpiryStatus(valid_until) {
+    if (!valid_until) return null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const exp = new Date(valid_until); exp.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) return 'expired';
+    if (daysLeft <= 7) return 'expiring';
+    return 'ok';
+  }
+
+  function expiryBadge(valid_until, type) {
+    // Flyers are evergreen — never show an expiry date
+    if (type === 'Flyer' || !valid_until) return '';
+    const status = getExpiryStatus(valid_until);
+    const label = new Date(valid_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    if (status === 'expired') return `<span class="badge-expired">Expired</span>`;
+    if (status === 'expiring') return `<span class="badge-expiring">Expires ${label}</span>`;
+    return `<div class="card-expiry">Until ${label}</div>`;
+  }
+
+  // ── Load from Supabase ──────────────────────────────────────────────────────
   async function load() {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/specials?active=eq.true&order=created_at.desc`, {
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
       });
-      all = await res.json();
+      const data = await res.json();
+      // Hide expired Specials — Flyers always show (no expiry concept)
+      all = data.filter(i => {
+        if (i.type === 'Flyer') return true;
+        if (!i.valid_until) return true;
+        return getExpiryStatus(i.valid_until) !== 'expired';
+      });
       render(all);
     } catch(e) {
       document.getElementById('grid').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Could not load data. Please try again.</p></div>';
     }
   }
 
+  // ── Render cards ────────────────────────────────────────────────────────────
   function render(items) {
     const grid = document.getElementById('grid');
     document.getElementById('count').textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
@@ -259,7 +389,7 @@
       return;
     }
     grid.innerHTML = items.map(i => `
-      <div class="card">
+      <div class="card" data-id="${i.id}">
         <div class="card-img">
           ${i.image_url ? `<img src="${i.image_url}" alt="${i.name}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}
         </div>
@@ -271,13 +401,19 @@
             <div class="${i.price ? 'card-price' : 'card-price notes'}">
               ${i.price ? `$${Number(i.price).toLocaleString()}` : (i.price_notes || 'See description')}
             </div>
-            ${i.valid_until ? `<div class="card-expiry">Until ${new Date(i.valid_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>` : ''}
+            ${expiryBadge(i.valid_until, i.type)}
           </div>
         </div>
       </div>
     `).join('');
+
+    // Safe click listeners via data-id — no inline onclick, no quote issues
+    grid.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('click', () => openModal(card.dataset.id));
+    });
   }
 
+  // ── Filter buttons ──────────────────────────────────────────────────────────
   function filter(type, btn) {
     current = type;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -285,7 +421,7 @@
     render(type === 'all' ? all : all.filter(i => i.type === type));
   }
 
-  // Hamburger menu
+  // ── Hamburger menu ──────────────────────────────────────────────────────────
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
   hamburger.addEventListener('click', () => {
@@ -298,6 +434,110 @@
       mobileMenu.classList.remove('open');
     });
   });
+
+  // ── Modal ───────────────────────────────────────────────────────────────────
+  function openModal(id) {
+    const i = all.find(x => x.id == id);
+    if (!i) return;
+
+    activeImageUrl = i.image_url || '';
+    activeItemName = i.name || 'image';
+
+    // Image
+    document.getElementById('modalImg').innerHTML = i.image_url
+      ? `<img src="${i.image_url}" alt="${i.name}" onerror="this.parentElement.innerHTML='📦'">`
+      : '📦';
+
+    // Type badge
+    document.getElementById('modalType').innerHTML =
+      `<span class="card-type type-${i.type.toLowerCase()}">${i.type}</span>`;
+
+    // Name & description
+    document.getElementById('modalName').textContent = i.name;
+    document.getElementById('modalDesc').textContent = i.description || '';
+
+    // Meta rows — Flyers skip Valid Until
+    let meta = '';
+    if (i.price) {
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Price</span><span class="modal-meta-value price">$${Number(i.price).toLocaleString()}</span></div>`;
+    } else if (i.price_notes) {
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Price</span><span class="modal-meta-value">${i.price_notes}</span></div>`;
+    }
+    if (i.type !== 'Flyer' && i.valid_until) {
+      const d = new Date(i.valid_until).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Valid Until</span><span class="modal-meta-value">${d}</span></div>`;
+    }
+    if (i.category) {
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Category</span><span class="modal-meta-value">${i.category}</span></div>`;
+    }
+    document.getElementById('modalMeta').innerHTML = meta;
+
+    // Show/hide action buttons based on whether there's an image
+    const hasImage = !!i.image_url;
+    document.getElementById('modalShare').style.display = hasImage ? 'flex' : 'none';
+    document.getElementById('modalDownload').style.display = hasImage ? 'flex' : 'none';
+
+    document.getElementById('modalBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function handleBackdropClick(e) {
+    if (e.target === document.getElementById('modalBackdrop')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Share image (native share sheet on mobile, copy URL on desktop) ─────────
+  async function shareImage() {
+    const btn = document.getElementById('modalShare');
+    if (!activeImageUrl) return;
+    btn.textContent = '⏳ Preparing...';
+    try {
+      const res = await fetch(activeImageUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const file = new File([blob], `${activeItemName}.${ext}`, { type: blob.type });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Mobile: opens native share sheet with the actual image file
+        await navigator.share({ files: [file], title: activeItemName });
+      } else {
+        // Desktop fallback: copy image URL to clipboard
+        await navigator.clipboard.writeText(activeImageUrl);
+        btn.textContent = '✓ Link Copied!';
+        setTimeout(() => { btn.textContent = '↑ Share'; }, 2000);
+        return;
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') alert('Could not share. Try downloading instead.');
+    }
+    btn.textContent = '↑ Share';
+  }
+
+  // ── Download image (fetches blob and forces save dialog) ────────────────────
+  async function downloadImage() {
+    const btn = document.getElementById('modalDownload');
+    if (!activeImageUrl) return;
+    btn.textContent = '⏳ Downloading...';
+    try {
+      const res = await fetch(activeImageUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'jpg';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${activeItemName}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch(e) {
+      alert('Download failed. Try long-pressing the image to save.');
+    }
+    btn.textContent = '⬇ Download';
+  }
 
   load();
 </script>

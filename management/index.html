@@ -132,14 +132,6 @@
   /* MAIN PANEL */
   .main-panel { display:none; flex-direction:column; height:calc(100vh - 56px); }
 
-  /* PAGE HEADER */
-  .page-header { background:var(--navy2); padding:24px 32px 28px; flex-shrink:0; }
-  .page-header-inner { max-width:none; }
-  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:6px; }
-  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
-  .breadcrumb a:hover { color:rgba(255,255,255,0.7); }
-  .page-header h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
-
   /* TABS BAR */
   .tabs-bar {
     background:var(--surface); border-bottom:1px solid var(--border);
@@ -223,13 +215,6 @@
 
 <!-- MAIN PANEL -->
 <div class="main-panel" id="mainPanel">
-
-  <div class="page-header">
-    <div class="page-header-inner">
-      <div class="breadcrumb"><a href="/app/index.html">Home</a> / Management</div>
-      <h1>Management</h1>
-    </div>
-  </div>
 
   <div class="tabs-bar">
     <button class="tab-btn active" onclick="showPanel('panel-4', this)">Merchandiser Performance Dashboard</button>

@@ -77,16 +77,11 @@
   .nav-mobile-menu a.mgmt:hover { background: rgba(251,191,36,0.12); }
   .mob-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
 
-  .page-header { background:var(--navy2); padding:32px 32px 36px; }
-  .page-header-inner { max-width:1060px; margin:0 auto; }
-  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
-  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
-  .page-header h1 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
   .tabs-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:0 32px; display:flex; gap:0; max-width:none; }
   .tab-btn { padding:14px 20px; font-size:13px; font-weight:500; color:var(--text-muted); border:none; background:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.15s; font-family:'Inter',sans-serif; }
   .tab-btn:hover { color:var(--text); }
   .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab-content { display:none; height:calc(100vh - 180px); }
+  .tab-content { display:none; height:calc(100vh - 110px); }
   .tab-content.active { display:block; }
   .tab-content iframe { width:100%; height:100%; border:none; display:block; }
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); }
@@ -134,12 +129,7 @@
   <a href="assets.html">Assets</a>
 </div>
 
-<div class="page-header">
-  <div class="page-header-inner">
-    <div class="breadcrumb"><a href="index.html">Home</a> / Dashboards</div>
-    <h1>Dashboards</h1>
-  </div>
-</div>
+
 
 <div class="tabs-bar">
   <button class="tab-btn active" onclick="showTab('sales',this)">📊 Sales Dashboard</button>
