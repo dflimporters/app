@@ -246,14 +246,14 @@ async function loadInvoices() {
     if (invs.length === 0) { renderGroups([]); updateStats([]); return; }
 
     const refs = invs.map(i => i.reference_number);
-    const items = await api('invoiced_items?select=reference_number,inventory_id,description,quantity,uom,line_total&tran_type=eq.INV&reference_number=in.(' + refs.join(',') + ')');
+    const items = await api('invoiced_items?select=reference_number,inventory_id,description,quantity,uom,line_total&tran_type=eq.INV&reference_number=in.(' + refs.join(',') + ')&limit=5000');
     allItems = {};
     items.forEach(it => { if (!allItems[it.reference_number]) allItems[it.reference_number] = []; allItems[it.reference_number].push(it); });
 
     const custIds = [...new Set(invs.map(i => i.customer_id).filter(Boolean))];
     let custMap = {};
     if (custIds.length > 0) {
-      const custs = await api('customers_detrack?select=customer_id,needs_address,address_notes_flag,clean_address,clean_city,delivery_phone,shipping_zone&customer_id=in.(' + custIds.join(',') + ')');
+      const custs = await api('customers_detrack?select=customer_id,needs_address,address_notes_flag,clean_address,clean_city,phone,shipping_zone&customer_id=in.(' + custIds.join(',') + ')');
       custs.forEach(c => custMap[c.customer_id] = c);
     }
     allInvoices.forEach(inv => inv._cust = custMap[inv.customer_id] || null);
@@ -482,7 +482,7 @@ async function sendBatch(key) {
       ship_via_description: inv.ship_via_description,
       delivery_address: inv._cust?.clean_address || null,
       delivery_city: inv._cust?.clean_city || null,
-      delivery_phone: inv._cust?.delivery_phone || null,
+      delivery_phone: inv._cust?.phone || null,
       delivery_zone: inv._cust?.shipping_zone || null,
       items: allItems[inv.reference_number] || [],
       detrack_do_number: inv.reference_number
