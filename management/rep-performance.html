@@ -573,7 +573,7 @@ const fmtM = n => {
   if (v >= 1_000)     return (n < 0 ? '-' : '') + '$' + (v / 1_000).toFixed(0) + 'K';
   return (n < 0 ? '-' : '') + '$' + Math.round(v).toLocaleString();
 };
-const barColor = p => p >= 85 ? '#16a34a' : p >= 65 ? '#d97706' : '#dc2626';
+const barColor = p => p >= 85 ? '#16a34a' : p >= 65 ? '#d97706' : '#dc2626'; // legacy - not used for bar
 
 // ─── SUPABASE FETCH ───────────────────────────────────────────────────────────
 async function sbGet(path) {
@@ -619,6 +619,40 @@ async function sbRpc(fn, params) {
   return res.json();
 }
 
+// ─── CALCULATE LIVE PACE % (client-side, Jamaica time) ───────────────────────
+function calcPaceElapsed() {
+  const now   = new Date();
+  const year  = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+  const yesterday = now.getDate() - 1;
+
+  // Jamaica public holidays (YYYY, MM-1, DD) — exclude from working days
+  // Month is 0-indexed (JS Date convention): Jan=0, May=4, etc.
+  const holidays = [
+    '2026-0-1','2026-0-2',   // New Year's Day + observed
+    '2026-1-18',             // Ash Wednesday
+    '2026-3-3','2026-3-6',   // Good Friday, Easter Monday
+    '2026-4-25',             // Labour Day observed (May 23 falls Sat, observed Mon May 25)
+    '2026-7-1','2026-7-3',   // Emancipation Day + Independence Day
+    '2026-9-19',             // National Heroes Day
+    '2026-11-25','2026-11-26', // Christmas + Boxing Day
+  ];
+  const isHoliday = (y, m, d) => holidays.includes(y+'-'+m+'-'+d);
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let total = 0, elapsed = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay();
+    if (dow !== 0 && dow !== 6 && !isHoliday(year, month, d)) {
+      total++;
+      if (d <= yesterday) elapsed++;
+    }
+  }
+  return total > 0 ? Math.round((elapsed / total) * 100) : 0;
+}
+
+const LIVE_PACE_PCT = calcPaceElapsed();
+
 // ─── RENDER SUMMARY ───────────────────────────────────────────────────────────
 function renderSummary(reps) {
   const tot = reps.reduce((s, r) => s + Number(r.monthly_actual), 0);
@@ -628,7 +662,7 @@ function renderSummary(reps) {
   const cr  = reps.filter(r => r.status === 'critical').length;
 
   const teamPct = pct(tot, tgt);
-  const pacePct = reps.length > 0 ? Number(reps[0].pct_month_elapsed).toFixed(0) : 0;
+  const pacePct = reps.length > 0 ? LIVE_PACE_PCT : 0;
   document.getElementById('sc-pct').innerHTML =
     `${teamPct}%<small> &nbsp;/ ${pacePct}%</small>`;
   document.getElementById('sc-rev-sub').textContent = `${fmtM(tot)} of ${fmtM(tgt)}`;
@@ -673,13 +707,19 @@ function renderRow(rep) {
   const actual = Number(rep.monthly_actual);
   const target = Number(rep.monthly_target);
   const p  = pct(actual, target);
-  const bc = barColor(p);
+  // Bar colour driven by pace gap — green if on/ahead of pace, amber if watching, red if critical
+  const paceGap = Math.round((LIVE_PACE_PCT - Number(rep.pct_to_target)) * 10) / 10;
+  const bc = paceGap <= 0
+    ? '#16a34a'   // green — at or ahead of pace
+    : paceGap <= 8
+    ? '#d97706'   // amber — slightly behind
+    : '#dc2626';  // red   — critical
   const pctDisplay = Number(rep.pct_to_target).toFixed(1);
-  const sc = {
-    'on-track': { label:'On Track', color:'#16a34a', bg:'#dcfce7' },
-    'behind':   { label:'Behind',   color:'#d97706', bg:'#fef3c7' },
-    'critical': { label:'Critical', color:'#dc2626', bg:'#fee2e2' },
-  }[rep.status] || { label:'Unknown', color:'#6b7fa8', bg:'#f0f4fa' };
+  const sc = paceGap <= 0
+    ? { label:'On Track', color:'#16a34a', bg:'#dcfce7' }
+    : paceGap <= 8
+    ? { label:'Behind',   color:'#d97706', bg:'#fef3c7' }
+    : { label:'Critical', color:'#dc2626', bg:'#fee2e2' };
 
   const lastDate = rep.last_invoice_date
     ? new Date(rep.last_invoice_date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
@@ -698,18 +738,21 @@ function renderRow(rep) {
         <div class="bar-meta">
           <span>
             <strong style="color:${bc}">${pctDisplay}%</strong>
-            <span style="color:var(--dim);font-size:9px;margin-left:5px">vs <strong style="color:var(--blue)">${Number(rep.pct_month_elapsed).toFixed(0)}% pace</strong></span>
+            <span style="color:var(--dim);font-size:9px;margin-left:5px">vs <strong style="color:var(--blue)">${LIVE_PACE_PCT.toFixed(0)}% pace</strong></span>
           </span>
-          <span style="color:var(--muted)">${fmtM(target)}</span>
+          <span style="text-align:right;line-height:1.4">
+            <span style="display:block;font-size:11px;font-weight:700;color:${bc}">${fmtM(actual)}</span>
+            <span style="display:block;font-size:9px;color:var(--muted)">of ${fmtM(target)}</span>
+          </span>
         </div>
         <div class="bar-track">
           <div class="bar-fill" style="width:${p}%;background:${bc};border-radius:3px"></div>
-          <div style="position:absolute;top:-3px;bottom:-3px;left:${Math.min(Number(rep.pct_month_elapsed),100)}%;width:2px;background:var(--blue);border-radius:1px;opacity:0.8;transform:translateX(-1px)" title="Pace marker: ${Number(rep.pct_month_elapsed).toFixed(0)}% of month elapsed"></div>
+          <div style="position:absolute;top:-3px;bottom:-3px;left:${Math.min(LIVE_PACE_PCT,100)}%;width:2px;background:var(--blue);border-radius:1px;opacity:0.8;transform:translateX(-1px)" title="Pace marker: ${LIVE_PACE_PCT.toFixed(0)}% of month elapsed"></div>
         </div>
         <div style="font-size:9px;margin-top:4px;font-weight:600">
-          ${Number(rep.pace_gap_pct) > 0
-            ? `<span style="color:${bc}">▼ ${Number(rep.pace_gap_pct).toFixed(1)} pts behind pace</span>`
-            : `<span style="color:var(--green)">▲ ${Math.abs(Number(rep.pace_gap_pct)).toFixed(1)} pts ahead of pace</span>`}
+          ${paceGap > 0
+            ? `<span style="color:${bc}">▼ ${Math.abs(paceGap).toFixed(0)} pts behind pace</span>`
+            : `<span style="color:var(--green)">▲ ${Math.abs(paceGap).toFixed(0)} pts ahead of pace</span>`}
         </div>
       </div>
       <div>
@@ -743,13 +786,13 @@ function renderRow(rep) {
           </div>
           <div class="expand-line"><span>% to Target</span><strong>${pctDisplay}%</strong></div>
           <div class="expand-line"><span>Expected by now</span>
-            <strong>${Number(rep.pct_month_elapsed).toFixed(1)}%</strong>
+            <strong>${LIVE_PACE_PCT}%</strong>
           </div>
           <div class="expand-line"><span>Pace gap</span>
             <strong style="color:${
               rep.pace_status === 'follow-up' ? '#dc2626' :
               rep.pace_status === 'watch'     ? '#d97706' : '#16a34a'}">
-              ${Number(rep.pace_gap_pct) > 0 ? '▼' : '▲'}${Math.abs(Number(rep.pace_gap_pct)).toFixed(1)} pts
+              ${paceGap > 0 ? '▼' : '▲'}${Math.abs(paceGap).toFixed(0)} pts
             </strong>
           </div>
         </div>
@@ -806,7 +849,7 @@ async function loadIntelligence(salesperson, rowId) {
     const enc  = encodeURIComponent(salesperson);
     // Fetch top 10 insights sorted: lapsed first (most days), then below-trend, whitespace
     const data = await sbGet(
-      `customer_intelligence_cache?salesperson=eq.${enc}&select=insight_type,customer_name,detail_text,value_text,priority_score&order=insight_type.asc,priority_score.desc&limit=10`
+      `customer_intelligence_cache?salesperson=eq.${enc}&select=insight_type,customer_name,customer_id,detail_text,value_text,priority_score&order=insight_type.asc,priority_score.desc&limit=10`
     );
 
     if (!data.length) {
@@ -814,16 +857,43 @@ async function loadIntelligence(salesperson, rowId) {
       return;
     }
 
-    el.innerHTML = data.map(ins => `
+    // Fetch last invoice date for each customer in the list
+    const custIds = [...new Set(data.map(d => d.customer_id).filter(Boolean))];
+    const lastInvMap = {};
+    if (custIds.length) {
+      try {
+        // Use customer_id=in.(...) — encode properly for PostgREST
+        const inList = custIds.join(',');
+        const lastInvData = await sbGet(
+          `invoiced_items?select=customer_id,invoice_date&customer_id=in.(${inList})&salesperson=eq.${enc}&order=invoice_date.desc&limit=${custIds.length * 10}`
+        );
+        lastInvData.forEach(r => {
+          if (!lastInvMap[r.customer_id]) lastInvMap[r.customer_id] = r.invoice_date;
+        });
+      } catch(e) {
+        console.warn('Last invoice fetch failed:', e.message);
+      }
+    }
+
+    el.innerHTML = data.map(ins => {
+      const rawDate = lastInvMap[ins.customer_id];
+      const lastInv = rawDate
+        ? new Date(rawDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})
+        : null;
+      return `
       <div class="insight-row ${ins.insight_type}">
         <span class="insight-type-pill">${
           ins.insight_type === 'lapsed'       ? 'Gone Quiet'   :
           ins.insight_type === 'below-trend'  ? 'Below Trend'  : 'White Space'
         }</span>
         <span class="insight-customer">${ins.customer_name}</span>
-        <span class="insight-detail">${ins.detail_text}</span>
+        <span class="insight-detail">
+          ${ins.detail_text}
+          ${lastInv ? `<span style="display:inline-block;margin-left:6px;padding:1px 7px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;font-size:10px;color:var(--text2);font-weight:600">📅 ${lastInv}</span>` : ''}
+        </span>
         <span class="insight-value">${ins.value_text}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
   } catch (e) {
     el.innerHTML = `<div class="intel-empty" style="color:var(--red)">Could not load intelligence data.</div>`;
@@ -1022,6 +1092,7 @@ async function loadTierMix(salesperson, rowId) {
   }
 }
 
+// ─── WEEKLY INTELLIGENCE BRIEF ───────────────────────────────────────────────
 // ─── EXPAND / COLLAPSE ────────────────────────────────────────────────────────
 function toggleExpand(salesperson) {
   const rowId = 'rep-' + salesperson.replace(/\s+/g, '-');

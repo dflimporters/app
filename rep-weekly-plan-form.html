@@ -518,7 +518,7 @@
           </div>
           <div class="field">
             <label>Week Commencing</label>
-            <input type="text" id="week-input" readonly style="color:var(--muted);cursor:default">
+            <select id="week-select"></select>
           </div>
         </div>
       </div>
@@ -529,7 +529,7 @@
         <div class="field-row">
           <div class="field">
             <label>What sales do you aim to achieve this week? ($)</label>
-            <input type="number" id="target-rev" placeholder="4,500,000" oninput="updateProgress()">
+            <input type="text" id="target-rev" placeholder="4,500,000" inputmode="numeric" oninput="formatCurrency(this);updateProgress()">
             <div class="field-hint">Based on where you are in the month — what can you realistically achieve this week?</div>
             <div class="field-error">Please enter your sales goal for the week</div>
           </div>
@@ -539,7 +539,7 @@
       <!-- 03: Day-by-day -->
       <div class="card-section">
         <div class="section-label">03 — Day-by-Day Coverage</div>
-        <div id="day-grid-error" style="display:none;font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px">Please select at least one zone and store for the days you are working</div>
+        <div id="day-grid-error" style="display:none;font-size:11px;color:var(--red);font-weight:600;margin-bottom:10px">Please select at least one zone for every day</div>
         <div class="day-grid" id="day-grid"></div>
       </div>
 
@@ -1054,10 +1054,59 @@ function getWeekDates() {
   return { label:`Week of ${fmt(mon)} – ${fmt(fri)}`, value:`${fmt(mon)} – ${fmt(fri)}`, monday:mon };
 }
 
-const { label, value, monday } = getWeekDates();
+// Generate 3 rolling week options from this Monday
+function getWeekOptions() {
+  const now = new Date();
+  const thisMon = new Date(now);
+  thisMon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  thisMon.setHours(0,0,0,0);
+  const fmt = d => d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+  const fmtRange = d => {
+    const fri = new Date(d); fri.setDate(d.getDate() + 4);
+    return fmt(d) + ' – ' + fmt(fri);
+  };
+  return [0,1,2].map(w => {
+    const mon = new Date(thisMon);
+    mon.setDate(thisMon.getDate() + w * 7);
+    const tag = w === 0 ? 'This week' : w === 1 ? 'Next week' : 'Week after';
+    return { label: tag + ' · ' + fmtRange(mon), value: fmtRange(mon), monday: mon };
+  });
+}
+
+const weekOptions  = getWeekOptions();
+let selectedWeekIdx = 0;
+
+const weekSelectEl = document.getElementById('week-select');
+weekOptions.forEach((w, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = w.label;
+  weekSelectEl.appendChild(opt);
+});
+
+weekSelectEl.addEventListener('change', () => {
+  selectedWeekIdx = Number(weekSelectEl.value);
+  rebuildDayHeaders();
+  updateProgress();
+});
+
 document.getElementById('week-label').innerHTML =
-  `${label} <span class="week-badge">Submit every Friday</span>`;
-document.getElementById('week-input').value = value;
+  '<span class="week-badge">Submit Every Friday</span>';
+
+function getSelectedWeek() { return weekOptions[selectedWeekIdx]; }
+
+function rebuildDayHeaders() {
+  const { monday } = getSelectedWeek();
+  DAYS.forEach((day, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const ds = d.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+    const tag = document.querySelector('#day-block-' + i + ' .day-tag');
+    const dl  = document.querySelector('#day-block-' + i + ' .day-date-label');
+    if (tag) tag.textContent = day;
+    if (dl)  dl.textContent  = ds;
+  });
+}
 
 // ── Day selected zones state ────────────────────────────────────────────────
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
@@ -1067,8 +1116,9 @@ const dayZones = { 0:[], 1:[], 2:[], 3:[], 4:[] };
 const grid = document.getElementById('day-grid');
 
 DAYS.forEach((day, i) => {
-  const date = new Date(monday);
-  date.setDate(monday.getDate() + i);
+  const initMon = weekOptions[0].monday;
+  const date = new Date(initMon);
+  date.setDate(initMon.getDate() + i);
   const dateStr = date.toLocaleDateString('en-GB', {day:'numeric', month:'short'});
 
   const zoneOptions = SHIPPING_ZONES
@@ -1785,19 +1835,33 @@ function addCustomZone(dayIndex) {
   toggleCustomZone(dayIndex);
 }
 
+// ── Currency formatting ──────────────────────────────────────────────────────
+function formatCurrency(input) {
+  // Strip everything except digits
+  const raw = input.value.replace(/[^0-9]/g, '');
+  if (!raw) { input.value = ''; return; }
+  // Format with commas
+  input.value = Number(raw).toLocaleString('en-US');
+}
+
+function getRawGoal() {
+  const val = document.getElementById('target-rev').value;
+  return val ? val.replace(/,/g, '') : '';
+}
+
 // ── Progress ─────────────────────────────────────────────────────────────────
 function updateProgress() {
   const hasRep  = !!document.getElementById('rep-select').value;
-  const hasGoal = !!document.getElementById('target-rev').value;
-  const hasDays = Object.values(dayZones).some(z => z.length > 0);
-  const steps   = [hasRep, hasGoal, hasDays, true];
+  const hasGoal = !!getRawGoal();
+  const allDays = Object.values(dayZones).every(z => z.length > 0);
+  const steps   = [hasRep, hasGoal, allDays, true];
 
   steps.forEach((done, i) => {
     const el = document.getElementById('step-' + (i + 1));
     if (el) el.style.background = done ? '#326BD3' : 'rgba(255,255,255,0.15)';
   });
 
-  document.getElementById('submit-btn').disabled = !(hasRep && hasDays);
+  document.getElementById('submit-btn').disabled = !(hasRep && allDays);
 }
 
 // ── Validation helpers ───────────────────────────────────────────────────────
@@ -1825,7 +1889,7 @@ function validateForm() {
   // Sales goal
   const goalField = document.getElementById('target-rev').closest('.field');
   const goalErr   = goalField ? goalField.querySelector('.field-error') : null;
-  if (!document.getElementById('target-rev').value) {
+  if (!getRawGoal()) {
     setFieldError(goalField, goalErr, 'Please enter your sales goal for the week');
     valid = false;
   } else { clearFieldError(goalField, goalErr); }
@@ -1847,29 +1911,43 @@ function validateForm() {
     if (dayErr) dayErr.style.display = 'none';
   }
 
-  // Each day that has a zone must also have at least one store selected
-  let missingStore = false;
+  // All days must have at least one zone
+  let missingDays = false;
   DAYS.forEach((d, i) => {
-    const block = document.getElementById('day-block-' + i);
+    const block    = document.getElementById('day-block-' + i);
     const storeErr = document.getElementById('store-err-' + i);
-    if (dayZones[i].length > 0 && dayStores[i].length === 0) {
-      if (block) block.style.borderColor = 'var(--amber)';
-      if (storeErr) storeErr.style.display = 'block';
-      missingStore = true;
+    if (storeErr) storeErr.style.display = 'none';
+    if (dayZones[i].length === 0) {
+      if (block) block.style.borderColor = 'var(--red)';
+      missingDays = true;
     } else {
       if (block) block.style.borderColor = '';
-      if (storeErr) storeErr.style.display = 'none';
     }
   });
-  if (missingStore) valid = false;
+  if (missingDays) {
+    valid = false;
+    const dayErr = document.getElementById('day-grid-error');
+    if (dayErr) {
+      dayErr.textContent = 'Please select at least one zone for every day';
+      dayErr.style.display = 'block';
+    }
+  } else {
+    const dayErr = document.getElementById('day-grid-error');
+    if (dayErr) dayErr.style.display = 'none';
+  }
 
   return valid;
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitPlan() {
-  if (!validateForm()) {
-    // Scroll to first error
+  console.log('submitPlan called');
+  const isValid = validateForm();
+  console.log('validateForm result:', isValid,
+    '| rep:', document.getElementById('rep-select').value,
+    '| goal:', getRawGoal(),
+    '| dayZones:', JSON.stringify(dayZones));
+  if (!isValid) {
     const firstErr = document.querySelector('.field-invalid, [style*="border-color: var(--red)"]');
     if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
@@ -1881,8 +1959,8 @@ async function submitPlan() {
 
   const plan = {
     rep:     document.getElementById('rep-select').value,
-    week:    value,
-    goalRev: document.getElementById('target-rev').value,
+    week:    getSelectedWeek().value,
+    goalRev: getRawGoal(),
     visits:  dayStores[0].length + dayStores[1].length + dayStores[2].length + dayStores[3].length + dayStores[4].length,
     days: DAYS.map((d, i) => ({
       day:    d,
@@ -1895,23 +1973,53 @@ async function submitPlan() {
 
   try {
     // Upsert to Supabase (update if same rep + week already exists)
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_plans`, {
-      method: 'POST',
-      headers: {
-        'apikey':        SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type':  'application/json',
-        'Prefer':        'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify({
-        salesperson:     plan.rep,
-        week_commencing: plan.week,
-        sales_goal:      plan.goalRev ? Number(plan.goalRev) : null,
-        days:            plan.days,
-        flags:           plan.flags || null,
-        submitted_at:    plan.submittedAt,
-      })
-    });
+    const payload = {
+      salesperson:     plan.rep,
+      week_commencing: plan.week,
+      sales_goal:      plan.goalRev ? Number(plan.goalRev) : null,
+      days:            plan.days,
+      flags:           plan.flags || null,
+      submitted_at:    plan.submittedAt,
+    };
+
+    const encRep  = encodeURIComponent(plan.rep);
+    const encWeek = encodeURIComponent(plan.week);
+
+    // Check if a record already exists for this rep + week
+    const existing = await fetch(
+      `${SUPABASE_URL}/rest/v1/weekly_plans?salesperson=eq.${encRep}&week_commencing=eq.${encWeek}&select=id`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    ).then(r => r.json());
+
+    let res;
+    if (existing && existing.length > 0) {
+      // Record exists — PATCH (update)
+      res = await fetch(
+        `${SUPABASE_URL}/rest/v1/weekly_plans?salesperson=eq.${encRep}&week_commencing=eq.${encWeek}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey':        SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type':  'application/json',
+            'Prefer':        'return=minimal',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+    } else {
+      // No record — POST (insert)
+      res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_plans`, {
+        method: 'POST',
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=minimal',
+        },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!res.ok) {
       const err = await res.text();
@@ -1924,13 +2032,21 @@ async function submitPlan() {
   } catch(e) {
     console.error('Submit failed:', e);
     btn.disabled = false;
-    btn.textContent = 'Submit Weekly Plan →';
     btn.style.background = 'var(--red)';
     btn.textContent = 'Failed — tap to retry';
+    // Show error detail below button
+    let errEl = document.getElementById('submit-error');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.id = 'submit-error';
+      errEl.style.cssText = 'font-size:11px;color:var(--red);margin-top:8px;font-weight:600;text-align:center';
+      btn.parentNode.insertBefore(errEl, btn.nextSibling);
+    }
+    errEl.textContent = e.message || 'Unknown error';
     setTimeout(() => {
       btn.style.background = '';
       btn.textContent = 'Submit Weekly Plan →';
-    }, 3000);
+    }, 5000);
   }
 }
 
@@ -2037,6 +2153,9 @@ function resetForm() {
   document.getElementById('form-body').style.display = 'block';
   document.getElementById('success').style.display = 'none';
   document.getElementById('rep-select').value = '';
+  document.getElementById('week-select').value = '0';
+  selectedWeekIdx = 0;
+  rebuildDayHeaders();
   document.getElementById('target-rev').value = '';
   document.getElementById('flags').value = '';
 

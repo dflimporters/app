@@ -136,270 +136,327 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .exp-stat-lbl { font-size:9px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; font-family:'Montserrat',sans-serif; white-space:nowrap; }
 .exp-stat-val { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--text); margin-top:2px; white-space:nowrap; }
 .footer{text-align:center;padding:16px 24px;font-size:11px;color:var(--text-soft);}
-@media(max-width:900px){.sc-identity{min-width:160px;max-width:160px;}.sc-stats{flex-wrap:wrap;}.sc-stat{min-width:70px;}}
-@media(max-width:768px){.portfolio-panel.active{margin:0 8px 16px;padding:12px;}.main-tabs{padding:10px 8px 0;overflow-x:auto;}.kam-card{flex-direction:column;}.sc-main{flex-wrap:wrap;}.sc-pace{min-width:200px;}.sc-stats{border-left:none;border-top:1px solid var(--border);padding-top:10px;padding-left:0;width:100%;}}
 
-/* ── STORE CARDS — matches category dashboard card style ─────────── */
+
+/* ── Store list & card layout ─────────────────────────────── */
 .store-list { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; }
-
-.store-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  border-left:4px solid var(--border);
-  box-shadow:var(--shadow);
-  cursor:pointer;
-  transition:box-shadow 0.15s, border-left-color 0.15s;
-  overflow:hidden;
-}
-.store-card:hover { box-shadow:0 3px 12px rgba(26,35,64,0.12); }
-.store-card.status-on-pace  { border-left-color:var(--green); }
-.store-card.status-watch    { border-left-color:var(--amber); }
-.store-card.status-follow-up{ border-left-color:var(--red); }
-.store-card.expanded {
-  box-shadow: 0 6px 24px rgba(26,35,64,0.18);
-  border-color: var(--border2, #C8D4EC);
-  z-index: 2;
-  position: relative;
-}
-
-/* Card main row */
-.sc-main {
-  display:flex; align-items:center; gap:0;
-  padding:11px 16px;
-}
-
-/* Left: name + badge */
-.sc-identity {
-  min-width:180px; max-width:180px; flex-shrink:0;
-  display:flex; flex-direction:column; gap:4px;
-  padding-right:16px; border-right:1px solid var(--border);
-}
-.sc-name {
-  font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700;
-  color:var(--text); line-height:1.2;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
+.sc-main { display:flex; align-items:center; gap:0; padding:11px 16px; }
+.sc-identity { min-width:180px; max-width:180px; flex-shrink:0; display:flex; flex-direction:column; gap:4px; padding-right:16px; border-right:1px solid var(--border); }
+.sc-name { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; color:var(--text); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sc-rep { font-size:11px; color:var(--text-soft); margin-top:1px; }
-
-/* Status badge */
-.sc-badge {
-  display:inline-flex; align-items:center; gap:3px;
-  padding:2px 8px; border-radius:20px;
-  font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700;
-  white-space:nowrap;
-}
-.sc-badge.on-pace  { background:#DCFCE7; color:#166534; }
-.sc-badge.watch    { background:#FEF9C3; color:#854D0E; }
-.sc-badge.follow-up{ background:#FEE2E2; color:#991B1B; }
-.sc-badge.no-budget{ background:var(--border-soft); color:var(--text-soft); }
-
-/* Middle: pace bar section */
-.sc-pace {
-  flex:1; padding:0 14px; max-width:320px;
-  display:flex; flex-direction:column; gap:5px;
-  min-width:0;
-}
-.sc-pace-top {
-  display:flex; align-items:center; gap:8px;
-}
-.sc-pace-pct {
-  font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700;
-  color:var(--text); white-space:nowrap;
-}
-.sc-pace-vs {
-  font-size:11px; color:var(--text-soft); white-space:nowrap;
-}
-.sc-pace-gap-amt {
-  margin-left:auto;
-  font-family:'Montserrat',sans-serif; font-size:11px; font-weight:600;
-  white-space:nowrap;
-}
-
-/* Pace bar */
+.sc-pace { flex:1; padding:0 14px; max-width:320px; display:flex; flex-direction:column; gap:5px; min-width:0; }
+.sc-pace-top { display:flex; align-items:center; gap:8px; }
+.sc-pace-pct { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; }
+.sc-pace-vs  { font-size:11px; color:var(--text-soft); white-space:nowrap; }
+.sc-pace-gap-amt { margin-left:auto; font-family:'Montserrat',sans-serif; font-size:11px; font-weight:600; white-space:nowrap; }
 .sc-bar-wrap { position:relative; height:8px; border-radius:4px; background:var(--border); overflow:visible; }
 .sc-bar-fill { height:100%; border-radius:4px; transition:width 0.4s ease; }
-/* Pace marker line */
-.sc-bar-marker {
-  position:absolute; top:-3px; bottom:-3px; width:2px;
-  background:var(--text-mid); border-radius:1px;
-  transform:translateX(-50%);
-}
-
-.sc-pace-bot {
-  font-size:11px; color:var(--text-mid);
-}
-.sc-pace-bot .ahead { color:var(--green); font-weight:600; }
-.sc-pace-bot .behind { color:var(--red); font-weight:600; }
-
-/* Right: stat blocks */
-.sc-stats {
-  display:flex; gap:0; flex-shrink:0;
-  padding-left:16px; border-left:1px solid var(--border);
-}
-.sc-stat {
-  padding:0 14px; text-align:center; min-width:80px;
-  border-right:1px solid var(--border);
-}
+.sc-bar-marker { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text-mid); border-radius:1px; transform:translateX(-50%); }
+.sc-pace-bot { font-size:11px; color:var(--text-mid); }
+.sc-pace-bot .ahead  { color:var(--green); font-weight:600; }
+.sc-pace-bot .behind { color:var(--red);   font-weight:600; }
+.sc-stats { display:flex; gap:0; flex-shrink:0; padding-left:16px; border-left:1px solid var(--border); }
+.sc-stat { padding:0 14px; text-align:center; min-width:80px; border-right:1px solid var(--border); }
 .sc-stat:last-child { border-right:none; padding-right:0; }
-.sc-stat-label {
-  font-size:9px; color:var(--text-soft); text-transform:uppercase;
-  letter-spacing:0.6px; font-weight:600; font-family:'Montserrat',sans-serif;
-  white-space:nowrap;
-}
-.sc-stat-value {
-  font-family:'Montserrat',sans-serif; font-size:14px; font-weight:800;
-  color:var(--text); margin-top:3px; white-space:nowrap;
-}
-.sc-stat-value.green { color:var(--green); }
-.sc-stat-value.red   { color:var(--red);   }
-.sc-stat-value.amber { color:var(--amber); }
-
-/* Chevron toggle */
-.sc-chevron {
-  width:20px; height:20px; border-radius:4px;
-  background:var(--border); color:var(--text-mid);
-  display:flex; align-items:center; justify-content:center;
-  font-size:9px; font-weight:700;
-  transition:all 0.2s; flex-shrink:0; margin-left:12px;
-}
+.sc-stat-label { font-size:9px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; font-weight:600; font-family:'Montserrat',sans-serif; white-space:nowrap; }
+.sc-stat-value { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:800; color:var(--text); margin-top:3px; white-space:nowrap; }
+.sc-stat-value.green { color:var(--green); } .sc-stat-value.red { color:var(--red); } .sc-stat-value.amber { color:var(--amber); }
+.sc-chevron { width:20px; height:20px; border-radius:4px; background:var(--border); color:var(--text-mid); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; transition:all 0.2s; flex-shrink:0; margin-left:12px; }
 .store-card.expanded .sc-chevron { background:var(--blue); color:#fff; transform:rotate(90deg); }
 [data-p="key"]  .store-card.expanded .sc-chevron { background:var(--key-col); }
 [data-p="hosp"] .store-card.expanded .sc-chevron { background:var(--hosp-col); }
-
-/* Expand panel inside card */
-.sc-expand {
-  display:none;
-  border-top:2px solid var(--border);
-  background:var(--bg);
-  margin: 0 -1px -1px -1px; /* extend to card edges */
-  border-radius: 0 0 var(--radius) var(--radius);
-  border-bottom: 3px solid var(--border2, #C8D4EC);
-  overflow: hidden;
-}
-.store-card.status-on-pace.expanded  .sc-expand { border-bottom-color: var(--green); }
-.store-card.status-watch.expanded    .sc-expand { border-bottom-color: var(--amber); }
-.store-card.status-follow-up.expanded .sc-expand { border-bottom-color: var(--red); }
+.portfolio-total { display:flex; align-items:center; gap:0; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius); padding:12px 20px; margin-bottom:16px; box-shadow:var(--shadow); flex-wrap:wrap; }
+.pt-label { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-mid); min-width:160px; flex-shrink:0; padding-right:20px; border-right:1px solid var(--border); margin-right:20px; }
+.pt-stats { display:flex; gap:0; flex:1; flex-wrap:wrap; align-items:center; }
+.pt-stat { padding:4px 18px; border-right:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.pt-stat:last-child { border-right:none; }
+.pt-stat-icon { font-size:14px; } .pt-stat-info { display:flex; flex-direction:column; }
+.pt-stat-label { font-size:10px; color:var(--text-soft); font-weight:600; font-family:'Montserrat',sans-serif; }
+.pt-stat-value { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:800; margin-top:1px; }
+.pt-stat-value.s-green { color:var(--green); } .pt-stat-value.s-amber { color:var(--amber); } .pt-stat-value.s-red { color:var(--red); } .pt-stat-value.s-grey { color:var(--text-soft); }
+.sc-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; white-space:nowrap; }
+.sc-badge.on-pace   { background:#DCFCE7; color:#166534; }
+.sc-badge.watch     { background:#FEF9C3; color:#854D0E; }
+.sc-badge.follow-up { background:#FEE2E2; color:#991B1B; }
+.sc-badge.no-budget { background:var(--border-soft); color:var(--text-soft); }
+.store-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); border-left:4px solid var(--border); box-shadow:var(--shadow); cursor:pointer; transition:box-shadow 0.15s,border-left-color 0.15s; overflow:hidden; }
+.store-card:hover { box-shadow:0 3px 12px rgba(26,35,64,0.12); }
+.store-card.status-on-pace { border-left-color:var(--green); }
+.store-card.status-watch { border-left-color:var(--amber); }
+.store-card.status-follow-up { border-left-color:var(--red); }
+.store-card.expanded { box-shadow:0 6px 24px rgba(26,35,64,0.18); border-color:var(--border2,#C8D4EC); z-index:2; position:relative; }
+/* Expand panel */
+.sc-expand { display:none; border-top:2px solid var(--border); background:var(--bg); margin:0 -1px -1px -1px; border-radius:0 0 var(--radius) var(--radius); border-bottom:3px solid var(--border2,#C8D4EC); overflow:hidden; }
+.store-card.status-on-pace.expanded   .sc-expand { border-bottom-color:var(--green); }
+.store-card.status-watch.expanded     .sc-expand { border-bottom-color:var(--amber); }
+.store-card.status-follow-up.expanded .sc-expand { border-bottom-color:var(--red); }
 .store-card.expanded .sc-expand { display:block; }
-
-/* Tab bar — pill style */
-.sc-exp-tabs {
-  display:flex; gap:6px;
-  background:var(--surface-alt);
-  border-bottom:1px solid var(--border);
-  padding:8px 12px;
-}
-.sc-exp-tab {
-  padding:5px 14px; font-size:10px; font-weight:700; cursor:pointer;
-  color:var(--text-mid); border-radius:20px;
-  transition:all 0.15s; text-transform:uppercase; letter-spacing:0.5px;
-  font-family:'Montserrat',sans-serif; border:1px solid transparent;
-}
+/* Expand tab pills */
+.sc-exp-tabs { display:flex; gap:6px; background:var(--surface-alt); border-bottom:1px solid var(--border); padding:8px 12px; }
+.sc-exp-tab { padding:5px 14px; font-size:10px; font-weight:700; cursor:pointer; color:var(--text-mid); border-radius:20px; transition:all 0.15s; text-transform:uppercase; letter-spacing:0.5px; font-family:'Montserrat',sans-serif; border:1px solid transparent; }
 .sc-exp-tab:hover { background:var(--border); color:var(--text); }
-
-/* Active tab — filled pill per portfolio */
 .sc-exp-tab.active { color:#fff; border-color:transparent; }
 [data-p="chain"] .sc-exp-tab.active { background:var(--chain-col); }
 [data-p="key"]   .sc-exp-tab.active { background:var(--key-col); }
 [data-p="hosp"]  .sc-exp-tab.active { background:var(--hosp-col); }
-
-/* Panel backgrounds — subtle tint per tab */
+/* Expand panels */
 .sc-exp-panel { display:none; padding:0; }
 .sc-exp-panel.active { display:block; }
-.sc-exp-panel.active[data-tab="cat"] { background:#F0F5FF; } /* light blue */
-.sc-exp-panel.active[data-tab="rep"] { background:#F5F0FF; } /* light purple */
-.sc-exp-panel.active[data-tab="sku"] { background:#FFFBEB; } /* light amber */
-
-/* Panel header label */
-.sc-panel-header {
-  padding:7px 14px;
-  font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700;
-  text-transform:uppercase; letter-spacing:0.9px;
-  border-bottom:1px solid var(--border);
-  display:flex; align-items:center; gap:6px;
-  position:sticky; top:0; z-index:1;
-}
+.sc-exp-panel.active[data-tab="cat"] { background:#F0F5FF; }
+.sc-exp-panel.active[data-tab="rep"] { background:#F5F0FF; }
+.sc-exp-panel.active[data-tab="sku"] { background:#FFFBEB; }
+.sc-panel-header { padding:7px 14px; font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.9px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:1; }
 .sc-panel-header[data-tab="cat"] { color:var(--chain-col); background:#E8F0FD; border-color:#c7dbf8; }
 .sc-panel-header[data-tab="rep"] { color:var(--key-col);   background:#EDE8FA; border-color:#d4c5f9; }
 .sc-panel-header[data-tab="sku"] { color:#92400E;           background:#FEF3C7; border-color:#fde68a; }
 [data-p="hosp"] .sc-panel-header[data-tab="cat"] { color:var(--hosp-col); background:#E0F4F8; border-color:#b3e4f0; }
 [data-p="hosp"] .sc-panel-header[data-tab="rep"] { color:var(--hosp-col); background:#E0F4F8; border-color:#b3e4f0; }
-
-/* Alternating row bands in mini-table */
 .sc-exp-panel .mini-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.65); }
 .sc-exp-panel .mini-table tbody tr:nth-child(odd)  { background:rgba(255,255,255,0.3); }
 .sc-exp-panel .mini-table tbody tr:hover            { background:rgba(255,255,255,0.9) !important; }
 .sc-exp-panel .mini-table thead th                  { background:rgba(255,255,255,0.5); }
 
-/* exp-card rows in tinted panels */
-.sc-exp-panel .exp-card { background:transparent; }
-.sc-exp-panel .exp-card:nth-child(even) .exp-card-main { background:rgba(255,255,255,0.55); }
-.sc-exp-panel .exp-card:nth-child(odd)  .exp-card-main { background:rgba(255,255,255,0.25); }
-.sc-exp-panel .exp-card:hover .exp-card-main { background:rgba(255,255,255,0.9) !important; }
-
-/* Portfolio total bar */
-.portfolio-total {
-  display:flex; align-items:center; gap:0;
-  background:var(--surface-alt); border:1px solid var(--border);
-  border-radius:var(--radius); padding:12px 20px;
-  margin-bottom:16px; box-shadow:var(--shadow);
-  flex-wrap:wrap;
+/* ── Share Brief button ─────────────────────────────────────── */
+.brief-btn {
+  margin-left:auto; flex-shrink:0;
+  background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4);
+  border-radius:7px; color:#fff; font-family:'Montserrat',sans-serif;
+  font-size:11px; font-weight:700; padding:6px 14px; cursor:pointer;
+  letter-spacing:0.03em; transition:background 0.2s; white-space:nowrap;
 }
-.pt-label {
+.brief-btn:hover { background:rgba(255,255,255,0.32); }
+
+/* ── Brief modal overlay ────────────────────────────────────── */
+.brief-overlay {
+  display:none; position:fixed; inset:0; z-index:2000;
+  background:rgba(13,27,62,0.65); backdrop-filter:blur(4px);
+  align-items:flex-start; justify-content:center;
+  padding:24px 16px; overflow-y:auto;
+}
+.brief-overlay.open { display:flex; }
+.brief-box {
+  background:#fff; border-radius:14px; width:100%; max-width:780px;
+  box-shadow:0 24px 64px rgba(0,0,0,0.3); margin:auto;
+}
+.brief-header {
+  padding:20px 24px 16px; border-radius:14px 14px 0 0;
+  display:flex; align-items:center; gap:14px;
+}
+.brief-header-text { flex:1; }
+.brief-header-title { font-family:'Montserrat',sans-serif; font-size:18px; font-weight:800; color:#fff; }
+.brief-header-sub   { font-size:12px; color:rgba(255,255,255,0.8); margin-top:2px; }
+.brief-header-actions { display:flex; gap:8px; }
+.brief-action-btn {
+  padding:7px 14px; border-radius:7px; border:1px solid rgba(255,255,255,0.4);
   font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700;
-  text-transform:uppercase; letter-spacing:0.6px; color:var(--text-mid);
-  min-width:160px; flex-shrink:0; padding-right:20px;
-  border-right:1px solid var(--border); margin-right:20px;
+  cursor:pointer; background:rgba(255,255,255,0.2); color:#fff; transition:all 0.15s;
 }
-.pt-stats { display:flex; gap:0; flex:1; flex-wrap:wrap; align-items:center; }
-.pt-stat {
-  padding:4px 18px; border-right:1px solid var(--border);
-  display:flex; align-items:center; gap:10px;
-}
-.pt-stat:last-child { border-right:none; }
-.pt-stat-icon { font-size:14px; }
-.pt-stat-info { display:flex; flex-direction:column; }
-.pt-stat-label { font-size:10px; color:var(--text-soft); font-weight:600; font-family:'Montserrat',sans-serif; }
-.pt-stat-value { font-family:'Montserrat',sans-serif; font-size:15px; font-weight:800; margin-top:1px; }
-.pt-stat-value.s-green { color:var(--green); }
-.pt-stat-value.s-amber { color:var(--amber); }
-.pt-stat-value.s-red   { color:var(--red); }
-.pt-stat-value.s-grey  { color:var(--text-soft); }
+.brief-action-btn:hover { background:rgba(255,255,255,0.35); }
+.brief-action-btn.close { background:rgba(0,0,0,0.15); }
+.brief-body { padding:20px 24px 24px; }
 
-/* Mini table inside expand */
-.mini-table { width:100%; border-collapse:collapse; font-size:12px; }
-.mini-table thead th {
-  padding:6px 10px; text-align:left;
-  font-size:10px; font-weight:700; text-transform:uppercase;
-  letter-spacing:0.5px; color:var(--text-mid);
-  border-bottom:1px solid var(--border);
-  font-family:'Montserrat',sans-serif;
-  background:var(--surface-alt); white-space:nowrap;
+/* Brief sections */
+.brief-section { margin-bottom:20px; }
+.brief-section-title {
+  font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800;
+  text-transform:uppercase; letter-spacing:1px; color:var(--text-mid);
+  border-bottom:2px solid var(--border); padding-bottom:6px; margin-bottom:10px;
 }
-.mini-table thead th.r { text-align:right; }
-.mini-table tbody tr { border-bottom:1px solid var(--border-soft); transition:background 0.1s; }
-.mini-table tbody tr:last-child { border-bottom:none; }
-.mini-table tbody tr:hover { background:var(--surface-alt); }
-.mini-table tbody td { padding:6px 10px; color:var(--text); }
-.mini-table tbody td.r { text-align:right; font-family:'Montserrat',sans-serif; font-weight:600; font-size:11px; color:var(--text-mid); }
-.mini-table tfoot td { padding:7px 10px; background:var(--surface-alt); border-top:1px solid var(--border); font-family:'Montserrat',sans-serif; font-weight:700; font-size:11px; text-align:right; }
-.mini-table tfoot td.lbl { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-mid); }
-.exp-empty { padding:20px; text-align:center; color:var(--text-soft); font-size:12px; }
-.cat-tag { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; background:var(--surface-alt); border:1px solid var(--border); padding:1px 7px; border-radius:4px; display:inline-block; }
+.brief-summary-grid {
+  display:grid; grid-template-columns:repeat(5,1fr); gap:0;
+  border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:16px;
+}
+.brief-sum-stat { padding:10px 12px; text-align:center; border-right:1px solid var(--border); background:var(--surface-alt); }
+.brief-sum-stat:last-child { border-right:none; }
+.brief-sum-label { font-size:9px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; font-weight:700; font-family:'Montserrat',sans-serif; }
+.brief-sum-value { font-family:'Montserrat',sans-serif; font-size:16px; font-weight:800; color:var(--text); margin-top:3px; }
+.brief-sum-value.green { color:var(--green); } .brief-sum-value.red { color:var(--red); } .brief-sum-value.amber { color:var(--amber); }
 
-/* Status badges */
-.badge {
-  display:inline-flex; align-items:center; gap:4px;
-  padding:2px 8px; border-radius:20px;
-  font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700;
-  white-space:nowrap; letter-spacing:0.3px;
+/* Store rows in brief */
+.brief-store-row {
+  border:1px solid var(--border); border-radius:8px; margin-bottom:8px;
+  overflow:hidden; border-left:4px solid var(--border);
 }
-.badge-on-pace  { background:#DCFCE7; color:#166534; }
-.badge-watch    { background:#FEF9C3; color:#854D0E; }
-.badge-follow   { background:#FEE2E2; color:#991B1B; }
-.badge-no-budget{ background:var(--border-soft); color:var(--text-soft); }
-.footer{text-align:center;padding:16px 24px;font-size:11px;color:var(--text-soft);}
-@media(max-width:768px){.portfolio-panel.active{margin:0 8px 16px;padding:12px;}.main-tabs{padding:10px 8px 0;overflow-x:auto;}.kam-card{flex-direction:column;}}
+.brief-store-row.follow-up { border-left-color:var(--red); }
+.brief-store-row.watch     { border-left-color:var(--amber); }
+.brief-store-row.on-pace   { border-left-color:var(--green); }
+.brief-store-head {
+  display:flex; align-items:center; gap:10px; padding:8px 12px;
+  background:var(--surface-alt);
+}
+.brief-store-name { font-family:'Montserrat',sans-serif; font-size:12px; font-weight:700; color:var(--text); flex:1; }
+.brief-store-rep  { font-size:11px; color:var(--text-soft); }
+.brief-store-stats { display:flex; gap:0; }
+.brief-store-stat { padding:4px 10px; text-align:center; border-left:1px solid var(--border); }
+.brief-store-stat-label { font-size:8px; color:var(--text-soft); text-transform:uppercase; font-weight:700; letter-spacing:0.5px; }
+.brief-store-stat-value { font-family:'Montserrat',sans-serif; font-size:12px; font-weight:800; margin-top:1px; }
+.brief-badge { padding:2px 8px; border-radius:20px; font-size:9px; font-weight:700; font-family:'Montserrat',sans-serif; }
+.brief-badge.follow-up { background:#FEE2E2; color:#991B1B; }
+.brief-badge.watch     { background:#FEF9C3; color:#854D0E; }
+.brief-badge.on-pace   { background:#DCFCE7; color:#166534; }
+.brief-sku-list { padding:6px 12px 8px; font-size:11px; color:var(--text-mid); }
+.brief-sku-list span { display:inline-block; background:var(--border-soft); border-radius:4px; padding:1px 6px; margin:2px 2px; font-size:10px; }
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE OPTIMISATION — 390px and up to 768px
+   Desktop layout (>768px) is completely unaffected
+   ═══════════════════════════════════════════════════════════ */
+@media(max-width:768px){
+
+  /* Topbar */
+  .topbar{height:auto;padding:10px 12px;flex-wrap:wrap;gap:6px;}
+  .topbar-logo{width:28px;height:28px;}
+  .topbar-titles h1{font-size:14px;}
+  .topbar-titles p{font-size:10px;}
+  #periodLabel,#lastUpdated{font-size:10px;}
+
+  /* Summary strip */
+  .summary-strip{padding:0 12px;}
+  .strip-item{padding:8px 12px 8px 0;margin-right:12px;}
+  .strip-val{font-size:13px;}
+  .strip-label{font-size:9px;}
+
+  /* Controls */
+  .controls{padding:8px 12px;gap:8px;flex-wrap:wrap;}
+  .controls select{font-size:12px;padding:5px 8px;}
+  .btn-refresh{margin-left:0;width:100%;justify-content:center;padding:9px;}
+
+  /* Main tabs */
+  .main-tabs{padding:10px 12px 0;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .main-tab{padding:7px 14px;font-size:11px;white-space:nowrap;}
+
+  /* Portfolio panel */
+  .portfolio-panel.active{margin:0 8px 16px;padding:12px 10px;}
+
+  /* KAM card — stack vertically, stats in 2-col grid */
+  .kam-card{flex-direction:column;gap:12px;padding:14px;}
+  .kam-avatar{width:44px;height:44px;font-size:15px;}
+  .kam-name{font-size:15px;}
+  .kam-stats{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:0;}
+  .kam-stat{
+    min-width:unset;max-width:unset;padding:8px 10px;
+    border-right:1px solid rgba(255,255,255,0.15) !important;
+    border-bottom:1px solid rgba(255,255,255,0.15);
+    margin-right:0;
+  }
+  .kam-stat:nth-child(even){border-right:none !important;}
+  .kam-stat:nth-last-child(-n+2){border-bottom:none;}
+  .kam-stat-value{font-size:14px;}
+  .kam-stat-label{font-size:9px;}
+
+  /* Portfolio total bar */
+  .portfolio-total{padding:10px 12px;gap:0;}
+  .pt-label{
+    min-width:100%;border-right:none;
+    border-bottom:1px solid var(--border);
+    padding-bottom:8px;margin-bottom:8px;margin-right:0;
+  }
+  .pt-stats{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    grid-template-rows:auto auto;
+    width:100%;gap:0;
+    align-items:center;
+  }
+  .pt-stat{padding:5px 8px;border-right:none;border-bottom:none;min-width:unset;}
+  /* On Pace — col 1 row 1 */
+  .pt-stat:nth-child(1){grid-column:1;grid-row:1;border-right:1px solid var(--border);}
+  /* Watch — col 2 row 1 */
+  .pt-stat:nth-child(2){grid-column:2;grid-row:1;border-right:1px solid var(--border);}
+  /* Follow Up — col 1 row 2 */
+  .pt-stat:nth-child(3){grid-column:1;grid-row:2;border-right:1px solid var(--border);border-top:1px solid var(--border);}
+  /* No Budget — col 2 row 2 */
+  .pt-stat:nth-child(4){grid-column:2;grid-row:2;border-right:1px solid var(--border);border-top:1px solid var(--border);}
+  /* Overall Achieved — col 3 rows 1-2, right-aligned */
+  .pt-stat:last-child{
+    grid-column:3;grid-row:1/3;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:8px 0 8px 12px;
+    border-right:none;border-top:none;
+    text-align:right;
+  }
+  .pt-stat:last-child .pt-stat-value{font-size:18px;}
+  .pt-stat:last-child .pt-stat-label{font-size:9px;}
+
+  /* Store list */
+  .store-list{gap:8px;}
+
+  /* Store card — stack identity + pace + stats vertically */
+  .sc-main{flex-direction:column;align-items:stretch;padding:10px 12px;gap:10px;}
+  .sc-identity{
+    min-width:unset;max-width:unset;
+    flex-direction:row;align-items:center;gap:10px;
+    padding-right:0;border-right:none;
+    border-bottom:1px solid var(--border);padding-bottom:10px;
+  }
+  .sc-name{white-space:normal;font-size:13px;flex:1;}
+  .sc-pace{padding:0;max-width:unset;}
+  .sc-stats{
+    display:grid;grid-template-columns:1fr 1fr 1fr;
+    border-left:none;border-top:1px solid var(--border);
+    padding-left:0;padding-top:8px;width:100%;
+  }
+  .sc-stat{
+    padding:6px 6px;min-width:unset;
+    border-right:1px solid var(--border);
+    border-bottom:1px solid var(--border);
+    text-align:center;
+  }
+  .sc-stat:nth-child(3n){border-right:none;}
+  .sc-stat:nth-last-child(-n+3){border-bottom:none;}
+  .sc-stat-value{font-size:12px;}
+  .sc-stat-label{font-size:8px;}
+  .sc-chevron{margin-left:auto;flex-shrink:0;}
+
+  /* Expand tabs */
+  .sc-exp-tabs{padding:6px 8px;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sc-exp-tab{padding:5px 10px;font-size:10px;white-space:nowrap;}
+
+  /* Category table — horizontal scroll */
+  .sc-exp-panel[data-tab="cat"]{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sc-exp-panel[data-tab="cat"] .mini-table{min-width:600px;}
+
+  /* SKU table — horizontal scroll */
+  .sc-exp-panel[data-tab="sku"]{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sc-exp-panel[data-tab="sku"] .mini-table{min-width:480px;}
+
+  /* Mini table base */
+  .mini-table thead th{padding:5px 8px;font-size:9px;}
+  .mini-table tbody td{padding:5px 8px;font-size:11px;}
+
+  /* Exp card (cat/rep rows) — stack vertically */
+  .exp-card-main{flex-direction:column;align-items:stretch;padding:10px;gap:8px;}
+  .exp-card-id{
+    min-width:unset;max-width:unset;
+    padding-right:0;border-right:none;
+    border-bottom:1px solid var(--border);padding-bottom:8px;
+    grid-template-columns:1fr auto;
+  }
+  .exp-card-stats{
+    display:grid;grid-template-columns:1fr 1fr;
+    border-left:none;padding-left:0;
+    border-top:1px solid var(--border);padding-top:8px;
+  }
+  .exp-stat{
+    padding:5px 8px;border-right:1px solid var(--border);
+    border-bottom:1px solid var(--border);text-align:left;min-width:unset;
+  }
+  .exp-stat:nth-child(even){border-right:none;}
+  .exp-stat:nth-last-child(-n+2){border-bottom:none;}
+  .exp-stat-lbl{font-size:9px;}
+  .exp-stat-val{font-size:12px;}
+}
+
+/* Extra small (360px) */
+@media(max-width:390px){
+  .topbar-titles h1{font-size:13px;}
+  .sc-stats{grid-template-columns:1fr 1fr;}
+  .sc-stat:nth-child(3n){border-right:1px solid var(--border);}
+  .sc-stat:nth-child(even){border-right:none;}
+  .main-tab{padding:6px 10px;font-size:10px;}
+  .kam-stat-value{font-size:13px;}
+  .strip-val{font-size:12px;}
+}
 </style>
 </head>
 <body>
@@ -450,6 +507,7 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
     <div class="kam-avatar">AS</div>
     <div class="kam-info"><div class="kam-name">Andrea Skelton</div><div class="kam-role">Chain Stores · Key Account Manager</div><div class="kam-count" id="chain-count">Loading...</div></div>
     <div class="kam-stats" id="chain-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('chain')">✦ Share Brief</button>
   </div>
   <div class="section-label">Store Performance</div>
   <div id="chain-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
@@ -461,6 +519,7 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
     <div class="kam-avatar">SM</div>
     <div class="kam-info"><div class="kam-name">Shallet Marsh</div><div class="kam-role">Key Stores · Key Account Manager</div><div class="kam-count" id="key-count">Loading...</div></div>
     <div class="kam-stats" id="key-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('key')">✦ Share Brief</button>
   </div>
   <div class="section-label">Store Performance</div>
   <div id="key-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
@@ -472,12 +531,30 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
     <div class="kam-avatar">PW</div>
     <div class="kam-info"><div class="kam-name">Phobea Whorms</div><div class="kam-role">Hospitality · Key Account Manager</div><div class="kam-count" id="hosp-count">Loading...</div></div>
     <div class="kam-stats" id="hosp-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('hosp')">✦ Share Brief</button>
   </div>
   <div class="section-label">Account Performance</div>
   <div id="hosp-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
 </div>
 
 <div class="footer">DFL Importers · Key Accounts Dashboard · Live data from Supabase</div>
+
+<!-- Brief Modal -->
+<div class="brief-overlay" id="briefOverlay">
+  <div class="brief-box">
+    <div class="brief-header" id="briefHeader">
+      <div class="brief-header-text">
+        <div class="brief-header-title" id="briefHeaderTitle">KAM Brief</div>
+        <div class="brief-header-sub"   id="briefHeaderSub">Key Accounts Dashboard · DFL Importers</div>
+      </div>
+      <div class="brief-header-actions">
+        <button class="brief-action-btn" onclick="downloadBrief()">⬇ Download PDF</button>
+        <button class="brief-action-btn close" onclick="closeBrief()">✕ Close</button>
+      </div>
+    </div>
+    <div class="brief-body" id="briefBody"></div>
+  </div>
+</div>
 
 <script>
 const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
@@ -486,17 +563,10 @@ const PAGE = 2000;
 
 // ── HARDCODED CUSTOMER ID LISTS (sourced directly from Supabase) ──────────
 // This avoids any browser-side pagination issues with the customers table
-const CHAIN_IDS = ['C000001907','C000001908','C000001909','C000001911','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004159','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004361','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005650','C000005651','C000005652','C000005653','C000005654','C000006029','C000006110','C000006386','C000007077','C000009109','C000009140','C000009381','C000009487'];
+const CHAIN_IDS = ['C000001907','C000001908','C000001909','C000001911','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004159','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004361','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005650','C000005651','C000005652','C000005653','C000005654','C000006029','C000006110','C000006386','C000007077','C000009109','C000009381','C000009487','C000003041','C000003042','C000003043','C000003044','C000005818','C000003778','C000004658'];
 
 const KEY_IDS = [
-  'C000000081','C000009549','C000005934','C000000554','C000000556',
-  'C000000757','C000001490','C000001627','C000001656','C000001689',
-  'C000005724','C000001703','C000001704','C000001972','C000005725',
-  'C000002523','C000002679','C000002680','C000002731','C000002794',
-  'C000002795','C000002896','C000005579','C000009557','C000002974',
-  'C000002976','C000003331','C000003774','C000003934','C000004462',
-  'C000004565','C000004990','C000005049','C000005697','C000005228',
-  'C000008342'
+  'C000000081','C000009549','C000005934','C000000554','C000000556','C000000757','C000001490','C000001627','C000001656','C000001689','C000005724','C000001703','C000001704','C000001972','C000005725','C000002523','C000002679','C000002680','C000002731','C000002794','C000002795','C000002896','C000005579','C000009557','C000002974','C000002976','C000003331','C000003774','C000003934','C000004462','C000004565','C000004990','C000005049','C000005697','C000005228','C000008342'
 ];
 
 const HOSP_IDS = ['C000000692','C000001454','C000001550','C000001766','C000001869','C000002006','C000002218','C000002561','C000003234','C000003500','C000003598','C000004068','C000004069','C000004167','C000005505','C000005577','C000006457','C000006680','C000006839','C000007967'];
@@ -510,7 +580,7 @@ const PORTFOLIOS = {
 let dashData = {}, isLoading = false;
 
 // ── FORMATTERS ────────────────────────────────────────────────────────────
-const fmtP = v => v==null?'—':Number(v).toFixed(1)+'%';
+const fmtP = v => v==null?'—':Math.round(Number(v))+'%';
 const fmtK = v => { if(v==null)return'—'; const n=Number(v),abs=Math.abs(n),sign=n<0?'-':''; if(abs>=1e6)return sign+'$'+(abs/1e6).toFixed(2)+'M'; if(abs>=1000)return sign+'$'+(abs/1000).toFixed(0)+'K'; return sign+'$'+abs.toFixed(0); };
 const pillCls = p => p>=100?'pill-green':p>=75?'pill-amber':'pill-red';
 const barCol  = p => p>=100?'#1A8F4C':p>=75?'#C47A1A':'#D63B3B';
@@ -527,6 +597,7 @@ function getPeriodLabel() {
 }
 function getBudgetMonths() { return isYTD()?Array.from({length:getMonthNum()},(_,i)=>i+1):[getMonthNum()]; }
 function getRevPeriods()   { if(isYTD()){const m=getMonthNum(),y=getPeriod().slice(0,4);return Array.from({length:m},(_,i)=>y+String(i+1).padStart(2,'0'));}return[getPeriod()]; }
+function getLYPeriods()    { return getRevPeriods().map(p => String(parseInt(p.slice(0,4))-1)+p.slice(4)); }
 
 // ── FETCH ─────────────────────────────────────────────────────────────────
 async function sbAll(table, params) {
@@ -587,13 +658,22 @@ async function loadAll() {
     ]);
     const budgetByPortfolio = { chain: chainBudget, key: keyBudget, hosp: hospBudget };
 
-    // 3. Revenue + GP from kam_cust_cache — filtered per portfolio
-    const [chainKam, keyKam, hospKam] = await Promise.all([
+    // 3. Revenue + GP from kam_cust_cache — filtered per portfolio (current year + last year)
+    const lyIn = getLYPeriods().join(',');
+    const [chainKam, keyKam, hospKam, chainLY, keyLY, hospLY] = await Promise.all([
       sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
       sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
-      sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`)
+      sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`)
     ]);
     const kamByPortfolio = { chain: chainKam, key: keyKam, hosp: hospKam };
+    const lyByPortfolio  = { chain: chainLY, key: keyLY, hosp: hospLY };
+    ['chain','key','hosp'].forEach(p => {
+      const lyTotal = (lyByPortfolio[p]||[]).reduce((s,r) => s + (+r.ext_amount||0), 0);
+      console.log(`LY ${p}: ${lyByPortfolio[p].length} rows, total=${lyTotal}`);
+    });
 
     // 4. Per-customer category revenue from cat_cust_cache — filtered per portfolio
     const [chainCatCust, keyCatCust, hospCatCust] = await Promise.all([
@@ -642,7 +722,8 @@ async function loadAll() {
       dashData[p] = process(
         budgetByPortfolio[p], kamByPortfolio[p], catCustByPortfolio[p],
         missSkuByPortfolio[p], catRepData, keySkuSet, keySkuDesc, keySkuList,
-        lastDateMap, paceElapsed, pctElapsedActual
+        lastDateMap, paceElapsed, pctElapsedActual, elapsedWD, totalWD,
+        lyByPortfolio[p]
       );
     });
 
@@ -657,7 +738,7 @@ async function loadAll() {
 }
 
 // ── PROCESS ───────────────────────────────────────────────────────────────
-function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySkuDesc, keySkuList, lastDateMap, paceElapsed, pctElapsedActual) {
+function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySkuDesc, keySkuList, lastDateMap, paceElapsed, pctElapsedActual, elapsedWD, totalWD, lyRows) {
 
   // Budget: aggregate from budget_2026 by customer
   const budgetByCust = {}, custBudgetCats = {}, budgetByRep = {};
@@ -694,6 +775,16 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
     custCatRev[cid][r.item_class] = (custCatRev[cid][r.item_class]||0) + (+r.actual_mtd||0);
   });
 
+  // Per-customer category last purchase date (from missSkuRows which has last_purchase_date per item_class)
+  const custCatLastDate = {};
+  missSkuRows.filter(r => r.last_purchase_date && r.item_class).forEach(r => {
+    const cid = r.customer_id;
+    if (!custCatLastDate[cid]) custCatLastDate[cid] = {};
+    const prev = custCatLastDate[cid][r.item_class];
+    if (!prev || r.last_purchase_date > prev)
+      custCatLastDate[cid][r.item_class] = r.last_purchase_date;
+  });
+
   // Build store rows — union of all customer IDs with budget or revenue
   const allCustIds = new Set([...Object.keys(budgetByCust), ...Object.keys(revByCust)]);
   const stores = [];
@@ -719,8 +810,9 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
     const catKeys = new Set([...Object.keys(custBudgetCats[cid]||{}), ...Object.keys(custCatRev[cid]||{})]);
     const cats = [...catKeys].map(cat => ({
       k: cat,
-      budget:  custBudgetCats[cid]?.[cat] || 0,
-      revenue: custCatRev[cid]?.[cat]     || 0,
+      budget:   custBudgetCats[cid]?.[cat]      || 0,
+      revenue:  custCatRev[cid]?.[cat]           || 0,
+      lastDate: custCatLastDate[cid]?.[cat]      || null,
       ach: (custBudgetCats[cid]?.[cat]||0) > 0
         ? (custCatRev[cid]?.[cat]||0) / (custBudgetCats[cid]?.[cat]||0) * 100
         : null
@@ -750,27 +842,43 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
       };
     }).sort((a,b) => b.revenue - a.revenue);
 
-    // Per-customer Key SKUs — parse missing_skus_json from cat_cust_sku_cache
-    // Each row has missing_skus_json: [{desc, avg_rev, avg_cases, last_purchase}, ...]
-    // Only show SKUs with avg_rev > 0 (items they normally buy but haven't this month)
+    // Per-customer Key SKUs — ALL key items not purchased this month
+    // 1. Parse missing_skus_json (pre-computed for items with purchase history)
     const custMissingSkus = [];
+    const missingDescSet  = new Set(); // track which SKU descs are already in list
     missSkuRows.filter(r => r.customer_id === cid && r.missing_skus_json).forEach(r => {
       try {
         const items = JSON.parse(r.missing_skus_json);
         items.forEach(item => {
-          if ((item.avg_rev || 0) > 0) {
-            custMissingSkus.push({
-              desc:        item.desc || '',
-              ytdAvg:      item.avg_rev   || 0,
-              ytdCases:    item.avg_cases || 0,
-              lastPurchase: item.last_purchase || null
-            });
-          }
+          custMissingSkus.push({
+            desc:         item.desc || '',
+            ytdAvg:       item.avg_rev   || 0,
+            ytdCases:     item.avg_cases || 0,
+            lastPurchase: item.last_purchase || null,
+            hasHistory:   (item.avg_rev || 0) > 0
+          });
+          missingDescSet.add(item.desc || '');
         });
       } catch(e) { /* skip bad JSON */ }
     });
-    // Sort by avg_rev descending so highest-value missed SKUs appear first
-    custMissingSkus.sort((a,b) => b.ytdAvg - a.ytdAvg);
+    // 2. Add ALL key SKUs with no history and not already in the list
+    keySkuList.forEach(sku => {
+      if (!missingDescSet.has(sku.description)) {
+        custMissingSkus.push({
+          desc:         sku.description,
+          ytdAvg:       0,
+          ytdCases:     0,
+          lastPurchase: null,
+          hasHistory:   false
+        });
+      }
+    });
+    // Sort: items with history first (by avg_rev desc), then no-history items alphabetically
+    custMissingSkus.sort((a,b) => {
+      if (a.hasHistory && !b.hasHistory) return -1;
+      if (!a.hasHistory && b.hasHistory) return 1;
+      return b.ytdAvg - a.ytdAvg;
+    });
     const skusArr = custMissingSkus;
 
     stores.push({ key:cid, name, salesperson:rep, budget:bgt, revenue:rev, gp, ach, gpPct, paceAch, status,
@@ -790,10 +898,19 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
   const totRev = stores.reduce((s,r)=>s+r.revenue, 0);
   const totGP  = stores.reduce((s,r)=>s+r.gp,      0);
 
+  // Last year revenue for YoY comparison (pre-summed via RPC)
+  const totLYRev = (lyRows||[]).reduce((s,r) => s + (+r.actual_mtd||0), 0);
+  if (typeof lyRows !== 'undefined') console.log('process lyRows length:', (lyRows||[]).length, 'totLYRev:', totLYRev);
+
   return {
-    stores, paceElapsed, pctElapsed: pctElapsedActual, totBgt, totRev, totGP,
+    stores, paceElapsed, pctElapsed: pctElapsedActual,
+    elapsedWD: elapsedWD, totalWD: totalWD,
+    totBgt, totRev, totGP,
     totAch:   totBgt > 0 ? totRev/totBgt*100 : null,
-    totGPPct: totRev > 0 ? totGP/totRev*100  : null
+    totGPPct: totRev > 0 ? totGP/totRev*100  : null,
+    totLYRev,
+    yoyPct:   totLYRev > 0 ? (totRev - totLYRev)/totLYRev*100 : null,
+    yoyDiff:  totLYRev > 0 ? totRev - totLYRev : null
   };
 }
 
@@ -802,12 +919,21 @@ function renderPortfolio(p) {
   const d = dashData[p]; if (!d) return;
   const gap = d.totRev - d.totBgt;
   document.getElementById(`${p}-count`).textContent = `${d.stores.length} accounts · ${getPeriodLabel()}`;
+  const yoyStatHtml = d.yoyPct != null
+    ? '<div class="kam-stat"><div class="kam-stat-label">vs Last Year</div>'
+      + '<div class="kam-stat-value" style="color:' + (d.yoyPct >= 0 ? '#a7f3d0' : '#fca5a5') + '">'
+      + (d.yoyPct >= 0 ? '+' : '') + d.yoyPct.toFixed(1) + '%</div>'
+      + '<div class="kam-stat-sub" style="color:' + (d.yoyDiff >= 0 ? '#a7f3d0' : '#fca5a5') + '">'
+      + (d.yoyDiff >= 0 ? '+' : '') + fmtK(d.yoyDiff) + '</div></div>'
+    : '';
   document.getElementById(`${p}-kam-stats`).innerHTML = `
     <div class="kam-stat"><div class="kam-stat-label">Target</div><div class="kam-stat-value">${fmtK(d.totBgt)}</div><div class="kam-stat-sub">${getPeriodLabel()}</div></div>
     <div class="kam-stat"><div class="kam-stat-label">MTD Revenue</div><div class="kam-stat-value">${fmtK(d.totRev)}</div></div>
-    <div class="kam-stat"><div class="kam-stat-label">Achieved</div><div class="kam-stat-value" style="color:${(d.totAch||0)>=100?'#a7f3d0':(d.totAch||0)>=75?'#fde68a':'#fca5a5'}">${fmtP(d.totAch)}</div></div>
+    <div class="kam-stat"><div class="kam-stat-label">Achieved</div><div class="kam-stat-value" style="color:${((d.totAch||0)-(d.pctElapsed||0))>=0?'#a7f3d0':((d.totAch||0)-(d.pctElapsed||0))>=-10?'#fde68a':'#fca5a5'}">${fmtP(d.totAch)}</div></div>
     <div class="kam-stat"><div class="kam-stat-label">Gross Profit</div><div class="kam-stat-value">${fmtK(d.totGP)}</div><div class="kam-stat-sub">${fmtP(d.totGPPct)} GP%</div></div>
-    <div class="kam-stat"><div class="kam-stat-label">Gap to Target</div><div class="kam-stat-value" style="color:${gap>=0?'#a7f3d0':'#fca5a5'}">${gap>=0?'+':''}${fmtK(gap)}</div></div>`;
+    <div class="kam-stat"><div class="kam-stat-label">Gap to Target</div><div class="kam-stat-value" style="color:${gap>=0?'#a7f3d0':'#fca5a5'}">${gap>=0?'+':''}${fmtK(gap)}</div></div>
+    ${yoyStatHtml}`;
+  console.log(`YoY ${p}: totLYRev=${d.totLYRev} yoyPct=${d.yoyPct} yoyDiff=${d.yoyDiff}`);
   document.getElementById(`${p}-store-table`).innerHTML = buildStoreCards(d.stores, d.paceElapsed, d.pctElapsed, p);
 }
 
@@ -846,35 +972,55 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
     // Build expand detail
     const det = r.custDetail || {cats:[], reps:[], skus:[]};
 
-    // ── By Category — card style matching rep dashboard image ───────────
-    const catTbl = det.cats.length ? det.cats.map(c => {
-      const catActualPct  = c.budget > 0 ? c.revenue/c.budget*100 : null; // % of full budget
-      const catExpectedPct = pacePct; // working days elapsed %
-      const catPaceGap   = catActualPct !== null ? catActualPct - catExpectedPct : null;
-      const catPaceAch   = catActualPct; // for display as "Current Pace %"
-      const catGap       = c.revenue - (c.budget * paceElapsed);
-      const catStatus    = catPaceGap===null?'no-budget':catPaceGap>=0?'on-pace':catPaceGap>=-10?'watch':'follow-up';
-      const bw = Math.min(catActualPct||0, 100);
-      const bc = catPaceGap===null?'var(--border)':catPaceGap>=0?'var(--green)':catPaceGap>=-10?'var(--amber)':'var(--red)';
-      const [cbCls,cbTxt] = {
-        'on-pace':['on-pace','✓ On Pace'],'watch':['watch','⚠ Watch'],
-        'follow-up':['follow-up','↓ Follow Up'],'no-budget':['no-budget','No Budget']
-      }[catStatus];
-      return `<div class="exp-card">
-        <div class="exp-card-main">
-          <div class="exp-card-id"><span class="cat-tag">${c.k}</span><span class="sc-badge ${cbCls}">${cbTxt}</span></div>
-          <div class="exp-card-stats" style="border-left:none;padding-left:0;flex:1;">
-            <div class="exp-stat"><div class="exp-stat-lbl">Actual Pace %</div><div class="exp-stat-val" style="color:${catPaceGap===null?'var(--text-mid)':catPaceGap>=0?'var(--green)':catPaceGap>=-10?'var(--amber)':'var(--red)'};">${fmtP(catActualPct)}</div><div style="font-size:9px;color:var(--text-soft);">vs ${fmtP(catExpectedPct)} exp</div></div>
-            <div class="exp-stat"><div class="exp-stat-lbl">Actual MTD</div><div class="exp-stat-val">${fmtK(c.revenue)}</div></div>
-            <div class="exp-stat"><div class="exp-stat-lbl">Budget MTD</div><div class="exp-stat-val">${fmtK(c.budget*paceElapsed)}</div></div>
-            <div class="exp-stat"><div class="exp-stat-lbl">Full Mo Budget</div><div class="exp-stat-val">${fmtK(c.budget)}</div></div>
-            <div class="exp-stat"><div class="exp-stat-lbl">Gap vs Pace</div><div class="exp-stat-val" style="color:${catGap>=0?'var(--green)':'var(--red)'};">${catGap>=0?'+':''}${fmtK(catGap)}</div></div>
-          </div>
-        </div>
-      </div>`;
-    }).join('') : `<div class="exp-empty">No category data for this period</div>`;
+    // ── By Category — clean table, one header row, each category has its own stats ──
+    const catTbl = (() => {
+      if (!det.cats.length) return `<div class="exp-empty">No category data for this period</div>`;
 
-    // ── By Rep — simple: rep name + last invoice date ────────────────
+      const rows = det.cats.map(c => {
+        const cActP   = c.budget>0 ? c.revenue/c.budget*100 : null;
+        const cGap    = cActP!==null ? cActP - pacePct : null;
+        const cStatus = cGap===null?'no-budget':cGap>=0?'on-pace':cGap>=-10?'watch':'follow-up';
+        const cbTxt   = {'on-pace':'✓ On Pace','watch':'⚠ Watch','follow-up':'↓ Follow Up','no-budget':'No Budget'}[cStatus];
+        const cBudMTD = c.budget * paceElapsed;
+        const cGapPace = c.revenue - cBudMTD;
+        const actCol  = cGap===null?'var(--text)':cGap>=0?'var(--green)':cGap>=-10?'var(--amber)':'var(--red)';
+        const gapCol  = cGapPace>=0?'var(--green)':'var(--red)';
+        // Last purchased
+        const daysSince = c.lastDate
+          ? Math.floor((new Date()-new Date(c.lastDate))/(1000*60*60*24))
+          : null;
+        const lastTxt = c.lastDate
+          ? `${daysSince}d ago (${new Date(c.lastDate).toLocaleDateString('en-US',{day:'2-digit',month:'short'})})`
+          : '—';
+        const lastCol = daysSince===null?'var(--text-soft)':daysSince<=14?'var(--green)':daysSince<=30?'var(--amber)':'var(--red)';
+        return `<tr>
+          <td style="font-family:'Montserrat',sans-serif;font-size:12px;font-weight:800;color:var(--text);">${c.k}</td>
+          <td class="r"><span style="font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:${actCol};">${fmtP(cActP)}</span></td>
+          <td class="r"><span class="sc-badge ${cStatus}" style="font-size:10px;">${cbTxt}</span></td>
+          <td class="r" style="font-family:'Montserrat',sans-serif;font-weight:700;">${fmtK(c.revenue)}</td>
+          <td class="r" style="font-family:'Montserrat',sans-serif;font-weight:700;">${fmtK(cBudMTD)}</td>
+          <td class="r" style="font-family:'Montserrat',sans-serif;font-weight:700;">${fmtK(c.budget)}</td>
+          <td class="r" style="font-family:'Montserrat',sans-serif;font-weight:700;color:${gapCol};">${cGapPace>=0?'+':''}${fmtK(cGapPace)}</td>
+          <td class="r" style="font-size:11px;font-family:'Montserrat',sans-serif;font-weight:600;color:${lastCol};">${lastTxt}</td>
+        </tr>`;
+      }).join('');
+
+      return `<table class="mini-table">
+        <thead><tr>
+          <th>Category</th>
+          <th class="r">Pace %</th>
+          <th class="r">Status</th>
+          <th class="r">Actual MTD</th>
+          <th class="r">Budget MTD</th>
+          <th class="r">Full Mo Budget</th>
+          <th class="r">Gap vs Pace</th>
+          <th class="r">Last Purchased</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    })();
+
+// ── By Rep — simple: rep name + last invoice date ────────────────
     const repTbl = det.reps.length
       ? `<table class="mini-table">
           <thead><tr><th>Sales Rep</th><th class="r">Last Invoice</th></tr></thead>
@@ -907,8 +1053,8 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
         const daysSince = d ? Math.floor((new Date() - new Date(d)) / (1000*60*60*24)) : null;
         const lastTxt = d
           ? `Last: ${daysSince}d ago (${new Date(d).toLocaleDateString('en-US',{day:'2-digit',month:'short'})})`
-          : 'No history';
-        const dateColor = daysSince===null ? 'var(--text-soft)'
+          : s.hasHistory === false ? 'Never purchased' : 'No history';
+        const dateColor = d===null ? 'var(--text-soft)'
           : daysSince > 60 ? 'var(--red)' : 'var(--amber)';
 
         return `<tr style="background:#FAFBFF;">
@@ -956,10 +1102,10 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
         <!-- Pace bar -->
         <div class="sc-pace">
           <div class="sc-pace-top">
-            <span class="sc-pace-pct">${Math.round(achPct)}%</span>
-            <span class="sc-pace-vs">vs ${Math.round(pacePct)}% pace</span>
+            <span class="sc-pace-pct">${fmtP(pacePct)}</span>
+            <span class="sc-pace-vs">expected pace</span>
             <span class="sc-pace-gap-amt" style="color:${storeGap>=0?'var(--green)':'var(--red)'}">
-              ${fmtK(Math.abs(storeGap))} ${storeGap >= 0 ? 'ahead' : 'gap'}
+              ${storeGap >= 0 ? '+' : ''}${fmtK(storeGap)} vs pace
             </span>
           </div>
           <div class="sc-bar-wrap">
@@ -1101,32 +1247,33 @@ function renderHeader() {
   let tB=0,tR=0,tG=0;
   ['chain','key','hosp'].forEach(p=>{const d=dashData[p]||{};tB+=d.totBgt||0;tR+=d.totRev||0;tG+=d.totGP||0;});
   const ach=tB>0?tR/tB*100:null, gpP=tR>0?tG/tR*100:null, gap=tR-tB;
-  const m=getMonthNum(), y=parseInt(getPeriod().slice(0,4)), today=new Date();
-  const dim=new Date(y,m,0).getDate();
-  const dof=(today.getFullYear()===y&&today.getMonth()+1===m)?today.getDate():dim;
 
-  // Pace: actual pace % vs expected pace % — gap drives colour
-  const actualPacePct   = tB>0 ? tR/tB*100 : null;
-  // Use working_days_calendar pct — same source as the rest of the dashboard
-  // For the header we use the same paceElapsed stored in dashData
-  const chainPE = dashData.chain?.pctElapsed || 0;
-  const expectedPacePct = chainPE; // all portfolios share the same calendar month
-  const paceGap         = actualPacePct !== null ? actualPacePct - expectedPacePct : null;
-  const paceCls = paceGap===null ? '' : paceGap>=0 ? 'c-green' : paceGap>=-10 ? 'c-amber' : 'c-red';
+  // Use working days from dashData — sourced from working_days_calendar
+  const chainD        = dashData.chain || {};
+  const elapsedWD     = chainD.elapsedWD  || 0;   // e.g. 13
+  const totalWD       = chainD.totalWD    || 20;   // e.g. 20
+  const expectedPacePct = chainD.pctElapsed || 0;  // e.g. 65
+
+  const actualPacePct = tB>0 ? tR/tB*100 : null;
+  const paceGap       = actualPacePct!==null ? actualPacePct - expectedPacePct : null;
+  const paceCls       = paceGap===null?'':paceGap>=0?'c-green':paceGap>=-10?'c-amber':'c-red';
 
   const s=id=>document.getElementById(id);
-  s('hdr-target').textContent  = fmtK(tB);
-  s('hdr-revenue').textContent = fmtK(tR);
-  s('hdr-ach').textContent     = fmtP(ach);
-  s('hdr-ach').className       = 'strip-val ' + sCls(ach||0);
-  s('hdr-ach-sub').textContent = `vs ${fmtK(tB)} target`;
-  s('hdr-pace').textContent    = actualPacePct!==null ? fmtP(actualPacePct)+' vs '+fmtP(expectedPacePct)+'%' : '—';
-  s('hdr-pace').className      = 'strip-val ' + paceCls;
-  s('hdr-pace-sub').textContent= `Day ${dof} of ${dim}`;
-  s('hdr-gp').textContent      = fmtK(tG);
-  s('hdr-gp-sub').textContent  = fmtP(gpP)+' GP%';
-  s('hdr-gap').textContent     = (gap>=0?'+':'')+fmtK(gap);
-  s('hdr-gap').className       = 'strip-val '+(gap>=0?'c-green':'c-red');
+  s('hdr-target').textContent   = fmtK(tB);
+  s('hdr-revenue').textContent  = fmtK(tR);
+  s('hdr-ach').textContent      = fmtP(ach);
+  // Colour achieved vs expected pace — same logic as pace gap
+  const achGap = ach!==null ? ach - expectedPacePct : null;
+  const achCls = achGap===null?'':achGap>=0?'c-green':achGap>=-10?'c-amber':'c-red';
+  s('hdr-ach').className        = 'strip-val ' + achCls;
+  s('hdr-ach-sub').textContent  = `vs ${fmtK(tB)} target`;
+  s('hdr-pace').textContent     = fmtP(expectedPacePct);
+  s('hdr-pace').className       = 'strip-val ' + paceCls;
+  s('hdr-pace-sub').textContent = `Day ${elapsedWD} of ${totalWD} working days`;
+  s('hdr-gp').textContent       = fmtK(tG);
+  s('hdr-gp-sub').textContent   = fmtP(gpP)+' GP%';
+  s('hdr-gap').textContent      = (gap>=0?'+':'')+fmtK(gap);
+  s('hdr-gap').className        = 'strip-val '+(gap>=0?'c-green':'c-red');
 }
 
 function switchPortfolio(p) {
@@ -1135,6 +1282,251 @@ function switchPortfolio(p) {
   document.querySelectorAll('.portfolio-panel').forEach(t=>t.classList.remove('active'));
   document.getElementById(`panel-${p}`).classList.add('active');
 }
+
+
+// ── SHARE BRIEF — client-side only, no API needed ─────────────────────
+const PORTFOLIO_COLORS = {
+  chain: '#3B6FD4',
+  key:   '#7C3AED',
+  hosp:  '#0891B2'
+};
+const PORTFOLIO_NAMES = {
+  chain: 'Chain Stores',
+  key:   'Key Stores',
+  hosp:  'Hospitality'
+};
+const KAM_NAMES = {
+  chain: 'Andrea Skelton',
+  key:   'Shallet Marsh',
+  hosp:  'Phobea Whorms'
+};
+
+function openBrief(portfolio) {
+  const d   = dashData[portfolio];
+  if (!d) return;
+  const col = PORTFOLIO_COLORS[portfolio];
+  const kam = KAM_NAMES[portfolio];
+  const por = PORTFOLIO_NAMES[portfolio];
+  const period = getPeriodLabel();
+
+  // Header
+  document.getElementById('briefHeader').style.background = col;
+  document.getElementById('briefHeaderTitle').textContent = kam + ' — ' + por;
+  document.getElementById('briefHeaderSub').textContent   = period + '  ·  Key Accounts Dashboard  ·  DFL Importers';
+
+  // Build body
+  document.getElementById('briefBody').innerHTML = buildBriefHTML(portfolio, d, col);
+  document.getElementById('briefOverlay').classList.add('open');
+}
+
+function closeBrief() {
+  document.getElementById('briefOverlay').classList.remove('open');
+}
+
+function buildBriefHTML(portfolio, d, col) {
+  const gap      = d.totRev - d.totBgt;
+  const pct      = d.pctElapsed || 0;
+  const ach      = d.totAch || 0;
+  const gapClass = ach >= pct ? 'green' : ach >= pct - 10 ? 'amber' : 'red';
+  const yoyStr   = d.yoyPct != null
+    ? (d.yoyPct >= 0 ? '+' : '') + d.yoyPct.toFixed(1) + '%'
+    : '—';
+
+  // Summary strip
+  let html = '<div class="brief-section">';
+  html += '<div class="brief-section-title">Portfolio Summary — ' + getPeriodLabel() + '</div>';
+  html += '<div class="brief-summary-grid">';
+  html += statBox('Target',       fmtK(d.totBgt), '');
+  html += statBox('MTD Revenue',  fmtK(d.totRev), '');
+  html += statBox('Achieved',     Math.round(ach) + '%', gapClass);
+  html += statBox('GP%',          Math.round(d.totGPPct || 0) + '%', '');
+  html += statBox('vs Last Year', yoyStr, d.yoyPct != null ? (d.yoyPct >= 0 ? 'green' : 'red') : '');
+  html += '</div></div>';
+
+  // Only follow-up and watch stores
+  const critical = d.stores.filter(s => s.status === 'follow-up' || s.status === 'watch');
+  if (!critical.length) {
+    html += '<div class="brief-section"><div style="padding:16px;text-align:center;color:var(--green);font-weight:700;font-family:Montserrat,sans-serif;">✓ All stores on pace — nothing to action</div></div>';
+    return html;
+  }
+
+  // Group by rep
+  const byRep = {};
+  critical.forEach(s => {
+    const rep = s.salesperson || 'Unassigned';
+    if (!byRep[rep]) byRep[rep] = { followUp: [], watch: [] };
+    if (s.status === 'follow-up') byRep[rep].followUp.push(s);
+    else byRep[rep].watch.push(s);
+  });
+
+  // Sort reps by worst gap first
+  const repsSorted = Object.entries(byRep).sort((a, b) => {
+    const gapA = [...a[1].followUp, ...a[1].watch].reduce((s, r) => s + (r.revenue - r.budget), 0);
+    const gapB = [...b[1].followUp, ...b[1].watch].reduce((s, r) => s + (r.revenue - r.budget), 0);
+    return gapA - gapB;
+  });
+
+  const followCount = critical.filter(s => s.status === 'follow-up').length;
+  const watchCount  = critical.filter(s => s.status === 'watch').length;
+  html += '<div class="brief-section">';
+  html += '<div class="brief-section-title">Stores Requiring Attention — '
+    + followCount + ' Follow Up · ' + watchCount + ' Watch</div>';
+
+  repsSorted.forEach(([repName, groups]) => {
+    const allStores   = [...groups.followUp, ...groups.watch];
+    const repRevTotal = allStores.reduce((s, r) => s + r.revenue, 0);
+    const repBgtTotal = allStores.reduce((s, r) => s + r.budget, 0);
+    const repGap      = repRevTotal - repBgtTotal;
+
+    // Rep header
+    html += '<div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;">';
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);">';
+    html += '<div style="font-family:Montserrat,sans-serif;font-size:13px;font-weight:800;color:var(--text);flex:1;">' + repName + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-soft);">' + allStores.length + ' store' + (allStores.length > 1 ? 's' : '') + '</div>';
+    html += '<div style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:' + (repGap >= 0 ? 'var(--green)' : 'var(--red)') + ';margin-left:8px;">'
+      + (repGap >= 0 ? '+' : '') + fmtK(repGap) + ' vs budget</div>';
+    const repIdx = repName.replace(/[^a-z0-9]/gi,'_');
+    html += '<button onclick="downloadRepBrief(\'' + repIdx + '\')" style="margin-left:12px;padding:4px 12px;border-radius:6px;border:none;background:#326BD3;font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;cursor:pointer;color:#fff;letter-spacing:0.03em;">⬇ PDF</button>';
+    html += '</div>';
+    html += '<div id="rep_' + repIdx + '">';
+
+    // Stores under this rep
+    allStores.sort((a, b) => (a.revenue - a.budget) - (b.revenue - b.budget));
+    allStores.forEach(s => { html += buildStoreRow(s, col, pct); });
+    html += '</div></div>'; // close rep_id div + outer wrapper
+  });
+
+  html += '</div>';
+  return html;
+}
+
+function statBox(label, value, cls) {
+  return '<div class="brief-sum-stat">'
+    + '<div class="brief-sum-label">' + label + '</div>'
+    + '<div class="brief-sum-value ' + cls + '">' + value + '</div>'
+    + '</div>';
+}
+
+function buildStoreRow(s, col, pctElapsed) {
+  const ach      = s.ach != null ? Math.round(s.ach) + '%' : '—';
+  const achClass = s.ach != null ? (s.ach >= pctElapsed ? 'green' : s.ach >= pctElapsed - 10 ? 'amber' : 'red') : '';
+  const gap      = fmtK(s.revenue - s.budget);
+  const gapClass = s.revenue >= s.budget ? 'green' : 'red';
+
+  let html = '<div class="brief-store-row ' + s.status + '">';
+  html += '<div class="brief-store-head">';
+  html += '<div class="brief-store-name">' + s.name + '</div>';
+  html += '<div class="brief-store-rep">' + (s.salesperson || '') + '</div>';
+  html += '<span class="brief-badge ' + s.status + '">'
+    + (s.status === 'follow-up' ? '↓ Follow Up' : s.status === 'watch' ? '△ Watch' : '✓ On Pace')
+    + '</span>';
+  html += '<div class="brief-store-stats">';
+  html += '<div class="brief-store-stat"><div class="brief-store-stat-label">Achieved</div><div class="brief-store-stat-value ' + achClass + '">' + ach + '</div></div>';
+  html += '<div class="brief-store-stat"><div class="brief-store-stat-label">MTD Rev</div><div class="brief-store-stat-value">' + fmtK(s.revenue) + '</div></div>';
+  html += '<div class="brief-store-stat"><div class="brief-store-stat-label">Budget</div><div class="brief-store-stat-value">' + fmtK(s.budget) + '</div></div>';
+  html += '<div class="brief-store-stat"><div class="brief-store-stat-label">Gap</div><div class="brief-store-stat-value ' + gapClass + '">' + gap + '</div></div>';
+  html += '<div class="brief-store-stat"><div class="brief-store-stat-label">GP%</div><div class="brief-store-stat-value">' + Math.round(s.gpPct || 0) + '%</div></div>';
+  html += '</div></div>';
+
+  // Categories behind pace
+  if (s.custDetail && s.custDetail.cats && s.custDetail.cats.length) {
+    const behindCats = s.custDetail.cats.filter(c =>
+      c.revenue > 0 && c.budget > 0 && c.ach != null && c.ach < (pctElapsed - 5)
+    ).sort((a, b) => (a.revenue - a.budget) - (b.revenue - b.budget));
+
+    if (behindCats.length) {
+      html += '<div style="padding:6px 12px 8px;border-top:1px solid var(--border);">';
+      html += '<div style="font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);margin-bottom:5px;">Categories Behind</div>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      html += '<thead><tr style="background:var(--surface-alt);">'
+        + '<th style="text-align:left;padding:4px 8px;font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-soft);">Category</th>'
+        + '<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-soft);">Achieved</th>'
+        + '<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-soft);">MTD Rev</th>'
+        + '<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-soft);">Budget</th>'
+        + '<th style="text-align:right;padding:4px 8px;font-size:9px;font-weight:700;font-family:Montserrat,sans-serif;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-soft);">Gap</th>'
+        + '</tr></thead><tbody>';
+      behindCats.forEach((c, i) => {
+        const catGap = c.revenue - c.budget;
+        html += '<tr style="background:' + (i % 2 === 0 ? '#fff' : 'var(--surface-alt)') + ';">'
+          + '<td style="padding:4px 8px;font-weight:600;color:var(--text);">' + (c.k || '') + '</td>'
+          + '<td style="padding:4px 8px;text-align:right;font-weight:700;color:var(--red);">' + Math.round(c.ach) + '%</td>'
+          + '<td style="padding:4px 8px;text-align:right;color:var(--text);">' + fmtK(c.revenue) + '</td>'
+          + '<td style="padding:4px 8px;text-align:right;color:var(--text-soft);">' + fmtK(c.budget) + '</td>'
+          + '<td style="padding:4px 8px;text-align:right;font-weight:700;color:var(--red);">' + fmtK(catGap) + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+  }
+
+  // Missing SKUs if any
+  if (s.custDetail && s.custDetail.skus && s.custDetail.skus.length) {
+    const topSkus = s.custDetail.skus.slice(0, 6);
+    html += '<div class="brief-sku-list"><strong>Missing key SKUs:</strong> ';
+    topSkus.forEach(sku => { html += '<span>' + sku.desc + '</span>'; });
+    if (s.custDetail.skus.length > 6) html += '<span>+' + (s.custDetail.skus.length - 6) + ' more</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function downloadBrief() {
+  const inlineCSS = document.querySelector('style').innerHTML;
+  const body      = document.getElementById('briefBody').innerHTML;
+  const header    = document.getElementById('briefHeader');
+  const title     = document.getElementById('briefHeaderTitle').textContent;
+  const sub       = document.getElementById('briefHeaderSub').textContent;
+  const col       = header.style.background;
+  printBriefWindow(inlineCSS, col, title, sub, body);
+}
+
+function downloadRepBrief(repIdx) {
+  const repDiv = document.getElementById('rep_' + repIdx);
+  if (!repDiv) return;
+  const inlineCSS = document.querySelector('style').innerHTML;
+  const col       = document.getElementById('briefHeader').style.background;
+  const kamTitle  = document.getElementById('briefHeaderTitle').textContent;
+  const period    = document.getElementById('briefHeaderSub').textContent;
+
+  // Get rep name from the header above the div
+  const repHeader = repDiv.previousElementSibling;
+  const repName   = repHeader ? repHeader.querySelector('[style*="font-weight:800"]').textContent : repIdx;
+
+  const title = repName + ' — Store Brief';
+  const sub   = kamTitle + '  ·  ' + period;
+
+  // Summary for this rep only
+  const repSummaryRow = repHeader ? repHeader.outerHTML : '';
+  const body = repSummaryRow + repDiv.innerHTML;
+  printBriefWindow(inlineCSS, col, title, sub, body);
+}
+
+function printBriefWindow(inlineCSS, col, title, sub, body) {
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>${inlineCSS}
+  * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  body { background:#F5F7FA; padding:20px; font-family:'Open Sans',sans-serif; }
+  @media print { @page { margin:12mm; } body { padding:0; } }
+  </style></head><body>
+  <div style="background:${col};padding:20px 24px;border-radius:10px 10px 0 0;">
+    <div style="font-family:Montserrat,sans-serif;font-size:20px;font-weight:800;color:#fff;">${title}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:3px;">${sub}</div>
+  </div>
+  <div style="background:#fff;border-radius:0 0 10px 10px;padding:20px 24px;">${body}</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { setTimeout(() => { win.print(); }, 600); };
+}
+
+// Close on backdrop click
+document.getElementById('briefOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeBrief();
+});
 
 document.getElementById('periodSel').addEventListener('change', loadAll);
 document.getElementById('viewToggle').addEventListener('change', loadAll);
@@ -1154,5 +1546,7 @@ document.getElementById('viewToggle').addEventListener('change', loadAll);
 
 loadAll();
 </script>
+
 </body>
+</html></html
 </html>
