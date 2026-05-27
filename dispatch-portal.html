@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Dispatch Portal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f8f7f4;
+  --color-background-tertiary:#f1f0ec;
+  --color-background-info:#e6f1fb;
+  --color-background-success:#eaf3de;
+  --color-background-warning:#faeeda;
+  --color-background-danger:#fcebeb;
+  --color-text-primary:#1a1a1a;
+  --color-text-secondary:#666660;
+  --color-text-tertiary:#999994;
+  --color-text-info:#185fa5;
+  --color-text-success:#3b6d11;
+  --color-text-warning:#854f0b;
+  --color-text-danger:#a32d2d;
+  --color-border-tertiary:rgba(0,0,0,0.12);
+  --color-border-secondary:rgba(0,0,0,0.25);
+  --color-border-primary:rgba(0,0,0,0.35);
+  --color-border-info:rgba(24,95,165,0.4);
+  --color-border-danger:rgba(163,45,45,0.4);
+  --color-border-success:rgba(59,109,17,0.4);
+  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --font-mono:'SF Mono','Fira Code',monospace;
+  --radius:8px;
+  --radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --color-background-primary:#1e1e1e;
+    --color-background-secondary:#2a2a2a;
+    --color-background-tertiary:#242424;
+    --color-background-info:#0c2a45;
+    --color-background-success:#172604;
+    --color-background-warning:#2a1800;
+    --color-background-danger:#2a0f0f;
+    --color-text-primary:#e8e8e4;
+    --color-text-secondary:#a0a09a;
+    --color-text-tertiary:#666660;
+    --color-text-info:#85b7eb;
+    --color-text-success:#97c459;
+    --color-text-warning:#ef9f27;
+    --color-text-danger:#f09595;
+    --color-border-tertiary:rgba(255,255,255,0.1);
+    --color-border-secondary:rgba(255,255,255,0.2);
+    --color-border-primary:rgba(255,255,255,0.3);
+    --color-border-info:rgba(133,183,235,0.35);
+    --color-border-danger:rgba(240,149,149,0.35);
+    --color-border-success:rgba(151,196,89,0.35);
+  }
+}
+body{font-family:var(--font-sans);color:var(--color-text-primary);background:var(--color-background-tertiary);font-size:14px;min-height:100vh}
+#app{max-width:1100px;margin:0 auto;padding:1.5rem}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.logo{font-size:20px;font-weight:600;letter-spacing:-0.5px}
+.logo span{color:#e8a020}
+.tab-bar{display:flex;gap:4px;background:var(--color-background-secondary);padding:3px;border-radius:var(--radius);border:0.5px solid var(--color-border-tertiary)}
+.tab{padding:6px 16px;border-radius:calc(var(--radius) - 2px);font-size:13px;cursor:pointer;border:none;background:transparent;color:var(--color-text-secondary);transition:all .15s;font-family:var(--font-sans)}
+.tab.active{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500;border:0.5px solid var(--color-border-tertiary)}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:var(--radius);font-size:13px;cursor:pointer;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);display:inline-flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--font-sans)}
+.btn:hover{background:var(--color-background-secondary)}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:#e8a020;border-color:#e8a020;color:#1a1a1a;font-weight:500}
+.btn-primary:hover{opacity:0.9;background:#e8a020}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-danger{color:var(--color-text-danger);border-color:var(--color-border-danger)}
+.btn-danger:hover{background:var(--color-background-danger)}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat{background:var(--color-background-secondary);border-radius:var(--radius);padding:12px 16px}
+.stat-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.stat-value{font-size:24px;font-weight:500}
+.stat-sub{font-size:11px;color:var(--color-text-tertiary);margin-top:2px}
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filters select{font-size:13px;padding:7px 10px;border-radius:var(--radius);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.filter-label{font-size:12px;color:var(--color-text-secondary)}
+.driver-group{border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius-lg);margin-bottom:12px;overflow:hidden;background:var(--color-background-primary)}
+.driver-header{padding:14px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none}
+.driver-header:hover{background:var(--color-background-secondary)}
+.driver-avatar{width:38px;height:38px;border-radius:50%;background:var(--color-background-info);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--color-text-info);flex-shrink:0}
+.driver-avatar.unassigned{background:var(--color-background-warning);color:var(--color-text-warning)}
+.driver-info{flex:1;min-width:0}
+.driver-name{font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.driver-meta{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.driver-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.badge{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
+.badge-info{background:var(--color-background-info);color:var(--color-text-info)}
+.badge-warn{background:var(--color-background-warning);color:var(--color-text-warning)}
+.badge-success{background:var(--color-background-success);color:var(--color-text-success)}
+.badge-neutral{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.chevron{transition:transform .2s;color:var(--color-text-secondary);font-size:18px}
+.chevron.open{transform:rotate(180deg)}
+.invoice-table{border-top:0.5px solid var(--color-border-tertiary)}
+.invoice-row{display:grid;grid-template-columns:32px 1fr 110px 80px 110px 80px 70px;align-items:center;padding:10px 18px;border-bottom:0.5px solid var(--color-border-tertiary);gap:8px;font-size:13px}
+.invoice-row.header-row{background:var(--color-background-secondary);font-size:11px;color:var(--color-text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.4px;padding:7px 18px}
+.invoice-row.sent-row{opacity:0.55}
+.invoice-expand-row{border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.cb{width:15px;height:15px;cursor:pointer;accent-color:#e8a020}
+.warn-icon{color:var(--color-text-warning);font-size:15px}
+.dismiss-btn{background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);font-size:15px;padding:3px 5px;border-radius:4px;display:inline-flex;align-items:center}
+.dismiss-btn:hover{color:var(--color-text-danger);background:var(--color-background-danger)}
+.expand-btn{background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);font-size:15px;padding:3px 5px;border-radius:4px;display:inline-flex;align-items:center}
+.expand-btn:hover{color:var(--color-text-primary);background:var(--color-background-secondary)}
+.send-bar{padding:12px 18px;border-top:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;background:var(--color-background-secondary);gap:8px;flex-wrap:wrap}
+.send-bar-info{font-size:13px;color:var(--color-text-secondary)}
+.send-bar-info strong{color:var(--color-text-primary)}
+.select-all-row{padding:8px 18px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:8px;background:var(--color-background-secondary)}
+.load-tag{font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);padding:2px 6px;border-radius:4px;color:var(--color-text-secondary)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem}
+.modal{background:var(--color-background-primary);border-radius:var(--radius-lg);border:0.5px solid var(--color-border-secondary);padding:1.75rem;width:480px;max-width:100%;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:17px;font-weight:500;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px}
+.modal-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1.25rem}
+.modal-meta-item{background:var(--color-background-secondary);border-radius:var(--radius);padding:10px 14px}
+.modal-meta-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.4px}
+.modal-meta-value{font-size:15px;font-weight:500}
+.modal-invoice-list{max-height:220px;overflow-y:auto;border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius);margin-bottom:1.25rem}
+.modal-invoice-item{padding:9px 14px;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;justify-content:space-between;align-items:center}
+.modal-invoice-item:last-child{border-bottom:none}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem}
+.info-box{background:var(--color-background-info);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--color-text-info);display:flex;align-items:center;gap:8px}
+.dismiss-form select,.dismiss-form textarea{width:100%;margin-bottom:10px;font-size:13px;padding:9px 12px;border-radius:var(--radius);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.dismiss-form textarea{resize:vertical;min-height:75px}
+.history-wrap{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--radius-lg);overflow:hidden}
+.history-table{width:100%;border-collapse:collapse;font-size:13px}
+.history-table th{text-align:left;padding:9px 14px;font-size:11px;color:var(--color-text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.4px;border-bottom:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary)}
+.history-table td{padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);vertical-align:middle}
+.history-table tr:last-child td{border-bottom:none}
+.history-table tr:hover td{background:var(--color-background-secondary)}
+.empty-state{text-align:center;padding:4rem 1rem;color:var(--color-text-secondary)}
+.empty-state i{font-size:40px;margin-bottom:14px;display:block;opacity:0.35}
+.loading{text-align:center;padding:4rem;color:var(--color-text-secondary)}
+.error-bar{background:var(--color-background-danger);color:var(--color-text-danger);padding:10px 16px;border-radius:var(--radius);margin-bottom:1rem;font-size:13px;display:flex;align-items:center;gap:8px;border:0.5px solid var(--color-border-danger)}
+.success-center{text-align:center;padding:1rem 0}
+.success-center i{font-size:48px;color:var(--color-text-success);margin-bottom:14px;display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">DFL <span>Dispatch</span></div>
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchTab('dispatch')">Dispatch</button>
+        <button class="tab" onclick="switchTab('history')">Batch History</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="filters">
+        <span class="filter-label">Date</span>
+        <select id="date-filter" onchange="applyFilters()">
+          <option value="all">Last 3 days</option>
+          <option value="today" selected>Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="tomorrow">Tomorrow</option>
+        </select>
+        <span class="filter-label">Driver</span>
+        <select id="driver-filter" onchange="applyFilters()"><option value="all">All drivers</option></select>
+      </div>
+      <button class="btn" onclick="refresh()"><i class="ti ti-refresh"></i> Refresh</button>
+    </div>
+  </div>
+
+  <div id="error-container"></div>
+
+  <div id="dispatch-tab">
+    <div class="stats-row">
+      <div class="stat"><div class="stat-label">Invoices</div><div class="stat-value" id="s-invoices">—</div></div>
+      <div class="stat"><div class="stat-label">Drivers</div><div class="stat-value" id="s-drivers">—</div></div>
+      <div class="stat"><div class="stat-label">Total Value</div><div class="stat-value" id="s-value">—</div></div>
+      <div class="stat"><div class="stat-label">Selected</div><div class="stat-value" id="s-selected">0</div><div class="stat-sub">ready to batch</div></div>
+    </div>
+    <div id="groups-container"><div class="loading"><i class="ti ti-loader-2"></i> Loading invoices…</div></div>
+  </div>
+
+  <div id="history-tab" style="display:none">
+    <div id="history-container"><div class="loading"><i class="ti ti-loader-2"></i> Loading…</div></div>
+  </div>
+</div>
+<div id="modal-container"></div>
+
+<script>
+const SUPA_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNzQ0NTQsImV4cCI6MjA5MTc1MDQ1NH0.3ZVGR2K7tOJGIWEJHpVPGjNiGJMPUwi71kDLRDMUuiI';
+const H = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
+
+async function api(path) {
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { headers: H });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function post(path, body) {
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { method: 'POST', headers: { ...H, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function patch(path, body) {
+  const r = await fetch(SUPA_URL + '/rest/v1/' + path, { method: 'PATCH', headers: H, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+let allInvoices = [], allItems = {}, selected = {}, expandedInvoices = new Set(), openGroups = new Set();
+let dateFilter = 'today', driverFilter = 'all', dismissTarget = null;
+
+function fmt(n) { return n == null ? '—' : 'J$' + Math.round(n).toLocaleString(); }
+function fmtDate(d) { return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-JM', { month: 'short', day: 'numeric' }) : '—'; }
+function initials(n) {
+  if (!n) return '?';
+  const p = n.trim().split(/\s+/);
+  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : n.slice(0, 2).toUpperCase();
+}
+
+function getDateRange() {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const f = d => d.toISOString().split('T')[0];
+  if (dateFilter === 'today') return [f(t), f(t)];
+  if (dateFilter === 'yesterday') { const y = new Date(t); y.setDate(y.getDate() - 1); return [f(y), f(y)]; }
+  if (dateFilter === 'tomorrow') { const tm = new Date(t); tm.setDate(tm.getDate() + 1); return [f(tm), f(tm)]; }
+  const fr = new Date(t); fr.setDate(fr.getDate() - 2);
+  const to = new Date(t); to.setDate(to.getDate() + 1);
+  return [f(fr), f(to)];
+}
+
+function showError(msg) {
+  const c = document.getElementById('error-container');
+  c.innerHTML = '<div class="error-bar"><i class="ti ti-alert-circle"></i>' + msg + '</div>';
+  setTimeout(() => c.innerHTML = '', 6000);
+}
+
+async function loadInvoices() {
+  const [from, to] = getDateRange();
+  document.getElementById('groups-container').innerHTML = '<div class="loading"><i class="ti ti-loader-2"></i> Loading invoices…</div>';
+  try {
+    const invs = await api('so_invoices?select=*&invoice_date=gte.' + from + '&invoice_date=lte.' + to + '&status=eq.Open&dismissed=eq.false&order=invoice_date.desc,customer_name.asc');
+    allInvoices = invs;
+
+    if (invs.length === 0) { renderGroups([]); updateStats([]); return; }
+
+    const refs = invs.map(i => i.reference_number);
+    const items = await api('invoiced_items?select=reference_number,inventory_id,description,quantity,uom,line_total&tran_type=eq.INV&reference_number=in.(' + refs.join(',') + ')');
+    allItems = {};
+    items.forEach(it => { if (!allItems[it.reference_number]) allItems[it.reference_number] = []; allItems[it.reference_number].push(it); });
+
+    const custIds = [...new Set(invs.map(i => i.customer_id).filter(Boolean))];
+    let custMap = {};
+    if (custIds.length > 0) {
+      const custs = await api('customers_detrack?select=customer_id,needs_address,address_notes_flag,clean_address,clean_city,delivery_phone,shipping_zone&customer_id=in.(' + custIds.join(',') + ')');
+      custs.forEach(c => custMap[c.customer_id] = c);
+    }
+    allInvoices.forEach(inv => inv._cust = custMap[inv.customer_id] || null);
+
+    const sentJobs = await api('delivery_jobs?select=reference_number,load_number&reference_number=in.(' + refs.join(',') + ')');
+    const sentMap = {};
+    sentJobs.forEach(j => sentMap[j.reference_number] = j.load_number);
+    allInvoices.forEach(inv => { if (sentMap[inv.reference_number]) { inv._sent = true; inv._loadNumber = sentMap[inv.reference_number]; } });
+
+    populateDriverFilter(invs);
+    const filtered = filterInvoices(invs);
+    renderGroups(filtered);
+    updateStats(filtered);
+  } catch (e) {
+    showError('Failed to load: ' + e.message);
+    document.getElementById('groups-container').innerHTML = '';
+  }
+}
+
+function filterInvoices(invs) {
+  return invs.filter(inv => driverFilter === 'all' || (inv.ship_via || 'UNASSIGNED') === driverFilter);
+}
+
+function populateDriverFilter(invs) {
+  const sel = document.getElementById('driver-filter');
+  const cur = sel.value;
+  const seen = new Set();
+  const opts = ['<option value="all">All drivers</option>'];
+  invs.forEach(i => {
+    const k = i.ship_via || 'UNASSIGNED';
+    if (!seen.has(k)) {
+      seen.add(k);
+      const lbl = k === 'UNASSIGNED' ? 'Unassigned' : (i.ship_via_description || k);
+      opts.push('<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + lbl + '</option>');
+    }
+  });
+  sel.innerHTML = opts.join('');
+}
+
+function updateStats(invs) {
+  document.getElementById('s-invoices').textContent = invs.length;
+  document.getElementById('s-drivers').textContent = new Set(invs.map(i => i.ship_via || 'UNASSIGNED')).size;
+  document.getElementById('s-value').textContent = fmt(invs.reduce((s, i) => s + (i.amount || 0), 0));
+  document.getElementById('s-selected').textContent = Object.values(selected).filter(Boolean).length;
+}
+
+function groupByDriver(invs) {
+  const g = {};
+  invs.forEach(inv => {
+    const k = inv.ship_via || 'UNASSIGNED';
+    if (!g[k]) g[k] = { ship_via: inv.ship_via, desc: inv.ship_via_description, invoices: [] };
+    g[k].invoices.push(inv);
+  });
+  return Object.entries(g).sort(([a], [b]) => {
+    if (a === 'UNASSIGNED') return 1; if (b === 'UNASSIGNED') return -1; return a.localeCompare(b);
+  });
+}
+
+function renderGroups(invs) {
+  const c = document.getElementById('groups-container');
+  if (invs.length === 0) { c.innerHTML = '<div class="empty-state"><i class="ti ti-truck-off"></i>No invoices found for this filter</div>'; return; }
+  c.innerHTML = groupByDriver(invs).map(([k, g]) => renderGroup(k, g)).join('');
+  openGroups.forEach(k => {
+    const b = document.getElementById('body-' + k), ch = document.getElementById('chev-' + k);
+    if (b) { b.style.display = 'block'; if (ch) ch.classList.add('open'); }
+  });
+}
+
+function renderGroup(key, g) {
+  const ek = key.replace(/[^a-z0-9]/gi, '_');
+  const isU = key === 'UNASSIGNED';
+  const totalVal = g.invoices.reduce((s, i) => s + (i.amount || 0), 0);
+  const selCount = g.invoices.filter(i => selected[i.reference_number]).length;
+  const sentCount = g.invoices.filter(i => i._sent).length;
+  return '<div class="driver-group" id="grp-' + ek + '">' +
+    '<div class="driver-header" onclick="toggleGroup(\'' + ek + '\')">' +
+    '<div class="driver-avatar ' + (isU ? 'unassigned' : '') + '">' + initials(isU ? 'UN' : g.desc || key) + '</div>' +
+    '<div class="driver-info"><div class="driver-name">' + (isU ? 'Unassigned' : (g.desc || key)) + '</div>' +
+    '<div class="driver-meta">' + g.invoices.length + ' invoice' + (g.invoices.length !== 1 ? 's' : '') + ' &middot; ' + fmt(totalVal) + '</div></div>' +
+    '<div class="driver-actions">' +
+    (isU ? '<span class="badge badge-warn"><i class="ti ti-alert-triangle"></i> No driver</span>' : '') +
+    (sentCount > 0 ? '<span class="badge badge-success"><i class="ti ti-check"></i> ' + sentCount + ' sent</span>' : '') +
+    (selCount > 0 ? '<span class="badge badge-info">' + selCount + ' selected</span>' : '') +
+    '<i class="ti ti-chevron-down chevron" id="chev-' + ek + '"></i></div></div>' +
+    '<div id="body-' + ek + '" style="display:none">' + renderInvoiceTable(g, key, ek) + '</div></div>';
+}
+
+function renderInvoiceTable(g, key, ek) {
+  const selCount = g.invoices.filter(i => selected[i.reference_number]).length;
+  const unsentCount = g.invoices.filter(i => !i._sent).length;
+  const allSel = selCount === unsentCount && unsentCount > 0;
+  const selVal = g.invoices.filter(i => selected[i.reference_number]).reduce((s, i) => s + (i.amount || 0), 0);
+  const driverOpts = allInvoices.filter(i => i.ship_via).reduce((acc, i) => {
+    if (!acc.find(x => x.v === i.ship_via)) acc.push({ v: i.ship_via, l: i.ship_via_description || i.ship_via }); return acc;
+  }, []);
+  return '<div class="invoice-table">' +
+    '<div class="invoice-row header-row"><div></div><div>Customer</div><div>Ref #</div><div>Date</div><div style="text-align:right">Amount</div><div>Flags</div><div>Actions</div></div>' +
+    '<div class="select-all-row"><input type="checkbox" class="cb" ' + (allSel ? 'checked' : '') + ' onchange="toggleSelectAll(\'' + key + '\',this.checked)"> Select all unsent (' + unsentCount + ')</div>' +
+    g.invoices.map(inv => renderInvoiceRow(inv)).join('') +
+    '<div class="send-bar">' +
+    '<div class="send-bar-info"><strong>' + selCount + '</strong> selected &middot; <strong>' + fmt(selVal) + '</strong></div>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+    (key === 'UNASSIGNED' ? '<select onchange="assignDriver(this.value)" style="font-size:12px;padding:5px 8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)"><option value="">Assign to driver…</option>' + driverOpts.map(d => '<option value="' + d.v + '">' + d.l + '</option>').join('') + '</select>' : '') +
+    '<button class="btn btn-primary btn-sm" onclick="openBatchModal(\'' + key + '\')" ' + (selCount === 0 ? 'disabled' : '') + '><i class="ti ti-send"></i> Send to Detrack</button>' +
+    '</div></div></div>';
+}
+
+function renderInvoiceRow(inv) {
+  const isExp = expandedInvoices.has(inv.reference_number);
+  const items = allItems[inv.reference_number] || [];
+  const cust = inv._cust || {};
+  const hasWarn = cust.needs_address || cust.address_notes_flag;
+  const warnTitle = cust.needs_address ? 'No address on file' : cust.address_notes_flag ? 'Address may contain delivery notes' : '';
+  return '<div class="invoice-row' + (inv._sent ? ' sent-row' : '') + '">' +
+    '<input type="checkbox" class="cb" ' + (selected[inv.reference_number] ? 'checked' : '') + ' ' + (inv._sent ? 'disabled' : '') + ' onchange="toggleSelect(\'' + inv.reference_number + '\',this.checked)">' +
+    '<div style="min-width:0"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inv.customer_name || '—') + '</div><div style="font-size:11px;color:var(--color-text-tertiary)">' + (inv.customer_id || '') + '</div></div>' +
+    '<div style="font-family:var(--font-mono);font-size:12px">' + inv.reference_number + '</div>' +
+    '<div style="color:var(--color-text-secondary)">' + fmtDate(inv.invoice_date) + '</div>' +
+    '<div style="text-align:right;font-weight:500">' + fmt(inv.amount) + '</div>' +
+    '<div style="display:flex;gap:4px;align-items:center">' +
+    (hasWarn ? '<i class="ti ti-map-pin-off warn-icon" title="' + warnTitle + '"></i>' : '') +
+    (inv._sent ? '<span class="load-tag">' + inv._loadNumber + '</span>' : '') +
+    '</div>' +
+    '<div style="display:flex;gap:2px;align-items:center">' +
+    '<button class="expand-btn" onclick="toggleExpand(\'' + inv.reference_number + '\')" title="' + (isExp ? 'Collapse' : 'Expand') + ' items"><i class="ti ti-' + (isExp ? 'chevron-up' : 'chevron-down') + '"></i></button>' +
+    (!inv._sent ? '<button class="dismiss-btn" onclick="openDismiss(\'' + inv.reference_number + '\')" title="Dismiss"><i class="ti ti-x"></i></button>' : '') +
+    '</div></div>' +
+    (isExp ? renderItemsExpand(inv.reference_number, items) : '');
+}
+
+function renderItemsExpand(ref, items) {
+  if (items.length === 0) return '<div class="invoice-expand-row" style="padding:10px 18px 10px 58px;font-size:12px;color:var(--color-text-secondary)">No line items found</div>';
+  return '<div class="invoice-expand-row"><div style="padding:10px 18px 10px 58px">' +
+    '<table style="width:100%;font-size:12px;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;padding:3px 8px 5px 0;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary)">SKU</th>' +
+    '<th style="text-align:left;padding:3px 8px 5px 0;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary)">Description</th>' +
+    '<th style="text-align:right;padding:3px 8px 5px;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary)">Qty</th>' +
+    '<th style="text-align:left;padding:3px 8px 5px;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary)">UOM</th>' +
+    '<th style="text-align:right;padding:3px 0 5px;color:var(--color-text-secondary);font-weight:500;border-bottom:0.5px solid var(--color-border-tertiary)">Total</th>' +
+    '</tr></thead><tbody>' +
+    items.map(it => '<tr>' +
+      '<td style="padding:4px 8px 4px 0;color:var(--color-text-tertiary);font-family:var(--font-mono);font-size:11px">' + (it.inventory_id || '—') + '</td>' +
+      '<td style="padding:4px 8px 4px 0">' + (it.description || '—') + '</td>' +
+      '<td style="text-align:right;padding:4px 8px;font-weight:500">' + (it.quantity != null ? it.quantity : '') + '</td>' +
+      '<td style="padding:4px 8px;color:var(--color-text-secondary)">' + (it.uom || '') + '</td>' +
+      '<td style="text-align:right;padding:4px 0">' + fmt(it.line_total) + '</td>' +
+      '</tr>').join('') +
+    '</tbody></table></div></div>';
+}
+
+function toggleGroup(ek) {
+  const b = document.getElementById('body-' + ek), ch = document.getElementById('chev-' + ek);
+  if (!b) return;
+  const isOpen = b.style.display !== 'none';
+  b.style.display = isOpen ? 'none' : 'block';
+  if (ch) ch.classList.toggle('open', !isOpen);
+  if (isOpen) openGroups.delete(ek); else openGroups.add(ek);
+}
+
+function toggleExpand(ref) {
+  if (expandedInvoices.has(ref)) expandedInvoices.delete(ref); else expandedInvoices.add(ref);
+  renderGroups(filterInvoices(allInvoices));
+}
+
+function toggleSelect(ref, checked) {
+  selected[ref] = checked;
+  updateStats(filterInvoices(allInvoices));
+  renderGroups(filterInvoices(allInvoices));
+}
+
+function toggleSelectAll(key, checked) {
+  const grp = groupByDriver(filterInvoices(allInvoices)).find(([k]) => k === key);
+  if (!grp) return;
+  grp[1].invoices.filter(i => !i._sent).forEach(inv => selected[inv.reference_number] = checked);
+  updateStats(filterInvoices(allInvoices));
+  renderGroups(filterInvoices(allInvoices));
+}
+
+function openBatchModal(key) {
+  const grp = groupByDriver(filterInvoices(allInvoices)).find(([k]) => k === key);
+  if (!grp) return;
+  const selInvs = grp[1].invoices.filter(i => selected[i.reference_number]);
+  if (selInvs.length === 0) return;
+  const totalVal = selInvs.reduce((s, i) => s + (i.amount || 0), 0);
+  const driverName = grp[1].desc || key;
+  const today = new Date().toLocaleDateString('en-JM', { weekday: 'long', month: 'long', day: 'numeric' });
+  document.getElementById('modal-container').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+    '<div class="modal">' +
+    '<h3><i class="ti ti-send"></i> Confirm batch</h3>' +
+    '<div class="modal-meta">' +
+    '<div class="modal-meta-item"><div class="modal-meta-label">Driver</div><div class="modal-meta-value">' + driverName + '</div></div>' +
+    '<div class="modal-meta-item"><div class="modal-meta-label">Delivery date</div><div class="modal-meta-value">' + today + '</div></div>' +
+    '<div class="modal-meta-item"><div class="modal-meta-label">Stops</div><div class="modal-meta-value">' + selInvs.length + '</div></div>' +
+    '<div class="modal-meta-item"><div class="modal-meta-label">Total value</div><div class="modal-meta-value">' + fmt(totalVal) + '</div></div>' +
+    '</div>' +
+    '<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Invoices in this batch:</div>' +
+    '<div class="modal-invoice-list">' +
+    selInvs.map(inv => '<div class="modal-invoice-item"><span>' + (inv.customer_name || inv.reference_number) + '</span><span style="color:var(--color-text-secondary);font-family:var(--font-mono);font-size:12px">' + inv.reference_number + '</span></div>').join('') +
+    '</div>' +
+    '<div class="info-box"><i class="ti ti-info-circle"></i> A load number will be auto-assigned on send.</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="sendBatch(\'' + key + '\')" id="send-btn"><i class="ti ti-send"></i> Confirm &amp; send</button></div>' +
+    '</div></div>';
+}
+
+async function sendBatch(key) {
+  const btn = document.getElementById('send-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Sending…'; }
+  const grp = groupByDriver(filterInvoices(allInvoices)).find(([k]) => k === key);
+  if (!grp) return;
+  const selInvs = grp[1].invoices.filter(i => selected[i.reference_number]);
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const [batch] = await post('delivery_batches', {
+      delivery_date: today, ship_via: grp[1].ship_via || null,
+      ship_via_description: grp[1].desc || null, status: 'sent',
+      sent_to_detrack_at: new Date().toISOString()
+    });
+    const loadNumber = batch.load_number;
+    const jobs = selInvs.map(inv => ({
+      batch_id: batch.id, load_number: loadNumber,
+      reference_number: inv.reference_number, customer_id: inv.customer_id,
+      customer_name: inv.customer_name, invoice_date: inv.invoice_date,
+      invoice_amount: inv.amount, ship_via: inv.ship_via,
+      ship_via_description: inv.ship_via_description,
+      delivery_address: inv._cust?.clean_address || null,
+      delivery_city: inv._cust?.clean_city || null,
+      delivery_phone: inv._cust?.delivery_phone || null,
+      delivery_zone: inv._cust?.shipping_zone || null,
+      items: allItems[inv.reference_number] || [],
+      detrack_do_number: inv.reference_number
+    }));
+    await post('delivery_jobs', jobs);
+
+    // Push to Detrack via edge function (keeps API key server-side)
+    if (btn) btn.innerHTML = '<i class="ti ti-loader-2"></i> Pushing to Detrack…';
+    const detrackRes = await fetch(
+      'https://hzagwndglwhcepsirafi.supabase.co/functions/v1/push-to-detrack',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY },
+        body: JSON.stringify({ batch_id: batch.id })
+      }
+    );
+    const detrackData = await detrackRes.json();
+    if (!detrackRes.ok) throw new Error(detrackData.error || 'Detrack push failed');
+
+    const pushed  = detrackData.pushed  ?? 0;
+    const partial = detrackData.status  === 'partial';
+
+    selInvs.forEach(inv => { inv._sent = true; inv._loadNumber = loadNumber; selected[inv.reference_number] = false; });
+    closeModal();
+    renderGroups(filterInvoices(allInvoices));
+    updateStats(filterInvoices(allInvoices));
+    document.getElementById('modal-container').innerHTML =
+      '<div class="modal-overlay" onclick="closeModal()">' +
+      '<div class="modal"><div class="success-center">' +
+      '<i class="ti ti-circle-check"></i>' +
+      '<h3 style="margin-bottom:8px">' + (partial ? 'Partially sent' : 'Batch sent!') + '</h3>' +
+      '<p style="color:var(--color-text-secondary);font-size:13px;margin-bottom:4px">Load <strong>' + loadNumber + '</strong> — <strong>' + pushed + '</strong> of ' + selInvs.length + ' job' + (selInvs.length !== 1 ? 's' : '') + ' pushed to Detrack</p>' +
+      '<p style="color:var(--color-text-secondary);font-size:13px;margin-bottom:1.25rem">Driver: <strong>' + (grp[1].desc || key) + '</strong></p>' +
+      (partial ? '<p style="color:var(--color-text-warning);font-size:12px;margin-bottom:1rem">Some jobs failed to push — check Batch History for details.</p>' : '') +
+      '<button class="btn btn-primary" onclick="closeModal()">Done</button>' +
+      '</div></div></div>';
+  } catch (e) { closeModal(); showError('Failed to send batch: ' + e.message); }
+}
+
+function openDismiss(ref) {
+  dismissTarget = ref;
+  const inv = allInvoices.find(i => i.reference_number === ref);
+  document.getElementById('modal-container').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+    '<div class="modal" style="max-width:380px">' +
+    '<h3><i class="ti ti-x"></i> Dismiss invoice</h3>' +
+    '<p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">' + (inv?.customer_name || '') + ' &middot; ' + fmt(inv?.amount) + '</p>' +
+    '<div class="dismiss-form">' +
+    '<select id="dismiss-reason"><option value="">Select reason…</option><option>Already delivered</option><option>Customer pickup</option><option>Third-party carrier</option><option>Cancelled order</option><option>Duplicate invoice</option><option>Other</option></select>' +
+    '<textarea id="dismiss-notes" placeholder="Additional notes (optional)…"></textarea>' +
+    '</div>' +
+    '<div class="modal-footer"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-danger" onclick="confirmDismiss()"><i class="ti ti-x"></i> Dismiss</button></div>' +
+    '</div></div>';
+}
+
+async function confirmDismiss() {
+  const reason = document.getElementById('dismiss-reason').value;
+  const notes = document.getElementById('dismiss-notes').value;
+  if (!reason) { alert('Please select a reason'); return; }
+  try {
+    await patch('so_invoices?reference_number=eq.' + dismissTarget, {
+      dismissed: true, dismissed_at: new Date().toISOString(),
+      dismissed_by: 'Batcher', dismiss_reason: reason + (notes ? ' — ' + notes : '')
+    });
+    allInvoices = allInvoices.filter(i => i.reference_number !== dismissTarget);
+    delete selected[dismissTarget];
+    closeModal();
+    renderGroups(filterInvoices(allInvoices));
+    updateStats(filterInvoices(allInvoices));
+  } catch (e) { showError('Failed to dismiss: ' + e.message); }
+}
+
+function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
+
+async function loadHistory() {
+  try {
+    const b = await api('delivery_batches?select=*,delivery_jobs(id)&order=created_at.desc&limit=100');
+    const c = document.getElementById('history-container');
+    if (b.length === 0) { c.innerHTML = '<div class="empty-state"><i class="ti ti-history"></i>No batches sent yet</div>'; return; }
+    c.innerHTML = '<div class="history-wrap"><table class="history-table">' +
+      '<thead><tr><th>Load #</th><th>Date</th><th>Driver</th><th>Stops</th><th>Status</th><th>Sent at</th></tr></thead>' +
+      '<tbody>' + b.map(bt => '<tr>' +
+        '<td><span class="load-tag">' + bt.load_number + '</span></td>' +
+        '<td>' + fmtDate(bt.delivery_date) + '</td>' +
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (bt.ship_via_description || bt.ship_via || '—') + '</td>' +
+        '<td>' + (bt.delivery_jobs?.length || 0) + '</td>' +
+        '<td><span class="badge badge-' + (bt.status === 'sent' ? 'info' : bt.status === 'completed' ? 'success' : 'neutral') + '">' + bt.status + '</span></td>' +
+        '<td style="color:var(--color-text-secondary)">' + new Date(bt.created_at).toLocaleString('en-JM', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</td>' +
+        '</tr>').join('') +
+      '</tbody></table></div>';
+  } catch (e) {
+    document.getElementById('history-container').innerHTML = '<div class="empty-state"><i class="ti ti-alert-circle"></i>Failed to load history</div>';
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'dispatch') || (i === 1 && tab === 'history')));
+  document.getElementById('dispatch-tab').style.display = tab === 'dispatch' ? 'block' : 'none';
+  document.getElementById('history-tab').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history') loadHistory();
+}
+
+function applyFilters() {
+  dateFilter = document.getElementById('date-filter').value;
+  driverFilter = document.getElementById('driver-filter').value;
+  selected = {}; expandedInvoices.clear();
+  loadInvoices();
+}
+
+function assignDriver(shipVia) {
+  if (!shipVia) return;
+  const inv = allInvoices.find(i => i.ship_via === shipVia);
+  allInvoices.filter(i => !i.ship_via).forEach(i => { i.ship_via = shipVia; i.ship_via_description = inv?.ship_via_description || shipVia; });
+  renderGroups(filterInvoices(allInvoices));
+}
+
+function refresh() { selected = {}; expandedInvoices.clear(); loadInvoices(); }
+
+loadInvoices();
+</script>
+</body>
+</html>
