@@ -517,7 +517,7 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
     <div class="m-body" id="mBody"></div>
     <div class="m-foot">
       <button class="btn btn-sec" onclick="copySnap()">Copy as Text</button>
-      <button class="btn btn-pri" onclick="downloadSnap()">⬇ Download Brief</button>
+      <button class="btn btn-pri" onclick="downloadSnap()">⬇ Download PDF</button>
     </div>
   </div>
 </div>
@@ -540,7 +540,7 @@ const MM={
 };
 const MC={Rejene:'#6D28D9',Trebor:'#0E7490',Travis:'#B45309',Richard:'#C0392B'};
 
-let D={sum:[],rep:[],cust:[],sku:[],skuCust:[],skuArea:[],workingDays:null};
+let D={sum:[],rep:[],cust:[],sku:[],skuCust:[],skuArea:[],skuNotYet:[],workingDays:null};
 let snapMgr=null;
 
 async function get(tbl,params){
@@ -573,14 +573,16 @@ async function loadAll(){
     D.rep=await getAll('cat_rep_cache',{select:'item_class,salesperson,area,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,gp_pct,budgeted_custs,active_custs,penetration_pct',financial_period:fp});
     setLdr('Fetching customer data…');
     D.cust=mode==='cur'
-      ? await getAll('cat_cust_sku_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date,missing_skus_json',financial_period:fp})
+      ? await getAll('cat_cust_sku_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date,missing_skus_json',order:'gap_mtd.asc',financial_period:fp})
       : await getAll('cat_cust_cache',{select:'item_class,customer_name,salesperson,area,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,last_purchase_date',financial_period:fp,pct_to_budget:'lt.100'});
     setLdr('Fetching key SKU data…');
     D.sku=await getAll('cat_sku_cache',{select:'item_class,inventory_id,description,actual_mtd,cases_mtd,gp_pct,prev_month_actual,ytd_avg_monthly_rev,ytd_avg_monthly_cases,pace_vs_prev,pace_vs_same_period,pct_of_prev_full,prev_period_rev',financial_period:fp});
     setLdr('Fetching SKU customer detail…');
-    D.skuCust=mode==='cur'?await getAll('cat_sku_cust_cache',{select:'inventory_id,customer_name,area,tier,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,cumulative_pct',financial_period:fp}):[];
+    D.skuCust=mode==='cur'?await getAll('cat_sku_cust_cache',{select:'inventory_id,customer_name,area,tier,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,cumulative_pct,is_new_customer,first_purchase_date',financial_period:fp}):[];
     setLdr('Fetching SKU area data…');
     D.skuArea=mode==='cur'?await getAll('cat_sku_area_cache',{select:'inventory_id,area,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,pct_of_avg',financial_period:fp}):[];
+    setLdr('Fetching not yet purchased…');
+    D.skuNotYet=mode==='cur'?await getAll('cat_sku_not_yet_cache',{select:'inventory_id,item_class,customer_id,customer_name,area,tier,ytd_avg_rev,ytd_avg_cases,last_purchase_date',financial_period:fp}):[];
     const mo=new Date(parseInt(per.slice(0,4)),parseInt(per.slice(4,6))-1,1).toLocaleString('default',{month:'long',year:'numeric'});
     document.getElementById('periodPill').textContent=mode==='cur'?`${mo} MTD (Day ${now.getDate()})`:mo;
     if(D.sum[0]){const ra=new Date(D.sum[0].refreshed_at);document.getElementById('cacheLbl').textContent=`Cache: ${ra.toLocaleDateString()} ${ra.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;}
@@ -750,8 +752,9 @@ function renderCats(){
       .sort((a,b)=>(parseFloat(a.pct_to_budget)-elapsed)-(parseFloat(b.pct_to_budget)-elapsed));
 
     // Top 10 Tier 1-3 customers most behind pace
+    // High impact: pre-sorted by gap_mtd (largest negative first) from DB
     const custRows=D.cust.filter(r=>r.item_class===row.item_class)
-      .sort((a,b)=>parseFloat(a.pace_gap||0)-parseFloat(b.pace_gap||0))
+      .sort((a,b)=>parseFloat(a.gap_mtd||0)-parseFloat(b.gap_mtd||0))
       .slice(0,10);
 
     const skuRows=D.sku.filter(s=>s.item_class===row.item_class)
@@ -784,7 +787,7 @@ function renderCats(){
       <div class="cat-detail">
         <div class="dtab-bar">
           <div class="dtab active" onclick="stab(event,'${row.item_class}','r')">By Rep <span class="tab-cnt ${repRows.filter(r=>(parseFloat(r.pct_to_budget)-elapsed)<0).length?'tc-r':'tc-g'}">${repRows.length} reps</span></div>
-          <div class="dtab" onclick="stab(event,'${row.item_class}','c')">By Customer <span class="tab-cnt tc-a">${custRows.length}</span></div>
+          <div class="dtab" onclick="stab(event,'${row.item_class}','c')">High Impact Accounts <span class="tab-cnt tc-a">${custRows.length}</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','s')">Key SKUs <span class="tab-cnt tc-a">${skuRows.length}</span></div>
         </div>
         <div class="dp active" id="dp_${row.item_class}_r">${buildRepRows(repRows,elapsed)}</div>
@@ -943,24 +946,34 @@ function buildSkuRows(rows,cat){
         <div class="sku-etab-bar">
           <div class="sku-etab active" onclick="skuTab(event,'${uid}','top')">Top Customers</div>
           <div class="sku-etab" onclick="skuTab(event,'${uid}','area')">By Area</div>
+          <div class="sku-etab" onclick="skuTab(event,'${uid}','nop')">Not Yet Purchased</div>
         </div>
         <div class="sku-epane active" id="sep_${uid}_top">${buildSkuCustTable(s.inventory_id)}</div>
         <div class="sku-epane" id="sep_${uid}_area">${buildSkuAreaTable(s.inventory_id)}</div>
+        <div class="sku-epane" id="sep_${uid}_nop">${buildSkuNotYetTable(s.inventory_id,s.item_class)}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
 }
 
 function buildSkuCustTable(invId){
-  const rows=D.skuCust.filter(r=>r.inventory_id===invId).sort((a,b)=>parseFloat(b.actual_mtd)-parseFloat(a.actual_mtd)).slice(0,15);
+  const rows=D.skuCust.filter(r=>r.inventory_id===invId).sort((a,b)=>parseFloat(b.actual_mtd)-parseFloat(a.actual_mtd));
   if(!rows.length)return'<div class="empty-row">No customer detail available for this period</div>';
-  return`<table class="exp-table">
-    <tr><th>Customer</th><th>Area</th><th>Tier</th><th>MTD Revenue</th><th>MTD Cases</th><th>YTD Avg Monthly Rev</th><th>YTD Avg Mo Cases</th><th>% of SKU sales</th><th>Cumulative</th></tr>
+  const newCusts=rows.filter(r=>r.is_new_customer===true||r.is_new_customer==='true');
+  const newCount=newCusts.length;
+  return`
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+    <div style="font-size:12px;color:var(--text-mid)"><strong>${rows.length}</strong> customers purchasing this SKU this month</div>
+    ${newCount>0?`<div style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-bdr);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">✦ ${newCount} new customer${newCount>1?'s':''} (first purchase within 6 months)</div>`:''}
+  </div>
+  <table class="exp-table">
+    <tr><th>Customer</th><th>Area</th><th>Tier</th><th>MTD Revenue</th><th>MTD Cases</th><th>YTD Avg Rev</th><th>YTD Avg Cases</th><th>% of total</th><th>Cumulative</th></tr>
     ${rows.map(r=>{
       const cum=parseFloat(r.cumulative_pct)||0;
-      const isKey=cum<=80;
-      return`<tr style="${isKey?'background:rgba(50,107,211,.03)':''}">
-        <td style="font-weight:600">${r.customer_name}</td>
+      const isConc=cum<=80;
+      const isNew=r.is_new_customer===true||r.is_new_customer==='true';
+      return `<tr style="${isConc?'background:rgba(50,107,211,.03)':''}">
+        <td style="font-weight:600">${r.customer_name}${isNew?' <span style="background:var(--green-bg);color:var(--green);font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:4px">NEW</span>':''}</td>
         <td>${r.area||'—'}</td>
         <td>${r.tier||'—'}</td>
         <td>${fmt(r.actual_mtd)}</td>
@@ -968,11 +981,40 @@ function buildSkuCustTable(invId){
         <td>${parseFloat(r.ytd_avg_monthly_rev)>0?fmt(r.ytd_avg_monthly_rev):'—'}</td>
         <td>${parseFloat(r.ytd_avg_monthly_cases)>0?fmtN(r.ytd_avg_monthly_cases)+' cs':'—'}</td>
         <td><div style="display:flex;align-items:center;gap:6px"><div class="cum-bar" style="width:${Math.min(cum,100)*0.6}px"></div>${cum.toFixed(1)}%</div></td>
-        <td style="font-weight:700;color:${cum<=80?'var(--blue)':'var(--text-soft)'}">${cum.toFixed(1)}%</td>
+        <td style="font-weight:700;color:${isConc?'var(--blue)':'var(--text-soft)'}">${cum.toFixed(1)}%</td>
       </tr>`;
     }).join('')}
   </table>
-  <div style="font-size:11px;color:var(--blue);margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">Highlighted rows = customers representing 80% of this SKU's sales</div>`;
+  <div style="font-size:11px;color:var(--blue);margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">Blue highlighted rows = customers representing 80% of this SKU's MTD sales</div>`;
+}
+
+function buildSkuNotYetTable(invId, itemClass){
+  // Customers who have YTD avg for this SKU but haven't bought it this month
+  // Use D.skuCust to get who HAS bought, then cross-ref with ytd cache
+  // Since we don't have a separate "not yet" cache fetched, derive from skuCust:
+  // D.skuNotYet is fetched separately — fall back to message if not loaded
+  const rows=(D.skuNotYet||[]).filter(r=>r.inventory_id===invId)
+    .sort((a,b)=>parseFloat(b.ytd_avg_rev||0)-parseFloat(a.ytd_avg_rev||0));
+  if(!rows.length) return'<div class="empty-row">No Tier 1-3 customers with purchase history missing this month</div>';
+  const total=rows.length;
+  return`
+    <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <strong>${total}</strong> Tier 1-3 customer${total!==1?'s':''} who normally buy this SKU have not purchased yet this month
+    </div>
+    <table class="exp-table">
+      <tr><th>Customer</th><th>Area</th><th>Tier</th><th>YTD Avg Monthly Rev</th><th>YTD Avg Cases/Mo</th><th>Last Purchased</th></tr>
+      ${rows.map(r=>{
+        const lp=r.last_purchase_date?lastPurchaseInfo(r.last_purchase_date):{cls:'old',txt:'No record'};
+        return`<tr>
+          <td style="font-weight:600">${r.customer_name}</td>
+          <td>${r.area||'—'}</td>
+          <td>${r.tier||'—'}</td>
+          <td>${parseFloat(r.ytd_avg_rev||0)>0?fmt(r.ytd_avg_rev):'—'}</td>
+          <td>${parseFloat(r.ytd_avg_cases||0)>0?fmtN(r.ytd_avg_cases)+' cs':'—'}</td>
+          <td class="cr-date ${lp.cls}">${lp.txt}</td>
+        </tr>`;
+      }).join('')}
+    </table>`;
 }
 
 function buildSkuAreaTable(invId){
@@ -1101,95 +1143,260 @@ function skuTab(e,uid,t){
 // ── SNAPSHOT MODAL ────────────────────────────────────────────────────────────
 function openSnap(mgr){
   snapMgr=mgr;
-  const elapsed=D.sum[0]?parseFloat(D.sum[0].pct_month_elapsed||35):35;
-  const bad=D.sum.filter(r=>MM[r.item_class]?.mgr===mgr&&(r.pace_status==='follow-up'||r.pace_status==='watch'));
-  const ra={};
-  bad.forEach(row=>{
-    D.rep.filter(r=>r.item_class===row.item_class&&(parseFloat(r.pct_to_budget)-elapsed)<-5)
-      .sort((a,b)=>parseFloat(a.pct_to_budget)-parseFloat(b.pct_to_budget)).slice(0,5)
-      .forEach(r=>{
-        if(!ra[r.salesperson])ra[r.salesperson]={n:r.salesperson,area:r.area,cats:[],gap:0};
-        ra[r.salesperson].cats.push(`${r.item_class} (${parseFloat(r.pct_to_budget).toFixed(0)}%)`);
-        ra[r.salesperson].gap+=parseFloat(r.gap_mtd);
-      });
-  });
-  const tr=Object.values(ra).sort((a,b)=>a.gap-b.gap).slice(0,8);
+  const elapsed=D.sum[0]?parseFloat(D.sum[0].pct_month_elapsed||65):65;
   const per=document.getElementById('periodPill').textContent;
-  document.getElementById('mTitle').textContent=`${mgr} — Performance Brief`;
+  const mgrColor=MC[mgr]||'var(--navy)';
+
+  // Get behind categories for this manager only
+  const badCats=D.sum.filter(r=>MM[r.item_class]?.mgr===mgr&&(r.pace_status==='follow-up'||r.pace_status==='watch'));
+
+  // Build rep-organised structure
+  const repMap={};
+  badCats.forEach(catRow=>{
+    const behindReps=D.rep.filter(r=>
+      r.item_class===catRow.item_class&&(parseFloat(r.pct_to_budget)-elapsed)<0
+    ).sort((a,b)=>parseFloat(a.gap_mtd)-parseFloat(b.gap_mtd));
+
+    behindReps.forEach(rep=>{
+      const key=rep.salesperson;
+      if(!repMap[key]) repMap[key]={name:rep.salesperson,area:rep.area,totalGap:0,cats:{}};
+      // High impact stores — negative gap + monthly target >= 100K, sorted by largest dollar gap
+      const stores=D.cust
+        .filter(cu=>cu.item_class===catRow.item_class&&cu.salesperson===rep.salesperson&&parseFloat(cu.gap_mtd)<0&&parseFloat(cu.budget_full||0)>=100000)
+        .sort((a,b)=>parseFloat(a.gap_mtd)-parseFloat(b.gap_mtd));
+      repMap[key].cats[catRow.item_class]={pct:parseFloat(rep.pct_to_budget),gap:parseFloat(rep.gap_mtd),stores};
+      repMap[key].totalGap+=parseFloat(rep.gap_mtd);
+    });
+  });
+
+  const reps=Object.values(repMap).sort((a,b)=>a.totalGap-b.totalGap);
+  document.getElementById('mTitle').textContent=`${mgr} — Rep Action Brief`;
   document.getElementById('mBody').innerHTML=`
-    <div class="s-banner" style="background:${MC[mgr]}"><h2>${mgr} — Category Performance Brief</h2><p>Period: ${per} · ${new Date().toLocaleString()}</p></div>
-    <div style="margin-bottom:18px"><div class="s-sec-lbl">Categories Behind Pace</div>
-    ${!bad.length?`<div style="font-size:13px;color:var(--green)">✓ All on pace</div>`:
-      bad.map(r=>{const pi=paceInfo(r.pace_status);return`<div class="s-cat-row"><span class="s-cat-nm">${r.item_class}</span><span class="rr-badge ${pi.rb}">${pi.badgeTxt} ${parseFloat(r.pace_gap_pct).toFixed(1)}%</span>${gpChip(r.gp_pct)}<span style="font-size:11px;color:var(--red);margin-left:4px">${fmt(r.gap_mtd)}</span></div>`;}).join('')}
+    <div class="s-banner" style="background:${mgrColor}">
+      <h2>${mgr} — Rep Action Brief</h2>
+      <p>Period: ${per} · Generated ${new Date().toLocaleString()}</p>
     </div>
-    <div style="margin-bottom:18px"><div class="s-sec-lbl">Priority Reps</div>
-    ${!tr.length?`<div style="font-size:13px;color:var(--text-soft)">None identified.</div>`:
-      tr.map(r=>`<div class="s-rep-blk"><div class="s-rep-nm">${r.n} <span style="font-weight:400;color:var(--text-soft);font-size:12px">· ${r.area}</span></div><div class="s-rep-dt">${r.cats.join(' | ')}<br>Gap: <strong style="color:var(--red)">${fmt(r.gap)}</strong></div></div>`).join('')}
-    </div>
-    <div><div class="s-sec-lbl">Recommended Actions</div>
-    <div class="s-actions">${tr.slice(0,6).map((r,i)=>`<strong>${i+1}.</strong> Contact ${r.n} (${r.area}) re: ${r.cats.join(', ')}<br>`).join('')}${!tr.length?'No urgent actions.':''}</div></div>`;
+    ${!badCats.length
+      ?`<div style="padding:20px;text-align:center;color:var(--green);font-weight:700;font-size:15px">✓ All categories on pace — no action needed</div>`
+      :`<div style="margin-bottom:16px">
+          <div class="s-sec-lbl">Categories Behind Pace</div>
+          ${badCats.map(r=>{const pi=paceInfo(r.pace_status);return`<div class="s-cat-row"><span class="s-cat-nm">${r.item_class}</span><span class="rr-badge ${pi.rb}">${parseFloat(r.pct_to_budget).toFixed(0)}% vs ${Math.round(elapsed)}% pace</span>${gpChip(r.gp_pct)}<span style="font-size:11px;color:var(--red);margin-left:auto">${fmt(r.gap_mtd)}</span></div>`;}).join('')}
+        </div>
+        <div class="s-sec-lbl">${reps.length} Rep${reps.length!==1?'s':''} Requiring Action</div>
+        ${!reps.length
+          ?`<div style="font-size:13px;color:var(--text-soft)">No reps behind pace.</div>`
+          :reps.map((rep,ri)=>`
+            <div style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+              <div style="background:var(--surface-alt);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+                <div>
+                  <div style="font-weight:800;font-size:14px">${ri+1}. ${rep.name}</div>
+                  <div style="font-size:11px;color:var(--text-soft)">${rep.area}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="text-align:right">
+                    <div style="font-weight:700;font-size:14px;color:var(--red)">${fmt(rep.totalGap)}</div>
+                    <div style="font-size:10px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.04em">combined gap</div>
+                  </div>
+                  <button onclick="shareRepBrief('${mgr}','${rep.name}')" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">⬇ Share Brief</button>
+                </div>
+              </div>
+              ${Object.entries(rep.cats).map(([cat,cd])=>`
+                <div style="padding:10px 14px;border-bottom:1px solid var(--border-soft)">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <span style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em">${cat}</span>
+                    <span style="font-size:11px;color:var(--red)">${cd.pct.toFixed(0)}% vs ${Math.round(elapsed)}% pace</span>
+                    <span style="font-size:11px;color:var(--red);font-weight:700;margin-left:auto">${fmt(cd.gap)}</span>
+                  </div>
+                  ${cd.stores.length
+                    ?`<table style="width:100%;border-collapse:collapse;font-size:11px">
+                        <tr style="color:var(--text-soft);font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+                          <th style="text-align:left;padding:3px 6px;font-weight:700">Store</th>
+                          <th style="text-align:right;padding:3px 6px;font-weight:700">MTD Actual</th>
+                          <th style="text-align:right;padding:3px 6px;font-weight:700">Month Target</th>
+                          <th style="text-align:right;padding:3px 6px;font-weight:700">Budget MTD</th>
+                          <th style="text-align:right;padding:3px 6px;font-weight:700">Pace</th>
+                          <th style="text-align:right;padding:3px 6px;font-weight:700">Gap</th>
+                        </tr>
+                        ${cd.stores.map(s=>`<tr style="border-top:1px solid var(--border-soft)">
+                          <td style="padding:4px 6px;font-weight:600">${s.customer_name}</td>
+                          <td style="padding:4px 6px;text-align:right;font-weight:600">${fmt(s.actual_mtd)}</td>
+                          <td style="padding:4px 6px;text-align:right">${s.budget_full?fmt(s.budget_full):'—'}</td>
+                          <td style="padding:4px 6px;text-align:right">${fmt(s.budget_mtd)}</td>
+                          <td style="padding:4px 6px;text-align:right;color:var(--red)">${s.pct_to_budget?parseFloat(s.pct_to_budget).toFixed(0)+'%':'—'}</td>
+                          <td style="padding:4px 6px;text-align:right;color:var(--red);font-weight:700">${fmt(s.gap_mtd)}</td>
+                        </tr>`).join('')}
+                      </table>`
+                    :`<div style="font-size:11px;color:var(--text-soft);font-style:italic;padding:0 6px">No high-impact stores identified</div>`
+                  }
+                </div>`).join('')}
+            </div>`).join('')
+        }`
+    }`;
   document.getElementById('overlay').classList.add('open');
 }
+
 function closeModal(){document.getElementById('overlay').classList.remove('open');}
+function shareRepBrief(mgr, repName){
+  const elapsed=D.sum[0]?parseFloat(D.sum[0].pct_month_elapsed||65):65;
+  const per=document.getElementById('periodPill').textContent;
+  const mgrColor=MC[mgr]||'#326BD3';
+
+  // Get behind categories for this manager
+  const badCats=D.sum.filter(r=>MM[r.item_class]?.mgr===mgr&&(r.pace_status==='follow-up'||r.pace_status==='watch'));
+
+  // Build data for this specific rep only
+  const repCats={};
+  let totalGap=0;
+  let repArea='';
+
+  badCats.forEach(catRow=>{
+    const repRow=D.rep.find(r=>r.item_class===catRow.item_class&&r.salesperson===repName&&(parseFloat(r.pct_to_budget)-elapsed)<0);
+    if(!repRow) return;
+    repArea=repRow.area;
+    const stores=D.cust
+      .filter(cu=>cu.item_class===catRow.item_class&&cu.salesperson===repName&&parseFloat(cu.gap_mtd)<0&&parseFloat(cu.budget_full||0)>=100000)
+      .sort((a,b)=>parseFloat(a.gap_mtd)-parseFloat(b.gap_mtd));
+    repCats[catRow.item_class]={pct:parseFloat(repRow.pct_to_budget),gap:parseFloat(repRow.gap_mtd),stores};
+    totalGap+=parseFloat(repRow.gap_mtd);
+  });
+
+  if(!Object.keys(repCats).length){
+    alert(`${repName} has no categories behind pace for ${mgr}.`);
+    return;
+  }
+
+  // Get the inline CSS
+  const inlineStyle=document.querySelector('style');
+  const inlineCSS=inlineStyle?inlineStyle.innerHTML:'';
+
+  const repHTML=`
+    <!-- Rep header -->
+    <div style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <div style="background:var(--surface-alt);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:800;font-size:14px">${repName}</div>
+          <div style="font-size:11px;color:var(--text-soft)">${repArea}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:14px;color:var(--red)">${fmt(totalGap)}</div>
+          <div style="font-size:10px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.04em">combined gap</div>
+        </div>
+      </div>
+      ${Object.entries(repCats).map(([cat,cd])=>`
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border-soft)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em">${cat}</span>
+            <span style="font-size:11px;color:var(--red)">${cd.pct.toFixed(0)}% vs ${Math.round(elapsed)}% pace</span>
+            <span style="font-size:11px;font-weight:700;color:var(--red);margin-left:auto">${fmt(cd.gap)}</span>
+          </div>
+          ${cd.stores.length
+            ?`<table style="width:100%;border-collapse:collapse;font-size:11px">
+                <tr style="color:var(--text-soft);font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+                  <th style="text-align:left;padding:3px 6px;font-weight:700">Store</th>
+                  <th style="text-align:right;padding:3px 6px;font-weight:700">MTD Actual</th>
+                  <th style="text-align:right;padding:3px 6px;font-weight:700">Month Target</th>
+                  <th style="text-align:right;padding:3px 6px;font-weight:700">Budget MTD</th>
+                  <th style="text-align:right;padding:3px 6px;font-weight:700">Pace</th>
+                  <th style="text-align:right;padding:3px 6px;font-weight:700">Gap</th>
+                </tr>
+                ${cd.stores.map(s=>`<tr style="border-top:1px solid var(--border-soft)">
+                  <td style="padding:4px 6px;font-weight:600">${s.customer_name}</td>
+                  <td style="padding:4px 6px;text-align:right;font-weight:600">${fmt(s.actual_mtd)}</td>
+                  <td style="padding:4px 6px;text-align:right">${s.budget_full?fmt(s.budget_full):'—'}</td>
+                  <td style="padding:4px 6px;text-align:right">${fmt(s.budget_mtd)}</td>
+                  <td style="padding:4px 6px;text-align:right;color:var(--red)">${s.pct_to_budget?parseFloat(s.pct_to_budget).toFixed(0)+'%':'—'}</td>
+                  <td style="padding:4px 6px;text-align:right;color:var(--red);font-weight:700">${fmt(s.gap_mtd)}</td>
+                </tr>`).join('')}
+              </table>`
+            :`<div style="font-size:11px;color:var(--text-soft);font-style:italic;padding:0 6px">No high-impact stores identified</div>`
+          }
+        </div>`).join('')}
+    </div>`;
+
+  const html=`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>${mgr} — ${repName} Brief — ${per}</title>
+<style>${inlineCSS}
+body{background:#fff !important;padding:0 !important;}
+*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+.ldr,.topbar,.header,.page,.overlay{display:none !important;}
+@media print{@page{margin:15mm;}body{font-size:11px;}}
+</style></head>
+<body>
+<div style="max-width:900px;margin:0 auto;padding:20px;">
+  <div class="s-banner" style="background:${mgrColor};border-radius:10px;margin-bottom:18px">
+    <h2 style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">${mgr} — ${repName} Action Brief</h2>
+    <p style="font-size:11px;color:rgba(255,255,255,.75)">Period: ${per} · Generated ${new Date().toLocaleString()}</p>
+  </div>
+  <div style="font-family:var(--f,'Segoe UI',system-ui,sans-serif);color:var(--text,#1A2340)">
+    ${repHTML}
+  </div>
+</div>
+</body></html>`;
+
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload=()=>{setTimeout(()=>{win.focus();win.print();},600);};
+}
+
 function downloadSnap(){
   const mgr=snapMgr;
   const per=document.getElementById('periodPill').textContent;
   const mBody=document.getElementById('mBody');
-  const btn=document.querySelector('.btn-pri');
-  const origTxt=btn.textContent;
-  btn.textContent='Generating…';
-  btn.disabled=true;
+  const mgrColor=MC[mgr]||'#326BD3';
 
-  // Temporarily show modal body at full width for clean capture
-  const prevOverflow=document.body.style.overflow;
-  document.body.style.overflow='hidden';
-
-  // Build a clean render target
-  const wrapper=document.createElement('div');
-  wrapper.style.cssText=`
-    position:fixed;left:-9999px;top:0;
-    width:680px;background:#fff;
-    font-family:'Segoe UI',system-ui,sans-serif;
-    color:#1A2340;padding:0;
-  `;
-
-  // Clone modal content with a styled header banner
-  const bannerColor={'Rejene':'#6D28D9','Trebor':'#0E7490','Travis':'#B45309'}[mgr]||'#326BD3';
-  wrapper.innerHTML=`
-    <div style="background:${bannerColor};padding:20px 24px;">
-      <div style="font-weight:800;font-size:18px;color:#fff">${mgr} — Category Performance Brief</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:4px">Period: ${per} · Generated ${new Date().toLocaleString()}</div>
-    </div>
-    <div style="padding:24px">${mBody.innerHTML}</div>
-  `;
-  document.body.appendChild(wrapper);
-
-  html2canvas(wrapper,{
-    scale:2,
-    backgroundColor:'#ffffff',
-    useCORS:true,
-    logging:false,
-    width:680
-  }).then(canvas=>{
-    // Download as JPG
-    const link=document.createElement('a');
-    link.download=`${mgr}_Category_Brief_${per.replace(/[^a-zA-Z0-9]/g,'_')}.jpg`;
-    link.href=canvas.toDataURL('image/jpeg',0.92);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    document.body.removeChild(wrapper);
-    document.body.style.overflow=prevOverflow;
-    btn.textContent=origTxt;
-    btn.disabled=false;
-  }).catch(err=>{
-    console.error(err);
-    document.body.removeChild(wrapper);
-    document.body.style.overflow=prevOverflow;
-    btn.textContent=origTxt;
-    btn.disabled=false;
-    alert('Download failed. Try Copy as Text instead.');
+  // Extract the full CSS from this page so the print window looks identical
+  const styleSheets=Array.from(document.styleSheets);
+  let cssText='';
+  styleSheets.forEach(sheet=>{
+    try{
+      const rules=Array.from(sheet.cssRules||[]);
+      rules.forEach(rule=>{cssText+=rule.cssText+'\n';});
+    }catch(e){}
   });
+
+  // Also grab the inline <style> block directly as fallback
+  const inlineStyle=document.querySelector('style');
+  const inlineCSS=inlineStyle?inlineStyle.innerHTML:'';
+
+  const html=`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${mgr} — Rep Action Brief — ${per}</title>
+  <style>
+    /* Dashboard styles — exact copy for print fidelity */
+    ${inlineCSS}
+    /* Print overrides */
+    body{background:#fff !important;padding:0 !important;}
+    .print-wrap{max-width:900px;margin:0 auto;padding:0;}
+    /* Ensure backgrounds print */
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+    /* Hide anything not needed */
+    .ldr,.topbar,.header,.page,.overlay{display:none !important;}
+    /* Page breaks */
+    .print-rep-block{page-break-inside:avoid;}
+    @media print{
+      @page{margin:15mm;}
+      body{font-size:11px;}
+    }
+  </style>
+</head>
+<body>
+<div class="print-wrap">
+  <!-- Brief body — exact same HTML as modal, banner already included -->
+  <div style="font-family:var(--f,'Segoe UI',system-ui,sans-serif);color:var(--text,#1A2340)">
+    ${mBody.innerHTML}
+  </div>
+</div>
+</body>
+</html>`;
+
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload=()=>{setTimeout(()=>{win.focus();win.print();},600);};
 }
 
 function copySnap(){
