@@ -395,7 +395,6 @@ function renderInvoiceTable(g,key) {
     (key==='UNASSIGNED'?'<select onchange="assignDriver(this.value)" style="font-size:12px;padding:5px 8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)"><option value="">Assign to driver…</option>'+driverOpts.map(d=>'<option value="'+d.v+'">'+d.l+'</option>').join('')+'</select>':'')+
     '<button class="btn btn-primary btn-sm" onclick="openBatchModal(\''+key+'\')" '+(selCount===0?'disabled':'')+'>'+
     '<i class="ti ti-send"></i> Send to Detrack</button>'+
-    (g.invoices.some(i=>i._sent)?'<button class="resend-btn" onclick="resendBatchByRef(\''+key+'\')" title="Resend sent jobs"><i class="ti ti-refresh"></i> Resend</button>':'')+
     '</div></div></div>';
 }
 
@@ -625,7 +624,7 @@ async function loadHistory() {
     const c=document.getElementById('history-container');
     if(b.length===0){c.innerHTML='<div class="empty-state"><i class="ti ti-history"></i>No batches sent yet</div>';return;}
     c.innerHTML='<div class="history-wrap"><table class="history-table">'+
-      '<thead><tr><th>Load #</th><th>Date</th><th>Driver</th><th>Stops</th><th>Status</th><th>Sent at</th><th></th></tr></thead>'+
+      '<thead><tr><th>Load #</th><th>Date</th><th>Driver</th><th>Stops</th><th>Status</th><th>Sent at</th></tr></thead>'+
       '<tbody>'+b.map(bt=>'<tr>'+
         '<td><span class="load-tag">'+bt.load_number+'</span></td>'+
         '<td>'+fmtDate(bt.delivery_date)+'</td>'+
