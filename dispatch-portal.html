@@ -118,6 +118,14 @@ body{font-family:var(--font-sans);color:var(--color-text-primary);background:var
 .error-bar{background:var(--color-background-danger);color:var(--color-text-danger);padding:10px 16px;border-radius:var(--radius);margin-bottom:1rem;font-size:13px;display:flex;align-items:center;gap:8px;border:0.5px solid var(--color-border-danger)}
 .success-center{text-align:center;padding:1rem 0}
 .success-center i{font-size:48px;color:var(--color-text-success);margin-bottom:14px;display:block}
+.search-bar{position:relative;flex:1;min-width:200px}
+.search-bar input{width:100%;font-size:13px;padding:7px 10px 7px 34px;border-radius:var(--radius);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.search-bar input:focus{outline:none;border-color:var(--color-text-info)}
+.search-bar .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--color-text-tertiary);font-size:15px;pointer-events:none}
+.search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);font-size:13px;padding:2px;display:none}
+.resend-btn{background:none;border:0.5px solid var(--color-border-secondary);cursor:pointer;color:var(--color-text-secondary);font-size:12px;padding:4px 8px;border-radius:var(--radius);display:inline-flex;align-items:center;gap:4px;font-family:var(--font-sans)}
+.resend-btn:hover{background:var(--color-background-warning);color:var(--color-text-warning);border-color:var(--color-border-tertiary)}
+
 </style>
 </head>
 <body>
@@ -142,6 +150,11 @@ body{font-family:var(--font-sans);color:var(--color-text-primary);background:var
         <span class="date-display" id="date-display"></span>
         <span class="filter-label">Driver</span>
         <select id="driver-filter" onchange="applyFilters()"><option value="all">All drivers</option></select>
+      </div>
+      <div class="search-bar">
+        <i class="ti ti-search search-icon"></i>
+        <input type="text" id="search-input" placeholder="Search customer, invoice, ref…" oninput="applySearch()" autocomplete="off">
+        <button class="search-clear" id="search-clear" onclick="clearSearch()"><i class="ti ti-x"></i></button>
       </div>
       <button class="btn" onclick="refresh()"><i class="ti ti-refresh"></i> Refresh</button>
     </div>
@@ -211,7 +224,7 @@ async function patch(p, b) {
 }
 
 let allInvoices=[], allItems={}, selected={}, expandedInvoices=new Set(), openGroups=new Set();
-let dateFilter='today', driverFilter='all', dismissTarget=null;
+let dateFilter='today', driverFilter='all', dismissTarget=null, searchQuery='';
 
 function fmt(n) { return n==null?'—':'J$'+Math.round(n).toLocaleString(); }
 function fmtDate(d) { return d?new Date(d+'T12:00:00').toLocaleDateString('en-JM',{month:'short',day:'numeric'}):'—'; }
@@ -275,7 +288,19 @@ async function loadInvoices() {
 }
 
 function filterInvoices(invs) {
-  return invs.filter(inv=>driverFilter==='all'||(inv.ship_via||'UNASSIGNED')===driverFilter);
+  return invs.filter(inv=>{
+    const driverMatch = driverFilter==='all'||(inv.ship_via||'UNASSIGNED')===driverFilter;
+    if(!driverMatch) return false;
+    if(!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (inv.customer_name||'').toLowerCase().includes(q) ||
+           (inv.customer_id||'').toLowerCase().includes(q) ||
+           (inv.reference_number||'').toLowerCase().includes(q) ||
+           (inv.ship_via_description||'').toLowerCase().includes(q) ||
+           (inv.ship_via||'').toLowerCase().includes(q) ||
+           (inv._cust?.shipping_zone||'').toLowerCase().includes(q) ||
+           (inv._cust?.clean_city||'').toLowerCase().includes(q);
+  });
 }
 
 function populateDriverFilter(invs) {
@@ -369,7 +394,9 @@ function renderInvoiceTable(g,key) {
     '<div style="display:flex;gap:8px;align-items:center">'+
     (key==='UNASSIGNED'?'<select onchange="assignDriver(this.value)" style="font-size:12px;padding:5px 8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)"><option value="">Assign to driver…</option>'+driverOpts.map(d=>'<option value="'+d.v+'">'+d.l+'</option>').join('')+'</select>':'')+
     '<button class="btn btn-primary btn-sm" onclick="openBatchModal(\''+key+'\')" '+(selCount===0?'disabled':'')+'>'+
-    '<i class="ti ti-send"></i> Send to Detrack</button></div></div></div>';
+    '<i class="ti ti-send"></i> Send to Detrack</button>'+
+    (g.invoices.some(i=>i._sent)?'<button class="resend-btn" onclick="resendBatchByRef(\''+key+'\')" title="Resend sent jobs"><i class="ti ti-refresh"></i> Resend</button>':'')+
+    '</div></div></div>';
 }
 
 function renderInvoiceRow(inv) {
@@ -528,6 +555,19 @@ async function sendBatch(key) {
   } catch(e){closeModal();showError('Failed to send batch: '+e.message);}
 }
 
+// Resend by looking up batch_id from already-sent invoices in this driver group
+async function resendBatchByRef(key) {
+  const grp=groupByDriver(filterInvoices(allInvoices)).find(([k])=>k===key);
+  if(!grp)return;
+  const sentInv=grp[1].invoices.find(i=>i._sent&&i._loadNumber);
+  if(!sentInv){showError('No sent jobs found for this group');return;}
+  try {
+    const batches=await api('delivery_batches?load_number=eq.'+sentInv._loadNumber+'&select=id,load_number');
+    if(!batches||batches.length===0){showError('Batch not found: '+sentInv._loadNumber);return;}
+    await resendBatch(batches[0].id, batches[0].load_number);
+  } catch(e){showError('Resend failed: '+e.message);}
+}
+
 // Resend an existing batch to Detrack — for testing/recovery, bypasses duplicate check
 async function resendBatch(batchId, loadNumber) {
   if(!confirm('Resend batch ' + loadNumber + ' to Detrack?\n\nThis will re-push all jobs. Use for testing or recovery only.')) return;
@@ -612,6 +652,32 @@ function applyFilters() {
   loadInvoices();
 }
 
+function applySearch() {
+  searchQuery = document.getElementById('search-input').value.trim();
+  const clearBtn = document.getElementById('search-clear');
+  if(clearBtn) clearBtn.style.display = searchQuery ? 'block' : 'none';
+  const filtered = filterInvoices(allInvoices);
+  renderGroups(filtered);
+  updateStats(filtered);
+  // Auto-expand all groups when searching
+  if(searchQuery) {
+    groupByDriver(filtered).forEach(([k])=>{
+      const ek=k.replace(/[^a-z0-9]/gi,'_');
+      openGroups.add(ek);
+    });
+    renderGroups(filtered);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value='';
+  searchQuery='';
+  const clearBtn=document.getElementById('search-clear');
+  if(clearBtn) clearBtn.style.display='none';
+  renderGroups(filterInvoices(allInvoices));
+  updateStats(filterInvoices(allInvoices));
+}
+
 function assignDriver(shipVia) {
   if(!shipVia)return;
   const inv=allInvoices.find(i=>i.ship_via===shipVia);
@@ -619,7 +685,7 @@ function assignDriver(shipVia) {
   renderGroups(filterInvoices(allInvoices));
 }
 
-function refresh(){selected={};expandedInvoices.clear();loadInvoices();}
+function refresh(){selected={};expandedInvoices.clear();searchQuery='';const si=document.getElementById('search-input');if(si)si.value='';const sc=document.getElementById('search-clear');if(sc)sc.style.display='none';loadInvoices();}
 
 loadInvoices();
 </script>
