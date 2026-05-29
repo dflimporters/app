@@ -503,14 +503,19 @@ async function sendBatch(key) {
   const grp=groupByDriver(filterInvoices(allInvoices)).find(([k])=>k===key);
   if(!grp)return;
   const selInvs=grp[1].invoices.filter(i=>selected[i.reference_number]);
+  let batchId=null;
   try {
     const [deliveryDate]=getDateRange();
+
+    // Step 1: Create batch record (status=pending until Detrack confirms)
     const [batch]=await post('delivery_batches',{
       delivery_date:deliveryDate, ship_via:grp[1].ship_via||null,
-      ship_via_description:grp[1].desc||null, status:'sent',
-      sent_to_detrack_at:new Date().toISOString()
+      ship_via_description:grp[1].desc||null, status:'pending'
     });
+    batchId=batch.id;
     const loadNumber=batch.load_number;
+
+    // Step 2: Create job records
     const jobs=selInvs.map(inv=>({
       batch_id:batch.id, load_number:loadNumber,
       reference_number:inv.reference_number, customer_id:inv.customer_id,
@@ -526,16 +531,21 @@ async function sendBatch(key) {
     }));
     await post('delivery_jobs',jobs);
 
+    // Step 3: Push to Detrack
     if(btn)btn.innerHTML='<i class="ti ti-loader-2"></i> Pushing to Detrack…';
     const detrackRes=await fetch(
       'https://hzagwndglwhcepsirafi.supabase.co/functions/v1/push-to-detrack',
-      {method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY},body:JSON.stringify({batch_id:batch.id})}
+      {method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+       body:JSON.stringify({batch_id:batch.id})}
     );
     const detrackData=await detrackRes.json();
-    if(!detrackRes.ok)throw new Error(detrackData.error||'Detrack push failed');
+    if(!detrackRes.ok) throw new Error(detrackData.error||'Detrack push failed');
 
     const pushed=detrackData.pushed??0;
     const partial=detrackData.status==='partial';
+
+    // Only mark as sent in UI if Detrack confirmed at least some jobs
+    if(pushed===0) throw new Error('Detrack accepted the request but no jobs were created. Check logs.');
 
     selInvs.forEach(inv=>{inv._sent=true;inv._loadNumber=loadNumber;selected[inv.reference_number]=false;});
     closeModal();
@@ -551,7 +561,17 @@ async function sendBatch(key) {
       (partial?'<p style="color:var(--color-text-warning);font-size:12px;margin-bottom:1rem">Some jobs failed — check Batch History for details.</p>':'')+
       '<button class="btn btn-primary" onclick="closeModal()">Done</button>'+
       '</div></div></div>';
-  } catch(e){closeModal();showError('Failed to send batch: '+e.message);}
+  } catch(e) {
+    // Rollback: delete the batch and jobs from Supabase so the invoice can be retried
+    if(batchId) {
+      try {
+        await fetch(SUPA_URL+'/rest/v1/delivery_jobs?batch_id=eq.'+batchId,{method:'DELETE',headers:H});
+        await fetch(SUPA_URL+'/rest/v1/delivery_batches?id=eq.'+batchId,{method:'DELETE',headers:H});
+      } catch(re){console.error('Rollback failed:',re);}
+    }
+    closeModal();
+    showError('Failed to send batch: '+e.message);
+  }
 }
 
 // Resend by looking up batch_id from already-sent invoices in this driver group
