@@ -376,9 +376,14 @@
       currentReportHtml = html;
       currentReportTitle = report.week_label;
 
-      // Inject into iframe via srcdoc — browser renders it properly
+      // Use blob URL — avoids srcdoc escaping issues with <script> tags
       const frame = document.getElementById('report-frame');
-      frame.srcdoc = html;
+      // Revoke any previous blob URL to avoid memory leaks
+      if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
+      const blob = new Blob([html], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+      frame._blobUrl = blobUrl;
+      frame.src = blobUrl;
 
       // Auto-resize iframe to content
       frame.onload = () => {
