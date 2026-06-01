@@ -1196,7 +1196,7 @@
 
 <script>
   // ── CONFIG ──
-  const ACCESS_PASSWORD = 'admin';  // Change this to your real password
+  const ACCESS_PASSWORD = 'dfl2026';  // Change this to your real password
 
   const DEPARTMENTS = ['hr','sales','it','finance','ops','proc'];
   const files = {};
@@ -1404,6 +1404,7 @@
 
   // Store the compiled report URL after success
   let lastReportUrl = null;
+  let lastWeekStart = null;
 
   async function runCompileSteps() {
     const weeks = getMondayWeeks(12);
@@ -1444,6 +1445,7 @@
       if (!result.success) throw new Error(result.error || 'Compile failed');
 
       lastReportUrl = result.report_url;
+        lastWeekStart = result.week_start;
 
       // Step 4 — saved
       setStep(4);
@@ -1477,7 +1479,8 @@
   function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   function viewReport() {
-    if (lastReportUrl) window.open(lastReportUrl, '_blank');
+    if (!lastWeekStart) return;
+    window.location.href = 'report-viewer.html?week=' + lastWeekStart;
   }
 
 
