@@ -368,8 +368,8 @@
 
     try {
       // Fetch the HTML from Supabase Storage
-      const storageUrl = `${SUPABASE_URL}/storage/v1/object/public/weekly-reports/${report.html_storage_path}`;
-      const res = await fetch(storageUrl);
+      const storageUrl = `${SUPABASE_URL}/storage/v1/object/public/weekly-reports/${report.html_storage_path}?t=${Date.now()}`;
+      const res = await fetch(storageUrl, { cache: 'no-store' });
       if (!res.ok) throw new Error(`Could not fetch report (HTTP ${res.status})`);
       const html = await res.text();
 
@@ -402,8 +402,8 @@
       // Inject body HTML
       container.innerHTML = bodyHtml;
 
-      // Execute scripts
-      try { new Function(scripts)(); } catch(e) { console.warn('Report script error:', e); }
+      // Execute scripts — use eval so functions land on window scope (onclick needs them)
+      try { eval(scripts); } catch(e) { console.warn('Report script error:', e); }
 
       // Update meta bar
       document.getElementById('report-title').textContent = report.week_label;
