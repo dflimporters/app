@@ -56,7 +56,6 @@
 
   .main { max-width: 1100px; margin: 0 auto; padding: 28px 32px; }
 
-  /* Week selector strip */
   .week-strip {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -82,8 +81,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 10px center;
-    cursor: pointer;
-    outline: none;
+    cursor: pointer; outline: none;
     transition: border-color 0.15s;
   }
   .week-strip select:focus { border-color: var(--accent); }
@@ -98,79 +96,42 @@
   .btn-primary:hover { background: var(--navy2); }
   .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
   .btn-outline:hover { background: var(--bg); color: var(--text); }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* State cards */
-  .state-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 60px 32px;
-    text-align: center;
-  }
+  .state-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 60px 32px; text-align: center; }
   .state-icon { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
   .state-icon.blue { background: var(--accent-bg); }
   .state-icon.red { background: #fef2f2; }
   .state-card h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
   .state-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto 24px; }
 
-  /* Loading bar */
-  .loading-bar {
-    height: 3px; background: var(--border); border-radius: 99px; overflow: hidden;
-    margin-bottom: 20px;
-  }
-  .loading-bar-fill {
-    height: 100%; background: var(--navy); border-radius: 99px;
-    animation: loading 1.4s ease-in-out infinite;
-  }
+  .loading-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
+  .loading-bar-fill { height: 100%; background: var(--navy); border-radius: 99px; animation: loading 1.4s ease-in-out infinite; }
   @keyframes loading {
     0% { width: 0%; margin-left: 0; }
     50% { width: 60%; margin-left: 20%; }
     100% { width: 0%; margin-left: 100%; }
   }
 
-  /* Report meta bar */
   .report-meta {
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; flex-wrap: wrap;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 20px;
-    margin-bottom: 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 16px;
   }
   .report-meta-left { display: flex; align-items: center; gap: 12px; }
   .report-meta h3 { font-size: 15px; font-weight: 700; color: var(--navy); }
-  .meta-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-  }
+  .meta-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
   .meta-badge.green { background: #dcfce7; color: var(--success); }
   .meta-badge.blue { background: var(--accent-bg); color: var(--accent); }
   .report-meta-right { display: flex; gap: 8px; }
 
-  /* Report container */
-  .report-frame-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-  }
-  #report-container {
-    width: 100%;
-    min-height: 600px;
-  }
+  .report-frame-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-md); }
+  #report-container { width: 100%; min-height: 600px; }
 
-  /* Archive list */
   .archive-section { margin-top: 28px; }
   .archive-section h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 12px; }
   .archive-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-  .archive-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 16px; cursor: pointer; transition: all 0.15s;
-    display: flex; align-items: center; gap: 12px;
-  }
+  .archive-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 12px; }
   .archive-card:hover { border-color: #cbd5e1; box-shadow: var(--shadow-md); }
   .archive-card.active { border-color: var(--accent); background: var(--accent-bg); }
   .archive-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
@@ -220,18 +181,16 @@
 
 <div class="main">
 
-  <!-- Week selector -->
   <div class="week-strip">
     <label>Report week</label>
     <select id="week-select" onchange="loadSelectedWeek()">
       <option value="">Loading reports...</option>
     </select>
-    <button class="btn btn-outline" onclick="refreshList()" title="Refresh list">
+    <button class="btn btn-outline" onclick="loadReportList()" title="Refresh">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
     </button>
   </div>
 
-  <!-- States -->
   <div id="state-empty" class="state-card" style="display:none">
     <div class="state-icon blue">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -256,17 +215,16 @@
     <button class="btn btn-primary" onclick="loadSelectedWeek()">Try again</button>
   </div>
 
-  <!-- Report view -->
   <div id="report-view" style="display:none">
     <div class="report-meta">
       <div class="report-meta-left">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <h3 id="report-title">—</h3>
-        <span class="meta-badge green" id="dept-badge">— depts</span>
+        <span class="meta-badge green" id="dept-badge">—</span>
         <span class="meta-badge blue" id="compiled-badge">—</span>
       </div>
       <div class="report-meta-right">
-        <button class="btn btn-outline" onclick="openFullscreen()" title="Open fullscreen">
+        <button class="btn btn-outline" onclick="openFullscreen()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
           Fullscreen
         </button>
@@ -281,7 +239,6 @@
     </div>
   </div>
 
-  <!-- Archive list -->
   <div class="archive-section" id="archive-section" style="display:none">
     <h3>All reports</h3>
     <div class="archive-list" id="archive-list"></div>
@@ -299,17 +256,15 @@
   let currentReportHtml = '';
   let currentReportTitle = '';
 
-  // Read ?week= from URL on load
-  window.addEventListener('DOMContentLoaded', () => {
-    loadReportList();
-  });
+  window.addEventListener('DOMContentLoaded', loadReportList);
 
   async function loadReportList() {
     showState('loading');
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/weekly_reports?select=id,week_start,week_end,week_label,compiled_at,dept_count,html_storage_path,status&status=eq.complete&order=week_start.desc`, {
-        headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
-      });
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/weekly_reports?select=id,week_start,week_end,week_label,compiled_at,dept_count,html_storage_path,status&status=eq.complete&order=week_start.desc`,
+        { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       reports = await res.json();
 
@@ -329,12 +284,10 @@
         sel.appendChild(opt);
       });
 
-      // Build archive cards
       buildArchiveList();
 
-      // Check URL param
-      const params = new URLSearchParams(window.location.search);
-      const weekParam = params.get('week');
+      // Honour ?week= URL param
+      const weekParam = new URLSearchParams(window.location.search).get('week');
       if (weekParam) {
         const idx = reports.findIndex(r => r.week_start === weekParam);
         if (idx >= 0) sel.value = idx;
@@ -367,31 +320,18 @@
     if (card) card.classList.add('active');
 
     try {
-      // Fetch the HTML from Supabase Storage
+      // Cache-bust to always get the latest compiled version
       const storageUrl = `${SUPABASE_URL}/storage/v1/object/public/weekly-reports/${report.html_storage_path}?t=${Date.now()}`;
-      const res = await fetch(storageUrl, { cache: 'no-store' });
+      const res = await fetch(storageUrl);
       if (!res.ok) throw new Error(`Could not fetch report (HTTP ${res.status})`);
       const html = await res.text();
 
       currentReportHtml = html;
       currentReportTitle = report.week_label;
 
-      // Extract just the <body> content and inject styles + script into the host page
-      const container = document.getElementById('report-container');
-
-      // Pull body content
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-      const bodyHtml = bodyMatch ? bodyMatch[1] : html;
-
-      // Pull <style> blocks
+      // Extract <style> blocks and inject into page <head>
       const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
       const styles = styleMatches.map(m => m[1]).join('\n');
-
-      // Pull <script> blocks
-      const scriptMatches = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
-      const scripts = scriptMatches.map(m => m[1]).join('\n');
-
-      // Inject scoped styles
       let styleEl = document.getElementById('report-injected-styles');
       if (styleEl) styleEl.remove();
       styleEl = document.createElement('style');
@@ -399,10 +339,14 @@
       styleEl.textContent = styles;
       document.head.appendChild(styleEl);
 
-      // Inject body HTML
-      container.innerHTML = bodyHtml;
+      // Extract <body> content and inject into container
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      document.getElementById('report-container').innerHTML = bodyMatch ? bodyMatch[1] : html;
 
-      // Create a script tag and append to document — guarantees functions land on window
+      // Extract and execute <script> blocks via a real script element
+      // (so functions land on window scope and onclick attributes can find them)
+      const scriptMatches = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
+      const scripts = scriptMatches.map(m => m[1]).join('\n');
       const oldScript = document.getElementById('report-injected-script');
       if (oldScript) oldScript.remove();
       const scriptEl = document.createElement('script');
@@ -470,8 +414,6 @@
     a.click();
     URL.revokeObjectURL(a.href);
   }
-
-  function refreshList() { loadReportList(); }
 </script>
 </body>
 </html>
