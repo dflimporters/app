@@ -402,8 +402,13 @@
       // Inject body HTML
       container.innerHTML = bodyHtml;
 
-      // Execute scripts — use eval so functions land on window scope (onclick needs them)
-      try { eval(scripts); } catch(e) { console.warn('Report script error:', e); }
+      // Create a script tag and append to document — guarantees functions land on window
+      const oldScript = document.getElementById('report-injected-script');
+      if (oldScript) oldScript.remove();
+      const scriptEl = document.createElement('script');
+      scriptEl.id = 'report-injected-script';
+      scriptEl.textContent = scripts;
+      document.body.appendChild(scriptEl);
 
       // Update meta bar
       document.getElementById('report-title').textContent = report.week_label;
