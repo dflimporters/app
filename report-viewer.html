@@ -149,7 +149,7 @@
   .meta-badge.blue { background: var(--accent-bg); color: var(--accent); }
   .report-meta-right { display: flex; gap: 8px; }
 
-  /* iframe wrapper */
+  /* Report container */
   .report-frame-wrap {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -157,9 +157,9 @@
     overflow: hidden;
     box-shadow: var(--shadow-md);
   }
-  #report-frame {
-    width: 100%; border: none; display: block;
-    min-height: 80vh;
+  #report-container {
+    width: 100%;
+    min-height: 600px;
   }
 
   /* Archive list */
@@ -277,7 +277,7 @@
       </div>
     </div>
     <div class="report-frame-wrap">
-      <iframe id="report-frame" title="Weekly Management Report"></iframe>
+      <div id="report-container"></div>
     </div>
   </div>
 
@@ -376,24 +376,34 @@
       currentReportHtml = html;
       currentReportTitle = report.week_label;
 
-      // Use blob URL — avoids srcdoc escaping issues with <script> tags
-      const frame = document.getElementById('report-frame');
-      // Revoke any previous blob URL to avoid memory leaks
-      if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
-      const blob = new Blob([html], { type: 'text/html' });
-      const blobUrl = URL.createObjectURL(blob);
-      frame._blobUrl = blobUrl;
-      frame.src = blobUrl;
+      // Extract just the <body> content and inject styles + script into the host page
+      const container = document.getElementById('report-container');
 
-      // Auto-resize iframe to content
-      frame.onload = () => {
-        try {
-          const h = frame.contentDocument.body.scrollHeight;
-          frame.style.height = Math.max(h + 32, 600) + 'px';
-        } catch(e) {
-          frame.style.height = '85vh';
-        }
-      };
+      // Pull body content
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      const bodyHtml = bodyMatch ? bodyMatch[1] : html;
+
+      // Pull <style> blocks
+      const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+      const styles = styleMatches.map(m => m[1]).join('\n');
+
+      // Pull <script> blocks
+      const scriptMatches = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
+      const scripts = scriptMatches.map(m => m[1]).join('\n');
+
+      // Inject scoped styles
+      let styleEl = document.getElementById('report-injected-styles');
+      if (styleEl) styleEl.remove();
+      styleEl = document.createElement('style');
+      styleEl.id = 'report-injected-styles';
+      styleEl.textContent = styles;
+      document.head.appendChild(styleEl);
+
+      // Inject body HTML
+      container.innerHTML = bodyHtml;
+
+      // Execute scripts
+      try { new Function(scripts)(); } catch(e) { console.warn('Report script error:', e); }
 
       // Update meta bar
       document.getElementById('report-title').textContent = report.week_label;
@@ -451,7 +461,7 @@
     const blob = new Blob([currentReportHtml], { type: 'text/html' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `DFL-Weekly-Report-${currentReportTitle.replace(/[^a-z0-9]/gi, '-')}.html`;
+    a.download = 'DFL-Weekly-Report-' + currentReportTitle.replace(/[^a-z0-9]/gi, '-') + '.html';
     a.click();
     URL.revokeObjectURL(a.href);
   }
