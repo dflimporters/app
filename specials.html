@@ -22,28 +22,38 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
+    /* ── NAV ── */
   nav {
-    background:var(--navy); height:56px;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:0 32px; position:sticky; top:0; z-index:100;
-    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+    background: var(--navy);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
   .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-logo { height:26px; }
   .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
   .nav-links { display:flex; gap:4px; }
   .nav-links a {
-    color:rgba(255,255,255,0.65); text-decoration:none;
-    font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s;
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.15s;
   }
   .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
   .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
   .nav-links a.mgmt { color:#fbbf24; }
   .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
   .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
-
-  /* HAMBURGER + MOBILE NAV */
   .nav-hamburger {
     display: none;
     flex-direction: column;
@@ -70,8 +80,8 @@
     position: fixed;
     top: 56px;
     left: 0; right: 0;
-    background: rgba(12,26,58,0.98);
-    backdrop-filter: blur(12px);
+    background: rgba(10,20,50,0.98);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(255,255,255,0.08);
     padding: 0.75rem 1.25rem 1.25rem;
     z-index: 99;
@@ -88,11 +98,11 @@
     border-radius: 8px;
     transition: color 0.15s, background 0.15s;
   }
-  .nav-mobile-menu a:hover { color: #fff; background: rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color: #fff; background: rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color: #fbbf24; }
-  .nav-mobile-menu a.mgmt:hover { background: rgba(251,191,36,0.12); }
-  .mob-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color:#fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
 
   .page-header { background:var(--navy2); padding:32px 32px 36px; }
   .page-header-inner { max-width:1060px; margin:0 auto; }
@@ -271,11 +281,12 @@
   <div class="nav-links">
     <a href="/app/admin/" class="mgmt">Admin</a>
     <a href="/app/management/" class="mgmt">Management</a>
-    <a href="index.html">Home</a>
-    <a href="specials.html" class="active">Specials</a>
-    <a href="dashboards.html">Dashboards</a>
-    <a href="forms.html">Forms</a>
-    <a href="assets.html">Assets</a>
+    <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/app/index.html">Home</a>
+    <a href="/app/specials.html" class="active">Specials</a>
+    <a href="/app/dashboards.html">Dashboards</a>
+    <a href="/app/forms.html">Forms</a>
+    <a href="/app/assets.html">Assets</a>
   </div>
   <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
     <span></span><span></span><span></span>
@@ -285,7 +296,14 @@
 <div class="nav-mobile-menu" id="mobileMenu">
   <a href="/app/admin/" class="mgmt">Admin</a>
   <a href="/app/management/" class="mgmt">Management</a>
+  <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
   <div class="mob-divider"></div>
+  <a href="/app/index.html">Home</a>
+  <a href="/app/specials.html" class="active">Specials</a>
+  <a href="/app/dashboards.html">Dashboards</a>
+  <a href="/app/forms.html">Forms</a>
+  <a href="/app/assets.html">Assets</a>
+</div>
   <a href="index.html">Home</a>
   <a href="specials.html" class="active">Specials</a>
   <a href="dashboards.html">Dashboards</a>

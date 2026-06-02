@@ -20,6 +20,50 @@
   .nav-badge { background:#dc2626; color:#fff; font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; letter-spacing:0.05em; }
   .back-link { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; }
   .back-link:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a {
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color:#fbbf24; }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-hamburger {
+    display: none; flex-direction: column; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 6px; flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block; width: 22px; height: 2px;
+    background: rgba(255,255,255,0.8); border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu {
+    display: none; position: fixed; top: 56px; left: 0; right: 0;
+    background: rgba(10,20,50,0.98); backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem; z-index: 99; flex-direction: column; gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif; font-size: 14px;
+    color: rgba(255,255,255,0.75); text-decoration: none;
+    padding: 10px 12px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+  }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color:#fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
 
   /* LOGIN */
   .login-wrap { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 56px); }
@@ -163,6 +207,13 @@
     .manage-toolbar { flex-direction:column; align-items:stretch; }
     .item-actions { flex-wrap:wrap; }
   }
+  @media (max-width: 640px) {
+    nav { padding: 0 16px; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-title { font-size: 13px; }
+    .nav-badge { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -174,8 +225,32 @@
     <span class="nav-title">Staff Portal</span>
     <span class="nav-badge">ADMIN</span>
   </div>
-  <a class="back-link" href="../index.html">← Back to Portal</a>
+  <div class="nav-links">
+    <a href="/app/admin/" class="mgmt active">Admin</a>
+    <a href="/app/management/" class="mgmt">Management</a>
+    <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/app/index.html">Home</a>
+    <a href="/app/specials.html">Specials</a>
+    <a href="/app/dashboards.html">Dashboards</a>
+    <a href="/app/forms.html">Forms</a>
+    <a href="/app/assets.html">Assets</a>
+  </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/app/admin/" class="mgmt active">Admin</a>
+  <a href="/app/management/" class="mgmt">Management</a>
+  <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <div class="mob-divider"></div>
+  <a href="/app/index.html">Home</a>
+  <a href="/app/specials.html">Specials</a>
+  <a href="/app/dashboards.html">Dashboards</a>
+  <a href="/app/forms.html">Forms</a>
+  <a href="/app/assets.html">Assets</a>
+</div>
 
 <!-- LOGIN -->
 <div class="login-wrap" id="loginWrap">

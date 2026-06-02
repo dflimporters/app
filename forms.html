@@ -13,31 +13,82 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-  /* NAV */
-  nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+    /* ── NAV ── */
+  nav {
+    background: var(--navy);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
   .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; filter:brightness(0) invert(1); }
+  .nav-logo { height:26px; }
   .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
   .nav-links { display:flex; gap:4px; }
-  .nav-links a { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; }
+  .nav-links a {
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
   .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
   .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
   .nav-links a.mgmt { color:#fbbf24; }
   .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
   .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
-
-  /* HAMBURGER */
-  .nav-hamburger { display:none; flex-direction:column; gap:5px; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
-  .nav-hamburger span { display:block; width:22px; height:2px; background:rgba(255,255,255,0.8); border-radius:2px; transition:transform 0.25s,opacity 0.25s; }
-  .nav-hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity:0; }
-  .nav-hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
-
-  /* MOBILE MENU */
-  .nav-mobile-menu { display:none; position:fixed; top:56px; left:0; right:0; background:rgba(12,26,58,0.98); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.08); padding:0.75rem 1.25rem 1.25rem; z-index:99; flex-direction:column; gap:2px; }
-  .nav-mobile-menu.open { display:flex; }
-  .nav-mobile-menu a { font-family:'Inter',sans-serif; font-size:14px; color:rgba(255,255,255,0.75); text-decoration:none; padding:10px 12px; border-radius:8px; transition:color 0.15s,background 0.15s; }
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 56px;
+    left: 0; right: 0;
+    background: rgba(10,20,50,0.98);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem;
+    z-index: 99;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
   .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
   .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
   .nav-mobile-menu a.mgmt { color:#fbbf24; }
@@ -78,18 +129,29 @@
   <div class="nav-links">
     <a href="/app/admin/" class="mgmt">Admin</a>
     <a href="/app/management/" class="mgmt">Management</a>
-    <a href="index.html">Home</a>
-    <a href="specials.html">Specials</a>
-    <a href="dashboards.html">Dashboards</a>
-    <a href="forms.html" class="active">Forms</a>
-    <a href="assets.html">Assets</a>
+    <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/app/index.html">Home</a>
+    <a href="/app/specials.html">Specials</a>
+    <a href="/app/dashboards.html">Dashboards</a>
+    <a href="/app/forms.html" class="active">Forms</a>
+    <a href="/app/assets.html">Assets</a>
   </div>
   <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
     <span></span><span></span><span></span>
   </button>
 </nav>
 
-<!-- MOBILE MENU -->
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/app/admin/" class="mgmt">Admin</a>
+  <a href="/app/management/" class="mgmt">Management</a>
+  <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <div class="mob-divider"></div>
+  <a href="/app/index.html">Home</a>
+  <a href="/app/specials.html">Specials</a>
+  <a href="/app/dashboards.html">Dashboards</a>
+  <a href="/app/forms.html" class="active">Forms</a>
+  <a href="/app/assets.html">Assets</a>
+</div><!-- MOBILE MENU -->
 <div class="nav-mobile-menu" id="mobileMenu">
   <a href="/app/admin/" class="mgmt">Admin</a>
   <a href="/app/management/" class="mgmt">Management</a>
@@ -116,7 +178,7 @@
 <!-- Example: <div class="tab-content" id="tab-leave-request"><iframe src="/app/leave-request-form.html" title="Leave Request"></iframe></div> -->
 
 <script>
-  // Hamburger
+    // Hamburger menu
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
   hamburger.addEventListener('click', () => {
@@ -128,6 +190,7 @@
       hamburger.classList.remove('open');
       mobileMenu.classList.remove('open');
     });
+  });
   });
 
   // Tabs
