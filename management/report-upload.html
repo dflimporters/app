@@ -37,50 +37,73 @@
     min-height: 100vh;
   }
 
-  /* ── NAV ── */
+    /* ── NAV ── */
   nav {
     background: var(--navy);
-    padding: 0 32px;
-    height: 60px;
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 32px;
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
-
-  .nav-left { display: flex; align-items: center; gap: 16px; }
-
-  .nav-logo { height: 28px; }
-
-  .nav-divider {
-    width: 1px; height: 24px;
-    background: rgba(255,255,255,0.2);
-  }
-
-  .nav-title {
-    color: rgba(255,255,255,0.9);
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-  }
-
-  .nav-links { display: flex; gap: 4px; }
-
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
+  .nav-links { display:flex; gap:4px; }
   .nav-links a {
     color: rgba(255,255,255,0.65);
     text-decoration: none;
     font-size: 13px;
     font-weight: 500;
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 6px;
     transition: all 0.15s;
   }
-
-  .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.1); }
-  .nav-links a.active { color: #fff; background: rgba(255,255,255,0.15); }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color:#fbbf24; }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-hamburger {
+    display: none; flex-direction: column; gap: 5px;
+    background: none; border: none; cursor: pointer; padding: 6px; flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block; width: 22px; height: 2px;
+    background: rgba(255,255,255,0.8); border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu {
+    display: none; position: fixed; top: 56px; left: 0; right: 0;
+    background: rgba(10,20,50,0.98); backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem; z-index: 99; flex-direction: column; gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif; font-size: 14px;
+    color: rgba(255,255,255,0.75); text-decoration: none;
+    padding: 10px 12px; border-radius: 8px; transition: color 0.15s, background 0.15s;
+  }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color:#fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+  @media (max-width: 640px) {
+    nav { padding: 0 16px; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-title { font-size: 13px; }
+  }
 
   /* ── PAGE HEADER ── */
   .page-header {
@@ -116,82 +139,6 @@
 
   /* ── MAIN CONTENT ── */
   .main { max-width: 900px; margin: 0 auto; padding: 32px; }
-
-  /* ── AUTH GATE ── */
-  #auth-gate {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 60px);
-    padding: 32px;
-  }
-
-  .auth-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 48px;
-    width: 100%;
-    max-width: 400px;
-    box-shadow: var(--shadow-md);
-    text-align: center;
-  }
-
-  .auth-logo { height: 36px; margin-bottom: 28px; }
-
-  .auth-card h2 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-  }
-
-  .auth-card p {
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-bottom: 28px;
-    line-height: 1.6;
-  }
-
-  .auth-field { text-align: left; margin-bottom: 16px; }
-
-  .auth-field label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 6px;
-  }
-
-  .auth-field input {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: var(--text);
-    background: var(--bg);
-    transition: border-color 0.15s;
-    outline: none;
-  }
-
-  .auth-field input:focus { border-color: var(--accent); background: var(--surface); }
-
-  .auth-error {
-    display: none;
-    font-size: 12px;
-    color: var(--danger);
-    background: var(--danger-bg);
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    padding: 8px 12px;
-    margin-bottom: 14px;
-    text-align: left;
-  }
 
   /* ── BUTTONS ── */
   .btn {
@@ -252,7 +199,7 @@
   }
 
   /* ── UPLOAD APP ── */
-  #upload-app { display: none; }
+  #upload-app { display: block; }
 
   /* ── WEEK SELECTOR ── */
   .section-label {
@@ -817,24 +764,37 @@
 <!-- NAV -->
 <nav>
   <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL Importers" onerror="this.style.display='none'">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
     <div class="nav-divider"></div>
-    <span class="nav-title">Management Portal</span>
+    <span class="nav-title">Staff Portal</span>
   </div>
   <div class="nav-links">
-    <a href="index.html">Home</a>
-    <a href="dashboards.html">Dashboards</a>
-    <a href="report-upload.html" class="active">Reports</a>
+    <a href="/app/admin/" class="mgmt">Admin</a>
+    <a href="/app/management/" class="mgmt active">Management</a>
+    <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/app/index.html">Home</a>
+    <a href="/app/specials.html">Specials</a>
+    <a href="/app/dashboards.html">Dashboards</a>
+    <a href="/app/forms.html">Forms</a>
+    <a href="/app/assets.html">Assets</a>
   </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
 
-<!-- AUTH GATE -->
-<div id="auth-gate">
-  <div class="auth-card">
-    <img class="auth-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL" style="filter: invert(1) sepia(1) saturate(5) hue-rotate(180deg);" onerror="this.style.display='none'">
-    <h2>Weekly Report Upload</h2>
-    <p>This portal is for management use only. Enter the access password to continue.</p>
-    <div class="auth-error" id="auth-error">Incorrect password. Please try again.</div>
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/app/admin/" class="mgmt">Admin</a>
+  <a href="/app/management/" class="mgmt active">Management</a>
+  <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <div class="mob-divider"></div>
+  <a href="/app/index.html">Home</a>
+  <a href="/app/specials.html">Specials</a>
+  <a href="/app/dashboards.html">Dashboards</a>
+  <a href="/app/forms.html">Forms</a>
+  <a href="/app/assets.html">Assets</a>
+</div>
+
     <div class="auth-field">
       <label>Password</label>
       <input type="password" id="password-input" placeholder="Enter access password" onkeydown="if(event.key==='Enter') attemptLogin()">
@@ -850,7 +810,7 @@
 <div id="upload-app">
   <div class="page-header">
     <div class="page-header-inner">
-      <div class="breadcrumb"><a href="index.html">Home</a> / Weekly Reports</div>
+      <div class="breadcrumb"><a href="/app/management/">Management</a> / Weekly Reports</div>
       <h1>Weekly Report Upload</h1>
       <p>Upload department reports for weekly management meeting compilation</p>
     </div>
@@ -1196,102 +1156,6 @@
 
 <script>
   // ── CONFIG ──
-  const ACCESS_PASSWORD = 'admin';  // Change this to your real password
-
-  const DEPARTMENTS = ['hr','sales','it','finance','ops','proc'];
-  const files = {};
-
-  // ── WEEK GENERATION ──
-  // Generate the last 12 Monday-weeks, with the current week first
-  function getMondayWeeks(count = 12) {
-    const weeks = [];
-    const today = new Date();
-    // Find most recent Monday
-    const day = today.getDay();
-    const diff = (day === 0) ? -6 : 1 - day;
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() + diff);
-    thisMonday.setHours(0,0,0,0);
-
-    for (let i = 0; i < count; i++) {
-      const monday = new Date(thisMonday);
-      monday.setDate(thisMonday.getDate() - (i * 7));
-      const friday = new Date(monday);
-      friday.setDate(monday.getDate() + 4);
-      weeks.push({ monday, friday, index: i });
-    }
-    return weeks;
-  }
-
-  function formatDate(d) {
-    return d.toLocaleDateString('en-JM', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-
-  function formatWeekLabel(w) {
-    return `Week of ${formatDate(w.monday)} – ${formatDate(w.friday)}`;
-  }
-
-  function isCurrentWeek(w) { return w.index === 0; }
-  function isLate(w) {
-    // If we're past Tuesday 9am and it's current week → on time, not late
-    // For past weeks → late
-    return w.index > 0;
-  }
-
-  function populateWeeks() {
-    const sel = document.getElementById('week-select');
-    const weeks = getMondayWeeks(12);
-    weeks.forEach((w, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      let label = formatWeekLabel(w);
-      if (i === 0) label += ' (current)';
-      opt.textContent = label;
-      sel.appendChild(opt);
-    });
-  }
-
-  function onWeekChange() {
-    const sel = document.getElementById('week-select');
-    const val = sel.value;
-    const badge = document.getElementById('week-badge');
-    const lateBadge = document.getElementById('late-badge');
-
-    if (val === '') {
-      badge.style.display = 'none';
-      lateBadge.style.display = 'none';
-      return;
-    }
-
-    const weeks = getMondayWeeks(12);
-    const w = weeks[parseInt(val)];
-    badge.style.display = 'inline-flex';
-    badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg> ${formatWeekLabel(w)}`;
-
-    if (isLate(w)) {
-      lateBadge.style.display = 'inline-flex';
-    } else {
-      lateBadge.style.display = 'none';
-    }
-
-    document.getElementById('week-warning').style.display = 'none';
-    updateCompileBtn();
-  }
-
-  // ── AUTH ──
-  function attemptLogin() {
-    const pw = document.getElementById('password-input').value;
-    const err = document.getElementById('auth-error');
-    if (pw === ACCESS_PASSWORD) {
-      document.getElementById('auth-gate').style.display = 'none';
-      document.getElementById('upload-app').style.display = 'block';
-      populateWeeks();
-    } else {
-      err.style.display = 'block';
-      document.getElementById('password-input').value = '';
-      document.getElementById('password-input').focus();
-    }
-  }
 
   // ── FILE HANDLING ──
   function formatSize(bytes) {
