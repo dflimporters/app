@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="/app/manifest.json">
-<link rel="icon" href="/app/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
 <meta name="theme-color" content="#0f2044">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -400,9 +400,9 @@
     <span class="nav-title">Staff Portal</span>
   </div>
   <div class="nav-links">
-    <a href="/app/admin/" class="mgmt">Admin</a>
-    <a href="/app/management/" class="mgmt">Management</a>
-    <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/admin/" class="mgmt">Admin</a>
+    <a href="/management/" class="mgmt">Management</a>
+    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
     <a href="index.html" class="active">Home</a>
     <a href="specials.html">Specials</a>
     <a href="dashboards.html">Dashboards</a>
@@ -416,9 +416,9 @@
 
 <!-- ── MOBILE MENU ── -->
 <div class="nav-mobile-menu" id="mobileMenu">
-  <a href="/app/admin/" class="mgmt">Admin</a>
-  <a href="/app/management/" class="mgmt">Management</a>
-  <a href="/app/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <a href="/admin/" class="mgmt">Admin</a>
+  <a href="/management/" class="mgmt">Management</a>
+  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
   <div class="mob-divider"></div>
   <a href="index.html" class="active">Home</a>
   <a href="specials.html">Specials</a>
@@ -476,7 +476,7 @@
     </a>
 
     <!-- Management — restricted / gold -->
-    <a class="card restricted" href="/app/management/">
+    <a class="card restricted" href="/management/">
       <div class="card-icon gold">📈</div>
       <div class="card-title">Management</div>
       <div class="card-desc">Restricted. Performance dashboards, category intelligence and key account tools.</div>
@@ -484,7 +484,7 @@
     </a>
 
     <!-- Dispatch — restricted / gold -->
-    <a class="card restricted" href="/app/dispatch-portal.html">
+    <a class="card restricted" href="/dispatch-portal.html">
       <div class="card-icon gold">🚚</div>
       <div class="card-title">Dispatch Portal</div>
       <div class="card-desc">Restricted. Logistics, route assignment and real-time delivery tracking.</div>
@@ -526,7 +526,7 @@
   // ── PWA ──
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/app/sw.js');
+      navigator.serviceWorker.register('/sw.js');
     });
   }
 
