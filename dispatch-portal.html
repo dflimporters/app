@@ -24,12 +24,12 @@ body{font-family:var(--font);color:var(--text);background:var(--bg);font-size:14
 /* HEADER */
 .header{background:var(--navy);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:56px;z-index:10;gap:10px;border-top:1px solid rgba(255,255,255,0.08)}
 .header-left{display:flex;align-items:center;gap:12px;flex-shrink:0}
-.dfl-logo{height:34px;width:auto;object-fit:contain;display:block}
-.logo-fallback{display:none;flex-direction:column;line-height:1}
-.logo-top{font-size:9px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
-.logo-main{font-size:17px;font-weight:800;color:#fff}
-.logo-main span{color:#38bdf8}
-.divider-v{width:1px;height:26px;background:rgba(255,255,255,0.15);flex-shrink:0}
+
+
+
+
+
+
 .page-label{font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);white-space:nowrap}
 .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .header-select{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-family:var(--font);font-size:12px;font-weight:600;padding:5px 10px;cursor:pointer;outline:none}
@@ -290,15 +290,7 @@ body{font-family:var(--font);color:var(--text);background:var(--bg);font-size:14
 <!-- DISPATCH HEADER -->
 <div class="header">
   <div class="header-left">
-    <img class="dfl-logo"
-      src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
-      alt="DFL Importers"
-      onerror="this.style.display='none';document.querySelector('.logo-fallback').style.display='flex';">
-    <div class="logo-fallback">
-      <span class="logo-top">DFL Importers</span>
-      <span class="logo-main">DFL <span>Hub</span></span>
-    </div>
-    <div class="divider-v"></div>
+    
     <span class="page-label">Dispatch Portal</span>
   </div>
   <div class="header-right">
@@ -505,7 +497,7 @@ function populateDriverFilter(invs) {
 function updateStats(invs) {
   document.getElementById('s-invoices').textContent=invs.length;
   document.getElementById('s-drivers').textContent=new Set(invs.map(i=>i.ship_via||'UNASSIGNED')).size;
-  document.getElementById('s-value').textContent=fmt(invs.reduce((s,i)=>s+(i.amount||0),0));
+  document.getElementById('s-value').textContent=fmt(invs.reduce((s,i)=>s+(i.invoice_amount||0),0));
   document.getElementById('s-selected').textContent=Object.values(selected).filter(Boolean).length;
 }
 
@@ -544,7 +536,7 @@ function renderGroups(invs) {
 function renderGroup(key,g) {
   const ek=key.replace(/[^a-z0-9]/gi,'_');
   const isU=key==='UNASSIGNED';
-  const totalVal=g.invoices.reduce((s,i)=>s+(i.amount||0),0);
+  const totalVal=g.invoices.reduce((s,i)=>s+(i.invoice_amount||0),0);
   const selCount=g.invoices.filter(i=>selected[i.reference_number]).length;
   const sentCount=g.invoices.filter(i=>i._sent).length;
   const preview=buildPreview(g.invoices);
@@ -568,7 +560,7 @@ function renderInvoiceTable(g,key) {
   const selCount=g.invoices.filter(i=>selected[i.reference_number]).length;
   const unsentCount=g.invoices.filter(i=>!i._sent).length;
   const allSel=selCount===unsentCount&&unsentCount>0;
-  const selVal=g.invoices.filter(i=>selected[i.reference_number]).reduce((s,i)=>s+(i.amount||0),0);
+  const selVal=g.invoices.filter(i=>selected[i.reference_number]).reduce((s,i)=>s+(i.invoice_amount||0),0);
   const driverOpts=allInvoices.filter(i=>i.ship_via).reduce((acc,i)=>{
     if(!acc.find(x=>x.v===i.ship_via))acc.push({v:i.ship_via,l:i.ship_via_description||i.ship_via});return acc;
   },[]);
@@ -597,7 +589,7 @@ function renderInvoiceRow(inv) {
     '<div style="font-size:11px;color:var(--color-text-tertiary)">'+(inv.customer_id||'')+'</div></div>'+
     '<div style="font-family:var(--font-mono);font-size:12px">'+inv.reference_number+'</div>'+
     '<div style="color:var(--color-text-secondary)">'+fmtDate(inv.invoice_date)+'</div>'+
-    '<div style="text-align:right;font-weight:500">'+fmt(inv.amount)+'</div>'+
+    '<div style="text-align:right;font-weight:500">'+fmt(inv.invoice_amount)+'</div>'+
     '<div style="display:flex;gap:4px;align-items:center">'+
     (hasWarn?'<i class="ti ti-map-pin-off warn-icon" title="'+warnTitle+'"></i>':'')+
     (inv._sent?'<span class="load-tag">'+inv._loadNumber+'</span>':'')+
@@ -663,7 +655,7 @@ function openBatchModal(key) {
   if(!grp)return;
   const selInvs=grp[1].invoices.filter(i=>selected[i.reference_number]);
   if(selInvs.length===0)return;
-  const totalVal=selInvs.reduce((s,i)=>s+(i.amount||0),0);
+  const totalVal=selInvs.reduce((s,i)=>s+(i.invoice_amount||0),0);
   const driverName=grp[1].desc||key;
   const [from]=getDateRange();
   const deliveryDate=new Date(from+'T12:00:00').toLocaleDateString('en-JM',{weekday:'long',month:'long',day:'numeric'});
@@ -707,7 +699,7 @@ async function sendBatch(key) {
       batch_id:batch.id, load_number:loadNumber,
       reference_number:inv.reference_number, customer_id:inv.customer_id,
       customer_name:inv.customer_name, invoice_date:inv.invoice_date,
-      invoice_amount:inv.amount, ship_via:inv.ship_via,
+      invoice_amount:inv.invoice_amount, ship_via:inv.ship_via,
       ship_via_description:inv.ship_via_description,
       delivery_address:inv._cust?.clean_address||null,
       delivery_city:inv._cust?.clean_city||null,
@@ -797,7 +789,7 @@ function openDismiss(ref) {
     '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">'+
     '<div class="modal" style="max-width:380px">'+
     '<h3><i class="ti ti-x"></i> Dismiss invoice</h3>'+
-    '<p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">'+(inv?.customer_name||'')+' &middot; '+fmt(inv?.amount)+'</p>'+
+    '<p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:1rem">'+(inv?.customer_name||'')+' &middot; '+fmt(inv?.invoice_amount)+'</p>'+
     '<div class="dismiss-form">'+
     '<select id="dismiss-reason"><option value="">Select reason…</option><option>Already delivered</option><option>Customer pickup</option><option>Third-party carrier</option><option>Cancelled order</option><option>Duplicate invoice</option><option>Other</option></select>'+
     '<textarea id="dismiss-notes" placeholder="Additional notes (optional)…"></textarea>'+
