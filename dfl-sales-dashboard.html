@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Sales Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --white: #ffffff;
+    --navy: #0f2044;
+    --accent: #2563eb;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --red: #dc2626;
+    --red-light: #fee2e2;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --font: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: var(--font); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header {
+    background: var(--navy);
+    padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+    gap: 10px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .dfl-logo { height: 34px; width: auto; object-fit: contain; display: block; }
+  .divider-v { width: 1px; height: 26px; background: rgba(255,255,255,0.15); flex-shrink: 0; }
+  .page-label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); white-space: nowrap; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+
+  /* DROPDOWN SELECTOR */
+  .month-select {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    cursor: pointer;
+    outline: none;
+    max-width: 160px;
+    min-width: 120px;
+  }
+  .month-select option { background: #1e293b; color: #fff; font-weight: 500; }
+
+  .live-wrap { display: flex; align-items: center; gap: 5px; font-size: 10px; color: rgba(255,255,255,0.4); }
+  .live-dot  { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: blink 2s infinite; }
+  .cached-dot { width: 6px; height: 6px; border-radius: 50%; background: #f59e0b; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  /* CONTENT */
+  .content { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* KPI ROW */
+  .kpi-row { display: grid; grid-template-columns: 1fr 1.3fr 0.7fr; gap: 10px; }
+  .kpi-card { background: var(--white); border-radius: var(--radius); padding: 14px 12px; border: 1px solid var(--border); }
+  .kpi-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; margin-bottom: 6px; }
+  .kpi-icon.blue  { background: #dbeafe; }
+  .kpi-icon.green { background: var(--green-light); }
+  .kpi-icon.amber { background: var(--amber-light); }
+  .kpi-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
+  .kpi-value { font-size: 20px; font-weight: 800; line-height: 1; }
+  .kpi-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* ACHIEVEMENT */
+  .achieve-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 14px; }
+  .achieve-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .achieve-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .achieve-pct   { font-size: 30px; font-weight: 800; line-height: 1; }
+  .achieve-right { text-align: right; }
+  .pace-badge    { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .ahead  { background: var(--green-light); color: var(--green); }
+  .behind { background: var(--red-light);   color: var(--red);   }
+  .warn   { background: var(--amber-light); color: var(--amber); }
+  .expect-note { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .bar-track { height: 10px; background: #f1f5f9; border-radius: 5px; overflow: hidden; position: relative; }
+  .bar-exp   { position: absolute; top:0; bottom:0; left:0; background: #e2e8f0; border-right: 2px dashed #94a3b8; transition: width 1s ease; }
+  .bar-act   { height: 100%; border-radius: 5px; transition: width 1.2s ease; position: relative; z-index:1; }
+  .bar-good  { background: linear-gradient(90deg,#16a34a,#22c55e); }
+  .bar-warn  { background: linear-gradient(90deg,#d97706,#fbbf24); }
+  .bar-bad   { background: linear-gradient(90deg,#dc2626,#f87171); }
+  .bar-meta  { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; color: var(--muted); }
+
+  /* GAP CARDS */
+  .gap-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gap-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 14px; }
+  .gap-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .gap-value { font-size: 18px; font-weight: 800; }
+  .gap-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* PANELS */
+  .panel      { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .panel-head { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* CATEGORY ROWS */
+  .cat-row  { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .cat-body { flex: 1; min-width: 0; }
+  .cat-name { font-size: 13px; font-weight: 600; }
+  .cat-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .cat-bar-track { height: 3px; background: #f1f5f9; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .cat-bar-fill  { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .cat-pct  { font-size: 13px; font-weight: 700; flex-shrink: 0; min-width: 42px; text-align: right; }
+
+  /* REP ROWS */
+  .rep-row  { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  .rep-row:last-child { border-bottom: none; }
+  .rep-rank { width: 20px; font-size: 12px; font-weight: 700; text-align: center; flex-shrink: 0; color: var(--muted); }
+  .gold   { color: #ca8a04; }
+  .silver { color: #94a3b8; }
+  .bronze { color: #b45309; }
+  .rep-av   { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .rep-body { flex: 1; min-width: 0; }
+  .rep-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rep-bar-track { height: 3px; background: #f1f5f9; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .rep-bar-fill  { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .rep-right { flex-shrink: 0; text-align: right; }
+  .rep-pct   { font-size: 13px; font-weight: 700; }
+  .rep-amt   { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  .footer  { text-align: center; font-size: 11px; color: var(--muted); padding: 8px 0 18px; }
+  .loading { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 14px; }
+  .err     { margin: 16px; padding: 12px; background: var(--red-light); color: var(--red); border-radius: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <img class="dfl-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL Importers">
+    <div class="divider-v"></div>
+    <span class="page-label">Sales Dashboard</span>
+  </div>
+  <div class="header-right">
+    <select class="month-select" id="month-select" onchange="selectPeriod(this.value)"></select>
+    <div class="live-wrap" id="live-wrap"><div class="live-dot"></div>Live data</div>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">Loading...</div>
+</div>
+<div class="footer" id="footer"></div>
+
+<script>
+const SUPA_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SUPA_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+const CACHE_PREFIX = 'dfl_dash_';
+
+const CAT = {
+  PLASTIC:    { icon:'🧴', bg:'#dbeafe', bar:'#3b82f6' },
+  PAPER:      { icon:'📄', bg:'#fce7f3', bar:'#ec4899' },
+  FOODSUP:    { icon:'🥡', bg:'#fef9c3', bar:'#ca8a04' },
+  GARBAGEBAG: { icon:'🗑️', bg:'#f3f4f6', bar:'#6b7280' },
+  ECOBOX:     { icon:'📦', bg:'#dcfce7', bar:'#16a34a' },
+  ECOCUP:     { icon:'☕', bg:'#fff7ed', bar:'#ea580c' },
+  HOUSEHOLD:  { icon:'🏠', bg:'#ede9fe', bar:'#7c3aed' },
+  PROCESSING: { icon:'⚙️', bg:'#fef3c7', bar:'#f59e0b' },
+  BEVERAGES:  { icon:'🥤', bg:'#e0f2fe', bar:'#0284c7' },
+  FOIL:       { icon:'✨', bg:'#f0fdf4', bar:'#15803d' },
+  CLEARPACK:  { icon:'🧹', bg:'#fdf4ff', bar:'#a21caf' },
+  STAT:       { icon:'📊', bg:'#eff6ff', bar:'#1d4ed8' },
+};
+
+const COLORS = ['#2563eb','#7c3aed','#0891b2','#16a34a','#d97706','#dc2626','#0f766e','#9333ea','#be185d','#b45309','#0369a1','#15803d'];
+
+const fmt = n => {
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + Math.round(n/1e6) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+  return '$' + Math.round(n).toLocaleString();
+};
+
+const initials = s => s.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const pctCol   = p => p >= 90 ? 'var(--green)' : p >= 70 ? 'var(--amber)' : 'var(--red)';
+
+function getCurrentPeriod() {
+  const now = new Date();
+  return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
+}
+
+function getMidnightToday() {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  midnight.setDate(midnight.getDate() + 1);
+  return midnight.getTime();
+}
+
+function getMonthName(period) {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return months[+period.slice(4,6)-1] + ' ' + period.slice(0,4);
+}
+
+function getMonthShort(period) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[+period.slice(4,6)-1] + ' ' + period.slice(0,4);
+}
+
+// Jamaica public holidays (YYYY-MM-DD) — update annually
+const JA_HOLIDAYS = new Set([
+  '2026-01-01','2026-02-23','2026-04-03','2026-04-06',
+  '2026-05-23','2026-06-01','2026-08-03','2026-08-06',
+  '2026-10-19','2026-12-25','2026-12-26'
+]);
+
+function isWorkingDay(date) {
+  const dow = date.getDay();
+  if (dow === 0 || dow === 6) return false;
+  const key = date.toISOString().slice(0,10);
+  return !JA_HOLIDAYS.has(key);
+}
+
+function countWorkingDays(startDate, endDate) {
+  let count = 0;
+  const d = new Date(startDate);
+  while (d <= endDate) {
+    if (isWorkingDay(d)) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
+function getDayProgress(period) {
+  const now = new Date();
+  const y = +period.slice(0,4), m = +period.slice(4,6);
+  const isCurrent    = (now.getFullYear()===y && now.getMonth()+1===m);
+  const monthStart   = new Date(y, m-1, 1);
+  const monthEnd     = new Date(y, m, 0);
+  const todayOrEnd   = isCurrent ? now : monthEnd;
+  const totalWorkingDays   = countWorkingDays(monthStart, monthEnd);
+  const elapsedWorkingDays = countWorkingDays(monthStart, todayOrEnd);
+  return { elapsedWorkingDays, totalWorkingDays, isCurrent, monthEnd };
+}
+
+function cacheGet(period) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + period);
+    if (!raw) return null;
+    const { data, expires } = JSON.parse(raw);
+    if (expires === null) return data;
+    if (Date.now() < expires) return data;
+    localStorage.removeItem(CACHE_PREFIX + period);
+    return null;
+  } catch { return null; }
+}
+
+function cacheSet(period, data) {
+  try {
+    const currentPeriod = getCurrentPeriod();
+    const expires = (period === currentPeriod) ? getMidnightToday() : null;
+    localStorage.setItem(CACHE_PREFIX + period, JSON.stringify({ data, expires }));
+  } catch { /* localStorage full — silently skip */ }
+}
+
+function isCachedPermanently(period) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + period);
+    if (!raw) return false;
+    return JSON.parse(raw).expires === null;
+  } catch { return false; }
+}
+
+async function rpc(fn, params = {}) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': `Bearer ${SUPA_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(params)
+  });
+  if (!res.ok) throw new Error(`RPC ${fn} failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+let activePeriod = null;
+
+async function init() {
+  try {
+    const currentPeriod = getCurrentPeriod();
+    const periods = await rpc('get_available_periods');
+    const allPeriods = periods.includes(currentPeriod)
+      ? periods
+      : [currentPeriod, ...periods];
+
+    const sel = document.getElementById('month-select');
+    sel.innerHTML = allPeriods.map(p => {
+      const isCurrent = p === currentPeriod;
+      const label = getMonthShort(p) + (isCurrent ? ' ★' : '');
+      return `<option value="${p}">${label}</option>`;
+    }).join('');
+
+    activePeriod = currentPeriod;
+    sel.value = currentPeriod;
+    await loadDashboard(currentPeriod);
+  } catch(e) {
+    document.getElementById('content').innerHTML =
+      `<div class="err">Error initialising: ${e.message}</div>`;
+  }
+}
+
+async function selectPeriod(period) {
+  activePeriod = period;
+  await loadDashboard(period);
+}
+
+async function loadDashboard(period) {
+  document.getElementById('content').innerHTML = '<div class="loading">Loading...</div>';
+  const liveWrap = document.getElementById('live-wrap');
+
+  try {
+    let d = cacheGet(period);
+    let fromCache = false;
+
+    if (d) {
+      fromCache = true;
+    } else {
+      d = await rpc('get_dashboard_summary', { p_period: period });
+      cacheSet(period, d);
+    }
+
+    const isPast = isCachedPermanently(period);
+    if (fromCache && isPast) {
+      liveWrap.innerHTML = `<div class="cached-dot"></div>Cached (frozen)`;
+    } else if (fromCache) {
+      liveWrap.innerHTML = `<div class="cached-dot"></div>Cached today`;
+    } else {
+      liveWrap.innerHTML = `<div class="live-dot"></div>Live data`;
+    }
+
+    const { total_actual, total_budget, reps, categories } = d;
+    const { elapsedWorkingDays, totalWorkingDays, isCurrent, monthEnd } = getDayProgress(period);
+
+    const achievedPct = total_budget > 0 ? (total_actual / total_budget) * 100 : 0;
+    const expectedPct = totalWorkingDays > 0 ? (elapsedWorkingDays / totalWorkingDays) * 100 : 0;
+    const variance    = achievedPct - expectedPct;
+    const vsExpected  = total_actual - (total_budget * elapsedWorkingDays / totalWorkingDays);
+    const remaining   = total_budget - total_actual;
+    const workingDaysLeft = isCurrent ? countWorkingDays(new Date(), monthEnd) : 0;
+
+    let barCls = 'bar-good', paceLabel = 'Ahead of pace', paceCls = 'ahead';
+    if (variance < -5)     { barCls='bar-bad';  paceLabel='Behind pace';     paceCls='behind'; }
+    else if (variance < 0) { barCls='bar-warn'; paceLabel='Slightly behind'; paceCls='warn'; }
+
+    const expDisplay = isCurrent ? expectedPct : 100;
+    const paceNote   = isCurrent
+      ? `Expected: ${expDisplay.toFixed(1)}% · Day ${elapsedWorkingDays} of ${totalWorkingDays} working days`
+      : `Final result — ${getMonthName(period)}`;
+
+    document.getElementById('content').innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">💰</div>
+          <div class="kpi-label">Sales MTD</div>
+          <div class="kpi-value" style="color:var(--accent)">${fmt(total_actual)}</div>
+          <div class="kpi-sub">${isCurrent ? 'Month to date' : 'Final total'}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">🎯</div>
+          <div class="kpi-label">Target</div>
+          <div class="kpi-value">${fmt(total_budget)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon amber">📈</div>
+          <div class="kpi-label">% Achieved</div>
+          <div class="kpi-value" style="color:${pctCol(achievedPct)}">${achievedPct.toFixed(1)}%</div>
+          <div class="kpi-sub">vs target</div>
+        </div>
+      </div>
+
+      <div class="achieve-card">
+        <div class="achieve-top">
+          <div>
+            <div class="achieve-label">Achievement vs Target</div>
+            <div class="achieve-pct" style="color:${pctCol(achievedPct)}">${achievedPct.toFixed(2)}%</div>
+          </div>
+          <div class="achieve-right">
+            <span class="pace-badge ${paceCls}">${paceLabel}</span>
+            <div class="expect-note">${paceNote}</div>
+          </div>
+        </div>
+        <div class="bar-track">
+          <div class="bar-exp" id="bexp" style="width:0%"></div>
+          <div class="bar-act ${barCls}" id="bact" style="width:0%"></div>
+        </div>
+        <div class="bar-meta">
+          <span>0%</span>
+          <span style="color:#cbd5e1">── Expected pace</span>
+          <span>100%</span>
+        </div>
+      </div>
+
+      <div class="gap-row">
+        <div class="gap-card">
+          <div class="gap-label">vs Expected to date</div>
+          <div class="gap-value" style="color:${vsExpected>=0?'var(--green)':'var(--red)'}">
+            ${vsExpected>=0?'+':''}${fmt(Math.abs(vsExpected))}
+          </div>
+          <div class="gap-sub">${vsExpected>=0?'Ahead of pace':'Behind pace'}</div>
+        </div>
+        <div class="gap-card">
+          <div class="gap-label">Remaining to target</div>
+          <div class="gap-value" style="color:${remaining<=0?'var(--green)':'var(--amber)'}">
+            ${remaining<=0?'✓ Target hit!':fmt(remaining)}
+          </div>
+          <div class="gap-sub">${isCurrent ? workingDaysLeft+' working days left' : 'Month closed'}</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">📦 Sales by Category</div>
+        ${categories.map(({name, actual, budget, pct}) => {
+          const m = CAT[name] || { icon:'📦', bg:'#f1f5f9', bar:'#64748b' };
+          return `<div class="cat-row">
+            <div class="cat-icon" style="background:${m.bg}">${m.icon}</div>
+            <div class="cat-body">
+              <div class="cat-name">${name.charAt(0)+name.slice(1).toLowerCase()}</div>
+              <div class="cat-sub">${fmt(actual)} of ${fmt(budget)} target</div>
+              <div class="cat-bar-track">
+                <div class="cat-bar-fill" data-w="${Math.min(pct,100)}" style="width:0%;background:${m.bar}"></div>
+              </div>
+            </div>
+            <div class="cat-pct" style="color:${pctCol(pct)}">${pct.toFixed(0)}%</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">🏆 Sales Persons — by Achievement %</div>
+        ${reps.map(({name, actual, budget, pct}, i) => {
+          const col     = COLORS[i % COLORS.length];
+          const rankCls = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+          return `<div class="rep-row">
+            <div class="rep-rank ${rankCls}">${i+1}</div>
+            <div class="rep-av" style="background:${col}20;color:${col}">${initials(name)}</div>
+            <div class="rep-body">
+              <div class="rep-name">${name}</div>
+              <div class="rep-bar-track">
+                <div class="rep-bar-fill" data-w="${Math.min(pct,100)}" style="width:0%;background:${col}"></div>
+              </div>
+            </div>
+            <div class="rep-right">
+              <div class="rep-pct" style="color:${pctCol(pct)}">${pct.toFixed(1)}%</div>
+              <div class="rep-amt">${fmt(actual)} / ${fmt(budget)}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+
+    // Animate bars
+    requestAnimationFrame(() => setTimeout(() => {
+      document.getElementById('bexp').style.width = Math.min(expDisplay,100)+'%';
+      document.getElementById('bact').style.width = Math.min(achievedPct,100)+'%';
+      document.querySelectorAll('[data-w]').forEach(el => {
+        el.style.width = el.getAttribute('data-w') + '%';
+      });
+    }, 60));
+
+    const cacheNote = fromCache
+      ? (isPast ? ' · Frozen (no API call)' : ' · Cached today')
+      : ' · Fetched live';
+    document.getElementById('footer').textContent =
+      'Data as of ' + new Date().toLocaleString() + cacheNote;
+
+  } catch(e) {
+    document.getElementById('content').innerHTML =
+      `<div class="err">Error loading data: ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+init();
+
+// Daily noon refresh for current month only
+(function scheduleNoon() {
+  const now  = new Date();
+  const noon = new Date(now);
+  noon.setHours(12, 0, 0, 0);
+  if (now >= noon) noon.setDate(noon.getDate() + 1);
+  setTimeout(() => {
+    const currentPeriod = getCurrentPeriod();
+    if (activePeriod === currentPeriod) {
+      localStorage.removeItem(CACHE_PREFIX + currentPeriod);
+      loadDashboard(currentPeriod);
+    }
+    setInterval(() => {
+      if (activePeriod === getCurrentPeriod()) {
+        localStorage.removeItem(CACHE_PREFIX + getCurrentPeriod());
+        loadDashboard(getCurrentPeriod());
+      }
+    }, 24 * 60 * 60 * 1000);
+  }, noon - now);
+})();
+</script>
+
+</body>
+</html>

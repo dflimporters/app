@@ -388,6 +388,37 @@
   @media (max-width: 400px) {
     .cards-grid { grid-template-columns: 1fr; }
   }
+
+  /* ── SPECIALS UPLOAD BUTTON ── */
+  .upload-shortcut {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 32px 32px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .upload-shortcut a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .upload-shortcut a:hover {
+    color: var(--text-muted);
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+  @media (max-width: 640px) {
+    .upload-shortcut { padding: 0 16px 24px; }
+  }
 </style>
 </head>
 <body>
@@ -492,6 +523,11 @@
     </a>
 
   </div>
+</div>
+
+
+<div class="upload-shortcut">
+  <a href="/specials-upload.html">🎯 Upload Specials / Flyers</a>
 </div>
 
 <footer>© 2026 DFL Importers · Internal use only</footer>

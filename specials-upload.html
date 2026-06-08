@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specials Upload — DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --green:#16a34a; --green-bg:#f0fdf4; --red:#dc2626; --red-bg:#fef2f2; --amber:#b45309; --amber-bg:#fffbeb; --shadow:0 1px 3px rgba(0,0,0,0.07); --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── NAV ── */
+  nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color:#fbbf24; }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
+  .nav-hamburger { display:none; flex-direction:column; gap:5px; background:none; border:none; cursor:pointer; padding:6px; flex-shrink:0; }
+  .nav-hamburger span { display:block; width:22px; height:2px; background:rgba(255,255,255,0.8); border-radius:2px; transition:transform 0.25s,opacity 0.25s; }
+  .nav-hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity:0; }
+  .nav-hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+  .nav-mobile-menu { display:none; position:fixed; top:56px; left:0; right:0; background:rgba(10,20,50,0.98); backdrop-filter:blur(14px); border-bottom:1px solid rgba(255,255,255,0.08); padding:0.75rem 1.25rem 1.25rem; z-index:99; flex-direction:column; gap:2px; }
+  .nav-mobile-menu.open { display:flex; }
+  .nav-mobile-menu a { font-family:'Inter',sans-serif; font-size:14px; color:rgba(255,255,255,0.75); text-decoration:none; padding:10px 12px; border-radius:8px; transition:color 0.15s,background 0.15s; }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color:#fbbf24; }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+
+  /* ── LOGIN ── */
+  .login-wrap { display:flex; align-items:center; justify-content:center; min-height:calc(100vh - 56px); }
+  .login-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:36px 32px; width:100%; max-width:360px; box-shadow:var(--shadow-md); }
+  .login-icon { font-size:32px; text-align:center; margin-bottom:16px; }
+  .login-title { font-size:18px; font-weight:700; text-align:center; margin-bottom:4px; }
+  .login-sub { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:24px; }
+  .login-error { background:var(--red-bg); color:var(--red); font-size:12px; padding:8px 12px; border-radius:6px; margin-bottom:14px; display:none; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:12px; font-weight:500; margin-bottom:6px; color:var(--text-muted); }
+  .field input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:7px; font-size:14px; font-family:'Inter',sans-serif; outline:none; transition:border 0.15s; }
+  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+  .btn-primary { width:100%; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:7px; font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .btn-primary:hover { background:#1d4ed8; }
+
+  /* ── MAIN PANEL ── */
+  .main-panel { display:none; }
+  .page-header { background:var(--navy2); padding:28px 32px 32px; }
+  .page-header-inner { max-width:900px; margin:0 auto; }
+  .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
+  .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
+  .page-header h1 { font-size:22px; font-weight:700; color:#fff; }
+  .content { max-width:900px; margin:0 auto; padding:32px; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:4px; margin-bottom:24px; }
+  .tab { padding:8px 18px; border-radius:7px; border:1px solid var(--border); background:var(--surface); font-size:13px; font-weight:500; color:var(--text-muted); cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  /* ── FORM ── */
+  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; box-shadow:var(--shadow); margin-bottom:24px; }
+  .form-card h3 { font-size:15px; font-weight:600; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-row.full { grid-template-columns:1fr; }
+  .form-field label { display:block; font-size:12px; font-weight:500; color:var(--text-muted); margin-bottom:5px; }
+  .form-field input, .form-field select, .form-field textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:'Inter',sans-serif; outline:none; transition:border 0.15s; background:var(--surface); }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.08); }
+  .form-field textarea { resize:vertical; min-height:80px; }
+  .form-actions { display:flex; gap:10px; padding-top:16px; border-top:1px solid var(--border); }
+  .btn-submit { padding:9px 24px; background:var(--accent); color:#fff; border:none; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s; }
+  .btn-submit:hover { background:#1d4ed8; }
+  .btn-submit:disabled { opacity:0.6; cursor:not-allowed; }
+  .btn-reset { padding:9px 18px; background:var(--surface); color:var(--text-muted); border:1px solid var(--border); border-radius:7px; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; }
+
+  /* ── IMAGE UPLOAD ── */
+  .upload-zone { border:2px dashed var(--border); border-radius:8px; padding:24px; text-align:center; cursor:pointer; transition:all 0.15s; background:var(--bg); position:relative; }
+  .upload-zone:hover { border-color:var(--accent); background:var(--accent-bg); }
+  .upload-zone.has-image { padding:8px; border-style:solid; border-color:var(--accent); }
+  .upload-icon { font-size:28px; margin-bottom:6px; }
+  .upload-text { font-size:13px; font-weight:500; color:var(--text); }
+  .upload-hint { font-size:11px; color:var(--text-muted); margin-top:3px; }
+  .upload-preview { display:none; width:100%; max-height:160px; object-fit:contain; border-radius:6px; }
+  .upload-zone.has-image .upload-icon, .upload-zone.has-image .upload-text, .upload-zone.has-image .upload-hint { display:none; }
+  .upload-zone.has-image .upload-preview { display:block; }
+  .upload-status { font-size:11px; margin-top:6px; min-height:16px; }
+  .upload-status.uploading { color:var(--accent); }
+  .upload-status.done { color:var(--green); }
+  .upload-status.error { color:var(--red); }
+
+  /* ── MANAGE TAB ── */
+  .summary-strip { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+  .summary-chip { background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:8px 14px; font-size:12px; font-weight:500; color:var(--text-muted); box-shadow:var(--shadow); }
+  .summary-chip span { font-size:15px; font-weight:700; color:var(--text); display:block; }
+  .summary-chip.active span { color:var(--green); }
+  .summary-chip.hidden span { color:var(--text-dim); }
+  .summary-chip.expired span { color:var(--amber); }
+  .manage-toolbar { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+  .search-input { flex:1; min-width:180px; padding:8px 12px; border:1px solid var(--border); border-radius:7px; font-size:13px; font-family:'Inter',sans-serif; outline:none; transition:border 0.15s; background:var(--surface); }
+  .search-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.08); }
+  .bulk-actions { display:flex; gap:6px; align-items:center; }
+  .btn-bulk { padding:7px 14px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:1px solid var(--border); font-family:'Inter',sans-serif; background:var(--surface); color:var(--text-muted); transition:all 0.15s; }
+  .btn-bulk:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-bulk:disabled { opacity:0.4; cursor:not-allowed; }
+  .selected-count { font-size:12px; color:var(--text-muted); white-space:nowrap; }
+  .items-list { display:flex; flex-direction:column; gap:8px; }
+  .item-row { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 16px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow); transition:border-color 0.15s; }
+  .item-row.expired { border-left:3px solid var(--amber); }
+  .item-row.selected { border-color:var(--accent); background:var(--accent-bg); }
+  .item-checkbox { width:16px; height:16px; cursor:pointer; accent-color:var(--accent); flex-shrink:0; }
+  .item-img { width:44px; height:44px; border-radius:6px; background:var(--bg); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; overflow:hidden; }
+  .item-img img { width:100%; height:100%; object-fit:cover; }
+  .item-info { flex:1; min-width:0; }
+  .item-name { font-size:13px; font-weight:600; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item-meta { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .badge { display:inline-block; font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; }
+  .badge-special { background:var(--accent-bg); color:var(--accent); }
+  .badge-flyer { background:#fef3c7; color:#92400e; }
+  .badge-active { background:var(--green-bg); color:var(--green); }
+  .badge-inactive { background:#f1f5f9; color:var(--text-dim); }
+  .badge-expired { background:var(--amber-bg); color:var(--amber); }
+  .item-actions { display:flex; gap:6px; flex-shrink:0; }
+  .btn-action { padding:5px 11px; border-radius:5px; font-size:11px; font-weight:500; cursor:pointer; border:1px solid var(--border); font-family:'Inter',sans-serif; background:var(--surface); color:var(--text-muted); transition:all 0.15s; }
+  .btn-action:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-action.danger:hover { border-color:var(--red); color:var(--red); }
+  .btn-action:disabled { opacity:0.5; cursor:not-allowed; }
+  .empty-list { text-align:center; padding:40px; color:var(--text-dim); font-size:13px; }
+  .list-loading { text-align:center; padding:40px; }
+  .spin { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── MODALS ── */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border-radius:12px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:var(--surface); z-index:1; }
+  .modal-title { font-size:16px; font-weight:700; }
+  .modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted); padding:2px 6px; border-radius:4px; }
+  .modal-close:hover { background:var(--bg); }
+  .modal-body { padding:20px 24px 24px; }
+  .confirm-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:300; display:none; align-items:center; justify-content:center; padding:20px; }
+  .confirm-overlay.open { display:flex; }
+  .confirm-box { background:var(--surface); border-radius:10px; padding:24px; max-width:360px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.2); text-align:center; }
+  .confirm-icon { font-size:32px; margin-bottom:12px; }
+  .confirm-title { font-size:15px; font-weight:700; margin-bottom:6px; }
+  .confirm-msg { font-size:13px; color:var(--text-muted); margin-bottom:20px; }
+  .confirm-actions { display:flex; gap:10px; justify-content:center; }
+  .btn-confirm-cancel { padding:9px 20px; background:var(--surface); border:1px solid var(--border); border-radius:7px; font-size:13px; cursor:pointer; font-family:'Inter',sans-serif; }
+  .btn-confirm-delete { padding:9px 20px; background:var(--red); color:#fff; border:none; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+
+  /* ── TOAST ── */
+  .toast { position:fixed; bottom:24px; right:24px; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:500; z-index:999; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .toast.success { background:#166534; color:#fff; }
+  .toast.error { background:#991b1b; color:#fff; }
+
+  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
+
+  @media (max-width:640px) {
+    nav { padding:0 16px; }
+    .nav-links { display:none; }
+    .nav-hamburger { display:flex; }
+    .nav-title { font-size:13px; }
+    .content { padding:16px; }
+    .form-row { grid-template-columns:1fr; }
+    .manage-toolbar { flex-direction:column; align-items:stretch; }
+    .item-actions { flex-wrap:wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+  </div>
+  <div class="nav-links">
+    <a href="/admin/" class="mgmt">Admin</a>
+    <a href="/management/" class="mgmt">Management</a>
+    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="/index.html">Home</a>
+    <a href="/specials.html">Specials</a>
+    <a href="/dashboards.html">Dashboards</a>
+    <a href="/forms.html">Forms</a>
+    <a href="/assets.html">Assets</a>
+  </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/admin/" class="mgmt">Admin</a>
+  <a href="/management/" class="mgmt">Management</a>
+  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <div class="mob-divider"></div>
+  <a href="/index.html">Home</a>
+  <a href="/specials.html">Specials</a>
+  <a href="/dashboards.html">Dashboards</a>
+  <a href="/forms.html">Forms</a>
+  <a href="/assets.html">Assets</a>
+</div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-icon">🎯</div>
+    <div class="login-title">Specials Upload</div>
+    <div class="login-sub">Enter the password to manage specials and flyers</div>
+    <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwInput" placeholder="Enter password" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- MAIN PANEL -->
+<div class="main-panel" id="mainPanel">
+
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="breadcrumb"><a href="/index.html">Home</a> / Specials Upload</div>
+      <h1>Manage Specials &amp; Flyers</h1>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('add',this)">+ Add New</button>
+      <button class="tab" onclick="showTab('manage',this)">Manage Existing</button>
+    </div>
+
+    <!-- ADD TAB -->
+    <div class="tab-pane active" id="tab-add">
+      <div class="form-card">
+        <h3>Add New Special or Flyer</h3>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Product Name *</label>
+            <input type="text" id="f-name" placeholder="e.g. Clean & White Bleach 1L">
+          </div>
+          <div class="form-field">
+            <label>Type *</label>
+            <select id="f-type">
+              <option value="Special">Special</option>
+              <option value="Flyer">Flyer</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-field">
+            <label>Description</label>
+            <textarea id="f-desc" placeholder="e.g. Buy 2 cases get 1 free. Limited stock."></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Price ($) — leave blank if tiered</label>
+            <input type="number" id="f-price" placeholder="e.g. 850">
+          </div>
+          <div class="form-field">
+            <label>Price Notes (if no single price)</label>
+            <input type="text" id="f-price-notes" placeholder="e.g. 2+1 deal — see description">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Category</label>
+            <select id="f-category">
+              <option value="">— Select category —</option>
+              <option>Beverage</option><option>Clearpack</option><option>Ecobag</option>
+              <option>Ecobox</option><option>Ecocup</option><option>Foil</option>
+              <option>Food</option><option>Garbagebag</option><option>Household</option>
+              <option>Paper</option><option>Plastic</option><option>Processing</option>
+              <option>Salt</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Valid Until</label>
+            <input type="date" id="f-valid">
+          </div>
+        </div>
+        <div class="form-row full">
+          <div class="form-field">
+            <label>Product Image</label>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('f-image-file').click()">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">Click to choose an image</div>
+              <div class="upload-hint">JPG, PNG, WEBP — max 5MB</div>
+              <img class="upload-preview" id="uploadPreview" src="" alt="">
+            </div>
+            <input type="file" id="f-image-file" accept="image/*" style="display:none" onchange="handleImagePick(this)">
+            <div class="upload-status" id="uploadStatus"></div>
+            <input type="hidden" id="f-image">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-submit" id="submitBtn" onclick="submitSpecial()">Add to Portal</button>
+          <button class="btn-reset" onclick="resetForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE TAB -->
+    <div class="tab-pane" id="tab-manage">
+      <div class="summary-strip" id="summaryStrip" style="display:none">
+        <div class="summary-chip active"><span id="s-active">—</span>Active</div>
+        <div class="summary-chip hidden"><span id="s-hidden">—</span>Hidden</div>
+        <div class="summary-chip expired"><span id="s-expired">—</span>Expired</div>
+        <div class="summary-chip"><span id="s-total">—</span>Total</div>
+      </div>
+      <div class="form-card">
+        <div class="manage-toolbar">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search by name or category…" oninput="filterList()">
+          <div class="bulk-actions">
+            <span class="selected-count" id="selectedCount" style="display:none"></span>
+            <button class="btn-bulk" id="btnBulkShow" onclick="bulkToggle(true)" disabled>Show Selected</button>
+            <button class="btn-bulk" id="btnBulkHide" onclick="bulkToggle(false)" disabled>Hide Selected</button>
+          </div>
+        </div>
+        <div id="itemsList"><div class="list-loading"><div class="spin"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>© 2026 DFL Importers · Internal use only</footer>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Special / Flyer</div>
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="e-id">
+      <div class="form-row">
+        <div class="form-field"><label>Product Name *</label><input type="text" id="e-name"></div>
+        <div class="form-field"><label>Type *</label>
+          <select id="e-type"><option value="Special">Special</option><option value="Flyer">Flyer</option></select>
+        </div>
+      </div>
+      <div class="form-row full"><div class="form-field"><label>Description</label><textarea id="e-desc"></textarea></div></div>
+      <div class="form-row">
+        <div class="form-field"><label>Price ($)</label><input type="number" id="e-price"></div>
+        <div class="form-field"><label>Price Notes</label><input type="text" id="e-price-notes"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Category</label>
+          <select id="e-category">
+            <option value="">— Select category —</option>
+            <option>Beverage</option><option>Clearpack</option><option>Ecobag</option>
+            <option>Ecobox</option><option>Ecocup</option><option>Foil</option>
+            <option>Food</option><option>Garbagebag</option><option>Household</option>
+            <option>Paper</option><option>Plastic</option><option>Processing</option>
+            <option>Salt</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Valid Until</label><input type="date" id="e-valid"></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-field">
+          <label>Product Image</label>
+          <div class="upload-zone" id="editUploadZone" onclick="document.getElementById('e-image-file').click()">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Click to replace image</div>
+            <div class="upload-hint">JPG, PNG, WEBP — max 5MB</div>
+            <img class="upload-preview" id="editUploadPreview" src="" alt="">
+          </div>
+          <input type="file" id="e-image-file" accept="image/*" style="display:none" onchange="handleEditImagePick(this)">
+          <div class="upload-status" id="editUploadStatus"></div>
+          <input type="hidden" id="e-image">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-submit" id="saveEditBtn" onclick="saveEdit()">Save Changes</button>
+        <button class="btn-reset" onclick="closeEdit()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">Delete this item?</div>
+    <div class="confirm-msg" id="confirmMsg">This cannot be undone.</div>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-confirm-delete" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const UPLOAD_PASSWORD = 'admin';
+
+  let allItems = [];
+
+  // ── AUTH ──
+  function doLogin() {
+    const pw = document.getElementById('pwInput').value;
+    if (pw === UPLOAD_PASSWORD) {
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('mainPanel').style.display = 'block';
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  }
+
+  function showTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'manage') loadItems();
+  }
+
+  // ── TOAST ──
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ── ADD NEW ──
+  async function submitSpecial() {
+    const name = document.getElementById('f-name').value.trim();
+    const type = document.getElementById('f-type').value;
+    if (!name) { showToast('Product name is required', 'error'); return; }
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    const payload = {
+      name, type,
+      description: document.getElementById('f-desc').value.trim() || null,
+      price: document.getElementById('f-price').value ? parseFloat(document.getElementById('f-price').value) : null,
+      price_notes: document.getElementById('f-price-notes').value.trim() || null,
+      category: document.getElementById('f-category').value || null,
+      valid_until: document.getElementById('f-valid').value || null,
+      image_url: document.getElementById('f-image').value.trim() || null,
+      active: true
+    };
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) { showToast('✓ Added successfully!', 'success'); resetForm(); }
+      else { showToast('Error saving. Please try again.', 'error'); }
+    } catch(e) { showToast('Network error. Please try again.', 'error'); }
+    btn.disabled = false; btn.textContent = 'Add to Portal';
+  }
+
+  function resetForm() {
+    ['f-name','f-desc','f-price','f-price-notes','f-valid'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-type').value = 'Special';
+    document.getElementById('f-category').value = '';
+    document.getElementById('f-image').value = '';
+    document.getElementById('f-image-file').value = '';
+    document.getElementById('uploadPreview').src = '';
+    document.getElementById('uploadZone').classList.remove('has-image');
+    document.getElementById('uploadStatus').textContent = '';
+    document.getElementById('uploadStatus').className = 'upload-status';
+  }
+
+  // ── IMAGE UPLOAD ──
+  async function handleImagePick(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('Image must be under 5MB', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('uploadPreview').src = e.target.result; document.getElementById('uploadZone').classList.add('has-image'); };
+    reader.readAsDataURL(file);
+    await uploadImage(file, 'uploadStatus', 'f-image');
+  }
+
+  async function handleEditImagePick(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('Image must be under 5MB', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('editUploadPreview').src = e.target.result; document.getElementById('editUploadZone').classList.add('has-image'); };
+    reader.readAsDataURL(file);
+    await uploadImage(file, 'editUploadStatus', 'e-image');
+  }
+
+  async function uploadImage(file, statusId, hiddenId) {
+    const status = document.getElementById(statusId);
+    status.textContent = 'Uploading…'; status.className = 'upload-status uploading';
+    try {
+      const formData = new FormData();
+      formData.append('', file);
+      const res = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/Assets/specials/${Date.now()}.${file.name.split('.').pop()}`,
+        { method: 'POST', headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }, body: formData }
+      );
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || err.message || 'Upload failed'); }
+      const data = await res.json();
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/Assets/${data.Key.split('/').slice(1).join('/')}`;
+      document.getElementById(hiddenId).value = publicUrl;
+      status.textContent = '✓ Image uploaded'; status.className = 'upload-status done';
+    } catch(e) {
+      status.textContent = `Upload failed: ${e.message}`; status.className = 'upload-status error';
+      document.getElementById(hiddenId).value = '';
+    }
+  }
+
+  // ── LOAD & RENDER ──
+  async function loadItems() {
+    const list = document.getElementById('itemsList');
+    list.innerHTML = '<div class="list-loading"><div class="spin"></div></div>';
+    document.getElementById('summaryStrip').style.display = 'none';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials?order=created_at.desc`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      allItems = await res.json();
+      updateSummary(allItems);
+      renderList(allItems);
+    } catch(e) { list.innerHTML = '<div class="empty-list">Could not load items.</div>'; }
+  }
+
+  function updateSummary(items) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    document.getElementById('s-active').textContent = items.filter(i => i.active && (!i.valid_until || new Date(i.valid_until) >= today)).length;
+    document.getElementById('s-hidden').textContent = items.filter(i => !i.active).length;
+    document.getElementById('s-expired').textContent = items.filter(i => i.valid_until && new Date(i.valid_until) < today).length;
+    document.getElementById('s-total').textContent = items.length;
+    document.getElementById('summaryStrip').style.display = 'flex';
+  }
+
+  function filterList() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    renderList(q ? allItems.filter(i => i.name.toLowerCase().includes(q) || (i.category && i.category.toLowerCase().includes(q))) : allItems);
+  }
+
+  function renderList(items) {
+    const list = document.getElementById('itemsList');
+    clearSelection();
+    if (!items.length) { list.innerHTML = '<div class="empty-list">No items found.</div>'; return; }
+    const today = new Date(); today.setHours(0,0,0,0);
+    list.innerHTML = `<div class="items-list">${items.map(i => {
+      const isExpired = i.valid_until && new Date(i.valid_until) < today;
+      return `<div class="item-row${isExpired ? ' expired' : ''}" id="row-${i.id}">
+        <input type="checkbox" class="item-checkbox" data-id="${i.id}" onchange="onCheckChange()">
+        <div class="item-img">${i.image_url ? `<img src="${i.image_url}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
+        <div class="item-info">
+          <div class="item-name">${i.name}</div>
+          <div class="item-meta">
+            <span class="badge badge-${i.type.toLowerCase()}">${i.type}</span>
+            <span class="badge badge-${i.active ? 'active' : 'inactive'}" id="badge-${i.id}">${i.active ? 'Active' : 'Hidden'}</span>
+            ${isExpired ? `<span class="badge badge-expired">Expired</span>` : ''}
+            ${i.category ? `<span>· ${i.category}</span>` : ''}
+            ${i.valid_until ? `<span>· Until ${new Date(i.valid_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>` : ''}
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="btn-action" onclick="openEdit('${i.id}')">Edit</button>
+          <button class="btn-action" onclick="toggleActive('${i.id}', ${i.active})" id="togbtn-${i.id}">${i.active ? 'Hide' : 'Show'}</button>
+          <button class="btn-action danger" onclick="confirmDelete('${i.id}', '${i.name.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  // ── TOGGLE ACTIVE ──
+  async function toggleActive(id, current) {
+    const btn = document.getElementById('togbtn-' + id);
+    btn.disabled = true;
+    const newVal = !current;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/specials?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newVal })
+      });
+      const item = allItems.find(i => i.id === id);
+      if (item) item.active = newVal;
+      btn.textContent = newVal ? 'Hide' : 'Show';
+      btn.onclick = () => toggleActive(id, newVal);
+      const badge = document.getElementById('badge-' + id);
+      badge.textContent = newVal ? 'Active' : 'Hidden';
+      badge.className = `badge badge-${newVal ? 'active' : 'inactive'}`;
+      updateSummary(allItems);
+      showToast(`Item ${newVal ? 'shown' : 'hidden'}`, 'success');
+    } catch(e) { showToast('Error updating item', 'error'); }
+    btn.disabled = false;
+  }
+
+  // ── BULK TOGGLE ──
+  function onCheckChange() {
+    const checked = document.querySelectorAll('.item-checkbox:checked');
+    const count = checked.length;
+    if (count > 0) {
+      document.getElementById('selectedCount').textContent = `${count} selected`;
+      document.getElementById('selectedCount').style.display = 'inline';
+      document.getElementById('btnBulkShow').disabled = false;
+      document.getElementById('btnBulkHide').disabled = false;
+    } else { clearSelection(); }
+    document.querySelectorAll('.item-row').forEach(row => row.classList.remove('selected'));
+    checked.forEach(cb => document.getElementById('row-' + cb.dataset.id)?.classList.add('selected'));
+  }
+
+  function clearSelection() {
+    document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.item-row').forEach(row => row.classList.remove('selected'));
+    document.getElementById('selectedCount').style.display = 'none';
+    document.getElementById('btnBulkShow').disabled = true;
+    document.getElementById('btnBulkHide').disabled = true;
+  }
+
+  async function bulkToggle(newVal) {
+    const checked = [...document.querySelectorAll('.item-checkbox:checked')];
+    if (!checked.length) return;
+    const ids = checked.map(cb => cb.dataset.id);
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/specials?id=in.(${ids.join(',')})`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newVal })
+      });
+      ids.forEach(id => { const item = allItems.find(i => i.id === id); if (item) item.active = newVal; });
+      updateSummary(allItems);
+      filterList();
+      showToast(`${ids.length} item${ids.length > 1 ? 's' : ''} ${newVal ? 'shown' : 'hidden'}`, 'success');
+    } catch(e) { showToast('Bulk update failed', 'error'); }
+  }
+
+  // ── EDIT ──
+  function openEdit(id) {
+    const i = allItems.find(item => item.id === id);
+    if (!i) return;
+    document.getElementById('e-id').value = i.id;
+    document.getElementById('e-name').value = i.name || '';
+    document.getElementById('e-type').value = i.type || 'Special';
+    document.getElementById('e-desc').value = i.description || '';
+    document.getElementById('e-price').value = i.price || '';
+    document.getElementById('e-price-notes').value = i.price_notes || '';
+    document.getElementById('e-category').value = i.category || '';
+    document.getElementById('e-valid').value = i.valid_until || '';
+    document.getElementById('e-image').value = i.image_url || '';
+    const zone = document.getElementById('editUploadZone');
+    const preview = document.getElementById('editUploadPreview');
+    if (i.image_url) { preview.src = i.image_url; zone.classList.add('has-image'); }
+    else { preview.src = ''; zone.classList.remove('has-image'); }
+    document.getElementById('editUploadStatus').textContent = '';
+    document.getElementById('editUploadStatus').className = 'upload-status';
+    document.getElementById('e-image-file').value = '';
+    document.getElementById('editModal').classList.add('open');
+  }
+
+  function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
+
+  async function saveEdit() {
+    const id = document.getElementById('e-id').value;
+    const name = document.getElementById('e-name').value.trim();
+    if (!name) { showToast('Product name is required', 'error'); return; }
+    const btn = document.getElementById('saveEditBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    const payload = {
+      name, type: document.getElementById('e-type').value,
+      description: document.getElementById('e-desc').value.trim() || null,
+      price: document.getElementById('e-price').value ? parseFloat(document.getElementById('e-price').value) : null,
+      price_notes: document.getElementById('e-price-notes').value.trim() || null,
+      category: document.getElementById('e-category').value || null,
+      valid_until: document.getElementById('e-valid').value || null,
+      image_url: document.getElementById('e-image').value.trim() || null,
+    };
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const idx = allItems.findIndex(i => i.id === id);
+        if (idx > -1) allItems[idx] = { ...allItems[idx], ...payload };
+        updateSummary(allItems); filterList(); closeEdit();
+        showToast('✓ Changes saved', 'success');
+      } else { showToast('Error saving. Please try again.', 'error'); }
+    } catch(e) { showToast('Network error.', 'error'); }
+    btn.disabled = false; btn.textContent = 'Save Changes';
+  }
+
+  // ── DELETE ──
+  function confirmDelete(id, name) {
+    document.getElementById('confirmMsg').textContent = `"${name}" will be permanently deleted.`;
+    document.getElementById('confirmDeleteBtn').onclick = () => doDelete(id);
+    document.getElementById('confirmOverlay').classList.add('open');
+  }
+
+  function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); }
+
+  async function doDelete(id) {
+    closeConfirm();
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/specials?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      allItems = allItems.filter(i => i.id !== id);
+      updateSummary(allItems); filterList();
+      showToast('Item deleted', 'success');
+    } catch(e) { showToast('Delete failed', 'error'); }
+  }
+
+  document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeEdit(); });
+  document.getElementById('confirmOverlay').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
+
+  // ── HAMBURGER ──
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('open');
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      hamburger.classList.remove('open');
+      mobileMenu.classList.remove('open');
+    });
+  });
+</script>
+</body>
+</html>

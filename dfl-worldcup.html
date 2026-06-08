@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL World Cup 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bebas+Neue&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #f0f4f8;
+    --white:    #ffffff;
+    --navy:     #0f2044;
+    --accent:   #2563eb;
+    --text:     #0f172a;
+    --muted:    #64748b;
+    --border:   #e2e8f0;
+    --surface:  #ffffff;
+    --surface2: #f8fafc;
+    --green:    #16a34a;
+    --green-bg: #dcfce7;
+    --red:      #dc2626;
+    --red-bg:   #fee2e2;
+    --amber:    #d97706;
+    --amber-bg: #fef3c7;
+    --gold:     #d97706;
+    --silver:   #64748b;
+    --platinum: #0891b2;
+    --priority: #7c3aed;
+    --radius:   12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; min-height: 100vh; }
+  .page-wrap { max-width: 1200px; margin: 0 auto; }
+
+  /* HEADER */
+  .header {
+    background: var(--navy); padding: 12px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .dfl-logo { height: 32px; width: auto; object-fit: contain; display: block; }
+  .divider-v { width: 1px; height: 28px; background: rgba(255,255,255,0.15); flex-shrink: 0; }
+  .header-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: #fff; line-height: 1; }
+  .header-title span { color: #38bdf8; }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.35);
+    color: #34d399; font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    padding: 3px 9px; border-radius: 20px;
+  }
+  .live-badge::before { content:''; width:5px; height:5px; background:#34d399; border-radius:50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+  /* COMPETITION BANNER */
+  .comp-banner {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+  }
+  .comp-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; color: var(--navy); line-height: 1; }
+  .comp-title span { color: var(--accent); }
+  .comp-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 2px; padding: 0 24px;
+    background: var(--white); border-bottom: 2px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all .15s; background: none; border-top: none; border-left: none; border-right: none;
+    white-space: nowrap; font-family: 'Inter', sans-serif;
+  }
+  .tab:hover { color: var(--accent); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* CONTENT */
+  .content { padding: 24px; }
+
+  /* SUMMARY CARDS */
+  .summary-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .card-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .card-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 1px; line-height: 1; color: var(--navy); }
+  .card-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-name  { font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .card.leader { border-left: 3px solid var(--accent); }
+  .card.plat   { border-left: 3px solid var(--platinum); }
+  .card.gold-c { border-left: 3px solid var(--gold); }
+  .card.silv   { border-left: 3px solid var(--silver); }
+
+  /* STANDINGS HEADER */
+  .standings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+  .standings-title  { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px; color: var(--muted); }
+  .tier-legend      { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tier-badge { display: inline-flex; align-items: center; font-weight: 600; padding: 3px 10px; border-radius: 4px; font-size: 11px; letter-spacing: .4px; }
+  .tier-badge.platinum { background: #e0f2fe; color: var(--platinum); border: 1px solid #bae6fd; }
+  .tier-badge.gold     { background: var(--amber-bg); color: var(--amber); border: 1px solid #fde68a; }
+  .tier-badge.silver   { background: #f1f5f9; color: var(--silver); border: 1px solid var(--border); }
+
+  /* TABLE */
+  .table-wrap { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; min-width: 580px; }
+  thead th {
+    background: var(--surface2); padding: 10px 14px; text-align: left;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; animation: fadeIn .25s ease forwards; opacity: 0; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f8fafc; }
+  td { padding: 12px 14px; vertical-align: middle; }
+  td.num { text-align: right; font-family: 'DM Mono', monospace; font-size: 13px; }
+
+  .pos-cell { display: flex; align-items: center; }
+  .pos-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; background: var(--surface2); color: var(--muted); flex-shrink: 0; }
+  .pos-num.p1 { background: var(--accent); color: #fff; }
+  .pos-num.p2 { background: var(--silver); color: #fff; }
+  .pos-num.p3 { background: #b45309;       color: #fff; }
+
+  .avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; color: #fff; }
+  .name-cell { display: flex; align-items: center; gap: 10px; }
+  .name-text { font-weight: 600; font-size: 13px; }
+
+  .pts-big  { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--navy); }
+  .pts-this { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+  .pts-this.has-pts { color: var(--green); font-weight: 600; }
+
+  .pace { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .pace.ahead  { background: var(--green-bg); color: var(--green); }
+  .pace.behind { background: var(--red-bg);   color: var(--red); }
+
+  .to-plat-cell { min-width: 130px; }
+  .to-plat-num  { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--platinum)); }
+
+  .tier-pill { display: inline-block; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tier-pill.Platinum { background: #e0f2fe; color: var(--platinum); border: 1px solid #bae6fd; }
+  .tier-pill.Gold     { background: var(--amber-bg); color: var(--amber); border: 1px solid #fde68a; }
+  .tier-pill.Silver   { background: #f1f5f9; color: var(--silver); border: 1px solid var(--border); }
+  .tier-pill.not-yet  { color: var(--muted); }
+
+  .state-box { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 14px; }
+  .state-box .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 14px; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .state-box.error { color: var(--red); }
+
+  .refresh-bar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 10px 24px; font-size: 11px; color: var(--muted); background: var(--white); border-top: 1px solid var(--border); }
+  .refresh-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; transition: background .15s; font-family: 'Inter', sans-serif; }
+  .refresh-btn:hover { background: var(--border); }
+
+  /* REP DETAIL */
+  .rep-selector-row { margin-bottom: 20px; }
+  select {
+    background: var(--white); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 36px 10px 14px; border-radius: 8px; font-size: 14px;
+    font-family: 'Inter', sans-serif; font-weight: 500; min-width: 260px;
+    cursor: pointer; outline: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; }
+
+  .week-pill { padding: 5px 11px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--white); color: var(--muted); transition: all .15s; white-space: nowrap; font-family: 'Inter', sans-serif; }
+  .week-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .week-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .ach-platinum { color: var(--platinum); font-weight: 700; }
+  .ach-gold     { color: var(--amber);    font-weight: 700; }
+  .ach-silver   { color: var(--green);    font-weight: 700; }
+  .ach-below    { color: var(--muted); }
+
+  .running-total { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--navy); }
+  tr.week-row-selected { background: #eff6ff !important; }
+
+  .rep-prize-pill { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 14px; font-weight: 700; margin-top: 4px; }
+  .rep-prize-pill.Platinum { background: #e0f2fe; color: var(--platinum); }
+  .rep-prize-pill.Gold     { background: var(--amber-bg); color: var(--amber); }
+  .rep-prize-pill.Silver   { background: #f1f5f9; color: var(--silver); }
+  .rep-prize-pill.not-yet  { color: var(--muted); font-weight: 500; font-size: 13px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .header { padding: 10px 16px; }
+    .comp-banner { padding: 12px 16px; }
+    .comp-title { font-size: 22px; }
+    .content { padding: 14px 12px; }
+    .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .standings-header { flex-direction: column; align-items: flex-start; }
+    .col-wks, .col-pace, .col-toplat { display: none; }
+    .col-cat-target, .col-cat-actual { display: none; }
+    td, thead th { padding: 10px; }
+    .name-text { font-size: 12px; }
+    .pts-big { font-size: 18px; }
+    .avatar { width: 28px; height: 28px; font-size: 10px; border-radius: 6px; }
+    .pos-num { width: 24px; height: 24px; font-size: 11px; }
+    select { min-width: 100%; width: 100%; }
+    .refresh-bar { padding: 8px 12px; }
+  }
+  @media (max-width: 480px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .comp-title { font-size: 18px; }
+    .header-title { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL Importers" class="dfl-logo">
+    <div class="divider-v"></div>
+    <div class="header-title">World <span>Cup</span> 2026</div>
+  </div>
+  <span class="live-badge">LIVE</span>
+</div>
+
+<!-- BANNER -->
+<div class="comp-banner">
+  <div class="comp-title">Q2 Sales <span>World Cup</span> 2026</div>
+  <div class="comp-sub">DFL Importers Jamaica &nbsp;·&nbsp; 19 reps &nbsp;·&nbsp; 12 categories &nbsp;·&nbsp; April – June 2026</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('league')">League Table</button>
+  <button class="tab" onclick="showTab('rep')">Rep Detail</button>
+</div>
+
+<!-- LEAGUE TABLE -->
+<div id="leagueView" class="content">
+  <div class="summary-grid">
+    <div class="card leader">
+      <div class="card-label">Leader</div>
+      <div class="card-name" id="leaderName">—</div>
+      <div class="card-sub" id="leaderPts"></div>
+    </div>
+    <div class="card plat">
+      <div class="card-label">Platinum Tier</div>
+      <div class="card-value" id="platCount">—</div>
+      <div class="card-sub">of 19 reps · 1,080+ pts</div>
+    </div>
+    <div class="card gold-c">
+      <div class="card-label">Gold Tier</div>
+      <div class="card-value" id="goldCount">—</div>
+      <div class="card-sub">of 19 reps · 780+ pts</div>
+    </div>
+    <div class="card silv">
+      <div class="card-label">Silver Tier</div>
+      <div class="card-value" id="silverCount">—</div>
+      <div class="card-sub">of 19 reps · 500+ pts</div>
+    </div>
+  </div>
+
+  <div class="standings-header">
+    <div class="standings-title" id="standingsTitle">Q2 STANDINGS</div>
+    <div class="tier-legend">
+      <span class="tier-badge platinum">Platinum 1,080+ pts</span>
+      <span class="tier-badge gold">Gold 780+ pts</span>
+      <span class="tier-badge silver">Silver 500+ pts</span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div id="tableState" class="state-box"><div class="spinner"></div>Loading standings...</div>
+    <div class="table-scroll">
+      <table id="leagueTable" style="display:none">
+        <thead>
+          <tr>
+            <th style="width:44px">Pos</th>
+            <th>Rep</th>
+            <th class="num col-wks">Weeks</th>
+            <th class="num">This Wk</th>
+            <th class="num">Points</th>
+            <th class="col-pace">Pace</th>
+            <th class="col-toplat">To Platinum</th>
+            <th>Tier</th>
+          </tr>
+        </thead>
+        <tbody id="leagueBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- REP DETAIL -->
+<div id="repView" class="content" style="display:none">
+  <div class="rep-selector-row">
+    <div class="card-label" style="margin-bottom:6px">Rep</div>
+    <select id="repSelect" onchange="loadRepDetail()">
+      <option value="">— Select a rep —</option>
+      <option>Sheldon Brown</option><option>Desrick Simpson</option>
+      <option>Kimberly Brown</option><option>Eric Smith</option>
+      <option>Clerett Holness</option><option>Dionne Rerrie</option>
+      <option>Antonio Williams</option><option>Tashelle Wilson</option>
+      <option>Yanique Desouza</option><option>Kawayne Evans</option>
+      <option>Damita Samuels-Foster</option><option>Everton Green</option>
+      <option>Garreth Brown</option><option>Tudi-ann Lammie</option>
+      <option>Kimmone Campbell</option><option>Stacy-Ann Bennett Edwards</option>
+      <option>Ruth Ann Lewis</option><option>Petronia Tinglin</option>
+      <option>Christopher Russell</option>
+    </select>
+  </div>
+
+  <div id="repSummary" style="display:none">
+    <div class="summary-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:20px">
+      <div class="card leader">
+        <div class="card-label">Total Points</div>
+        <div class="card-value" id="rdTotalPts">—</div>
+        <div class="card-sub" id="rdWeeksPlayed">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Prize Tier</div>
+        <div id="rdPrizeTier" style="margin-top:4px">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">To Platinum</div>
+        <div class="card-value" id="rdToPlatinum">—</div>
+        <div class="card-sub">points needed</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Best Week</div>
+        <div class="card-value" id="rdBestWeek">—</div>
+        <div class="card-sub" id="rdBestWeekLabel">—</div>
+      </div>
+    </div>
+
+    <div class="section-title">WEEK BY WEEK</div>
+    <div class="table-wrap" style="margin-bottom:24px">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:155px">Week</th>
+              <th class="num">Points</th>
+              <th class="num">Running Total</th>
+              <th>Pace</th>
+              <th>Best Tier</th>
+            </tr>
+          </thead>
+          <tbody id="repWeekBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <div class="section-title" id="catBreakdownTitle">CATEGORY BREAKDOWN</div>
+      <div id="weekPills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Type</th>
+              <th class="num col-cat-target">MTD Target</th>
+              <th class="num col-cat-actual">MTD Actual</th>
+              <th class="num">Achievement</th>
+              <th class="num">Points</th>
+              <th>Tier</th>
+            </tr>
+          </thead>
+          <tbody id="repCatBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="repEmptyState" class="state-box">Select a rep above to view their breakdown</div>
+  <div id="repLoadState" class="state-box" style="display:none"><div class="spinner"></div>Loading rep data...</div>
+</div>
+
+<!-- REFRESH BAR -->
+<div class="refresh-bar">
+  <span id="lastUpdated">—</span>
+  <button class="refresh-btn" onclick="loadLeaderboard()">↻ Refresh</button>
+</div>
+
+</div>
+<script>
+  const SUPABASE_URL  = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_ANON = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const AVATAR_COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#6366f1','#14b8a6','#f97316','#84cc16','#7c3aed','#38bdf8','#fb923c','#a3e635','#34d399','#818cf8','#f472b6','#fbbf24'];
+  const REP_ORDER = ['Sheldon Brown','Desrick Simpson','Kimberly Brown','Eric Smith','Clerett Holness','Dionne Rerrie','Antonio Williams','Tashelle Wilson','Yanique Desouza','Kawayne Evans','Damita Samuels-Foster','Everton Green','Garreth Brown','Tudi-ann Lammie','Kimmone Campbell','Stacy-Ann Bennett Edwards','Ruth Ann Lewis','Petronia Tinglin','Christopher Russell'];
+  const avatarColor = n => AVATAR_COLORS[Math.max(0, REP_ORDER.indexOf(n))];
+
+  function showTab(tab, repName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('leagueView').style.display = 'none';
+    document.getElementById('repView').style.display    = 'none';
+    if (tab === 'league') {
+      document.querySelectorAll('.tab')[0].classList.add('active');
+      document.getElementById('leagueView').style.display = 'block';
+    } else {
+      document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('repView').style.display = 'block';
+      if (repName) { document.getElementById('repSelect').value = repName; loadRepDetail(); }
+    }
+  }
+
+  async function loadLeaderboard() {
+    const s = document.getElementById('tableState'), t = document.getElementById('leagueTable');
+    s.innerHTML = '<div class="spinner"></div>Loading standings...'; s.className = 'state-box'; s.style.display = 'block'; t.style.display = 'none';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_q2_leaderboard`, { method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}, body:'{}' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderLeaderboard(data);
+      document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
+    } catch(e) { s.innerHTML = `⚠ ${e.message}`; s.className = 'state-box error'; }
+  }
+
+  function renderLeaderboard(data) {
+    document.getElementById('leaderName').textContent  = data[0]?.salesperson || '—';
+    document.getElementById('leaderPts').textContent   = data[0] ? `${data[0].total_points} pts` : '';
+    document.getElementById('platCount').textContent   = data.filter(r=>r.prize_tier==='Platinum').length;
+    document.getElementById('goldCount').textContent   = data.filter(r=>r.prize_tier==='Gold').length;
+    document.getElementById('silverCount').textContent = data.filter(r=>r.prize_tier==='Silver').length;
+    document.getElementById('standingsTitle').textContent = `Q2 STANDINGS — AFTER WEEK ${data[0]?.current_week||'?'} OF 13`;
+    const tbody = document.getElementById('leagueBody');
+    tbody.innerHTML = '';
+    data.forEach((rep, i) => {
+      const posClass = rep.rank===1?'p1':rep.rank===2?'p2':rep.rank===3?'p3':'';
+      const ptsPct   = Math.min(100,(parseFloat(rep.total_points)/1080)*100);
+      const tierCls  = rep.prize_tier==='Not yet'?'not-yet':rep.prize_tier;
+      const wkPts    = parseFloat(rep.this_week_points)||0;
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = `${i*35}ms`; tr.style.cursor='pointer';
+      tr.title = `View ${rep.salesperson} detail`;
+      tr.addEventListener('click', () => showTab('rep', rep.salesperson));
+      tr.innerHTML = `
+        <td><div class="pos-cell"><div class="pos-num ${posClass}">${rep.rank}</div></div></td>
+        <td><div class="name-cell"><div class="avatar" style="background:${avatarColor(rep.salesperson)}">${rep.initials}</div><span class="name-text">${rep.salesperson}</span></div></td>
+        <td class="num col-wks">${rep.current_week}</td>
+        <td class="num"><span class="pts-this ${wkPts>0?'has-pts':''}">${wkPts>0?'+'+wkPts:'—'}</span></td>
+        <td class="num"><span class="pts-big">${rep.total_points}</span></td>
+        <td class="col-pace"><span class="pace ${rep.pace==='Ahead'?'ahead':'behind'}">${rep.pace}</span></td>
+        <td class="to-plat-cell col-toplat">
+          <div class="to-plat-num">${parseFloat(rep.to_platinum)>0?rep.to_platinum+' to go':'✓ Reached'}</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${ptsPct}%"></div></div>
+        </td>
+        <td><span class="tier-pill ${tierCls}">${rep.prize_tier}</span></td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('tableState').style.display = 'none';
+    document.getElementById('leagueTable').style.display = 'table';
+  }
+
+  let repDetailData = [];
+
+  async function loadRepDetail() {
+    const rep = document.getElementById('repSelect').value;
+    if (!rep) return;
+    const ls = document.getElementById('repLoadState');
+    document.getElementById('repSummary').style.display = 'none';
+    document.getElementById('repEmptyState').style.display = 'none';
+    ls.innerHTML = '<div class="spinner"></div>Loading rep data...'; ls.className = 'state-box'; ls.style.display = 'block';
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_q2_rep_detail`, { method:'POST', headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}, body:JSON.stringify({p_salesperson:rep}) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      repDetailData = await res.json();
+      renderRepDetail(repDetailData);
+    } catch(e) { ls.innerHTML=`⚠ ${e.message}`; ls.className='state-box error'; }
+  }
+
+  function renderRepDetail(rows) {
+    document.getElementById('repLoadState').style.display = 'none';
+    if (!rows.length) { document.getElementById('repEmptyState').textContent='No data found.'; document.getElementById('repEmptyState').style.display='block'; return; }
+    const weekMap = {};
+    rows.forEach(r => { if (!weekMap[r.week_num]) weekMap[r.week_num]={label:r.week_label,pts:0}; weekMap[r.week_num].pts += parseFloat(r.points_earned)||0; });
+    const weekNums = Object.keys(weekMap).map(Number).sort((a,b)=>a-b);
+    const total    = weekNums.reduce((s,w)=>s+weekMap[w].pts,0);
+    const bestWk   = weekNums.reduce((b,w)=>weekMap[w].pts>weekMap[b].pts?w:b, weekNums[0]);
+    document.getElementById('rdTotalPts').textContent    = total;
+    document.getElementById('rdWeeksPlayed').textContent = `${weekNums.length} week${weekNums.length!==1?'s':''} played`;
+    document.getElementById('rdToPlatinum').textContent  = Math.max(0,1080-total);
+    document.getElementById('rdBestWeek').textContent    = weekMap[bestWk].pts+' pts';
+    document.getElementById('rdBestWeekLabel').textContent = weekMap[bestWk].label;
+    const tier = total>=1080?'Platinum':total>=780?'Gold':total>=500?'Silver':'Not yet';
+    document.getElementById('rdPrizeTier').innerHTML = `<span class="rep-prize-pill ${tier==='Not yet'?'not-yet':tier}">${tier}</span>`;
+
+    const wb = document.getElementById('repWeekBody'); wb.innerHTML=''; let running=0;
+    weekNums.forEach(wn => {
+      const wpts=weekMap[wn].pts; running+=wpts; const ok=running>=(wn/13)*1080;
+      const wr=rows.filter(r=>r.week_num===wn);
+      let tl='—',tc='not-yet';
+      if (wr.some(r=>[16,8].includes(parseFloat(r.points_earned))))       {tl='Platinum';tc='Platinum';}
+      else if (wr.some(r=>[10,5].includes(parseFloat(r.points_earned))))  {tl='Gold';tc='Gold';}
+      else if (wr.some(r=>[6,3].includes(parseFloat(r.points_earned))))   {tl='Silver';tc='Silver';}
+      const tr=document.createElement('tr'); tr.dataset.week=wn; tr.style.cursor='pointer';
+      tr.innerHTML=`<td style="font-weight:600;min-width:155px;white-space:nowrap">${weekMap[wn].label}</td><td class="num"><span class="pts-this ${wpts>0?'has-pts':''}">${wpts>0?'+'+wpts:'0'}</span></td><td class="num"><span class="running-total">${running}</span></td><td><span class="pace ${ok?'ahead':'behind'}">${ok?'Ahead':'Behind'}</span></td><td><span class="tier-pill ${tc}">${tl}</span></td>`;
+      tr.addEventListener('click',()=>selectWeek(wn)); wb.appendChild(tr);
+    });
+
+    const pe=document.getElementById('weekPills'); pe.innerHTML='';
+    weekNums.forEach(wn=>{ const p=document.createElement('button'); p.className='week-pill'; p.textContent=`Wk ${wn}`; p.dataset.week=wn; p.addEventListener('click',()=>selectWeek(wn)); pe.appendChild(p); });
+
+    document.getElementById('repSummary').style.display='block';
+    selectWeek(weekNums[weekNums.length-1]);
+  }
+
+  function selectWeek(wn) {
+    document.querySelectorAll('#repWeekBody tr').forEach(tr=>tr.classList.toggle('week-row-selected',parseInt(tr.dataset.week)===wn));
+    document.querySelectorAll('.week-pill').forEach(p=>p.classList.toggle('active',parseInt(p.dataset.week)===wn));
+    const label=repDetailData.find(r=>r.week_num===wn)?.week_label||`Week ${wn}`;
+    document.getElementById('catBreakdownTitle').textContent=`CATEGORY BREAKDOWN — ${label.toUpperCase()}`;
+    const cb=document.getElementById('repCatBody'); cb.innerHTML='';
+    repDetailData.filter(r=>r.week_num===wn).sort((a,b)=>a.item_class.localeCompare(b.item_class)).forEach(r=>{
+      const pct=parseFloat(r.achievement_pct)||0, pts=parseFloat(r.points_earned)||0;
+      const budget=parseFloat(r.mtd_budget)||0, actual=parseFloat(r.mtd_actual)||0;
+      let ac='ach-below',tl='Below 102%',tc='not-yet';
+      if (pct>=110)      {ac='ach-platinum';tl='Platinum';tc='Platinum';}
+      else if (pct>=106) {ac='ach-gold';    tl='Gold';    tc='Gold';}
+      else if (pct>=102) {ac='ach-silver';  tl='Silver';  tc='Silver';}
+      const tp=r.category_type==='Priority'?`<span class="tier-pill" style="background:#f3e8ff;color:#7c3aed;border:1px solid #ddd6fe">Priority</span>`:`<span style="color:var(--muted);font-size:12px">Standard</span>`;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td style="font-weight:600">${r.item_class}</td><td>${tp}</td><td class="num col-cat-target">J$${fmtNum(budget)}</td><td class="num col-cat-actual">J$${fmtNum(actual)}</td><td class="num"><span class="${ac}">${pct>0?pct+'%':'—'}</span></td><td class="num" style="font-family:'DM Mono',monospace;font-weight:600;color:${pts>0?'var(--green)':'var(--muted)'}">${pts>0?pts:'—'}</td><td><span class="tier-pill ${tc}">${tl}</span></td>`;
+      cb.appendChild(tr);
+    });
+  }
+
+  function fmtNum(n) {
+    if (!n) return '0';
+    if (Math.abs(n)>=1000000) return (n/1000000).toFixed(1)+'M';
+    if (Math.abs(n)>=1000)    return (n/1000).toFixed(0)+'K';
+    return Math.round(n).toLocaleString();
+  }
+
+  loadLeaderboard();
+</script>
+</body>
+</html>
