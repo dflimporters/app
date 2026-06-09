@@ -13,7 +13,7 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-    /* ── NAV ── */
+  /* ── NAV ── */
   nav {
     background: var(--navy);
     height: 56px;
@@ -95,22 +95,33 @@
   .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
   .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
 
+  /* ── PAGE HEADER ── */
   .page-header { background:var(--navy2); padding:32px 32px 36px; }
   .page-header-inner { max-width:1060px; margin:0 auto; }
   .breadcrumb { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; }
   .breadcrumb a { color:rgba(255,255,255,0.45); text-decoration:none; }
   .page-header h1 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
+
+  /* ── CONTENT ── */
   .content { max-width:1060px; margin:0 auto; padding:32px; }
   .section-label { font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:14px; }
   .assets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+
+  /* ── ASSET CARDS ── */
   .asset-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; box-shadow:var(--shadow); text-align:center; transition:all 0.18s; }
   .asset-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:#bfdbfe; }
-  .asset-preview { width:100%; height:100px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:32px; margin-bottom:12px; overflow:hidden; }
+  .asset-preview { width:100%; height:100px; background:var(--bg); border-radius:6px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; overflow:hidden; }
   .asset-preview img { max-width:80%; max-height:80%; object-fit:contain; }
   .asset-name { font-size:13px; font-weight:500; margin-bottom:4px; }
   .asset-type { font-size:11px; color:var(--text-dim); margin-bottom:12px; }
   .asset-dl { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:500; color:var(--accent); text-decoration:none; padding:6px 14px; border:1px solid #bfdbfe; border-radius:6px; transition:all 0.15s; }
   .asset-dl:hover { background:var(--accent-bg); }
+
+  /* ── STATES ── */
+  .loading-state { color:var(--text-dim); font-size:13px; padding:40px 0; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text-dim); font-size:13px; }
+  .error-state { text-align:center; padding:60px 20px; color:#ef4444; font-size:13px; }
+
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
 
   @media (max-width: 640px) {
@@ -167,30 +178,15 @@
 
 <div class="content">
   <div class="section-label">Brand Assets</div>
-  <div class="assets-grid">
-    <div class="asset-card">
-      <div class="asset-preview">
-        <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL Logo Dark">
-      </div>
-      <div class="asset-name">DFL Logo</div>
-      <div class="asset-type">PNG — Dark version</div>
-      <a class="asset-dl" href="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" download>⬇ Download</a>
-    </div>
-    <div class="asset-card">
-      <div class="asset-preview" style="background:#0f2044;">
-        <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL Logo Light">
-      </div>
-      <div class="asset-name">DFL Logo</div>
-      <div class="asset-type">PNG — Light version</div>
-      <a class="asset-dl" href="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" download>⬇ Download</a>
-    </div>
+  <div class="assets-grid" id="assetsGrid">
+    <div class="loading-state">Loading assets…</div>
   </div>
 </div>
 
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
 <script>
-    // Hamburger menu
+  // ── Hamburger menu ──
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
   hamburger.addEventListener('click', () => {
@@ -201,7 +197,71 @@
     a.addEventListener('click', () => {
       hamburger.classList.remove('open');
       mobileMenu.classList.remove('open');
-    }););
+    });
+  });
+
+  // ── Dynamic asset loader ──
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const BUCKET = 'Assets';
+  const FOLDER = 'brand';
+
+  // Files containing these strings get a dark navy preview background (for white logos)
+  const DARK_BG_KEYWORDS = ['_White', '_white', '-white', '-White'];
+
+  async function loadAssets() {
+    const grid = document.getElementById('assetsGrid');
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prefix: FOLDER + '/', limit: 100 })
+      });
+
+      const files = await res.json();
+
+      // Filter out folder placeholders (no id) and hidden/system files
+      const assets = files.filter(f => f.id && !f.name.startsWith('.'));
+
+      if (!assets.length) {
+        grid.innerHTML = '<div class="empty-state">No assets found in the brand folder.</div>';
+        return;
+      }
+
+      grid.innerHTML = assets.map(file => {
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${FOLDER}/${encodeURIComponent(file.name)}`;
+        const needsDarkBg = DARK_BG_KEYWORDS.some(kw => file.name.includes(kw));
+        const previewBg = needsDarkBg ? 'background:#0f2044;' : '';
+
+        // Friendly display name: strip file extension, replace underscores/hyphens with spaces
+        const displayName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+
+        // File type label from extension
+        const ext = (file.name.match(/\.([^.]+)$/) || ['', 'File'])[1].toUpperCase();
+
+        return `
+          <div class="asset-card">
+            <div class="asset-preview" style="${previewBg}">
+              <img src="${publicUrl}" alt="${displayName}" loading="lazy">
+            </div>
+            <div class="asset-name">${displayName}</div>
+            <div class="asset-type">${ext}</div>
+            <a class="asset-dl" href="${publicUrl}" download="${file.name}">⬇ Download</a>
+          </div>`;
+      }).join('');
+
+    } catch (err) {
+      grid.innerHTML = '<div class="error-state">Failed to load assets. Please try refreshing.</div>';
+      console.error('Asset load error:', err);
+    }
+  }
+
+  loadAssets();
 </script>
 </body>
 </html>
