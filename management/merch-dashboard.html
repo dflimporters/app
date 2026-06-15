@@ -169,6 +169,31 @@ tbody td { padding: 9px 11px; vertical-align: middle; }
 .tl-mtot-v{font-family:var(--mono);font-size:11px;font-weight:700;text-align:center;}
 .tl-mtot-e{font-family:var(--display);font-size:13px;font-weight:900;text-align:center;color:var(--accent2);}
 
+
+.tl-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+.tl-card.west{border-top:3px solid var(--accent2)}.tl-card.kgn{border-top:3px solid #1d4ed8}.tl-card.sc{border-top:3px solid #15803d}.tl-card.steliz{border-top:3px solid #7c3aed}
+.tl-head{padding:14px 18px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);}
+.tl-tname{font-family:var(--display);font-size:17px;font-weight:900;color:var(--ink);}
+.tl-region{font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;margin-top:3px;}
+.tl-region.west{color:var(--accent2)}.tl-region.kgn{color:#1d4ed8}.tl-region.sc{color:#15803d}.tl-region.steliz{color:#7c3aed}
+.tl-kpis{display:flex;border-bottom:1px solid var(--border);}
+.tl-kpi{flex:1;padding:8px 10px;border-right:1px solid var(--border);text-align:center;}.tl-kpi:last-child{border-right:none;}
+.tl-kpi-v{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);}
+.tl-kpi-l{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.8px;margin-top:2px;}
+.tl-mhdr{background:var(--paper);padding:5px 16px;display:grid;grid-template-columns:1fr 48px 48px 48px 86px 66px;border-bottom:1px solid var(--border);}
+.tl-mhdr span{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;text-align:center;}
+.tl-mhdr span:first-child{text-align:left;}
+.tl-mrow{display:grid;grid-template-columns:1fr 48px 48px 48px 86px 66px;align-items:center;padding:6px 16px;border-bottom:1px solid #f0ece4;}
+.tl-mrow:hover{background:#faf8f5;}.tl-mrow:last-child{border-bottom:none;}
+.tl-mname{font-size:11px;font-weight:500;color:var(--ink);}
+.tl-mc{font-family:var(--mono);font-size:11px;text-align:center;color:var(--muted);}
+.tl-me{font-family:var(--mono);font-size:11px;text-align:center;font-weight:700;}
+.tl-me.has{color:var(--accent2)}.tl-me.no{color:var(--muted)}
+.tl-mtot{display:grid;grid-template-columns:1fr 48px 48px 48px 86px 66px;align-items:center;padding:7px 16px;background:var(--paper);border-top:1px solid var(--border);}
+.tl-mtot-l{font-family:var(--mono);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.tl-mtot-v{font-family:var(--mono);font-size:11px;font-weight:700;text-align:center;}
+.tl-mtot-e{font-family:var(--display);font-size:13px;font-weight:900;text-align:center;color:var(--accent2);}
+
 </style>
 </head>
 <body>
@@ -198,6 +223,7 @@ tbody td { padding: 9px 11px; vertical-align: middle; }
 
 <!-- MONTH TABS -->
 <div id="mainNav" style="background:var(--ink);border-bottom:1px solid #1e2640;padding:0 28px;display:flex;"><div id="navMerch" onclick="showMerch()" style="padding:11px 20px;font-family:var(--mono);font-size:10px;letter-spacing:.8px;cursor:pointer;border-bottom:3px solid var(--accent2);color:#fff;white-space:nowrap;">📊 Merchandiser Commission</div><div id="navTL" onclick="showTL()" style="padding:11px 20px;font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:#6b7a99;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;">🏆 Team Leader Incentive</div></div>
+<div id="navTL" onclick="showTL()" style="padding:11px 20px;font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:#6b7a99;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;">🏆 Team Leader Incentive</div></div>
 <div class="month-tabs" id="monthTabs">
   <div class="month-tab" data-m="202601" onclick="switchMonth('202601',this)">JAN <span class="mtag"></span></div>
   <div class="month-tab" data-m="202602" onclick="switchMonth('202602',this)">FEB <span class="mtag"></span></div>
@@ -329,6 +355,27 @@ tbody td { padding: 9px 11px; vertical-align: middle; }
   </div>
 </div>
 
+<div id="tlSection" style="display:none">
+  <div style="background:var(--ink);border-bottom:1px solid #1e2640;padding:12px 28px;display:flex;">
+    <div style="flex:1;text-align:center;padding:4px 16px;border-right:1px solid #1e2640"><div style="font-family:var(--display);font-size:18px;color:var(--accent2)" id="tls-earn">—</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px;text-transform:uppercase">Total Incentive</div></div>
+    <div style="flex:1;text-align:center;padding:4px 16px;border-right:1px solid #1e2640"><div style="font-family:var(--display);font-size:18px;color:#4ade80" id="tls-s100">—</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px;text-transform:uppercase">Stores 100%+</div></div>
+    <div style="flex:1;text-align:center;padding:4px 16px;border-right:1px solid #1e2640"><div style="font-family:var(--display);font-size:18px;color:#fbbf24" id="tls-s80">—</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px;text-transform:uppercase">Stores 80–99%</div></div>
+    <div style="flex:1;text-align:center;padding:4px 16px"><div style="font-family:var(--display);font-size:18px;color:#fff" id="tls-period">—</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px;text-transform:uppercase">Period</div></div>
+  </div>
+  <div style="background:var(--cream);border-bottom:1px solid var(--border);padding:10px 22px;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Filter</span>
+    <select id="tlFilter" onchange="renderTLSection()" style="width:180px;padding:6px 10px;border:1px solid var(--border);border-radius:5px;font-family:var(--body);font-size:11px;background:#fff;">
+      <option value="all">All Team Leaders</option>
+      <option value="oneil">Oneil Carby</option>
+      <option value="susan">Susan Blair</option>
+      <option value="angela">Angela Whitter</option>
+      <option value="andrew">Andrew Kennedy</option>
+      <option value="orian">Orian Bernard</option>
+    </select>
+    <button onclick="exportTLCSV()" style="margin-left:auto;padding:6px 14px;border-radius:5px;font-family:var(--body);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;">⬇ CSV</button>
+  </div>
+  <div id="tlGrid" style="padding:20px 22px 60px;background:var(--paper);display:grid;grid-template-columns:repeat(auto-fit,minmax(500px,1fr));gap:18px;"></div>
+</div>
 <div id="tlSection" style="display:none">
   <div style="background:var(--ink);border-bottom:1px solid #1e2640;padding:12px 28px;display:flex;">
     <div style="flex:1;text-align:center;padding:4px 16px;border-right:1px solid #1e2640"><div style="font-family:var(--display);font-size:18px;color:var(--accent2)" id="tls-earn">—</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:3px;text-transform:uppercase">Total Incentive</div></div>
@@ -858,7 +905,11 @@ document.querySelectorAll('.month-tab').forEach(tab=>{
 });
 
 
+
 // ── TEAM LEADER TAB ───────────────────────────────────────────────
+const TL_RATE_80 = 250;
+const TL_RATE_100 = 500;
+
 // ── TEAM LEADER CONFIG ─────────────────────────────────────────────
 const TEAM_LEADERS = [
   {
@@ -928,58 +979,16 @@ const TEAM_LEADERS = [
 ];
 
 // Incentive rates
-const RATE_80  = 250;  // per store ≥80% and <100%
-const RATE_100 = 500;  // per store ≥100%
 
 
-let allData = [];
-// DUPLICATE REMOVED: currentPeriod = '202605';
 
-async function supa(path) {
-  const r = await fetch(`${SUPA}/rest/v1/${path}`, { headers: { ...HDR, 'Range': '0-9999', 'Prefer': 'count=none' } });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
 
-async function loadData() {
-  document.getElementById('mainGrid').innerHTML = '<div class="loading" style="grid-column:1/-1"><div class="spinner"></div><p>Loading…</p></div>';
-  try {
-    // Get all merchandiser summary data for all periods
-    const [data, storeRaw] = await Promise.all([
-      supa(`merchandiser_summary?select=merchandiser_name,period,store_count,stores_qualified,stores_100,total_target,total_actual,achievement_pct,commission&order=period,merchandiser_name`),
-      supa(`full_year_dashboard?select=customer_id,target_amount,actual_amount,period&period=eq.${currentPeriod}&limit=9999`)
-    ]);
-    allData = data;
-    // Build store-level lookup {cid: {target_amount, actual_amount}}
-    window.storeDataByPeriod = {};
-    storeRaw.forEach(r => { window.storeDataByPeriod[r.customer_id] = r; });
-    buildPeriodTabs();
-    renderAll();
-    document.getElementById('syncLabel').textContent = 'Updated ' + new Date().toLocaleTimeString();
-  } catch(e) {
-    document.getElementById('mainGrid').innerHTML = `<div class="loading" style="grid-column:1/-1"><p style="color:var(--red)">Load failed: ${e.message}</p></div>`;
-  }
-}
 
-function buildPeriodTabs() {
-  const periods = [...new Set(allData.map(d => d.period))].sort();
-  document.getElementById('periodTabs').innerHTML = periods.map(p =>
-    `<div class="period-tab ${p === currentPeriod ? 'active' : ''}" onclick="selectPeriod('${p}',this)">${(MONTHS[p]||p).slice(0,3).toUpperCase()}</div>`
-  ).join('');
-}
 
-function selectPeriod(p, el) {
-  currentPeriod = p;
-  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  // Reload store-level data for new period
-  supa(`full_year_dashboard?select=customer_id,target_amount,actual_amount,period&period=eq.${p}&limit=9999`)
-    .then(rows => {
-      window.storeDataByPeriod = {};
-      rows.forEach(r => { window.storeDataByPeriod[r.customer_id] = r; });
-      renderAll();
-    }).catch(() => renderAll());
-}
+
+
+
+
 
 // Calculate incentive from store-level full_year_dashboard data
 function calcIncentive(summaryRows) {
@@ -1011,41 +1020,7 @@ function calcIncentiveByStores(storeIds, storeData) {
   return { stores80, stores100, earn };
 }
 
-function renderAll() {
-  const viewMode = document.getElementById('viewMode').value;
-  const periodData = allData.filter(d => d.period === currentPeriod);
-  const byMerch = {};
-  periodData.forEach(d => { byMerch[d.merchandiser_name] = d; });
 
-  const tls = viewMode === 'all' ? TEAM_LEADERS : TEAM_LEADERS.filter(tl => tl.id === viewMode);
-
-  // Summary stats
-  let totalIncentive = 0, totalMerches = new Set(), totalStores100 = 0, totalStores80 = 0;
-  TEAM_LEADERS.forEach(tl => {
-    if (tl.storeMode && tl.storeIds) {
-      const sd = window.storeDataByPeriod || {};
-      const res = calcIncentiveByStores(tl.storeIds, sd);
-      totalIncentive += res.earn;
-      totalStores100 += res.stores100;
-      totalStores80  += res.stores80;
-    } else {
-      const rows = tl.merchandisers.map(m => byMerch[m]).filter(Boolean);
-      const { stores80, stores100, earn } = calcIncentive(rows);
-      totalIncentive += earn;
-      totalStores100 += stores100;
-      totalStores80  += stores80;
-    }
-    tl.merchandisers.forEach(m => totalMerches.add(m));
-  });
-
-  document.getElementById('s-total').textContent    = fmtD(totalIncentive);
-  document.getElementById('s-merches').textContent  = totalMerches.size;
-  document.getElementById('s-stores100').textContent = totalStores100;
-  document.getElementById('s-stores80').textContent  = totalStores80;
-  document.getElementById('s-period').textContent   = (MONTHS[currentPeriod] || currentPeriod) + ' 2026';
-
-  document.getElementById('mainGrid').innerHTML = tls.map(tl => renderTLCard(tl, byMerch)).join('');
-}
 
 function renderTLCard(tl, byMerch) {
   const rows = tl.merchandisers.map(m => ({ name: m, data: byMerch[m] || null }));
@@ -1187,7 +1162,7 @@ function renderTLCard(tl, byMerch) {
     </div>`;
 }
 
-function exportCSV() {
+function exportTLCSV_() {
   const periodData = allData.filter(d => d.period === currentPeriod);
   const byMerch = {};
   periodData.forEach(d => { byMerch[d.merchandiser_name] = d; });
@@ -1228,7 +1203,6 @@ function exportCSV() {
   a.click();
 }
 
-
 function showMerch(){
   document.getElementById('navMerch').style.borderBottomColor='var(--accent2)';
   document.getElementById('navMerch').style.color='#fff';
@@ -1258,8 +1232,7 @@ function renderTLSection(){
     if(!bm[r.merchandiser])bm[r.merchandiser]={store_count:0,stores_qualified:0,stores_100:0,total_target:0,total_actual:0,achievement_pct:'0'};
     const m=bm[r.merchandiser];
     m.store_count++;m.total_target+=r.target;m.total_actual+=r.actual;
-    if(r.pct>=1.0){m.stores_100++;m.stores_qualified++;}
-    else if(r.pct>=0.8)m.stores_qualified++;
+    if(r.pct>=1.0){m.stores_100++;m.stores_qualified++;}else if(r.pct>=0.8)m.stores_qualified++;
   });
   Object.values(bm).forEach(m=>{m.achievement_pct=m.total_target>0?(m.total_actual/m.total_target*100).toFixed(2):'0';});
   const sd={};
@@ -1304,18 +1277,29 @@ function buildTLCard(tl,bm,sd){
     const p=parseFloat(d.achievement_pct)||0;
     const bw=Math.min(p,100);
     const bc=p>=100?'var(--green)':p>=80?'var(--amber)':'var(--red)';
-    return '<div class="tl-mrow"><div class="tl-mname">'+m+'</div><div class="tl-mc">'+d.store_count+'</div><div class="tl-mc" style="color:'+(q80>0?'var(--amber)':'var(--muted)')+'">'+q80+'</div><div class="tl-mc" style="color:'+(q100>0?'var(--green)':'var(--muted)')+'">'+q100+'</div><div style="display:flex;align-items:center;gap:4px;justify-content:center"><div style="width:32px;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="width:'+bw+'%;height:100%;background:'+bc+';border-radius:2px"></div></div><span style="font-family:var(--mono);font-size:9px;min-width:28px;text-align:right;color:'+bc+'">'+p.toFixed(0)+'%</span></div><div class="tl-me '+(mEarn>0?'has':'no')+'">'+(mEarn>0?fmtComm(mEarn):'—')+'</div></div>';
+    return '<div class="tl-mrow"><div class="tl-mname">'+m+'</div><div class="tl-mc">'+d.store_count+'</div><div class="tl-mc" style="color:'+(q80>0?'var(--amber)':'var(--muted)')+'">'+q80+'</div><div class="tl-mc" style="color:'+(q100>0?'var(--green)':'var(--muted)')+'">'+q100+'</div><div style="display:flex;align-items:center;gap:4px;justify-content:center"><div style="width:32px;height:3px;background:var(--border);border-radius:2px;overflow:hidden"><div style="width:'+bw+'%;height:100%;background:'+bc+';border-radius:2px"></div></div><span style="font-family:var(--mono);font-size:9px;min-width:28px;text-align:right;color:'+bc+'">'+p.toFixed(0)+'%</span></div><div class="tl-me '+(mE>0?'has':'no')+'">'+(mE>0?fmtComm(mE):'—')+'</div></div>';
   }).join('');
   return '<div class="tl-card '+tl.cssClass+'"><div class="tl-head"><div><div class="tl-tname">'+tl.leaders[0].name+'</div><div class="tl-region '+tl.cssClass+'">'+tl.region+'</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">'+fmtComm(earn)+'</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">'+totSt+'</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">'+s100+'</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">'+s80+'</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:'+pc+'">'+pct+'%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">'+fmtComm(earn)+'</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Merchandiser</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>'+rows+'<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">'+totSt+'</div><div class="tl-mtot-v" style="color:var(--amber)">'+s80+'</div><div class="tl-mtot-v" style="color:var(--green)">'+s100+'</div><div class="tl-mtot-v" style="color:'+pc+'">'+pct+'%</div><div class="tl-mtot-e">'+fmtComm(earn)+'</div></div></div>';
 }
 
 function exportTLCSV(){
-  const sd={};storeRows.forEach(r=>{sd[r.customer_id]={target_amount:r.target,actual_amount:r.actual};});
-  const bm={};storeRows.forEach(r=>{if(!bm[r.merchandiser])bm[r.merchandiser]={store_count:0,stores_qualified:0,stores_100:0};const m=bm[r.merchandiser];m.store_count++;if(r.pct>=1.0){m.stores_100++;m.stores_qualified++;}else if(r.pct>=0.8)m.stores_qualified++;});
+  const sd={},bm={};
+  storeRows.forEach(r=>{
+    sd[r.customer_id]={target_amount:r.target,actual_amount:r.actual};
+    if(!bm[r.merchandiser])bm[r.merchandiser]={store_count:0,stores_qualified:0,stores_100:0};
+    const m=bm[r.merchandiser];m.store_count++;
+    if(r.pct>=1.0){m.stores_100++;m.stores_qualified++;}else if(r.pct>=0.8)m.stores_qualified++;
+  });
   const rows=[['Team Leader','Region','Stores','100%+','80-99%','Incentive (J$)','Period']];
-  TEAM_LEADERS.forEach(tl=>{const res=tl.storeIds?calcIncentiveByStores(tl.storeIds,sd):calcTLByMerch(tl.merchandisers,bm);rows.push([tl.leaders[0].name,tl.region,tl.storeIds?tl.storeIds.length:'—',res.s100,res.s80,res.earn.toFixed(2),MONTHS[currentPeriod]||currentPeriod]);});
+  TEAM_LEADERS.forEach(tl=>{
+    const res=tl.storeIds?calcIncentiveByStores(tl.storeIds,sd):calcTLByMerch(tl.merchandisers,bm);
+    rows.push([tl.leaders[0].name,tl.region,tl.storeIds?tl.storeIds.length:'—',res.s100,res.s80,res.earn.toFixed(2),MONTHS[currentPeriod]||currentPeriod]);
+  });
   const csv=rows.map(r=>r.map(v=>'"'+v+'"').join(',')).join('\n');
-  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='DFL_TL_'+currentPeriod+'.csv';a.click();
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='DFL_TL_'+currentPeriod+'.csv';
+  a.click();
 }
 
 loadData();
