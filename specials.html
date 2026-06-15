@@ -22,7 +22,7 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-    /* ── NAV ── */
+  /* ── NAV ── */
   nav {
     background: var(--navy);
     height: 56px;
@@ -111,10 +111,20 @@
   .breadcrumb a:hover { color:rgba(255,255,255,0.7); }
   .page-header h1 { font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.3px; }
 
+  /* ── TOOLBAR ── */
   .toolbar {
     max-width:1060px; margin:0 auto;
     padding:20px 32px 0;
-    display:flex; align-items:center; gap:10px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .toolbar-row {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .cat-row { display:none; } /* shown dynamically once categories load */
+  .cat-label {
+    font-size:11px; font-weight:600; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:0.05em;
+    white-space:nowrap; margin-right:2px;
   }
   .filter-btn {
     padding:6px 16px; border-radius:20px;
@@ -126,19 +136,29 @@
   }
   .filter-btn:hover { border-color:var(--accent); color:var(--accent); }
   .filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cat-btn {
+    padding:5px 14px; border-radius:20px;
+    border:1px solid var(--border);
+    background:var(--surface); color:var(--text-muted);
+    font-size:12px; font-weight:500;
+    cursor:pointer; transition:all 0.15s;
+    font-family:'Inter',sans-serif;
+  }
+  .cat-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .cat-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
   .item-count { margin-left:auto; font-size:12px; color:var(--text-dim); }
 
   .btn-upload {
-  padding:6px 16px; border-radius:20px;
-  border:1px solid var(--border);
-  background:var(--surface); color:var(--text-muted);
-  font-size:12px; font-weight:500;
-  cursor:pointer; transition:all 0.15s;
-  font-family:'Inter',sans-serif;
-  text-decoration:none;
-  display:inline-flex; align-items:center; gap:6px;
-}
-.btn-upload:hover { border-color:var(--accent); color:var(--accent); }
+    padding:6px 16px; border-radius:20px;
+    border:1px solid var(--border);
+    background:var(--surface); color:var(--text-muted);
+    font-size:12px; font-weight:500;
+    cursor:pointer; transition:all 0.15s;
+    font-family:'Inter',sans-serif;
+    text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn-upload:hover { border-color:var(--accent); color:var(--accent); }
 
   .grid {
     max-width:1060px; margin:0 auto;
@@ -325,11 +345,16 @@
 </div>
 
 <div class="toolbar">
-  <button class="filter-btn active" onclick="filter('all',this)">All</button>
-  <button class="filter-btn" onclick="filter('Special',this)">Specials</button>
-  <button class="filter-btn" onclick="filter('Flyer',this)">Flyers</button>
-  <a class="btn-upload" href="/specials-upload.html">🎯 Upload Specials / Flyers</a>
-  <span class="item-count" id="count"></span>
+  <!-- Row 1: type filters + upload link + count -->
+  <div class="toolbar-row">
+    <button class="filter-btn active" onclick="filter('all',this)">All</button>
+    <button class="filter-btn" onclick="filter('Special',this)">Specials</button>
+    <button class="filter-btn" onclick="filter('Flyer',this)">Flyers</button>
+    <a class="btn-upload" href="/specials-upload.html">🎯 Upload Specials / Flyers</a>
+    <span class="item-count" id="count"></span>
+  </div>
+  <!-- Row 2: category filters — hidden until data loads, built dynamically -->
+  <div class="toolbar-row cat-row" id="catRow"></div>
 </div>
 
 <div class="grid" id="grid">
@@ -361,7 +386,8 @@
   const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
 
   let all = [];
-  let current = 'all';
+  let currentType = 'all';
+  let currentCategory = 'all';
   let activeImageUrl = '';
   let activeItemName = '';
 
@@ -400,6 +426,7 @@
         return getExpiryStatus(i.valid_until) !== 'expired';
       });
       render(all);
+      buildCategoryRow(all);
     } catch(e) {
       document.getElementById('grid').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>Could not load data. Please try again.</p></div>';
     }
@@ -438,12 +465,40 @@
     });
   }
 
-  // ── Filter buttons ──────────────────────────────────────────────────────────
+  // ── Combined filter logic ───────────────────────────────────────────────────
+  function applyFilters() {
+    let result = all;
+    if (currentType !== 'all')     result = result.filter(i => i.type === currentType);
+    if (currentCategory !== 'all') result = result.filter(i => i.category === currentCategory);
+    render(result);
+  }
+
   function filter(type, btn) {
-    current = type;
+    currentType = type;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    render(type === 'all' ? all : all.filter(i => i.type === type));
+    applyFilters();
+  }
+
+  function filterCategory(cat, btn) {
+    currentCategory = cat;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilters();
+  }
+
+  // ── Build category pill row from loaded data ────────────────────────────────
+  function buildCategoryRow(items) {
+    const cats = [...new Set(items.map(i => i.category).filter(Boolean))].sort();
+    const row = document.getElementById('catRow');
+    if (!cats.length) return; // no categories set yet — row stays hidden
+    row.style.display = 'flex';
+    row.innerHTML =
+      `<span class="cat-label">Category:</span>` +
+      `<button class="cat-btn active" data-cat="all" onclick="filterCategory(this.dataset.cat,this)">All</button>` +
+      cats.map(c =>
+        `<button class="cat-btn" data-cat="${c}" onclick="filterCategory(this.dataset.cat,this)">${c}</button>`
+      ).join('');
   }
 
   // ── Hamburger menu ──────────────────────────────────────────────────────────
@@ -457,7 +512,7 @@
     a.addEventListener('click', () => {
       hamburger.classList.remove('open');
       mobileMenu.classList.remove('open');
-        });
+    });
   });
 
   // ── Modal ───────────────────────────────────────────────────────────────────
