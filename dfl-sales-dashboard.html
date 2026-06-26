@@ -36,6 +36,10 @@
   }
   .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
   .dfl-logo { height: 34px; width: auto; object-fit: contain; display: block; }
+  .logo-fallback { display: none; flex-direction: column; line-height: 1; }
+  .logo-top  { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+  .logo-main { font-size: 17px; font-weight: 800; color: #fff; }
+  .logo-main span { color: #38bdf8; }
   .divider-v { width: 1px; height: 26px; background: rgba(255,255,255,0.15); flex-shrink: 0; }
   .page-label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); white-space: nowrap; }
   .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
@@ -142,25 +146,45 @@
 
 <div class="header">
   <div class="header-left">
-    <img class="dfl-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL Importers">
+    <img
+      class="dfl-logo"
+      src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+      alt="DFL Importers"
+      onerror="this.style.display='none';document.querySelector('.logo-fallback').style.display='flex';"
+    >
+    <div class="logo-fallback">
+      <span class="logo-top">DFL Importers</span>
+      <span class="logo-main">DFL <span>Hub</span></span>
+    </div>
     <div class="divider-v"></div>
     <span class="page-label">Sales Dashboard</span>
   </div>
   <div class="header-right">
-    <select class="month-select" id="month-select" onchange="selectPeriod(this.value)"></select>
-    <div class="live-wrap" id="live-wrap"><div class="live-dot"></div>Live data</div>
+    <select class="month-select" id="month-select" onchange="selectPeriod(this.value)">
+      <option value="">Loading...</option>
+    </select>
+    <div class="live-wrap" id="live-wrap">
+      <div class="live-dot"></div>Live data
+    </div>
   </div>
 </div>
 
 <div class="content" id="content">
-  <div class="loading">Loading...</div>
+  <div class="loading">Loading sales data...</div>
 </div>
 <div class="footer" id="footer"></div>
 
 <script>
 const SUPA_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
-const SUPA_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
-const CACHE_PREFIX = 'dfl_dash_';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+const CACHE_PREFIX = 'dfl_dash_v2_'; // bumped: ignores old cache entries written with the previous (midnight) expiry
+const CURRENT_TTL_MS = 30 * 60 * 1000; // current month cached 30 min, then re-fetched
+// One-time cleanup of pre-v2 cache entries (written with a midnight expiry).
+try {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('dfl_dash_') && !k.startsWith(CACHE_PREFIX))
+    .forEach(k => localStorage.removeItem(k));
+} catch { /* ignore */ }
 
 const CAT = {
   PLASTIC:    { icon:'🧴', bg:'#dbeafe', bar:'#3b82f6' },
@@ -194,13 +218,6 @@ function getCurrentPeriod() {
   return `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
 }
 
-function getMidnightToday() {
-  const midnight = new Date();
-  midnight.setHours(0, 0, 0, 0);
-  midnight.setDate(midnight.getDate() + 1);
-  return midnight.getTime();
-}
-
 function getMonthName(period) {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   return months[+period.slice(4,6)-1] + ' ' + period.slice(0,4);
@@ -219,7 +236,7 @@ const JA_HOLIDAYS = new Set([
 ]);
 
 function isWorkingDay(date) {
-  const dow = date.getDay();
+  const dow = date.getDay(); // 0=Sun, 6=Sat
   if (dow === 0 || dow === 6) return false;
   const key = date.toISOString().slice(0,10);
   return !JA_HOLIDAYS.has(key);
@@ -240,21 +257,26 @@ function getDayProgress(period) {
   const y = +period.slice(0,4), m = +period.slice(4,6);
   const isCurrent    = (now.getFullYear()===y && now.getMonth()+1===m);
   const monthStart   = new Date(y, m-1, 1);
-  const monthEnd     = new Date(y, m, 0);
+  const monthEnd     = new Date(y, m, 0); // last day of month
   const todayOrEnd   = isCurrent ? now : monthEnd;
+
   const totalWorkingDays   = countWorkingDays(monthStart, monthEnd);
   const elapsedWorkingDays = countWorkingDays(monthStart, todayOrEnd);
+
   return { elapsedWorkingDays, totalWorkingDays, isCurrent, monthEnd };
 }
 
+// ── CACHE HELPERS ──────────────────────────────────────────────
 function cacheGet(period) {
   try {
     const raw = localStorage.getItem(CACHE_PREFIX + period);
     if (!raw) return null;
     const { data, expires } = JSON.parse(raw);
+    // Past months: expires === null means permanent
     if (expires === null) return data;
+    // Current month: check expiry
     if (Date.now() < expires) return data;
-    localStorage.removeItem(CACHE_PREFIX + period);
+    localStorage.removeItem(CACHE_PREFIX + period); // expired
     return null;
   } catch { return null; }
 }
@@ -262,7 +284,9 @@ function cacheGet(period) {
 function cacheSet(period, data) {
   try {
     const currentPeriod = getCurrentPeriod();
-    const expires = (period === currentPeriod) ? getMidnightToday() : null;
+    // Current month: expires in 30 min so the dashboard tracks the 30-min backend sync.
+    // Past months: null = permanent (their numbers never change).
+    const expires = (period === currentPeriod) ? (Date.now() + CURRENT_TTL_MS) : null;
     localStorage.setItem(CACHE_PREFIX + period, JSON.stringify({ data, expires }));
   } catch { /* localStorage full — silently skip */ }
 }
@@ -274,6 +298,7 @@ function isCachedPermanently(period) {
     return JSON.parse(raw).expires === null;
   } catch { return false; }
 }
+// ──────────────────────────────────────────────────────────────
 
 async function rpc(fn, params = {}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/rpc/${fn}`, {
@@ -294,11 +319,14 @@ let activePeriod = null;
 async function init() {
   try {
     const currentPeriod = getCurrentPeriod();
+
+    // Fetch available periods
     const periods = await rpc('get_available_periods');
     const allPeriods = periods.includes(currentPeriod)
       ? periods
       : [currentPeriod, ...periods];
 
+    // Populate dropdown
     const sel = document.getElementById('month-select');
     sel.innerHTML = allPeriods.map(p => {
       const isCurrent = p === currentPeriod;
@@ -306,9 +334,12 @@ async function init() {
       return `<option value="${p}">${label}</option>`;
     }).join('');
 
+    // Default to current month
     activePeriod = currentPeriod;
     sel.value = currentPeriod;
+
     await loadDashboard(currentPeriod);
+
   } catch(e) {
     document.getElementById('content').innerHTML =
       `<div class="err">Error initialising: ${e.message}</div>`;
@@ -321,25 +352,30 @@ async function selectPeriod(period) {
 }
 
 async function loadDashboard(period) {
-  document.getElementById('content').innerHTML = '<div class="loading">Loading...</div>';
+  document.getElementById('content').innerHTML =
+    '<div class="loading">Loading...</div>';
+
   const liveWrap = document.getElementById('live-wrap');
 
   try {
+    // Check cache first
     let d = cacheGet(period);
     let fromCache = false;
 
     if (d) {
       fromCache = true;
     } else {
+      // Fetch from Supabase and cache result
       d = await rpc('get_dashboard_summary', { p_period: period });
       cacheSet(period, d);
     }
 
+    // Update live indicator
     const isPast = isCachedPermanently(period);
     if (fromCache && isPast) {
       liveWrap.innerHTML = `<div class="cached-dot"></div>Cached (frozen)`;
     } else if (fromCache) {
-      liveWrap.innerHTML = `<div class="cached-dot"></div>Cached today`;
+      liveWrap.innerHTML = `<div class="cached-dot"></div>Cached (last 30 min)`;
     } else {
       liveWrap.innerHTML = `<div class="live-dot"></div>Live data`;
     }
@@ -364,6 +400,7 @@ async function loadDashboard(period) {
       : `Final result — ${getMonthName(period)}`;
 
     document.getElementById('content').innerHTML = `
+
       <div class="kpi-row">
         <div class="kpi-card">
           <div class="kpi-icon blue">💰</div>
@@ -474,7 +511,7 @@ async function loadDashboard(period) {
     }, 60));
 
     const cacheNote = fromCache
-      ? (isPast ? ' · Frozen (no API call)' : ' · Cached today')
+      ? (isPast ? ' · Frozen (no API call)' : ' · Cached (last 30 min)')
       : ' · Fetched live';
     document.getElementById('footer').textContent =
       'Data as of ' + new Date().toLocaleString() + cacheNote;
@@ -486,29 +523,18 @@ async function loadDashboard(period) {
   }
 }
 
+// Initialise on load
 init();
 
-// Daily noon refresh for current month only
-(function scheduleNoon() {
-  const now  = new Date();
-  const noon = new Date(now);
-  noon.setHours(12, 0, 0, 0);
-  if (now >= noon) noon.setDate(noon.getDate() + 1);
-  setTimeout(() => {
-    const currentPeriod = getCurrentPeriod();
-    if (activePeriod === currentPeriod) {
-      localStorage.removeItem(CACHE_PREFIX + currentPeriod);
-      loadDashboard(currentPeriod);
-    }
-    setInterval(() => {
-      if (activePeriod === getCurrentPeriod()) {
-        localStorage.removeItem(CACHE_PREFIX + getCurrentPeriod());
-        loadDashboard(getCurrentPeriod());
-      }
-    }, 24 * 60 * 60 * 1000);
-  }, noon - now);
-})();
+// Auto-refresh the current month every 30 min if the page stays open,
+// matching the backend sync cadence. Past months are frozen and never re-fetched.
+setInterval(() => {
+  const currentPeriod = getCurrentPeriod();
+  if (activePeriod === currentPeriod) {
+    localStorage.removeItem(CACHE_PREFIX + currentPeriod); // bust cache, force live fetch
+    loadDashboard(currentPeriod);
+  }
+}, CURRENT_TTL_MS);
 </script>
-
 </body>
 </html>
