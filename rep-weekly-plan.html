@@ -600,25 +600,6 @@ body { visibility: hidden; }
             <label>Your Name</label>
             <select id="rep-select" onchange="filterZonesForRep();updateProgress()">
               <option value="">Select your name…</option>
-              <option>Kimberly Brown</option>
-              <option>Eric Smith</option>
-              <option>Sheldon Brown</option>
-              <option>Clerett Holness</option>
-              <option>Antonio Williams</option>
-              <option>Dionne Rerrie</option>
-              <option>Desrick Simpson</option>
-              <option>Damita Samuels-Foster</option>
-              <option>Kawayne Evans</option>
-              <option>Kimmone Campbell</option>
-              <option>Everton Green</option>
-              <option>Yanique Desouza</option>
-              <option>Garreth Brown</option>
-              <option>Tudi-ann Lammie</option>
-              <option>Petronia Tinglin</option>
-              <option>Stacy-Ann Bennett Edwards</option>
-              <option>Ruth Ann Lewis</option>
-              <option>Christopher Russell</option>
-              <option>Tashelle Wilson</option>
             </select>
             <div class="field-error">Please select your name</div>
           </div>
@@ -1208,6 +1189,45 @@ document.getElementById('week-label').innerHTML =
   '<span class="week-badge">Submit Every Friday</span>';
 
 function getSelectedWeek() { return weekOptions[selectedWeekIdx]; }
+
+// ── Populate rep list from `reps` table, then pre-fill from ?rep= ─────────
+// The dropdown used to be a hardcoded name list that drifted out of sync
+// every time staff changed. Now it's pulled live — same filter used
+// elsewhere in the app (active reps with role='rep', i.e. excluding
+// admin/manager rows that don't submit their own weekly plan).
+(async function initRepSelect(){
+  const sel = document.getElementById('rep-select');
+  try{
+    const r = await fetch(
+      `${PLAN_SB_URL}/rest/v1/reps?active=eq.true&role=eq.rep&select=name&order=name`,
+      { headers: { apikey: PLAN_SB_KEY, Authorization: `Bearer ${PLAN_SB_KEY}` } }
+    );
+    const rows = await r.json();
+    if(Array.isArray(rows)){
+      rows.forEach(row=>{
+        const opt=document.createElement('option');
+        opt.value=row.name; opt.textContent=row.name;
+        sel.appendChild(opt);
+      });
+    }
+  }catch(e){
+    console.error('Could not load rep list', e);
+  }
+
+  // index.html appends ?rep=<name> when a logged-in rep opens this form,
+  // so they don't have to re-select their own name. This only PRE-FILLS
+  // the dropdown — it stays fully editable, and admin/manager land here
+  // with no ?rep= at all, leaving the picker open as before.
+  const params = new URLSearchParams(window.location.search);
+  const repName = params.get('rep');
+  if(!repName) return;
+  const match = Array.from(sel.options).find(o => o.value === repName);
+  if(match){
+    sel.value = repName;
+    filterZonesForRep();
+    updateProgress();
+  }
+})();
 
 function rebuildDayHeaders() {
   const { monday } = getSelectedWeek();
