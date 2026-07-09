@@ -54,6 +54,18 @@
 
 (async function () {
 
+  // If this page is running inside an iframe, the PARENT page has
+  // already passed the auth guard — anyone who can see this frame is
+  // already authenticated. Re-running the guard here is not only
+  // redundant, it breaks: session lookup inside a frame can come back
+  // empty (frame-scoped storage), making the guard wrongly redirect
+  // the iframe to login.html and leaving the embed blank. So when
+  // framed, reveal immediately and let the embedded page's own code run.
+  if (window.self !== window.top) {
+    document.body.style.visibility = 'visible';
+    return;
+  }
+
   const LOGIN_PAGE = '/login.html';
 
   // Where to send someone whose ROLE isn't allowed on this specific
