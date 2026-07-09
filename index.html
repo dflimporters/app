@@ -66,16 +66,16 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .tabbtn.on{color:var(--blue)}
 .tabbtn svg{display:block}
 
-.hero{background:var(--card);border-radius:18px;padding:38px 20px 20px;box-shadow:var(--shadow);margin-top:-22px;position:relative}
+.hero{background:var(--card);border-radius:18px;padding:38px 16px 20px;box-shadow:var(--shadow);margin-top:-22px;position:relative}
 .hero .lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
-.big{font-family:'Montserrat';font-weight:800;font-size:34px;letter-spacing:-.5px;margin:3px 0 2px}
+.big{font-family:'Montserrat';font-weight:800;font-size:clamp(24px,7.2vw,34px);letter-spacing:-.5px;margin:3px 0 2px;white-space:nowrap}
 .herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .pctwrap{text-align:right;flex-shrink:0;padding-top:2px}
-.pctbig{font-family:'Montserrat';font-weight:800;font-size:38px;line-height:1;letter-spacing:-1px;color:var(--blue)}
-.pctbig span{font-size:19px;font-weight:700;margin-left:1px}
+.pctbig{font-family:'Montserrat';font-weight:800;font-size:clamp(28px,8vw,38px);line-height:1;letter-spacing:-1px;color:var(--blue);white-space:nowrap}
+.pctbig span{font-size:clamp(14px,4vw,19px);font-weight:700;margin-left:1px}
 .pctbig.good{color:var(--good)} .pctbig.bad{color:var(--bad)} .pctbig.warn{color:#d9920a}
 .pctlbl{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:5px;display:flex;align-items:center;justify-content:flex-end;gap:6px}
-.pcttgt{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;text-align:right}
+.pcttgt{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;text-align:right;white-space:nowrap}
 .pcttgt b{color:var(--ink);font-weight:800;font-family:'Montserrat'}
 .sub{font-size:13px;color:var(--mut)}
 .sub b{color:var(--ink)}
