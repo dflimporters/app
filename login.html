@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --red:#dc2626; --red-bg:#fef2f2;
+    --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .login-box {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:40px 36px;
+    width:100%; max-width:380px;
+    box-shadow:var(--shadow-md);
+    text-align:center;
+  }
+  .login-logo { height:34px; margin-bottom:24px; }
+  .login-title { font-size:19px; font-weight:700; margin-bottom:6px; }
+  .login-sub { font-size:13px; color:var(--text-muted); margin-bottom:28px; line-height:1.5; }
+
+  .login-message {
+    font-size:13px; padding:10px 14px; border-radius:8px;
+    margin-bottom:20px; text-align:left; line-height:1.5;
+    display:none;
+  }
+  .login-message.show { display:block; }
+  .login-message.error { background:var(--red-bg); color:var(--red); }
+  .login-message.info { background:var(--accent-bg); color:var(--accent); }
+
+  .btn-ms {
+    width:100%; padding:12px 16px;
+    background:var(--navy); color:#fff;
+    border:none; border-radius:8px;
+    font-size:14px; font-weight:600; font-family:'Inter',sans-serif;
+    cursor:pointer; transition:background 0.15s;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn-ms:hover { background:var(--navy2); }
+  .btn-ms:disabled { opacity:0.6; cursor:not-allowed; }
+  .btn-ms svg { flex-shrink:0; }
+
+  .login-footer {
+    margin-top:24px; font-size:11px; color:var(--text-muted);
+  }
+
+  .spin {
+    width:22px; height:22px; border:2px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%;
+    animation:spin 0.7s linear infinite; margin:0 auto;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width: 640px) {
+    .login-box { padding:32px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-box" id="loginBox">
+
+  <img class="login-logo"
+       src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png"
+       alt="DFL">
+
+  <div id="checkingState">
+    <div class="login-title">Checking session…</div>
+    <div class="spin" style="margin-top:16px;"></div>
+  </div>
+
+  <div id="signedOutState" style="display:none;">
+    <div class="login-title">DFL Staff Portal</div>
+    <div class="login-sub">Sign in with your DFL Microsoft account to continue.</div>
+
+    <div class="login-message" id="loginMessage"></div>
+
+    <button class="btn-ms" id="msSignInBtn" onclick="signInWithMicrosoft()">
+      <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+        <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+        <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+      </svg>
+      Sign in with Microsoft
+    </button>
+
+    <div class="login-footer">DFL Importers — Staff Portal</div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script>
+  // Where to land after a successful login, if no ?redirect= param
+  // was passed in. Everyone lands on the rep app for now.
+  const DEFAULT_LANDING = '/index.html';
+
+  const params = new URLSearchParams(window.location.search);
+  const redirectTarget = params.get('redirect') || DEFAULT_LANDING;
+  const reason = params.get('reason');
+
+  const checkingState = document.getElementById('checkingState');
+  const signedOutState = document.getElementById('signedOutState');
+  const loginMessage = document.getElementById('loginMessage');
+  const msSignInBtn = document.getElementById('msSignInBtn');
+
+  // Show a message explaining why the person landed back here, if any.
+  function showReasonMessage() {
+    if (reason === 'not-provisioned') {
+      loginMessage.textContent = "Your account isn't set up for portal access yet. Please contact an admin.";
+      loginMessage.className = 'login-message error show';
+    } else if (reason === 'inactive') {
+      loginMessage.textContent = 'Your account has been deactivated. Please contact an admin.';
+      loginMessage.className = 'login-message error show';
+    }
+  }
+
+  function goToDestination() {
+    window.location.href = redirectTarget;
+  }
+
+  // After we have a confirmed session, look up the profile.
+  // Same "no profile = not provisioned" rule as auth-guard.js.
+  async function handleSignedIn(user) {
+    const { data: profile, error } = await sb
+      .from('profiles')
+      .select('id, active')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !profile || profile.active === false) {
+      await sb.auth.signOut();
+      checkingState.style.display = 'none';
+      signedOutState.style.display = 'block';
+      loginMessage.textContent = "Your account isn't set up for portal access yet. Please contact an admin.";
+      loginMessage.className = 'login-message error show';
+      return;
+    }
+
+    goToDestination();
+  }
+
+  async function signInWithMicrosoft() {
+    msSignInBtn.disabled = true;
+    msSignInBtn.textContent = 'Redirecting…';
+
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'azure',
+      options: {
+        scopes: 'openid profile email',
+        redirectTo: 'https://dflhq.com/login.html'
+      }
+    });
+
+    if (error) {
+      msSignInBtn.disabled = false;
+      msSignInBtn.textContent = 'Sign in with Microsoft';
+      loginMessage.textContent = 'Something went wrong starting sign-in. Please try again.';
+      loginMessage.className = 'login-message error show';
+    }
+    // On success, the browser navigates away to Microsoft — nothing
+    // else to do here. It comes back to this same page afterward.
+  }
+
+  // ------------------------------------------------------------
+  // On page load: figure out if we already have a session.
+  // This covers two cases with one check:
+  //   1. Fresh visit, not logged in -> show the sign-in button
+  //   2. Just landed back here after Microsoft redirected us —
+  //      supabase-js auto-detects the auth tokens in the URL and
+  //      creates a session before this code even runs.
+  // ------------------------------------------------------------
+  async function init() {
+    const { data } = await sb.auth.getSession();
+
+    if (data && data.session) {
+      await handleSignedIn(data.session.user);
+    } else {
+      checkingState.style.display = 'none';
+      signedOutState.style.display = 'block';
+      showReasonMessage();
+    }
+  }
+
+  // Also listen for the SIGNED_IN event directly — belt-and-suspenders
+  // in case the OAuth redirect resolves slightly after our initial
+  // getSession() check above.
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      handleSignedIn(session.user);
+    }
+  });
+
+  init();
+</script>
+
+</body>
+</html>

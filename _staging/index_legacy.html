@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Staff Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --navy: #0f2044;
+    --navy2: #1a3260;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --gold: #fbbf24;
+    --gold-bg: #fffbeb;
+    --gold-border: #fde68a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.1), 0 2px 6px -2px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--navy);
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:26px; }
+  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
+  .nav-links { display:flex; gap:4px; }
+  .nav-links a {
+    color: rgba(255,255,255,0.65);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
+  .nav-links a.mgmt { color: var(--gold); }
+  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+
+  /* ── HAMBURGER ── */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* ── MOBILE MENU ── */
+  .nav-mobile-menu {
+    display: none;
+    position: fixed;
+    top: 56px;
+    left: 0; right: 0;
+    background: rgba(10,20,50,0.98);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 1.25rem 1.25rem;
+    z-index: 99;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-mobile-menu.open { display: flex; }
+  .nav-mobile-menu a {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
+  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-mobile-menu a.mgmt { color: var(--gold); }
+  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
+  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 32px 64px;
+    /* Diagonal gradient: deep navy bottom-left → secondary navy top-right */
+    background: linear-gradient(135deg, #0a1628 0%, var(--navy) 25%, var(--navy2) 70%);
+  }
+
+  /* Large soft circle — top right */
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px;
+    right: -80px;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,0.18) 0%, rgba(37,99,235,0) 70%);
+    pointer-events: none;
+  }
+
+  /* Second smaller circle — bottom left */
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -60px;
+    left: -40px;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,0.1) 0%, rgba(37,99,235,0) 70%);
+    pointer-events: none;
+  }
+
+  /* Subtle dot-grid texture overlay */
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse at top right, black 20%, transparent 65%),
+            radial-gradient(ellipse at bottom left, black 20%, transparent 65%);
+    mask-composite: add;
+    -webkit-mask-image: radial-gradient(ellipse at top right, black 20%, transparent 65%),
+                    radial-gradient(ellipse at bottom left, black 20%, transparent 65%);
+    -webkit-mask-composite: source-over;
+    pointer-events: none;
+  }
+
+  /* Angled accent stripe — right side */
+  .hero-stripe {
+    position: absolute;
+    top: 0; bottom: 0;
+    right: 0;
+    width: 38%;
+    background: linear-gradient(to left, rgba(37,99,235,0.07), transparent);
+    transform: skewX(-8deg) translateX(60px);
+    pointer-events: none;
+  }
+
+  .hero-inner {
+    max-width: 1060px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 2px;
+    background: var(--gold);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.8px;
+    line-height: 1.18;
+    margin-bottom: 14px;
+    max-width: 560px;
+  }
+  .hero h1 span { color: #60a5fa; }
+  .hero-sub {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+    max-width: 440px;
+    line-height: 1.6;
+  }
+
+  /* ── CARDS SECTION ── */
+  .cards-section {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 40px 32px 64px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+  }
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  /* ── CARD BASE ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 22px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: #bfdbfe;
+  }
+
+  /* Subtle top accent line on hover */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: 12px 12px 0 0;
+  }
+  .card:hover::before { opacity: 1; }
+
+  /* Restricted card variant — gold tint */
+  .card.restricted {
+    border-color: var(--gold-border);
+    background: linear-gradient(160deg, #fff 70%, #fffdf5 100%);
+  }
+  .card.restricted:hover {
+    border-color: var(--gold);
+    box-shadow: 0 4px 16px -2px rgba(251,191,36,0.2), 0 2px 6px -2px rgba(0,0,0,0.06);
+  }
+  .card.restricted::before {
+    background: linear-gradient(90deg, var(--gold), #fde68a);
+  }
+
+  .card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    /* default: blue accent */
+    background: var(--accent-bg);
+  }
+  .card-icon.gold { background: #fef3c7; }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.1px;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    flex: 1;
+  }
+  .card-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    transition: gap 0.15s;
+  }
+  .card:hover .card-link { gap: 7px; }
+  .card.restricted .card-link { color: #b45309; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── PWA INSTALL BANNER ── */
+  #installBanner {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--navy);
+    padding: 14px 20px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 999;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+  }
+  .install-info { display:flex; align-items:center; gap:12px; }
+  .install-info img { height:30px; }
+  .install-title { color:#fff; font-size:13px; font-weight:600; }
+  .install-sub { color:rgba(255,255,255,0.5); font-size:11px; margin-top:1px; }
+  .install-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .install-btn:hover { background: #1d4ed8; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    nav { padding: 0 16px; }
+    .nav-links { display: none; }
+    .nav-hamburger { display: flex; }
+    .nav-title { font-size: 13px; }
+
+    .hero { padding: 40px 20px 48px; }
+    .hero h1 { font-size: 28px; }
+    .hero-sub { font-size: 14px; }
+
+    .cards-section { padding: 28px 16px 48px; }
+    .cards-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { padding: 18px 16px; }
+    .card-icon { width: 36px; height: 36px; font-size: 17px; }
+  }
+  @media (max-width: 400px) {
+    .cards-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── SPECIALS UPLOAD BUTTON ── */
+  .upload-shortcut {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding: 0 32px 32px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .upload-shortcut a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    transition: all 0.15s;
+  }
+  .upload-shortcut a:hover {
+    color: var(--text-muted);
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+  @media (max-width: 640px) {
+    .upload-shortcut { padding: 0 16px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Staff Portal</span>
+  </div>
+  <div class="nav-links">
+    <a href="/admin/" class="mgmt">Admin</a>
+    <a href="/management/" class="mgmt">Management</a>
+    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
+    <a href="index.html" class="active">Home</a>
+    <a href="specials.html">Specials</a>
+    <a href="dashboards.html">Dashboards</a>
+    <a href="forms.html">Forms</a>
+    <a href="assets.html">Assets</a>
+  </div>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- ── MOBILE MENU ── -->
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="/admin/" class="mgmt">Admin</a>
+  <a href="/management/" class="mgmt">Management</a>
+  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
+  <div class="mob-divider"></div>
+  <a href="index.html" class="active">Home</a>
+  <a href="specials.html">Specials</a>
+  <a href="dashboards.html">Dashboards</a>
+  <a href="forms.html">Forms</a>
+  <a href="assets.html">Assets</a>
+</div>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-stripe"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow">DFL Importers — Internal</div>
+    <h1>Welcome to the<br><span>Staff Portal</span></h1>
+    <p class="hero-sub">Your central hub for specials, dashboards, forms and company resources.</p>
+  </div>
+</div>
+
+<!-- ── CARDS ── -->
+<div class="cards-section">
+  <div class="section-label">Quick Access</div>
+  <div class="cards-grid">
+
+    <!-- Specials -->
+    <a class="card" href="specials.html">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">Specials &amp; Flyers</div>
+      <div class="card-desc">Current promotions, price breaks and product flyers for the field.</div>
+      <div class="card-link">View specials →</div>
+    </a>
+
+    <!-- Dashboards -->
+    <a class="card" href="dashboards.html">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Dashboards</div>
+      <div class="card-desc">Sales performance dashboard and World Cup competition tracker.</div>
+      <div class="card-link">View dashboards →</div>
+    </a>
+
+    <!-- Forms -->
+    <a class="card" href="forms.html">
+      <div class="card-icon">🔗</div>
+      <div class="card-title">Forms &amp; Links</div>
+      <div class="card-desc">Weekly plan, daily activity submission and staff forms.</div>
+      <div class="card-link">View forms →</div>
+    </a>
+
+    <!-- Assets -->
+    <a class="card" href="assets.html">
+      <div class="card-icon">📁</div>
+      <div class="card-title">Assets</div>
+      <div class="card-desc">Logos, brand files and downloadable company resources.</div>
+      <div class="card-link">View assets →</div>
+    </a>
+
+    <!-- Management — restricted / gold -->
+    <a class="card restricted" href="/management/">
+      <div class="card-icon gold">📈</div>
+      <div class="card-title">Management</div>
+      <div class="card-desc">Restricted. Performance dashboards, category intelligence and key account tools.</div>
+      <div class="card-link">Enter Management →</div>
+    </a>
+
+    <!-- Dispatch — restricted / gold -->
+    <a class="card restricted" href="/dispatch-portal.html">
+      <div class="card-icon gold">🚚</div>
+      <div class="card-title">Dispatch Portal</div>
+      <div class="card-desc">Restricted. Logistics, route assignment and real-time delivery tracking.</div>
+      <div class="card-link">Enter Dispatch →</div>
+    </a>
+
+  </div>
+</div>
+
+
+<div class="upload-shortcut">
+  <a href="/specials-upload.html">🎯 Upload Specials / Flyers</a>
+</div>
+
+<footer>© 2026 DFL Importers · Internal use only</footer>
+
+<!-- ── PWA INSTALL BANNER ── -->
+<div id="installBanner">
+  <div class="install-info">
+    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div>
+      <div class="install-title">DFL Staff Portal</div>
+      <div class="install-sub">Add to home screen for quick access</div>
+    </div>
+  </div>
+  <button class="install-btn" onclick="installApp()">Install</button>
+</div>
+
+<script>
+  // ── Hamburger menu ──
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    hamburger.classList.toggle('open');
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => {
+      hamburger.classList.remove('open');
+      mobileMenu.classList.remove('open');
+    });
+  });
+
+  // ── PWA ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
+
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBanner').style.display = 'flex';
+  });
+
+  function installApp() {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        deferredPrompt = null;
+        document.getElementById('installBanner').style.display = 'none';
+      });
+    }
+  }
+</script>
+
+</body>
+</html>

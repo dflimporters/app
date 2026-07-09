@@ -1,588 +1,828 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/favicon.ico">
-<meta name="theme-color" content="#0f2044">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DFL Staff Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Numbers">
+<title>DFL · My Numbers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #f0f4f8;
-    --surface: #ffffff;
-    --border: #e2e8f0;
-    --navy: #0f2044;
-    --navy2: #1a3260;
-    --text: #1e293b;
-    --text-muted: #64748b;
-    --text-dim: #94a3b8;
-    --accent: #2563eb;
-    --accent-bg: #eff6ff;
-    --gold: #fbbf24;
-    --gold-bg: #fffbeb;
-    --gold-border: #fde68a;
-    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.1), 0 2px 6px -2px rgba(0,0,0,0.06);
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+/* Keep the page hidden until the auth guard confirms who's logged
+   in — this must be plain inline CSS so there's no flash of the
+   app before we've checked. auth-guard.js reveals it. */
+body { visibility: hidden; }
+</style>
+<style>
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --navy2:#16264d;
+  --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  padding-bottom:env(safe-area-inset-bottom);-webkit-font-smoothing:antialiased}
+h1,h2,h3,.mont{font-family:'Montserrat',sans-serif}
+.hidden{display:none!important}
 
-  /* ── NAV ── */
-  nav {
-    background: var(--navy);
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; }
-  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
-  .nav-links { display:flex; gap:4px; }
-  .nav-links a {
-    color: rgba(255,255,255,0.65);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 6px;
-    transition: all 0.15s;
-  }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
-  .nav-links a.mgmt { color: var(--gold); }
-  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
+/* ---- app ---- */
+header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 18px) 20px 40px;position:sticky;top:0;z-index:5}
+.hrow{display:flex;justify-content:space-between;align-items:flex-start}
+.hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
+.logout{background:rgba(255,255,255,.1);border:none;color:#cdd8f0;font-size:12px;font-weight:600;
+  padding:8px 12px;border-radius:10px;font-family:'Open Sans'}
+.wrap{padding:0 14px 40px;max-width:640px;margin:0 auto}
 
-  /* ── HAMBURGER ── */
-  .nav-hamburger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    flex-shrink: 0;
-  }
-  .nav-hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 2px;
-    transition: transform 0.25s, opacity 0.25s;
-  }
-  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
-  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+/* tabs */
+.tabview{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+#tab-plan{padding-bottom:0}
+.planhdr{padding:calc(env(safe-area-inset-top) + 14px) 20px 14px}
+#planframe{width:100%;border:0;display:block;
+  height:calc(100vh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height:calc(100dvh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+.homebtn{background:rgba(255,255,255,.12);border:none;color:#fff;width:38px;height:38px;
+  border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  flex-shrink:0;transition:background .12s}
+.homebtn:active{background:rgba(255,255,255,.24)}
+.viewasbar{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:25;
+  display:none;align-items:center;justify-content:center;gap:10px;
+  background:#0D1B3E;color:#fff;font-size:13px;font-weight:600;padding:10px 16px}
+.viewasbar b{font-weight:800}
+.viewasbar button{background:#326BD3;border:none;color:#fff;font-weight:700;font-size:12px;
+  padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'Open Sans'}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+  background:#fff;border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 12px rgba(13,27,62,.06)}
+.tabbtn{flex:1;border:none;background:none;padding:9px 0 8px;display:flex;flex-direction:column;
+  align-items:center;gap:3px;color:var(--mut);font-family:'Open Sans';font-weight:700;font-size:11px;cursor:pointer}
+.tabbtn.on{color:var(--blue)}
+.tabbtn svg{display:block}
 
-  /* ── MOBILE MENU ── */
-  .nav-mobile-menu {
-    display: none;
-    position: fixed;
-    top: 56px;
-    left: 0; right: 0;
-    background: rgba(10,20,50,0.98);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 0.75rem 1.25rem 1.25rem;
-    z-index: 99;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-mobile-menu.open { display: flex; }
-  .nav-mobile-menu a {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: rgba(255,255,255,0.75);
-    text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color: var(--gold); }
-  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
-  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+.hero{background:var(--card);border-radius:18px;padding:38px 20px 20px;box-shadow:var(--shadow);margin-top:-22px;position:relative}
+.hero .lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+.big{font-family:'Montserrat';font-weight:800;font-size:34px;letter-spacing:-.5px;margin:3px 0 2px}
+.herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pctwrap{text-align:right;flex-shrink:0;padding-top:2px}
+.pctbig{font-family:'Montserrat';font-weight:800;font-size:38px;line-height:1;letter-spacing:-1px;color:var(--blue)}
+.pctbig span{font-size:19px;font-weight:700;margin-left:1px}
+.pctbig.good{color:var(--good)} .pctbig.bad{color:var(--bad)} .pctbig.warn{color:#d9920a}
+.pctlbl{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:5px;display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.pcttgt{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;text-align:right}
+.pcttgt b{color:var(--ink);font-weight:800;font-family:'Montserrat'}
+.sub{font-size:13px;color:var(--mut)}
+.sub b{color:var(--ink)}
+.bar{height:12px;border-radius:8px;background:#eef1f8;overflow:hidden;margin:16px 0 8px;position:relative}
+.bar>span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--blue),#5b8ef0);transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.bar>span.bad{background:linear-gradient(90deg,#c9302c,#e05c57)}
+.bar>span.good{background:linear-gradient(90deg,#178a55,#25b06e)}
+.bar>span.warn{background:linear-gradient(90deg,#d9920a,#f0b13d)}
+.barmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--navy);opacity:.35}
+.pacerow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);font-weight:600}
+.pacerow b{color:var(--ink);font-weight:800;font-family:'Montserrat'}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px}
+.chip.good{background:#e5f5ec;color:var(--good)} .chip.warn{background:#fdf3dc;color:#a5760a}
+.chip.bad{background:#fbe6e6;color:var(--bad)}
 
-  /* ── HERO ── */
-  .hero {
-    position: relative;
-    overflow: hidden;
-    padding: 56px 32px 64px;
-    /* Diagonal gradient: deep navy bottom-left → secondary navy top-right */
-    background: linear-gradient(135deg, #0a1628 0%, var(--navy) 25%, var(--navy2) 70%);
-  }
+.ordtot{display:flex;background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:10px}
+.ordtot>div{flex:1;padding:16px 16px}
+.ordtot .ovr{border-left:1px solid var(--line);text-align:right}
+.ordtot .ov{font-family:'Montserrat';font-weight:800;font-size:26px;color:var(--navy);line-height:1}
+.ordtot .ovval{font-family:'Montserrat';font-weight:800;font-size:20px;color:var(--blue);line-height:1}
+.ordtot .ok{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:6px}
+.ordgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.ordgrid .cred{grid-column:1 / -1}
+.obox{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);
+  border-left:4px solid var(--line);position:relative}
+.obox .oct{font-family:'Montserrat';font-weight:800;font-size:24px;line-height:1}
+.obox .olbl{font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.obox .oval{font-size:13px;font-weight:700;color:var(--ink);margin-top:6px}
+.obox.tap{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.obox.tap:active{transform:scale(.98);box-shadow:0 1px 2px rgba(13,27,62,.12)}
+.obox.open{border-left-color:var(--blue)}
+.obox.ship{border-left-color:#7b5cd6}
+.obox.hold{border-left-color:var(--warn)}
+.obox.back{border-left-color:var(--bad)}
+.obox.cred{border-left-color:#0d9488;display:flex;align-items:center;justify-content:space-between}
+.obox.cred .olbl{margin-top:0}
+.obox.cred .oval{margin-top:0;color:var(--bad);font-family:'Montserrat';font-weight:800;font-size:17px}
 
-  /* Large soft circle — top right */
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -80px;
-    right: -80px;
-    width: 420px;
-    height: 420px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(37,99,235,0.18) 0%, rgba(37,99,235,0) 70%);
-    pointer-events: none;
-  }
+.secthdr{display:flex;justify-content:space-between;align-items:baseline;margin:26px 4px 10px}
+.secthdr h2{font-size:15px;font-weight:800;margin:0}
+.secthdr .cnt{font-size:12px;color:var(--mut);font-weight:600}
+.tabs{display:flex;gap:6px;margin:0 2px 12px;background:#e9edf6;padding:4px;border-radius:12px}
+.tab{flex:1;border:none;background:transparent;padding:9px;border-radius:9px;font-family:'Open Sans';
+  font-weight:700;font-size:12.5px;color:var(--mut);cursor:pointer}
+.tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
 
-  /* Second smaller circle — bottom left */
-  .hero::after {
-    content: '';
-    position: absolute;
-    bottom: -60px;
-    left: -40px;
-    width: 280px;
-    height: 280px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(37,99,235,0.1) 0%, rgba(37,99,235,0) 70%);
-    pointer-events: none;
-  }
+.cust{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);margin-bottom:9px}
+.cust.tap{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.cust.tap:active{transform:scale(.99);box-shadow:0 1px 2px rgba(13,27,62,.1)}
+.cnt.link,.link{color:var(--blue);font-weight:700;cursor:pointer}
+.search{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:12px;
+  padding:12px 14px;font-family:'Open Sans';font-size:14px;color:var(--ink);outline:none;margin:14px 0 12px;box-shadow:var(--shadow)}
+.search:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(50,107,211,.1)}
 
-  /* Subtle dot-grid texture overlay */
-  .hero-grid {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 28px 28px;
-    mask-image: radial-gradient(ellipse at top right, black 20%, transparent 65%),
-            radial-gradient(ellipse at bottom left, black 20%, transparent 65%);
-    mask-composite: add;
-    -webkit-mask-image: radial-gradient(ellipse at top right, black 20%, transparent 65%),
-                    radial-gradient(ellipse at bottom left, black 20%, transparent 65%);
-    -webkit-mask-composite: source-over;
-    pointer-events: none;
-  }
-
-  /* Angled accent stripe — right side */
-  .hero-stripe {
-    position: absolute;
-    top: 0; bottom: 0;
-    right: 0;
-    width: 38%;
-    background: linear-gradient(to left, rgba(37,99,235,0.07), transparent);
-    transform: skewX(-8deg) translateX(60px);
-    pointer-events: none;
-  }
-
-  .hero-inner {
-    max-width: 1060px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 1;
-  }
-  .hero-eyebrow {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.45);
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .hero-eyebrow::before {
-    content: '';
-    display: inline-block;
-    width: 24px;
-    height: 2px;
-    background: var(--gold);
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-  .hero h1 {
-    font-size: 38px;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: -0.8px;
-    line-height: 1.18;
-    margin-bottom: 14px;
-    max-width: 560px;
-  }
-  .hero h1 span { color: #60a5fa; }
-  .hero-sub {
-    font-size: 15px;
-    color: rgba(255,255,255,0.5);
-    max-width: 440px;
-    line-height: 1.6;
-  }
-
-  /* ── CARDS SECTION ── */
-  .cards-section {
-    max-width: 1060px;
-    margin: 0 auto;
-    padding: 40px 32px 64px;
-  }
-  .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 18px;
-  }
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  /* ── CARD BASE ── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px 22px;
-    text-decoration: none;
-    color: var(--text);
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: var(--shadow);
-    position: relative;
-    overflow: hidden;
-  }
-  .card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-    border-color: #bfdbfe;
-  }
-
-  /* Subtle top accent line on hover */
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--accent), #60a5fa);
-    opacity: 0;
-    transition: opacity 0.2s;
-    border-radius: 12px 12px 0 0;
-  }
-  .card:hover::before { opacity: 1; }
-
-  /* Restricted card variant — gold tint */
-  .card.restricted {
-    border-color: var(--gold-border);
-    background: linear-gradient(160deg, #fff 70%, #fffdf5 100%);
-  }
-  .card.restricted:hover {
-    border-color: var(--gold);
-    box-shadow: 0 4px 16px -2px rgba(251,191,36,0.2), 0 2px 6px -2px rgba(0,0,0,0.06);
-  }
-  .card.restricted::before {
-    background: linear-gradient(90deg, var(--gold), #fde68a);
-  }
-
-  .card-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-    /* default: blue accent */
-    background: var(--accent-bg);
-  }
-  .card-icon.gold { background: #fef3c7; }
-
-  .card-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.1px;
-  }
-  .card-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.6;
-    flex: 1;
-  }
-  .card-link {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 4px;
-    transition: gap 0.15s;
-  }
-  .card:hover .card-link { gap: 7px; }
-  .card.restricted .card-link { color: #b45309; }
-
-  /* ── FOOTER ── */
-  footer {
-    text-align: center;
-    padding: 20px;
-    font-size: 11px;
-    color: var(--text-dim);
-    border-top: 1px solid var(--border);
-  }
-
-  /* ── PWA INSTALL BANNER ── */
-  #installBanner {
-    display: none;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--navy);
-    padding: 14px 20px;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 999;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-  }
-  .install-info { display:flex; align-items:center; gap:12px; }
-  .install-info img { height:30px; }
-  .install-title { color:#fff; font-size:13px; font-weight:600; }
-  .install-sub { color:rgba(255,255,255,0.5); font-size:11px; margin-top:1px; }
-  .install-btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-  .install-btn:hover { background: #1d4ed8; }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 900px) {
-    .cards-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 640px) {
-    nav { padding: 0 16px; }
-    .nav-links { display: none; }
-    .nav-hamburger { display: flex; }
-    .nav-title { font-size: 13px; }
-
-    .hero { padding: 40px 20px 48px; }
-    .hero h1 { font-size: 28px; }
-    .hero-sub { font-size: 14px; }
-
-    .cards-section { padding: 28px 16px 48px; }
-    .cards-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-    .card { padding: 18px 16px; }
-    .card-icon { width: 36px; height: 36px; font-size: 17px; }
-  }
-  @media (max-width: 400px) {
-    .cards-grid { grid-template-columns: 1fr; }
-  }
-
-  /* ── SPECIALS UPLOAD BUTTON ── */
-  .upload-shortcut {
-    max-width: 1060px;
-    margin: 0 auto;
-    padding: 0 32px 32px;
-    display: flex;
-    justify-content: flex-end;
-  }
-  .upload-shortcut a {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-dim);
-    text-decoration: none;
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    transition: all 0.15s;
-  }
-  .upload-shortcut a:hover {
-    color: var(--text-muted);
-    border-color: #cbd5e1;
-    background: #f8fafc;
-  }
-  @media (max-width: 640px) {
-    .upload-shortcut { padding: 0 16px 24px; }
-  }
+/* detail view */
+.detailhead{padding:4px 2px 14px}
+.backbtn{background:none;border:none;color:var(--blue);font-family:'Open Sans';font-weight:700;font-size:14px;padding:6px 0;cursor:pointer;margin-bottom:6px}
+.detailnav{display:flex;gap:16px;align-items:center}
+.homelink{color:var(--mut)}
+.dname{font-family:'Montserrat';font-weight:800;font-size:22px;line-height:1.15;color:var(--navy)}
+.dtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.dtag{font-size:11px;font-weight:700;background:var(--blue-light,#e8f0fb);color:var(--blue);padding:4px 10px;border-radius:20px}
+.dtag.od{background:#fdf3dc;color:#a5760a}
+.dcard{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.dlbl{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+.dlbl.amber{color:#a5760a}.dlbl.green{color:var(--good)}.dlbl.red{color:var(--bad)}
+.ptoggle{display:inline-flex;background:#eef1f8;border-radius:8px;padding:3px}
+.pbtn{border:none;background:none;font-family:'Montserrat';font-weight:700;font-size:10px;letter-spacing:.5px;
+  color:var(--mut);padding:4px 10px;border-radius:6px;cursor:pointer}
+.pbtn.on{background:#fff;color:var(--blue);box-shadow:0 1px 2px rgba(13,27,62,.12)}
+.prohint{color:var(--mut);font-weight:400;font-size:11px}
+.timing{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;align-items:center}
+.timing>div{padding:2px 6px 4px;position:relative}
+.timing>div+div::before{content:"";position:absolute;left:0;top:8%;bottom:8%;width:1px;background:var(--line)}
+.timing>div.due{background:#fdf8ec;border-radius:10px;padding-top:8px;padding-bottom:8px;margin:-4px 0}
+.timing>div.due::before{display:none}
+.timing .tk{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);margin-bottom:5px}
+.timing .tv{font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--ink)}
+.timing .ts{font-size:10px;color:var(--mut);margin-top:3px}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ctable th{text-align:right;font-family:'Montserrat';font-size:10px;font-weight:800;color:var(--navy);padding:6px 8px;border-bottom:1px solid var(--line)}
+.ctable th:first-child{text-align:left}
+.ctable td{padding:6px 8px;color:var(--text2,#3a4e72);border-top:1px solid #f1f5f9}
+.ctable td.num{text-align:right}
+.ctable td:first-child{font-weight:600;color:var(--ink)}
+.ctable td.pctcell{font-family:'Montserrat';font-weight:800;border-radius:4px}
+.listrow{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.listrow:last-child{border-bottom:none}
+.listrow .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.reddot{background:var(--bad)}.amberdot{background:var(--warn)}
+.lr1{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.3}
+.lr2{font-size:11px;color:var(--mut);margin-top:1px}
+.crow1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cname{font-weight:700;font-size:14px;line-height:1.25}
+.cid{font-size:11px;color:var(--mut);margin-top:1px}
+.cgap{text-align:right;flex-shrink:0}
+.cgap .g{font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--bad)}
+.cgap .g.met{color:var(--good)}
+.cgap .gl{font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase}
+.cbar{height:6px;border-radius:6px;background:#eef1f8;margin:11px 0 9px;overflow:hidden}
+.cbar>span{display:block;height:100%;border-radius:6px;background:var(--blue)}
+.cbar>span.met{background:var(--good)}
+.cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600}
+.cmeta b{color:var(--ink)}
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
+.foot{text-align:center;color:var(--mut);font-size:11px;margin-top:22px;line-height:1.6}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);
+  border-radius:50%;animation:sp .7s linear infinite;margin:60px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 
-<!-- ── NAV ── -->
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Staff Portal</span>
+<!-- APP -->
+<div id="app">
+  <div id="tab-home" class="tabview">
+    <header>
+      <div class="hrow">
+        <div>
+          <div class="hi" id="hgreet">Welcome back</div>
+          <div class="hname" id="hname">—</div>
+        </div>
+        <button class="logout" onclick="logout()">Sign out</button>
+      </div>
+    </header>
+    <div class="wrap" id="content"><div class="spin"></div></div>
   </div>
-  <div class="nav-links">
-    <a href="/admin/" class="mgmt">Admin</a>
-    <a href="/management/" class="mgmt">Management</a>
-    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-    <a href="index.html" class="active">Home</a>
-    <a href="specials.html">Specials</a>
-    <a href="dashboards.html">Dashboards</a>
-    <a href="forms.html">Forms</a>
-    <a href="assets.html">Assets</a>
-  </div>
-  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
 
-<!-- ── MOBILE MENU ── -->
-<div class="nav-mobile-menu" id="mobileMenu">
-  <a href="/admin/" class="mgmt">Admin</a>
-  <a href="/management/" class="mgmt">Management</a>
-  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-  <div class="mob-divider"></div>
-  <a href="index.html" class="active">Home</a>
-  <a href="specials.html">Specials</a>
-  <a href="dashboards.html">Dashboards</a>
-  <a href="forms.html">Forms</a>
-  <a href="assets.html">Assets</a>
+  <div id="tab-plan" class="tabview hidden">
+    <header class="planhdr">
+      <div class="hrow">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="homebtn" onclick="switchTab('home')" aria-label="Home">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </button>
+          <div><div class="hname" style="font-size:18px">Weekly Plan</div></div>
+        </div>
+      </div>
+    </header>
+    <iframe id="planframe" title="Weekly Plan"></iframe>
+  </div>
+
+  <div id="tab-custs" class="tabview hidden">
+    <header>
+      <div class="hrow">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="homebtn" onclick="switchTab('home')" aria-label="Home">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </button>
+          <div>
+            <div class="hi">My Accounts</div>
+            <div class="hname" id="custhdr">Customers</div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="wrap" id="custcontent"><div class="spin"></div></div>
+  </div>
+
+  <div id="tab-admin" class="tabview hidden">
+    <header>
+      <div class="hrow">
+        <div>
+          <div class="hi">Team Overview</div>
+          <div class="hname" id="adminhdr">Admin</div>
+        </div>
+        <button class="logout" onclick="logout()">Sign out</button>
+      </div>
+    </header>
+    <div class="wrap" id="admincontent"><div class="spin"></div></div>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tabbtn on" id="nav-home" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span>My Numbers</span>
+    </button>
+    <button class="tabbtn" id="nav-custs" onclick="goCusts()">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Customers</span>
+    </button>
+    <button class="tabbtn" id="nav-plan" onclick="switchTab('plan')">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M7 3v3M17 3v3M4 8h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 12h4M8 16h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Weekly Plan</span>
+    </button>
+    <button class="tabbtn" id="nav-admin" onclick="goAdmin()" style="display:none">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Admin</span>
+    </button>
+  </nav>
 </div>
 
-<!-- ── HERO ── -->
-<div class="hero">
-  <div class="hero-grid"></div>
-  <div class="hero-stripe"></div>
-  <div class="hero-inner">
-    <div class="hero-eyebrow">DFL Importers — Internal</div>
-    <h1>Welcome to the<br><span>Staff Portal</span></h1>
-    <p class="hero-sub">Your central hub for specials, dashboards, forms and company resources.</p>
-  </div>
-</div>
-
-<!-- ── CARDS ── -->
-<div class="cards-section">
-  <div class="section-label">Quick Access</div>
-  <div class="cards-grid">
-
-    <!-- Specials -->
-    <a class="card" href="specials.html">
-      <div class="card-icon">🎯</div>
-      <div class="card-title">Specials &amp; Flyers</div>
-      <div class="card-desc">Current promotions, price breaks and product flyers for the field.</div>
-      <div class="card-link">View specials →</div>
-    </a>
-
-    <!-- Dashboards -->
-    <a class="card" href="dashboards.html">
-      <div class="card-icon">📊</div>
-      <div class="card-title">Dashboards</div>
-      <div class="card-desc">Sales performance dashboard and World Cup competition tracker.</div>
-      <div class="card-link">View dashboards →</div>
-    </a>
-
-    <!-- Forms -->
-    <a class="card" href="forms.html">
-      <div class="card-icon">🔗</div>
-      <div class="card-title">Forms &amp; Links</div>
-      <div class="card-desc">Weekly plan, daily activity submission and staff forms.</div>
-      <div class="card-link">View forms →</div>
-    </a>
-
-    <!-- Assets -->
-    <a class="card" href="assets.html">
-      <div class="card-icon">📁</div>
-      <div class="card-title">Assets</div>
-      <div class="card-desc">Logos, brand files and downloadable company resources.</div>
-      <div class="card-link">View assets →</div>
-    </a>
-
-    <!-- Management — restricted / gold -->
-    <a class="card restricted" href="/management/">
-      <div class="card-icon gold">📈</div>
-      <div class="card-title">Management</div>
-      <div class="card-desc">Restricted. Performance dashboards, category intelligence and key account tools.</div>
-      <div class="card-link">Enter Management →</div>
-    </a>
-
-    <!-- Dispatch — restricted / gold -->
-    <a class="card restricted" href="/dispatch-portal.html">
-      <div class="card-icon gold">🚚</div>
-      <div class="card-title">Dispatch Portal</div>
-      <div class="card-desc">Restricted. Logistics, route assignment and real-time delivery tracking.</div>
-      <div class="card-link">Enter Dispatch →</div>
-    </a>
-
-  </div>
-</div>
-
-
-<div class="upload-shortcut">
-  <a href="/specials-upload.html">🎯 Upload Specials / Flyers</a>
-</div>
-
-<footer>© 2026 DFL Importers · Internal use only</footer>
-
-<!-- ── PWA INSTALL BANNER ── -->
-<div id="installBanner">
-  <div class="install-info">
-    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div>
-      <div class="install-title">DFL Staff Portal</div>
-      <div class="install-sub">Add to home screen for quick access</div>
-    </div>
-  </div>
-  <button class="install-btn" onclick="installApp()">Install</button>
-</div>
-
+<script>window.PAGE_ALLOWED_ROLES = ['admin', 'manager', 'rep']; // everyone allowed on this page for now</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/auth-guard.js"></script>
 <script>
-  // ── Hamburger menu ──
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open');
-  });
-  mobileMenu.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileMenu.classList.remove('open');
-    });
-  });
+const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+const J=n=>"$"+Math.round(n).toLocaleString("en-JM");
+const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return "$"+(n/1e3).toFixed(0)+"K";return "$"+Math.round(n)};
 
-  // ── PWA ──
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js');
-    });
+/* ---------- Auth wiring ---------- */
+// auth-guard.js has already checked the session and the profiles
+// row by the time this event fires, and put the result on
+// window.DFL_PROFILE. This is our single entry point into the app —
+// it replaces the old PIN-based enterApp().
+document.addEventListener('dfl-auth-ready', (e) => {
+  initApp(e.detail.profile);
+});
+
+async function initApp(profile){
+  const h=new Date().getHours();
+  document.getElementById("hgreet").textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  document.getElementById("hname").textContent=profile.full_name||"—";
+
+  // Portal-level role (admin/manager) drives the in-app Admin/Team tab —
+  // one source of truth, instead of a separate role field on `reps`.
+  const isAdmin = profile.role==="admin" || profile.role==="manager";
+  document.getElementById("nav-admin").style.display=isAdmin?"":"none";
+
+  // `profiles` doesn't carry the canonical `name`/`area` that the cache
+  // tables are keyed on — look those up from `reps` via salesperson_id.
+  if(profile.salesperson_id){
+    try{
+      const r=await fetch(`${SB_URL}/rest/v1/reps?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=name,area`,{headers:H});
+      const rows=await r.json();
+      const repRow=Array.isArray(rows)&&rows[0]?rows[0]:null;
+      if(repRow){
+        REP={name:repRow.name, salesperson_id:profile.salesperson_id, area:repRow.area};
+        document.getElementById("hname").textContent=repRow.name;
+        loadData(REP);
+        return;
+      }
+    }catch(e){ /* falls through to the no-numbers state below */ }
   }
 
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('installBanner').style.display = 'flex';
-  });
+  // Admin/manager with no personal sales numbers (e.g. Joel's own
+  // account) — show a friendly empty state on Home rather than erroring.
+  REP=null;
+  document.getElementById("content").innerHTML=`
+    <div class="empty" style="padding:60px 20px">
+      No personal sales numbers to show for your account.${isAdmin?'<br>Use the <b>Admin</b> tab below to view team performance.':''}
+    </div>`;
+}
 
-  function installApp() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(() => {
-        deferredPrompt = null;
-        document.getElementById('installBanner').style.display = 'none';
+// Note: logout() itself is no longer defined here — it comes from
+// auth-guard.js (signs out of Supabase, then redirects to login.html).
+
+/* ---------- App ---------- */
+let REP=null, planLoaded=false;
+function switchTab(t){
+  ["home","custs","plan","admin"].forEach(k=>{
+    const nav=document.getElementById("nav-"+k), view=document.getElementById("tab-"+k);
+    if(nav) nav.classList.toggle("on", k===t);
+    if(view) view.classList.toggle("hidden", k!==t);
+  });
+  if(t==="plan" && !planLoaded){
+    const who = VIEWAS || REP;
+    if(who){ document.getElementById("planframe").src="rep-weekly-plan.html?rep="+encodeURIComponent(who.name); planLoaded=true; }
+  }
+  window.scrollTo(0,0);
+}
+function goAdmin(){ switchTab('admin'); renderAdmin(); }
+
+/* ---------- Admin ---------- */
+let ADMINROWS=null, ADMINSORT="pct", VIEWAS=null;
+
+async function renderAdmin(){
+  const c=document.getElementById("admincontent");
+  if(!ADMINROWS){
+    c.innerHTML=`<div class="spin"></div>`;
+    try{
+      const [dashR,repR]=await Promise.all([
+        fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?select=*`,{headers:H}).then(r=>r.json()),
+        fetch(`${SB_URL}/rest/v1/reps?active=eq.true&role=eq.rep&select=name,salesperson_id,area,role,pin`,{headers:H}).then(r=>r.json())
+      ]);
+      const dash={}; (Array.isArray(dashR)?dashR:[]).forEach(d=>{dash[d.salesperson]=d;});
+      ADMINROWS=(Array.isArray(repR)?repR:[]).map(r=>{
+        const d=dash[r.name]||{};
+        return {name:r.name, sp_id:r.salesperson_id, area:r.area, pin:r.pin,
+          target:+d.monthly_target||0, actual:+d.monthly_actual||0,
+          pct:+d.pct_to_target||0, pace:d.pace_status||"",
+          orders:+d.orders_mtd||0, custs:+d.active_customers_mtd||0};
       });
-    }
+    }catch(e){ c.innerHTML=`<div class="empty">Couldn't load team data.</div>`; return; }
   }
-</script>
+  drawAdmin();
+}
 
+function drawAdmin(){
+  const c=document.getElementById("admincontent");
+  const rows=[...ADMINROWS];
+  const sd=sellingDays(); const expPace = sd.total>0? sd.done/sd.total*100 : 0;
+  // team totals
+  const tgt=rows.reduce((a,x)=>a+x.target,0), act=rows.reduce((a,x)=>a+x.actual,0);
+  const tpct=tgt>0?act/tgt*100:0;
+  const tcls=tpct>=expPace-2?"good":tpct>=expPace-10?"warn":"bad";
+  const gap=tgt-act, perDay=(gap>0&&sd.left>0)?gap/sd.left:0;
+  const behind=rows.filter(x=>x.pct<expPace-10).length;
+  // sort
+  if(ADMINSORT==="pct") rows.sort((a,b)=>b.pct-a.pct);
+  else if(ADMINSORT==="gap") rows.sort((a,b)=>(b.target-b.actual)-(a.target-a.actual));
+  else if(ADMINSORT==="sales") rows.sort((a,b)=>b.actual-a.actual);
+  else if(ADMINSORT==="name") rows.sort((a,b)=>a.name.localeCompare(b.name));
+
+  c.innerHTML=`
+    <div class="hero" style="margin-top:8px">
+      <div class="lbl">Team MTD Revenue</div>
+      <div class="herotop">
+        <div><div class="big">${J(act)}</div><div class="sub">Target: <b>${J(tgt)}</b></div></div>
+        <div class="pctwrap"><div class="pctbig ${tcls}" style="font-size:30px">${tpct.toFixed(1)}<span>%</span></div><div class="pctlbl">Achieved</div><div class="pcttgt">Should be at <b>${expPace.toFixed(0)}%</b></div></div>
+      </div>
+      <div class="bar"><span class="${tcls}" style="width:${Math.max(0,Math.min(tpct,100))}%"></span><i class="barmark" style="left:${Math.min(expPace,100)}%"></i></div>
+      <div class="pacerow"><span><b>${rows.length}</b> reps · <b style="color:${behind?'var(--bad)':'var(--good)'}">${behind}</b> behind pace</span><span>${gap>0&&sd.left>0?"<b>"+Jk(perDay)+"</b>/day team":""}</span></div>
+    </div>
+
+    <div class="secthdr"><h2>Rep leaderboard</h2><span class="cnt">tap a rep to view their app</span></div>
+    <div class="tabs">
+      <button class="tab ${ADMINSORT==='pct'?'on':''}" onclick="setAdminSort('pct')">Attainment</button>
+      <button class="tab ${ADMINSORT==='gap'?'on':''}" onclick="setAdminSort('gap')">Biggest gap</button>
+      <button class="tab ${ADMINSORT==='sales'?'on':''}" onclick="setAdminSort('sales')">Top sales</button>
+    </div>
+    ${rows.map((r,i)=>{
+      const rcls=r.pct>=expPace-2?"good":r.pct>=expPace-10?"warn":"bad";
+      const rcolor=rcls==="good"?"var(--good)":rcls==="warn"?"#d9920a":"var(--bad)";
+      const p=Math.max(0,Math.min(r.pct,100));
+      return `<div class="cust tap" onclick="viewAsRep('${encodeURIComponent(r.name)}','${r.sp_id}')">
+        <div class="crow1">
+          <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)} · PIN ${esc(String(r.pin||'—'))}</div></div>
+          <div class="cgap"><div class="g" style="color:${rcolor}">${r.pct.toFixed(0)}%</div><div class="gl">achieved</div></div>
+        </div>
+        <div class="cbar"><span class="${rcls}" style="width:${p}%"></span></div>
+        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${r.pace||''} ›</span></div>
+      </div>`;
+    }).join("")}
+    <div class="foot">Figures in JMD · directional for GP.<br>Team pace based on ${sd.done} of ${sd.total} selling days</div>`;
+}
+
+function setAdminSort(s){ ADMINSORT=s; drawAdmin(); }
+
+async function viewAsRep(encName, spId){
+  const name=decodeURIComponent(encName);
+  VIEWAS={name, salesperson_id:spId};
+  planLoaded=false;                         // force plan reload for this rep
+  document.getElementById("planframe").src="";
+  await loadData(VIEWAS);
+  switchTab('home');
+  showViewAsBanner(name);
+}
+function showViewAsBanner(name){
+  let b=document.getElementById("viewasbar");
+  if(!b){ b=document.createElement("div"); b.id="viewasbar"; b.className="viewasbar";
+    document.getElementById("app").appendChild(b); }
+  b.innerHTML=`Viewing as <b>${esc(name)}</b> <button onclick="exitViewAs()">Exit</button>`;
+  b.style.display="flex";
+}
+function exitViewAs(){
+  VIEWAS=null;
+  const b=document.getElementById("viewasbar"); if(b) b.style.display="none";
+  if(REP){
+    loadData(REP);         // back to admin's own numbers, if they have any
+  }else{
+    document.getElementById("content").innerHTML=`<div class="empty" style="padding:60px 20px">No personal sales numbers to show for your account.</div>`;
+  }
+  goAdmin();
+}
+function goCusts(){        // Customers nav button: always land on the account list
+  switchTab('custs');
+  renderCustList();
+}
+
+let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null;
+
+function setOrdSort(s){ ORDSORT=s; if(ORDCTX) openOrders(ORDCTX.bucket, ORDCTX.label); }
+
+function openOrders(bucket, label){
+  ORDCTX={bucket, label};
+  const c=document.getElementById("content");
+  let rows, isCred = bucket==="cred";
+  if(isCred){
+    rows = CUST.filter(x=>+x.mtd_credits<0)
+      .map(x=>({customer_name:x.customer_name||x.customer_id, order_total:+x.mtd_credits, status:"Credit note", order_nbr:"", order_date:null}));
+  }else{
+    rows = ORDLIST.filter(o=>o.bucket===bucket).slice();
+  }
+  // sort
+  if(ORDSORT==="date" && !isCred){
+    rows.sort((a,b)=> new Date(a.order_date||0) - new Date(b.order_date||0)); // oldest first
+  }else{
+    rows.sort((a,b)=> Math.abs(b.order_total) - Math.abs(a.order_total));      // biggest value first
+  }
+  const tot = rows.reduce((a,x)=>a+ +x.order_total,0);
+  const today=new Date();
+  c.innerHTML=`
+    <div class="detailhead" style="padding-top:12px">
+      <button class="backbtn" onclick="render(LASTS)">‹ My Numbers</button>
+      <div class="dname">${esc(label)}</div>
+      <div class="dtags"><span class="dtag">${rows.length} ${rows.length===1?'order':(isCred?'accounts':'orders')}</span><span class="dtag">${Jk(tot)} total</span></div>
+    </div>
+    ${isCred?"":`<div class="tabs" style="margin-top:2px">
+      <button class="tab ${ORDSORT==='value'?'on':''}" onclick="setOrdSort('value')">Biggest value</button>
+      <button class="tab ${ORDSORT==='date'?'on':''}" onclick="setOrdSort('date')">Oldest first</button>
+    </div>`}
+    ${rows.length? rows.map(o=>{
+      const age = o.order_date? Math.round((today-new Date(o.order_date))/86400000) : null;
+      return `<div class="cust">
+        <div class="crow1">
+          <div>
+            <div class="cname">${esc(o.customer_name)}</div>
+            <div class="cid">${o.order_nbr?esc(o.order_nbr)+" · ":""}${o.status?esc(o.status):""}${o.order_date?" · "+fmtDate(o.order_date):""}${age!==null?` (${age}d)`:""}</div>
+          </div>
+          <div class="cgap"><div class="g" style="${+o.order_total<0?'color:var(--bad)':'color:var(--ink)'}">${Jk(o.order_total)}</div></div>
+        </div>
+      </div>`;}).join("")
+    : `<div class="empty">No orders in this status.</div>`}
+    <div class="foot">Figures in JMD.<br>Updated ${lastRefresh()}</div>`;
+  window.scrollTo(0,0);
+}
+async function loadData(rep){
+  const c=document.getElementById("content");
+  try{
+    const name=encodeURIComponent(rep.name);
+    const spid=encodeURIComponent(rep.salesperson_id||"");
+    const [sumR,custR,ordR,ordListR]=await Promise.all([
+      fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json())
+    ]);
+    const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
+    CUST=Array.isArray(custR)?custR:[];
+    ORD=Array.isArray(ordR)&&ordR[0]?ordR[0]:null;
+    ORDLIST=Array.isArray(ordListR)?ordListR:[];
+    render(s);
+  }catch(e){ c.innerHTML=`<div class="empty">Couldn't load your numbers. Check your connection and pull to refresh.</div>`; }
+}
+
+function obox(label,ct,val,cls,bucket){
+  const tappable = ct>0;
+  return `<div class="obox ${cls} ${tappable?'tap':''}" ${tappable?`onclick="openOrders('${bucket}','${label}')"`:''}>
+    <div class="oct">${ct||0}</div>
+    <div class="olbl">${label}${tappable?' ›':''}</div>
+    <div class="oval">${val?Jk(val):"$0"}</div>
+  </div>`;
+}
+function paceFillClass(s,pct,elapsed){
+  const st=(s&&s.pace_status||"").toLowerCase();
+  if(st.includes("behind")||st==="watch") return "bad";
+  if(st.includes("ahead")||st==="on-pace") return "good";
+  // no status: fall back to pace math
+  return (elapsed>0 && pct < elapsed-5) ? "bad" : "good";
+}
+function paceChip(s){
+  if(!s) return "";
+  const st=(s.pace_status||"").toLowerCase();
+  const cls=st.includes("ahead")||st==="on-pace"?"good":st.includes("watch")?"warn":st.includes("behind")?"bad":"warn";
+  const label=s.pace_status?s.pace_status.replace(/-/g," "):"—";
+  return `<span class="chip ${cls}">${label.charAt(0).toUpperCase()+label.slice(1)}</span>`;
+}
+
+function render(s){
+  LASTS=s;
+  const c=document.getElementById("content");
+  // rollups from customer cache (source of truth for the list)
+  const totBudget = s? +s.monthly_target : CUST.reduce((a,x)=>a+ +x.monthly_budget,0);
+  const totSales  = s? +s.monthly_actual : CUST.reduce((a,x)=>a+ +x.net_sales,0);
+  const credits   = CUST.reduce((a,x)=>a+ +x.mtd_credits,0); // negative
+  const orders    = CUST.reduce((a,x)=>a+ (+x.order_count||0),0);
+  const activeCust = CUST.filter(x=>+x.net_sales>0).length;
+  const pct = totBudget>0? totSales/totBudget*100 : 0;
+  const gap = totBudget-totSales;
+  const sd = sellingDays();
+  const elapsed = sd.total>0 ? sd.done/sd.total*100 : monthElapsed();
+  const perDay = (gap>0 && sd.left>0) ? gap/sd.left : 0;
+
+  c.innerHTML=`
+    <div class="hero">
+      <div class="lbl">MTD Revenue</div>
+      <div class="herotop">
+        <div>
+          <div class="big">${J(totSales)}</div>
+          <div class="sub">Target: <b>${J(totBudget)}</b></div>
+        </div>
+        <div class="pctwrap">
+          <div class="pctbig ${paceFillClass(s,pct,elapsed)}">${pct.toFixed(1)}<span>%</span></div>
+          <div class="pctlbl">Achieved ${paceChip(s)}</div>
+          <div class="pcttgt">Should be at <b>${elapsed.toFixed(0)}%</b></div>
+        </div>
+      </div>
+      <div class="bar"><span class="${paceFillClass(s,pct,elapsed)}" style="width:${Math.max(0,Math.min(pct,100))}%"></span><i class="barmark" style="left:${Math.min(elapsed,100)}%"></i></div>
+      <div class="pacerow"><span><b>Day ${sd.done} of ${sd.total}</b> &nbsp;·&nbsp; ${sd.left} selling ${sd.left===1?'day':'days'} left</span><span>${gap>0?(sd.left>0?"<b>"+Jk(perDay)+"</b>/day to hit target":J(gap)+" to go"):"Target met · +"+J(-gap)}</span></div>
+    </div>
+
+    <div class="secthdr" style="margin-top:22px"><h2>My Orders</h2><span class="cnt">entered this month</span></div>
+    <div class="ordtot">
+      <div>
+        <div class="ov">${ORD?ORD.total_orders:orders}</div>
+        <div class="ok">Orders entered MTD</div>
+      </div>
+      <div class="ovr">
+        <div class="ovval">${J(ORD?+ORD.total_value:0)}</div>
+        <div class="ok">Order value</div>
+      </div>
+    </div>
+    <div class="ordgrid">
+      ${obox("Open", ORD?ORD.open_ct:0, ORD?+ORD.open_val:0, "open", "open")}
+      ${obox("Shipping", ORD?ORD.shipping_ct:0, ORD?+ORD.shipping_val:0, "ship", "shipping")}
+      ${obox("On Hold", ORD?ORD.hold_ct:0, ORD?+ORD.hold_val:0, "hold", "hold")}
+      ${obox("Back Order", ORD?ORD.backorder_ct:0, ORD?+ORD.backorder_val:0, "back", "back")}
+      ${obox("Credit Notes", CUST.filter(x=>+x.mtd_credits<0).length, credits, "cred", "cred")}
+    </div>
+
+    <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
+    <div id="teaser"></div>
+    <div class="foot">Figures in JMD · directional for GP.<br>Updated ${lastRefresh()}</div>`;
+  drawTeaser();
+}
+
+function drawTeaser(){
+  const t=document.getElementById("teaser"); if(!t) return;
+  const rows=[...CUST].filter(x=>+x.monthly_budget>0)
+    .sort((a,b)=>(b.monthly_budget-b.net_sales)-(a.monthly_budget-a.net_sales)).slice(0,3);
+  if(!rows.length){t.innerHTML=`<div class="empty">No open gaps — nice work. 🎯</div>`;return;}
+  t.innerHTML=rows.map(x=>{
+    const bud=+x.monthly_budget, net=+x.net_sales, gap=bud-net, pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
+    return `<div class="cust tap" onclick="openCustFromHome('${x.customer_id}')">
+      <div class="crow1">
+        <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
+        <div class="cgap"><div class="g">${Jk(gap)}</div><div class="gl">to budget</div></div>
+      </div>
+      <div class="cbar"><span style="width:${pct}%"></span></div>
+    </div>`;
+  }).join("");
+}
+
+function setSort(s,el){SORT=s;document.querySelectorAll("#tab-custs .tab").forEach(t=>t.classList.remove("on"));el.classList.add("on");drawList();}
+
+let CUSTSEARCH="";
+function renderCustList(){
+  const c=document.getElementById("custcontent");
+  document.getElementById("custhdr").textContent="My Accounts";
+  c.innerHTML=`
+    <input id="custsearch" class="search" placeholder="Search accounts…" value="${esc(CUSTSEARCH)}" oninput="CUSTSEARCH=this.value;drawList()">
+    <div class="tabs">
+      <button class="tab ${SORT==='gap'?'on':''}" onclick="setSort('gap',this)">Biggest gap</button>
+      <button class="tab ${SORT==='sales'?'on':''}" onclick="setSort('sales',this)">Top sales</button>
+      <button class="tab ${SORT==='dormant'?'on':''}" onclick="setSort('dormant',this)">No order yet</button>
+    </div>
+    <div id="list"></div>`;
+  drawList();
+}
+
+function drawList(){
+  const list=document.getElementById("list"); if(!list) return;
+  let rows=[...CUST];
+  const q=CUSTSEARCH.trim().toLowerCase();
+  if(q) rows=rows.filter(x=>((x.customer_name||"")+" "+(x.customer_id||"")).toLowerCase().includes(q));
+  if(SORT==="gap") rows=rows.filter(x=>+x.monthly_budget>0).sort((a,b)=>(b.monthly_budget-b.net_sales)-(a.monthly_budget-a.net_sales));
+  else if(SORT==="sales") rows.sort((a,b)=>b.net_sales-a.net_sales);
+  else if(SORT==="dormant") rows=rows.filter(x=>+x.monthly_budget>0 && +x.net_sales<=0).sort((a,b)=>b.monthly_budget-a.monthly_budget);
+  if(!rows.length){list.innerHTML=`<div class="empty">${q?"No accounts match “"+esc(CUSTSEARCH)+"”.":SORT==="dormant"?"Every budgeted account has ordered. 🎯":"No accounts to show."}</div>`;return;}
+  list.innerHTML=rows.slice(0,200).map(x=>{
+    const bud=+x.monthly_budget, net=+x.net_sales, gap=bud-net;
+    const pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
+    const met=bud>0&&net>=bud;
+    const last=x.last_order_date?fmtDate(x.last_order_date):"No order yet";
+    return `<div class="cust tap" onclick="openCust('${x.customer_id}')">
+      <div class="crow1">
+        <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
+        <div class="cgap">
+          <div class="g ${met?'met':''}">${met?"+"+Jk(net-bud):bud>0?Jk(gap):"—"}</div>
+          <div class="gl">${met?"over":bud>0?"to budget":"no budget"}</div>
+        </div>
+      </div>
+      ${bud>0?`<div class="cbar"><span class="${met?'met':''}" style="width:${pct}%"></span></div>`:""}
+      <div class="cmeta">
+        <span><b>${Jk(net)}</b>${bud>0?" / "+Jk(bud):""}</span>
+        <span>${x.order_count||0} ord · ${last} ›</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* ---------- Customer detail (pre-call brief) ---------- */
+const EXCL=['0','Z-NONSTOCK','MEZSMALLWA','PLSWRAP'];
+let KEYSKUS=null, PERIOD="MTD", CURCUST=null;
+function switchToCustList(){ renderCustList(); window.scrollTo(0,0); }
+function setPeriod(p){ PERIOD=p; if(CURCUST) renderCustDetail(CURCUST.cid, CURCUST.cache, CURCUST.budget, CURCUST.mbudget); }
+
+function openCustFromHome(cid){
+  switchTab('custs');
+  openCust(cid);
+}
+async function openCust(cid){
+  const c=document.getElementById("custcontent");
+  c.innerHTML=`<div class="spin"></div>`;
+  document.getElementById("custhdr").textContent="Account";
+  const mnum=new Date().getMonth()+1;
+  try{
+    const [cacheR,budR,mbudR,skuR]=await Promise.all([
+      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/budget_2026?customer_id=eq.${cid}&month_number=eq.${mnum}&select=item_class,budget`,{headers:H}).then(r=>r.json()),
+      KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json())
+    ]);
+    KEYSKUS=Array.isArray(skuR)?skuR:[];
+    const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
+    const budget={}; (Array.isArray(budR)?budR:[]).forEach(b=>{budget[b.item_class]=Number(b.total_budget)||0;});
+    const mbudget={}; (Array.isArray(mbudR)?mbudR:[]).forEach(b=>{mbudget[b.item_class]=(mbudget[b.item_class]||0)+(Number(b.budget)||0);});
+    renderCustDetail(cid, cache, budget, mbudget);
+  }catch(e){ c.innerHTML=`<div class="empty">Couldn't load this account. <span class="link" onclick="switchToCustList()">Back</span></div>`; }
+  window.scrollTo(0,0);
+}
+
+function renderCustDetail(cid, cache, budget, mbudget){
+  CURCUST={cid, cache, budget, mbudget};
+  const c=document.getElementById("custcontent");
+  const today=new Date();
+  const name=cache?cache.customer_name:cid;
+  document.getElementById("custhdr").textContent="Account";
+
+  const lastOrder=cache?cache.last_order_date:null;
+  const avgFreq=cache?(cache.avg_freq_days||30):30;
+  const lastDate=lastOrder?new Date(lastOrder):null;
+  const daysSince=lastDate?Math.round((today-lastDate)/86400000):null;
+  const nextDue=lastDate?new Date(lastDate.getTime()+avgFreq*86400000):null;
+  const daysToNext=nextDue?Math.round((nextDue-today)/86400000):null;
+  const overdue=daysToNext!==null&&daysToNext<0;
+  const dueSoon=daysToNext!==null&&daysToNext>=0&&daysToNext<=3;
+  const dueTxt=nextDue?fmtDate(nextDue):"—";
+  const dueSub=overdue?Math.abs(daysToNext)+"d overdue":daysToNext!==null?"in "+daysToNext+"d":"";
+
+  const isY = PERIOD==="YTD";
+  const bmap = isY ? budget : (mbudget||{});   // YTD: annual budget; MTD: real current-month budget
+  const periodTotal = cache?Number(isY?cache.ytd_total:cache.mtd_total||0):0;
+  const totBudget=Object.values(bmap).reduce((s,v)=>s+v,0);
+  const pct=totBudget>0?Math.round(periodTotal/totBudget*100):0;
+  // expected pace: MTD = selling days elapsed this month; YTD = fraction of year elapsed
+  const expPace = isY ? yearElapsed() : (sellingDays().total>0 ? sellingDays().done/sellingDays().total*100 : 0);
+  const pcls = pct >= expPace-2 ? "good" : pct >= expPace-10 ? "warn" : "bad";  // on/above pace = green
+  const byCat=cache?((isY?cache.ytd_by_category:cache.mtd_by_category)||{}):{};
+
+  const catRows=Object.entries(bmap).filter(([k])=>!EXCL.includes(k)&&bmap[k]>0)
+    .map(([cat,bud])=>{const a=Number(byCat[cat]||0);return{cat,bud,actual:a,pct:bud>0?Math.round(a/bud*100):0};})
+    .sort((a,b)=>b.bud-a.bud);
+
+  // category gaps from cat_last_purchase
+  const catLast=cache?(cache.cat_last_purchase||{}):{};
+  const catGaps=Object.entries(catLast).filter(([k])=>!EXCL.includes(k))
+    .map(([cat,d])=>({cat,d,ds:Math.round((today-new Date(d))/86400000)}))
+    .sort((a,b)=>b.ds-a.ds).slice(0,8);
+
+  const itemHist=cache?(cache.item_history||{}):{};
+  const replenish=Object.entries(itemHist).filter(([,v])=>v.item_class&&!EXCL.includes(v.item_class)&&Math.round((today-new Date(v.last_date))/86400000)>avgFreq*1.5)
+    .sort((a,b)=>new Date(a[1].last_date)-new Date(b[1].last_date)).slice(0,8);
+
+  const keyLast=cache?(cache.key_item_last||{}):{};
+  const keyOpp=(KEYSKUS||[]).map(sku=>{const lp=keyLast[sku.inventory_id]||null;const ds=lp?Math.round((today-new Date(lp))/86400000):null;return{sku,lp,ds,never:!lp};})
+    .filter(r=>r.never||r.ds>60).sort((a,b)=>(b.ds||99999)-(a.ds||99999)).slice(0,10);
+
+  const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
+  const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
+
+  c.innerHTML=`
+    <div class="detailhead">
+      <div class="detailnav">
+        <button class="backbtn" onclick="switchToCustList()">‹ Accounts</button>
+        <button class="backbtn homelink" onclick="switchTab('home')">⌂ Home</button>
+      </div>
+      <div class="dname">${esc(name)}</div>
+      <div class="dtags">${cache&&cache.segment?`<span class="dtag">${esc(cache.segment)}</span>`:""}${cache&&cache.area?`<span class="dtag">${esc(cache.area)}</span>`:""}${overdue?`<span class="dtag od">⚠ Overdue ${Math.abs(daysToNext)}d</span>`:""}</div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">Purchase timing</div>
+      <div class="timing">
+        <div><div class="tk">Last order</div><div class="tv">${lastOrder?fmtDate(lastOrder):"Never"}</div><div class="ts">${daysSince!==null?daysSince+"d ago":""}</div></div>
+        <div><div class="tk">Avg frequency</div><div class="tv">${avgFreq}d</div><div class="ts">between orders</div></div>
+        <div class="${(overdue||dueSoon)?'due':''}"><div class="tk">Next due</div><div class="tv" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--ink)'}">${dueTxt}</div><div class="ts" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--mut)'}">${dueSub}</div></div>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl" style="display:flex;justify-content:space-between;align-items:center">
+        <span>2026 Budget vs Actual</span>
+        <span class="ptoggle">
+          <button class="pbtn ${isY?'on':''}" onclick="setPeriod('YTD')">YTD</button>
+          <button class="pbtn ${!isY?'on':''}" onclick="setPeriod('MTD')">MTD</button>
+        </span>
+      </div>
+      <div class="herotop">
+        <div>
+          <div class="big" style="font-size:26px">${J(periodTotal)}</div>
+          <div class="sub">Target: <b>${J(totBudget)}</b>${isY?'':' <span class="prohint">· full month</span>'}</div>
+        </div>
+        <div class="pctwrap">
+          <div class="pctbig ${pcls}" style="font-size:30px">${pct}<span>%</span></div>
+          <div class="pctlbl">Achieved</div>
+          <div class="pcttgt">Should be at <b>${Math.round(expPace)}%</b></div>
+        </div>
+      </div>
+      <div class="bar"><span class="${pcls}" style="width:${Math.max(0,Math.min(pct,100))}%"></span><i class="barmark" style="left:${Math.min(expPace,100)}%"></i></div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">Budget by category · ${isY?'YTD':'MTD'}</div>
+      ${catRows.length?`<table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
+        ${catRows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+      </tbody></table>`:`<div class="empty" style="padding:16px">No category budget set.</div>`}
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl amber">Category gaps · longest since purchase</div>
+      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${g.cat}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl green">Replenishment due</div>
+      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${it.item_class} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl red">Key SKU opportunities</div>
+      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${r.sku.posting_class||""} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
+    </div>
+
+    <div class="foot">Figures in JMD · directional for GP.<br>Account data updated ${cache&&cache.refreshed_at?fmtDate(cache.refreshed_at):"daily"}</div>`;
+}
+function monthElapsed(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();return n.getDate()/d*100;}
+function yearElapsed(){const n=new Date();const s=new Date(n.getFullYear(),0,1);const e=new Date(n.getFullYear()+1,0,1);return (n-s)/(e-s)*100;}
+function sellingDays(){
+  const n=new Date(), y=n.getFullYear(), m=n.getMonth(), today=n.getDate();
+  const last=new Date(y,m+1,0).getDate();
+  let total=0, done=0;
+  for(let d=1; d<=last; d++){
+    const wd=new Date(y,m,d).getDay();     // 0=Sun,6=Sat
+    if(wd!==0 && wd!==6){ total++; if(d<=today) done++; }
+  }
+  return {total, done, left: total-done};
+}
+function lastRefresh(){const r=CUST[0]&&CUST[0].refreshed_at;if(!r)return"just now";const d=new Date(r);return d.toLocaleString("en-JM",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"});}
+function fmtDate(s){const d=new Date(s);return d.toLocaleDateString("en-JM",{day:"numeric",month:"short"});}
+function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+</script>
 </body>
 </html>
