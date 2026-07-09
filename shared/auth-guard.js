@@ -62,7 +62,7 @@
   // the iframe to login.html and leaving the embed blank. So when
   // framed, reveal immediately and let the embedded page's own code run.
   if (window.self !== window.top) {
-    document.body.style.visibility = 'visible';
+    revealPage();
     return;
   }
 
@@ -81,7 +81,15 @@
   }
 
   function revealPage() {
-    document.body.style.visibility = 'visible';
+    // Scripts loaded from <head> can run before <body> exists, so
+    // document.body may be null here. If so, wait for it to parse.
+    if (document.body) {
+      document.body.style.visibility = 'visible';
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        document.body.style.visibility = 'visible';
+      });
+    }
   }
 
   // ---- 1. Is there a session at all? ----
