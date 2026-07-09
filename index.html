@@ -337,7 +337,8 @@ function switchTab(t){
   });
   if(t==="plan" && !planLoaded){
     const who = VIEWAS || REP;
-    if(who){ document.getElementById("planframe").src="rep-weekly-plan.html?rep="+encodeURIComponent(who.name); planLoaded=true; }
+    document.getElementById("planframe").src = "rep-weekly-plan.html" + (who ? "?rep="+encodeURIComponent(who.name) : "");
+    planLoaded=true;
   }
   window.scrollTo(0,0);
 }
