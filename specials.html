@@ -7,6 +7,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Specials & Flyers — DFL Staff Portal</title>
+<script>
+  // Loaded inside the app's iframe? Then let the shell own the navigation.
+  if (window.self !== window.top) document.documentElement.classList.add('embedded');
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -21,6 +25,12 @@
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* When shown inside the app shell (iframe), hide this page's own chrome */
+.embedded nav,
+.embedded .nav-mobile-menu,
+.embedded .page-header,
+.embedded .btn-upload { display: none !important; }
 
   /* ── NAV ── */
   nav {

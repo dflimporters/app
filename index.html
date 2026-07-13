@@ -186,6 +186,22 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
   border-radius:50%;animation:sp .7s linear infinite;margin:60px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---- More / launcher tab ---- */
+#tab-more{padding-bottom:0}                 /* iframe manages its own height; no tab-bar gap */
+.launch-wrap{padding:14px 14px calc(80px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.launch-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}  /* two equal columns */
+.launch-card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px 16px;box-shadow:var(--shadow);cursor:pointer;text-align:left;
+  display:flex;flex-direction:column;gap:8px;font-family:'Open Sans';
+  transition:transform .08s,box-shadow .12s}
+.launch-card:active{transform:scale(.97)}   /* slight press-in on tap = tactile feedback */
+.launch-ico{font-size:26px;line-height:1}
+.launch-title{font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--ink)}
+.launch-sub{font-size:12px;color:var(--mut);line-height:1.4}
+#moreframe{width:100%;border:0;display:block;
+  height:calc(100vh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height:calc(100dvh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -249,6 +265,37 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
     <div class="wrap" id="admincontent"><div class="spin"></div></div>
   </div>
 
+  <div id="tab-more" class="tabview hidden">
+    <!-- Launcher grid -->
+    <div id="moreLauncher">
+      <header>
+        <div class="hrow">
+          <div>
+            <div class="hi">DFL Staff Portal</div>
+            <div class="hname">More</div>
+          </div>
+          <button class="logout" onclick="logout()">Sign out</button>
+        </div>
+      </header>
+      <div class="launch-wrap"><div class="launch-grid" id="launchGrid"></div></div>
+    </div>
+
+    <!-- Embedded page (shown when a card is tapped) -->
+    <div id="moreFrame" class="hidden">
+      <header class="planhdr">
+        <div class="hrow">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="homebtn" onclick="closeMorePage()" aria-label="Back to menu">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div><div class="hname" id="moreFrameTitle" style="font-size:18px">Page</div></div>
+          </div>
+        </div>
+      </header>
+      <iframe id="moreframe" title="Portal page"></iframe>
+    </div>
+  </div>
+
   <nav class="tabbar">
     <button class="tabbtn on" id="nav-home" onclick="switchTab('home')">
       <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
@@ -265,6 +312,10 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
     <button class="tabbtn" id="nav-admin" onclick="goAdmin()" style="display:none">
       <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Admin</span>
+    </button>
+    <button class="tabbtn" id="nav-more" onclick="goMore()">
+      <svg viewBox="0 0 24 24" width="22" height="22"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+      <span>More</span>
     </button>
   </nav>
 </div>
@@ -297,6 +348,7 @@ async function initApp(profile){
   // Portal-level role (admin/manager) drives the in-app Admin/Team tab —
   // one source of truth, instead of a separate role field on `reps`.
   const isAdmin = profile.role==="admin" || profile.role==="manager";
+  IS_MANAGER = isAdmin;
   document.getElementById("nav-admin").style.display=isAdmin?"":"none";
 
   // `profiles` doesn't carry the canonical `name`/`area` that the cache
@@ -330,7 +382,7 @@ async function initApp(profile){
 /* ---------- App ---------- */
 let REP=null, planLoaded=false;
 function switchTab(t){
-  ["home","custs","plan","admin"].forEach(k=>{
+  ["home","custs","plan","admin","more"].forEach(k=>{
     const nav=document.getElementById("nav-"+k), view=document.getElementById("tab-"+k);
     if(nav) nav.classList.toggle("on", k===t);
     if(view) view.classList.toggle("hidden", k!==t);
@@ -449,6 +501,51 @@ function exitViewAs(){
 function goCusts(){        // Customers nav button: always land on the account list
   switchTab('custs');
   renderCustList();
+}
+
+/* ---------- More / launcher ---------- */
+let IS_MANAGER = false, moreBuilt = false;
+
+// The page list. Add future pages here — set managerOnly:true to hide from reps.
+const MORE_PAGES = [
+  { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
+  { key:'specials-upload', title:'Upload Specials', sub:'Add & manage deals and flyers', icon:'📤', src:'specials-upload.html', managerOnly:true, topLevel:true },
+  // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
+];
+
+function goMore(){ switchTab('more'); showMoreLauncher(); }
+
+function buildMoreLauncher(){
+  const pages = MORE_PAGES.filter(p => !p.managerOnly || IS_MANAGER);
+  document.getElementById('launchGrid').innerHTML = pages.map(p => `
+    <button class="launch-card" onclick="openMorePage('${p.key}')">
+      <span class="launch-ico">${p.icon}</span>
+      <span class="launch-title">${p.title}</span>
+      <span class="launch-sub">${p.sub}</span>
+    </button>`).join('');
+  moreBuilt = true;
+}
+
+function showMoreLauncher(){
+  if(!moreBuilt) buildMoreLauncher();
+  document.getElementById('moreFrame').classList.add('hidden');
+  document.getElementById('moreLauncher').classList.remove('hidden');
+}
+
+function openMorePage(key){
+  const p = MORE_PAGES.find(x => x.key === key);
+  if(!p) return;
+  if(p.topLevel){ window.location.href = p.src; return; }   // full-page nav for authed action pages
+  document.getElementById('moreFrameTitle').textContent = p.title;
+  document.getElementById('moreframe').src = p.src;
+  document.getElementById('moreLauncher').classList.add('hidden');
+  document.getElementById('moreFrame').classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
+function closeMorePage(){
+  document.getElementById('moreFrame').classList.add('hidden');
+  document.getElementById('moreLauncher').classList.remove('hidden');
 }
 
 let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null;
