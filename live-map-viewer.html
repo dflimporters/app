@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Live Tracking — Test Viewer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --navy: #0f2044;
+    --blue: #2563eb;
+    --green: #16a34a;
+    --gray: #64748b;
+    --bg: #f5f7fb;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+  body { display: flex; flex-direction: column; background: var(--bg); }
+
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 { margin: 0; font-size: 16px; font-weight: 700; }
+  header p { margin: 2px 0 0; font-size: 11px; color: #a8b6d6; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .controls input {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    width: 160px;
+  }
+  .controls button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--blue);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #layout {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  #map { flex: 1; }
+
+  #sidebar {
+    width: 260px;
+    background: white;
+    border-left: 1px solid #e4e9f1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .connection {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gray);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gray); }
+  .dot.live { background: var(--green); }
+
+  .stat-card {
+    background: var(--bg);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat-card .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray);
+    font-weight: 700;
+  }
+  .stat-card .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #events {
+    flex: 1;
+    font-size: 11px;
+    color: var(--gray);
+    font-family: 'SF Mono', Consolas, monospace;
+    line-height: 1.6;
+    overflow-y: auto;
+  }
+
+  @media (max-width: 720px) {
+    #layout { flex-direction: column; }
+    #sidebar { width: 100%; border-left: none; border-top: 1px solid #e4e9f1; max-height: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>DFL Live Tracking — Test Viewer</h1>
+    <p>Realtime feed from location_test_pings</p>
+  </div>
+  <div class="controls">
+    <input id="deviceFilter" type="text" placeholder="Device ID (e.g. driver-test-1)" value="driver-test-1">
+    <button id="loadBtn">Track</button>
+  </div>
+</header>
+
+<div id="layout">
+  <div id="map"></div>
+  <div id="sidebar">
+    <div class="connection"><div class="dot" id="connDot"></div><span id="connText">Connecting…</span></div>
+
+    <div class="stat-card">
+      <div class="label">Last ping</div>
+      <div class="value" id="lastPing">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Accuracy</div>
+      <div class="value" id="accuracy">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Speed</div>
+      <div class="value" id="speed">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total pings (this session)</div>
+      <div class="value" id="pingCount">0</div>
+    </div>
+
+    <div id="events">Waiting for data…</div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Centered roughly on Kingston, Jamaica by default
+  const map = L.map('map').setView([17.9970, -76.7936], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  let marker = null;
+  let accuracyCircle = null;
+  let trail = L.polyline([], { color: '#2563eb', weight: 3, opacity: 0.7 }).addTo(map);
+  let channel = null;
+  let currentDevice = null;
+  let pingCount = 0;
+  let hasFramed = false;
+
+  const connDot = document.getElementById('connDot');
+  const connText = document.getElementById('connText');
+  const lastPingEl = document.getElementById('lastPing');
+  const accuracyEl = document.getElementById('accuracy');
+  const speedEl = document.getElementById('speed');
+  const pingCountEl = document.getElementById('pingCount');
+  const eventsEl = document.getElementById('events');
+
+  function logEvent(msg) {
+    const time = new Date().toLocaleTimeString();
+    eventsEl.innerHTML = `[${time}] ${msg}<br>` + eventsEl.innerHTML;
+  }
+
+  function setConnected(isLive, text) {
+    connDot.className = 'dot' + (isLive ? ' live' : '');
+    connText.textContent = text;
+  }
+
+  function applyPing(row) {
+    const latlng = [row.lat, row.lng];
+
+    if (!marker) {
+      marker = L.marker(latlng).addTo(map);
+    } else {
+      marker.setLatLng(latlng);
+    }
+
+    if (row.accuracy_m) {
+      if (!accuracyCircle) {
+        accuracyCircle = L.circle(latlng, { radius: row.accuracy_m, color: '#2563eb', fillOpacity: 0.08, weight: 1 }).addTo(map);
+      } else {
+        accuracyCircle.setLatLng(latlng);
+        accuracyCircle.setRadius(row.accuracy_m);
+      }
+    }
+
+    trail.addLatLng(latlng);
+
+    if (!hasFramed) {
+      map.setView(latlng, 16);
+      hasFramed = true;
+    } else {
+      map.panTo(latlng);
+    }
+
+    pingCount++;
+    pingCountEl.textContent = pingCount;
+    lastPingEl.textContent = new Date(row.recorded_at).toLocaleTimeString();
+    accuracyEl.textContent = row.accuracy_m ? `±${Math.round(row.accuracy_m)} m` : '—';
+    speedEl.textContent = row.speed_mps != null ? `${(row.speed_mps * 3.6).toFixed(1)} km/h` : 'n/a';
+    logEvent(`Ping: ${row.lat.toFixed(6)}, ${row.lng.toFixed(6)} (±${Math.round(row.accuracy_m || 0)}m)`);
+  }
+
+  async function loadHistory(deviceId) {
+    const { data, error } = await client
+      .from('location_test_pings')
+      .select('*')
+      .eq('device_id', deviceId)
+      .order('recorded_at', { ascending: true })
+      .limit(200);
+
+    if (error) {
+      logEvent(`ERROR loading history: ${error.message}`);
+      return;
+    }
+
+    trail.setLatLngs([]);
+    marker = null;
+    accuracyCircle = null;
+    hasFramed = false;
+    pingCount = 0;
+
+    data.forEach(applyPing);
+    logEvent(`Loaded ${data.length} historical pings for "${deviceId}"`);
+  }
+
+  function subscribe(deviceId) {
+    if (channel) {
+      client.removeChannel(channel);
+    }
+
+    setConnected(false, 'Connecting…');
+
+    channel = client
+      .channel(`location-${deviceId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'location_test_pings',
+        filter: `device_id=eq.${deviceId}`
+      }, (payload) => {
+        applyPing(payload.new);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setConnected(true, 'Live');
+          logEvent('Realtime channel connected.');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setConnected(false, 'Connection error');
+          logEvent(`Realtime status: ${status}`);
+        }
+      });
+  }
+
+  function track(deviceId) {
+    currentDevice = deviceId;
+    loadHistory(deviceId);
+    subscribe(deviceId);
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', () => {
+    const deviceId = document.getElementById('deviceFilter').value.trim();
+    if (deviceId) track(deviceId);
+  });
+
+  // Auto-start tracking the default device ID
+  track(document.getElementById('deviceFilter').value.trim());
+</script>
+</body>
+</html>

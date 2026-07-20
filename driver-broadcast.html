@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DFL Driver Broadcast — Test</title>
+<style>
+  :root {
+    --navy: #0f2044;
+    --blue: #2563eb;
+    --blue-light: #dbeafe;
+    --green: #16a34a;
+    --red: #dc2626;
+    --gray: #64748b;
+    --bg: #f5f7fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--navy);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 20px 20px 16px;
+    text-align: center;
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #a8b6d6; }
+  main {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .field input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d6dce6;
+    border-radius: 10px;
+    font-size: 15px;
+    background: white;
+  }
+  .field input:disabled { background: #eef1f6; color: var(--gray); }
+  button {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  button:active { transform: scale(0.98); }
+  #startBtn { background: var(--blue); color: white; }
+  #stopBtn { background: var(--red); color: white; display: none; }
+  #stopBtn.visible { display: block; }
+  #startBtn.hidden { display: none; }
+
+  .status-card {
+    background: white;
+    border-radius: 14px;
+    padding: 18px;
+    border: 1px solid #e4e9f1;
+  }
+  .status-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--gray);
+  }
+  .dot.live { background: var(--green); animation: pulse 1.4s infinite; }
+  .dot.error { background: var(--red); }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(22,163,74,0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+    100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+  }
+  .status-header span { font-size: 13px; font-weight: 700; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f2f6;
+    font-size: 14px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .label { color: var(--gray); }
+  .stat-row .value { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  #log {
+    background: white;
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 1px solid #e4e9f1;
+    font-size: 12px;
+    color: var(--gray);
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: 'SF Mono', Consolas, monospace;
+    line-height: 1.6;
+  }
+  .warn-banner {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DFL Driver Broadcast</h1>
+  <p>Live tracking feasibility test — foreground only</p>
+</header>
+
+<main>
+  <div class="warn-banner">
+    Keep this tab open and the screen on. This test does not track in the background —
+    that's exactly the limitation we're checking for.
+  </div>
+
+  <div class="field">
+    <label for="deviceId">Device / Driver ID</label>
+    <input id="deviceId" type="text" value="driver-test-1">
+  </div>
+
+  <button id="startBtn">Start Broadcasting</button>
+  <button id="stopBtn">Stop Broadcasting</button>
+
+  <div class="status-card">
+    <div class="status-header">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Not started</span>
+    </div>
+    <div class="stat-row"><span class="label">Last ping sent</span><span class="value" id="lastPing">—</span></div>
+    <div class="stat-row"><span class="label">Coordinates</span><span class="value" id="coords">—</span></div>
+    <div class="stat-row"><span class="label">Accuracy</span><span class="value" id="accuracy">—</span></div>
+    <div class="stat-row"><span class="label">Speed</span><span class="value" id="speed">—</span></div>
+    <div class="stat-row"><span class="label">Pings sent</span><span class="value" id="count">0</span></div>
+  </div>
+
+  <div id="log">Waiting to start…</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const deviceIdInput = document.getElementById('deviceId');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const lastPingEl = document.getElementById('lastPing');
+  const coordsEl = document.getElementById('coords');
+  const accuracyEl = document.getElementById('accuracy');
+  const speedEl = document.getElementById('speed');
+  const countEl = document.getElementById('count');
+  const logEl = document.getElementById('log');
+
+  let watchId = null;
+  let sendTimer = null;
+  let latestPosition = null;
+  let sentCount = 0;
+
+  function log(msg) {
+    const time = new Date().toLocaleTimeString();
+    logEl.innerHTML = `[${time}] ${msg}<br>` + logEl.innerHTML;
+  }
+
+  function setStatus(state, text) {
+    statusDot.className = 'dot' + (state ? ' ' + state : '');
+    statusText.textContent = text;
+  }
+
+  async function sendPing() {
+    if (!latestPosition) return;
+    const { coords } = latestPosition;
+    const deviceId = deviceIdInput.value.trim() || 'unknown-device';
+
+    const row = {
+      device_id: deviceId,
+      lat: coords.latitude,
+      lng: coords.longitude,
+      accuracy_m: coords.accuracy,
+      speed_mps: coords.speed,
+      heading_deg: coords.heading,
+      recorded_at: new Date().toISOString()
+    };
+
+    const { error } = await client.from('location_test_pings').insert(row);
+
+    if (error) {
+      setStatus('error', 'Send failed');
+      log(`ERROR sending ping: ${error.message}`);
+      return;
+    }
+
+    sentCount++;
+    countEl.textContent = sentCount;
+    lastPingEl.textContent = new Date().toLocaleTimeString();
+    coordsEl.textContent = `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`;
+    accuracyEl.textContent = `±${Math.round(coords.accuracy)} m`;
+    speedEl.textContent = coords.speed != null ? `${(coords.speed * 3.6).toFixed(1)} km/h` : 'n/a';
+    setStatus('live', 'Broadcasting');
+    log(`Ping sent (accuracy ±${Math.round(coords.accuracy)}m)`);
+  }
+
+  function start() {
+    if (!('geolocation' in navigator)) {
+      setStatus('error', 'Geolocation not supported');
+      log('This browser does not support geolocation.');
+      return;
+    }
+
+    setStatus(null, 'Requesting permission…');
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => { latestPosition = pos; },
+      (err) => {
+        setStatus('error', 'Location error');
+        log(`Geolocation error: ${err.message}`);
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+
+    sendTimer = setInterval(sendPing, 5000);
+
+    startBtn.classList.add('hidden');
+    stopBtn.classList.add('visible');
+    deviceIdInput.disabled = true;
+    log('Started. Waiting for first GPS fix…');
+  }
+
+  function stop() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if (sendTimer !== null) clearInterval(sendTimer);
+    watchId = null;
+    sendTimer = null;
+    setStatus(null, 'Stopped');
+    startBtn.classList.remove('hidden');
+    stopBtn.classList.remove('visible');
+    deviceIdInput.disabled = false;
+    log('Stopped broadcasting.');
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && watchId !== null) {
+      log('Tab backgrounded — updates may pause or slow here (this is the thing we\'re testing).');
+    }
+  });
+</script>
+</body>
+</html>
