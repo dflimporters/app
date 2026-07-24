@@ -8,6 +8,7 @@
 //      No session  -> redirect to login.html
 //   2. Looks up that user's `profiles` row (role, name, etc).
 //      No profile  -> not provisioned -> sign out, back to login.html
+//      'pending'   -> awaiting admin approval -> pending.html (keeps session)
 //      Inactive    -> same treatment as not provisioned
 //   3. Checks the profile's role against this page's allow-list.
 //      Not allowed -> redirect away from this page
@@ -43,8 +44,13 @@
 // salesperson_id once we get to stripping out the PIN login):
 //
 //     document.addEventListener('dfl-auth-ready', (e) => {
-//       console.log(e.detail.profile); // { id, full_name, role, salesperson_id, active }
+//       console.log(e.detail.profile);
+//       // { id, full_name, role, salesperson_id, rep_id, active }
 //     });
+//
+// `rep_id` is the FK to this person's reps roster row — use it to look up
+// their name/initials/area/team_lead_id. It can be null (e.g. an admin
+// added via admin_emails with no roster row), so guard against that.
 //
 // STEP 4 — Wire any "Log out" link/button to the global logout()
 // function this file defines:
@@ -67,6 +73,7 @@
   }
 
   const LOGIN_PAGE = '/login.html';
+  const PENDING_PAGE = '/pending.html';
 
   // Where to send someone whose ROLE isn't allowed on this specific
   // page (they ARE logged in, just not permitted here). For now,
@@ -105,7 +112,7 @@
   // ---- 2. Look up this user's profile row ----
   const { data: profile, error: profileError } = await sb
     .from('profiles')
-    .select('id, full_name, role, salesperson_id, active')
+    .select('id, full_name, role, salesperson_id, rep_id, active')
     .eq('id', user.id)
     .single();
 
@@ -116,8 +123,20 @@
     return;
   }
 
-  // Deactivated staff member — treat the same as not provisioned.
-  if (profile.active === false) {
+  // ---- 2b. Awaiting admin approval ----
+  // This MUST come before the active check below: a pending profile is
+  // deliberately active = false, so the inactive branch would otherwise
+  // sign them straight out instead of letting them reach the holding page.
+  // They keep their session so /pending.html can read their profile and
+  // let them submit their name.
+  if (profile.role === 'pending') {
+    // Already on the holding page — fall through so it can render.
+    if (window.location.pathname !== PENDING_PAGE) {
+      window.location.href = PENDING_PAGE;
+      return;
+    }
+  } else if (profile.active === false) {
+    // Deactivated staff member — treat the same as not provisioned.
     await sb.auth.signOut();
     goToLogin('inactive');
     return;
