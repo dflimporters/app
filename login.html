@@ -180,6 +180,13 @@
 <script>
   // Where each role lands after signing in. Reps and merchandisers go
   // straight to their own app; admins and managers get the hub.
+  //
+  // NOTE: /merch.html does not exist yet — it arrives with the merch app
+  // migration. This is NOT an oversight; it's unreachable by sequencing.
+  // A self-signup lands on /pending.html, and a user only gets routed to
+  // /merch.html once an admin approves them AS a merchandiser or team
+  // leader — which won't happen until the merch app ships. There are
+  // currently zero merchandiser/team_leader profiles.
   const ROLE_LANDING = {
     rep:           '/index.html',
     merchandiser:  '/merch.html',
