@@ -1,0 +1,23 @@
+{
+  "name": "DFL Field App — Merchandising",
+  "short_name": "DFL Merch",
+  "description": "DFL Importers merchandiser field app",
+  "start_url": "https://dflhq.com/merch.html",
+  "scope": "https://dflhq.com/",
+  "display": "standalone",
+  "background_color": "#1B2B5E",
+  "theme_color": "#1B2B5E",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

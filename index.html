@@ -215,7 +215,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
           <div class="hi" id="hgreet">Welcome back</div>
           <div class="hname" id="hname">—</div>
         </div>
-        <button class="logout" onclick="logout()">Sign out</button>
+        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
       </div>
     </header>
     <div class="wrap" id="content"><div class="spin"></div></div>
@@ -259,7 +259,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
           <div class="hi">Team Overview</div>
           <div class="hname" id="adminhdr">Admin</div>
         </div>
-        <button class="logout" onclick="logout()">Sign out</button>
+        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
       </div>
     </header>
     <div class="wrap" id="admincontent"><div class="spin"></div></div>
@@ -274,7 +274,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
             <div class="hi">DFL Staff Portal</div>
             <div class="hname">More</div>
           </div>
-          <button class="logout" onclick="logout()">Sign out</button>
+          <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
         </div>
       </header>
       <div class="launch-wrap"><div class="launch-grid" id="launchGrid"></div></div>
@@ -320,10 +320,14 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
   </nav>
 </div>
 
-<script>window.PAGE_ALLOWED_ROLES = ['admin', 'manager', 'rep']; // everyone allowed on this page for now</script>
+<script>
+  window.PAGE_ALLOWED_ROLES = ['admin', 'manager', 'rep']; // everyone allowed on this page for now
+  window.DFL_SECTION = 'sales';   // highlights the right side of the switcher
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/section-switcher.js"></script>
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";

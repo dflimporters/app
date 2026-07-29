@@ -56,6 +56,51 @@
     margin-top:24px; font-size:11px; color:var(--text-muted);
   }
 
+  /* --- divider between the Microsoft and phone sign-in paths --- */
+  .or-divider {
+    display:flex; align-items:center; gap:12px;
+    margin:22px 0; color:var(--text-muted); font-size:11px;
+    text-transform:uppercase; letter-spacing:0.5px; font-weight:600;
+  }
+  .or-divider::before, .or-divider::after {
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+
+  .field { text-align:left; margin-bottom:14px; }
+  .field label {
+    display:block; font-size:12px; font-weight:600;
+    color:var(--text-muted); margin-bottom:6px;
+  }
+  .field input {
+    width:100%; padding:12px 14px;
+    border:1px solid var(--border); border-radius:8px;
+    /* 16px minimum: iOS Safari zooms the whole page when focusing an
+       input smaller than this, which is jarring on a phone. */
+    font-size:16px; font-family:'Inter',sans-serif; color:var(--text);
+    background:var(--surface);
+  }
+  .field input:focus { outline:none; border-color:var(--accent); }
+  .field-hint { font-size:11px; color:var(--text-muted); margin-top:5px; }
+
+  .btn-phone {
+    width:100%; padding:12px 16px;
+    background:var(--accent); color:#fff;
+    border:none; border-radius:8px;
+    font-size:14px; font-weight:600; font-family:'Inter',sans-serif;
+    cursor:pointer; transition:background 0.15s;
+  }
+  .btn-phone:hover { background:#1d4ed8; }
+  .btn-phone:disabled { opacity:0.6; cursor:not-allowed; }
+
+  .toggle-line {
+    margin-top:14px; font-size:12px; color:var(--text-muted);
+  }
+  .toggle-line button {
+    background:none; border:none; padding:0;
+    color:var(--accent); font-size:12px; font-weight:600;
+    font-family:'Inter',sans-serif; cursor:pointer; text-decoration:underline;
+  }
+
   .spin {
     width:22px; height:22px; border:2px solid var(--border);
     border-top-color:var(--accent); border-radius:50%;
@@ -97,6 +142,34 @@
       Sign in with Microsoft
     </button>
 
+    <div class="or-divider">or</div>
+
+    <!-- Phone + password path, for field staff without a DFL email account. -->
+    <div class="field">
+      <label for="phoneInput">Phone number</label>
+      <input type="tel" id="phoneInput" placeholder="876 555 1234"
+             autocomplete="tel" inputmode="tel">
+      <div class="field-hint">Jamaican mobile number</div>
+    </div>
+
+    <div class="field">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" placeholder="••••••••"
+             autocomplete="current-password">
+      <div class="field-hint" id="passwordHint" style="display:none;">
+        At least 8 characters
+      </div>
+    </div>
+
+    <button class="btn-phone" id="phoneBtn" onclick="submitPhoneAuth()">
+      Sign in
+    </button>
+
+    <div class="toggle-line" id="toggleLine">
+      Don't have an account yet?
+      <button type="button" onclick="setPhoneMode('signup')">Sign up</button>
+    </div>
+
     <div class="login-footer">DFL Importers — Staff Portal</div>
   </div>
 
@@ -105,53 +178,187 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script>
-  // Where to land after a successful login, if no ?redirect= param
-  // was passed in. Everyone lands on the rep app for now.
+  // Where each role lands after signing in. Reps and merchandisers go
+  // straight to their own app; admins and managers get the hub, which has
+  // cards into both apps plus the management tools.
+  //
+  // `warehouse` has no app of its own yet, so it falls back to the rep app.
+  const ROLE_LANDING = {
+    rep:           '/index.html',
+    merchandiser:  '/merch.html',
+    team_leader:   '/merch.html',
+    manager:       '/hub.html',
+    admin:         '/hub.html',
+    warehouse:     '/index.html',
+    pending:       '/pending.html'
+  };
+
+  // Fallback if a role somehow isn't in the table above.
   const DEFAULT_LANDING = '/index.html';
 
   const params = new URLSearchParams(window.location.search);
-  const redirectTarget = params.get('redirect') || DEFAULT_LANDING;
+  // An explicit ?redirect= (set by auth-guard when it bounces someone off a
+  // page they wanted) wins over role-based landing.
+  const explicitRedirect = params.get('redirect');
   const reason = params.get('reason');
 
   const checkingState = document.getElementById('checkingState');
   const signedOutState = document.getElementById('signedOutState');
   const loginMessage = document.getElementById('loginMessage');
   const msSignInBtn = document.getElementById('msSignInBtn');
+  const phoneInput = document.getElementById('phoneInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const passwordHint = document.getElementById('passwordHint');
+  const phoneBtn = document.getElementById('phoneBtn');
+  const toggleLine = document.getElementById('toggleLine');
+
+  // 'signin' or 'signup' — which phone action the button performs.
+  let phoneMode = 'signin';
+
+  function showMessage(text, kind) {
+    loginMessage.textContent = text;
+    loginMessage.className = 'login-message ' + kind + ' show';
+  }
 
   // Show a message explaining why the person landed back here, if any.
   function showReasonMessage() {
     if (reason === 'not-provisioned') {
-      loginMessage.textContent = "Your account isn't set up for portal access yet. Please contact an admin.";
-      loginMessage.className = 'login-message error show';
+      showMessage("Your account isn't set up for portal access yet. Please contact an admin.", 'error');
     } else if (reason === 'inactive') {
-      loginMessage.textContent = 'Your account has been deactivated. Please contact an admin.';
-      loginMessage.className = 'login-message error show';
+      showMessage('Your account has been deactivated. Please contact an admin.', 'error');
     }
   }
 
-  function goToDestination() {
-    window.location.href = redirectTarget;
+  function showSignedOut() {
+    checkingState.style.display = 'none';
+    signedOutState.style.display = 'block';
   }
 
-  // After we have a confirmed session, look up the profile.
+  // After we have a confirmed session, look up the profile and send them
+  // to the right app for their role.
   // Same "no profile = not provisioned" rule as auth-guard.js.
   async function handleSignedIn(user) {
     const { data: profile, error } = await sb
       .from('profiles')
-      .select('id, active')
+      .select('id, role, active')
       .eq('id', user.id)
       .single();
 
-    if (error || !profile || profile.active === false) {
+    if (error || !profile) {
       await sb.auth.signOut();
-      checkingState.style.display = 'none';
-      signedOutState.style.display = 'block';
-      loginMessage.textContent = "Your account isn't set up for portal access yet. Please contact an admin.";
-      loginMessage.className = 'login-message error show';
+      showSignedOut();
+      showMessage("Your account isn't set up for portal access yet. Please contact an admin.", 'error');
       return;
     }
 
-    goToDestination();
+    // Pending users are deliberately active = false and must NOT be signed
+    // out — they need their session to set their name on the holding page.
+    // So this check has to come before the active check below.
+    if (profile.role === 'pending') {
+      window.location.href = ROLE_LANDING.pending;
+      return;
+    }
+
+    if (profile.active === false) {
+      await sb.auth.signOut();
+      showSignedOut();
+      showMessage('Your account has been deactivated. Please contact an admin.', 'error');
+      return;
+    }
+
+    window.location.href =
+      explicitRedirect || ROLE_LANDING[profile.role] || DEFAULT_LANDING;
+  }
+
+  // ------------------------------------------------------------
+  // Phone + password
+  // ------------------------------------------------------------
+
+  // Mirror of the normalize_jm_phone() SQL function. Both sides must agree
+  // or the trigger's roster lookup silently misses. Jamaica is +1876/+1658;
+  // returns null when the number can't be resolved without guessing.
+  function normalizePhone(raw) {
+    const digits = (raw || '').replace(/\D/g, '');
+    if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;
+    if (digits.length === 10) return '+1' + digits;
+    return null;
+  }
+
+  function setPhoneMode(mode) {
+    phoneMode = mode;
+
+    if (mode === 'signup') {
+      phoneBtn.textContent = 'Create account';
+      passwordInput.setAttribute('autocomplete', 'new-password');
+      passwordHint.style.display = 'block';
+      toggleLine.innerHTML =
+        'Already have an account? ' +
+        '<button type="button" onclick="setPhoneMode(\'signin\')">Sign in</button>';
+    } else {
+      phoneBtn.textContent = 'Sign in';
+      passwordInput.setAttribute('autocomplete', 'current-password');
+      passwordHint.style.display = 'none';
+      toggleLine.innerHTML =
+        "Don't have an account yet? " +
+        '<button type="button" onclick="setPhoneMode(\'signup\')">Sign up</button>';
+    }
+
+    loginMessage.className = 'login-message';
+  }
+
+  async function submitPhoneAuth() {
+    const phone = normalizePhone(phoneInput.value);
+    const password = passwordInput.value;
+
+    if (!phone) {
+      showMessage('Enter a valid Jamaican phone number, e.g. 876 555 1234.', 'error');
+      return;
+    }
+
+    if (!password) {
+      showMessage('Please enter your password.', 'error');
+      return;
+    }
+
+    if (phoneMode === 'signup' && password.length < 8) {
+      showMessage('Your password must be at least 8 characters.', 'error');
+      return;
+    }
+
+    const originalLabel = phoneBtn.textContent;
+    phoneBtn.disabled = true;
+    phoneBtn.textContent = phoneMode === 'signup' ? 'Creating account…' : 'Signing in…';
+
+    const { data, error } = phoneMode === 'signup'
+      ? await sb.auth.signUp({ phone, password })
+      : await sb.auth.signInWithPassword({ phone, password });
+
+    if (error) {
+      phoneBtn.disabled = false;
+      phoneBtn.textContent = originalLabel;
+
+      if (phoneMode === 'signup' && /already registered|already exists/i.test(error.message)) {
+        showMessage('That number already has an account. Try signing in instead.', 'error');
+      } else if (phoneMode === 'signin' && /invalid login credentials/i.test(error.message)) {
+        showMessage('That phone number or password is incorrect.', 'error');
+      } else {
+        showMessage(error.message || 'Something went wrong. Please try again.', 'error');
+      }
+      return;
+    }
+
+    // Phone confirmations are disabled, so a successful signup returns a
+    // session straight away and the on_auth_user_created trigger has already
+    // created the profile (pending, if no roster row matched this number).
+    if (data && data.session) {
+      await handleSignedIn(data.session.user);
+      return;
+    }
+
+    phoneBtn.disabled = false;
+    phoneBtn.textContent = originalLabel;
+    showMessage('Account created. You can now sign in.', 'info');
+    setPhoneMode('signin');
   }
 
   async function signInWithMicrosoft() {
@@ -169,8 +376,7 @@
     if (error) {
       msSignInBtn.disabled = false;
       msSignInBtn.textContent = 'Sign in with Microsoft';
-      loginMessage.textContent = 'Something went wrong starting sign-in. Please try again.';
-      loginMessage.className = 'login-message error show';
+      showMessage('Something went wrong starting sign-in. Please try again.', 'error');
     }
     // On success, the browser navigates away to Microsoft — nothing
     // else to do here. It comes back to this same page afterward.
@@ -190,8 +396,7 @@
     if (data && data.session) {
       await handleSignedIn(data.session.user);
     } else {
-      checkingState.style.display = 'none';
-      signedOutState.style.display = 'block';
+      showSignedOut();
       showReasonMessage();
     }
   }

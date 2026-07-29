@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Approvals — DFL Staff Portal</title>
+
+<!-- Hide until the guard confirms an admin. First style rule, so there's no
+     flash of the pending-user list. -->
+<style>body { visibility: hidden; }</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --green:#16a34a; --green-bg:#f0fdf4; --green-border:#bbf7d0;
+    --red:#dc2626; --red-bg:#fef2f2;
+    --gold:#fbbf24; --gold-bg:#fffbeb; --gold-border:#fde68a;
+    --shadow:0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── NAV (matches hub.html) ── */
+  nav {
+    background:var(--navy); height:56px; display:flex; align-items:center;
+    justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:10;
+  }
+  .nav-left { display:flex; align-items:center; gap:14px; }
+  .nav-logo { height:22px; width:auto; display:block; }
+  .nav-divider { width:1px; height:20px; background:rgba(255,255,255,0.2); }
+  .nav-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.2px; }
+  .nav-links { display:flex; align-items:center; gap:4px; }
+  .nav-links a {
+    color:rgba(255,255,255,0.7); text-decoration:none; font-size:12px;
+    font-weight:500; padding:6px 12px; border-radius:6px;
+  }
+  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.14); }
+  .nav-signout {
+    font-size:11px; font-weight:600; color:rgba(255,255,255,0.6);
+    background:none; border:1px solid rgba(255,255,255,0.2);
+    border-radius:5px; padding:5px 10px; cursor:pointer;
+    font-family:'Inter',sans-serif; margin-left:10px;
+  }
+  .nav-signout:hover { color:#fff; border-color:rgba(255,255,255,0.45); }
+
+  /* ── PAGE ── */
+  .page { max-width:860px; margin:0 auto; padding:32px; }
+  .page-head { margin-bottom:24px; }
+  .page-title { font-size:22px; font-weight:700; letter-spacing:-0.3px; }
+  .page-sub { font-size:13px; color:var(--text-muted); margin-top:5px; line-height:1.6; }
+
+  .toolbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .count-badge {
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+    padding:5px 10px; border-radius:20px;
+    background:var(--gold-bg); color:#92400e; border:1px solid var(--gold-border);
+  }
+  .count-badge.zero { background:var(--bg); color:var(--text-dim); border-color:var(--border); }
+  .btn-refresh {
+    margin-left:auto; font-size:12px; font-weight:600; color:var(--text-muted);
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:6px; padding:7px 14px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .btn-refresh:hover { color:var(--text); border-color:#cbd5e1; }
+  .btn-refresh:disabled { opacity:0.5; cursor:default; }
+
+  /* ── MESSAGES ── */
+  .msg { font-size:13px; padding:11px 14px; border-radius:8px; margin-bottom:16px; line-height:1.5; display:none; }
+  .msg.show { display:block; }
+  .msg.error { background:var(--red-bg); color:var(--red); }
+  .msg.success { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); }
+
+  /* ── PENDING ROWS ── */
+  .rows { display:flex; flex-direction:column; gap:12px; }
+  .row {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .row-top { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  .row-avatar {
+    width:38px; height:38px; border-radius:50%; background:var(--accent-bg);
+    color:var(--accent); display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; flex-shrink:0;
+  }
+  .row-name { font-size:14px; font-weight:700; }
+  .row-name.unnamed { color:var(--text-dim); font-weight:500; font-style:italic; }
+  .row-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .row-phone { font-variant-numeric:tabular-nums; }
+
+  .row-action { display:flex; align-items:center; gap:10px; }
+  .row-action select {
+    flex:1; min-width:0; padding:10px 12px;
+    border:1px solid var(--border); border-radius:7px;
+    /* 16px so iOS Safari doesn't zoom the page on focus */
+    font-size:16px; font-family:'Inter',sans-serif; color:var(--text);
+    background:var(--surface); -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:34px;
+  }
+  .row-action select:focus { outline:none; border-color:var(--accent); }
+  .btn-approve {
+    background:var(--accent); color:#fff; border:none; border-radius:7px;
+    padding:10px 18px; font-size:13px; font-weight:600;
+    font-family:'Inter',sans-serif; cursor:pointer; flex-shrink:0;
+  }
+  .btn-approve:hover { background:#1d4ed8; }
+  .btn-approve:disabled { opacity:0.5; cursor:default; }
+
+  .row.done { background:var(--green-bg); border-color:var(--green-border); }
+  .row-done-note { font-size:13px; color:var(--green); font-weight:600; }
+
+  /* ── EMPTY / LOADING ── */
+  .empty {
+    background:var(--surface); border:1px dashed var(--border); border-radius:10px;
+    padding:40px 20px; text-align:center; color:var(--text-muted); font-size:13px;
+  }
+  .empty-icon { font-size:28px; margin-bottom:10px; }
+  .spin {
+    width:26px; height:26px; border:2px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%;
+    animation:spin 0.7s linear infinite; margin:32px auto;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .footnote {
+    margin-top:26px; font-size:11px; color:var(--text-dim);
+    line-height:1.7; border-top:1px solid var(--border); padding-top:16px;
+  }
+
+  @media (max-width:640px) {
+    nav { padding:0 16px; }
+    .nav-links a { padding:6px 8px; font-size:11px; }
+    .nav-title { display:none; }
+    .page { padding:20px 16px 40px; }
+    .page-title { font-size:19px; }
+    /* Stack the picker above the button so neither gets squeezed */
+    .row-action { flex-direction:column; align-items:stretch; }
+    .btn-approve { width:100%; padding:12px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <img class="nav-logo"
+         src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+         alt="DFL">
+    <div class="nav-divider"></div>
+    <span class="nav-title">Admin</span>
+  </div>
+  <div class="nav-links">
+    <a href="/hub.html">Hub</a>
+    <a href="/admin/">Admin</a>
+    <a href="/admin/approvals.html" class="active">Approvals</a>
+    <button class="nav-signout" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <div class="page-head">
+    <div class="page-title">User Approvals</div>
+    <div class="page-sub">
+      Staff who signed up with a phone number that didn't match any record on the
+      roster. Approving links their login to a staff record — which is what
+      grants them access and decides what they can see.
+    </div>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="toolbar">
+    <span class="count-badge zero" id="countBadge">Loading…</span>
+    <button class="btn-refresh" id="refreshBtn" onclick="loadAll()">Refresh</button>
+  </div>
+
+  <div id="loading"><div class="spin"></div></div>
+  <div class="rows" id="rows"></div>
+
+  <div class="footnote">
+    Their role comes from the staff record you pick, so the two can never disagree.
+    Staff records already linked to another login aren't offered, and admin records
+    are never offered — admin access is granted by email allow-list only.
+    <br>
+    Someone not on this list yet? Add their row to the roster first, then they'll
+    appear here to be linked after they sign up.
+  </div>
+
+</div>
+
+<script>window.PAGE_ALLOWED_ROLES = ['admin'];</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+  // This page uses the shared `sb` client's .rpc() rather than raw fetch.
+  // profiles is readable only by its owner and has no client write path, so
+  // every read and write here goes through an admin-checked SECURITY DEFINER
+  // function: list_pending_signups(), list_linkable_reps(), approve_pending_user().
+
+  let linkableReps = [];   // roster rows still free to link
+
+  const el = (id) => document.getElementById(id);
+
+  function showMsg(text, kind) {
+    const m = el('msg');
+    m.textContent = text;
+    m.className = 'msg show ' + kind;
+  }
+  function clearMsg() { el('msg').className = 'msg'; }
+
+  function initials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2)
+      .map(w => w[0]).join('').toUpperCase();
+  }
+
+  // "+18765550123" -> "876 555 0123", easier to read against a paper list
+  function prettyPhone(p) {
+    if (!p) return 'No phone on file';
+    const d = String(p).replace(/\D/g, '');
+    const local = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+    if (local.length === 10) {
+      return local.slice(0,3) + ' ' + local.slice(3,6) + ' ' + local.slice(6);
+    }
+    return p;
+  }
+
+  function whenSignedUp(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-JM', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  // 60-odd roster rows, so group them by role to make the list navigable.
+  function buildRepOptions() {
+    const byRole = {};
+    linkableReps.forEach(r => {
+      (byRole[r.role] = byRole[r.role] || []).push(r);
+    });
+
+    // Field staff first — they're the ones who actually self-sign-up.
+    const order = ['merchandiser','team_leader','rep','warehouse','manager'];
+    const roleLabel = {
+      merchandiser:'Merchandisers', team_leader:'Team leaders', rep:'Sales reps',
+      warehouse:'Warehouse', manager:'Managers'
+    };
+
+    let html = '<option value="">Select a staff record…</option>';
+    const roles = Object.keys(byRole)
+      .sort((a,b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+
+    roles.forEach(role => {
+      html += '<optgroup label="' + (roleLabel[role] || role) + '">';
+      byRole[role].forEach(r => {
+        const bits = [r.area, r.team_lead_name ? 'TL: ' + r.team_lead_name : null]
+          .filter(Boolean).join(' · ');
+        html += '<option value="' + r.rep_id + '">' +
+                escapeHtml(r.name) + (bits ? ' — ' + escapeHtml(bits) : '') +
+                '</option>';
+      });
+      html += '</optgroup>';
+    });
+    return html;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function renderPending(pending) {
+    const rows = el('rows');
+    const badge = el('countBadge');
+
+    badge.textContent = pending.length === 0
+      ? 'None waiting'
+      : pending.length + (pending.length === 1 ? ' waiting' : ' waiting');
+    badge.className = 'count-badge' + (pending.length === 0 ? ' zero' : '');
+
+    if (pending.length === 0) {
+      rows.innerHTML =
+        '<div class="empty"><div class="empty-icon">✅</div>' +
+        'Nobody is waiting for approval.</div>';
+      return;
+    }
+
+    const options = buildRepOptions();
+
+    rows.innerHTML = pending.map(p => {
+      const named = p.full_name && p.full_name.trim();
+      return '<div class="row" id="row-' + p.user_id + '">' +
+        '<div class="row-top">' +
+          '<div class="row-avatar">' + escapeHtml(initials(p.full_name)) + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="row-name' + (named ? '' : ' unnamed') + '">' +
+              (named ? escapeHtml(p.full_name) : 'No name given') +
+            '</div>' +
+            '<div class="row-meta"><span class="row-phone">' +
+              escapeHtml(prettyPhone(p.phone)) + '</span>' +
+              ' · signed up ' + escapeHtml(whenSignedUp(p.created_at)) +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="row-action">' +
+          '<select id="sel-' + p.user_id + '">' + options + '</select>' +
+          '<button class="btn-approve" onclick="approve(\'' + p.user_id + '\')">Approve</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function loadAll() {
+    clearMsg();
+    el('refreshBtn').disabled = true;
+    el('loading').style.display = '';
+    el('rows').innerHTML = '';
+
+    try {
+      // Both lists are needed together: the dropdown has to reflect which
+      // roster rows are still free at the moment the page is drawn.
+      const [pendingRes, repsRes] = await Promise.all([
+        sb.rpc('list_pending_signups'),
+        sb.rpc('list_linkable_reps')
+      ]);
+
+      if (pendingRes.error) throw pendingRes.error;
+      if (repsRes.error)    throw repsRes.error;
+
+      linkableReps = repsRes.data || [];
+      renderPending(pendingRes.data || []);
+    } catch (e) {
+      console.error(e);
+      showMsg('Could not load approvals: ' + (e.message || e), 'error');
+      el('countBadge').textContent = 'Error';
+      el('countBadge').className = 'count-badge zero';
+    } finally {
+      el('loading').style.display = 'none';
+      el('refreshBtn').disabled = false;
+    }
+  }
+
+  async function approve(userId) {
+    clearMsg();
+    const sel = el('sel-' + userId);
+    const repId = sel.value;
+
+    if (!repId) {
+      showMsg('Pick which staff record this person is, then approve.', 'error');
+      sel.focus();
+      return;
+    }
+
+    const row = el('row-' + userId);
+    const btn = row.querySelector('.btn-approve');
+    btn.disabled = true;
+    btn.textContent = 'Approving…';
+
+    try {
+      const { data, error } = await sb.rpc('approve_pending_user', {
+        p_user_id: userId,
+        p_rep_id: repId
+      });
+      if (error) throw error;
+
+      // The function returns the name and the role it derived from the roster.
+      const result = Array.isArray(data) ? data[0] : data;
+      const name = result && result.approved_name ? result.approved_name : 'User';
+      const role = result && result.approved_role ? result.approved_role : 'staff';
+
+      row.classList.add('done');
+      row.querySelector('.row-action').innerHTML =
+        '<div class="row-done-note">✓ Approved as ' + escapeHtml(role) + '</div>';
+      showMsg(name + ' can now sign in as ' + role + '.', 'success');
+
+      // That roster row is now taken, so drop it from the other dropdowns
+      // without a full reload.
+      linkableReps = linkableReps.filter(r => r.rep_id !== repId);
+      document.querySelectorAll('.row:not(.done) select').forEach(s => {
+        const keep = s.value;
+        s.innerHTML = buildRepOptions();
+        if (keep && keep !== repId) s.value = keep;
+      });
+
+      const remaining = document.querySelectorAll('.row:not(.done)').length;
+      const badge = el('countBadge');
+      badge.textContent = remaining === 0 ? 'None waiting' : remaining + ' waiting';
+      badge.className = 'count-badge' + (remaining === 0 ? ' zero' : '');
+
+    } catch (e) {
+      console.error(e);
+      // The RPC raises readable messages ("already linked to another login").
+      showMsg('Could not approve: ' + (e.message || e), 'error');
+      btn.disabled = false;
+      btn.textContent = 'Approve';
+    }
+  }
+
+  document.addEventListener('dfl-auth-ready', loadAll);
+</script>
+
+</body>
+</html>
