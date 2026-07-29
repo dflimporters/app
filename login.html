@@ -9,7 +9,7 @@
   :root {
     --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
     --navy:#0f2044; --navy2:#1a3260;
-    --text:#1e293b; --text-muted:#64748b;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
     --accent:#2563eb; --accent-bg:#eff6ff;
     --red:#dc2626; --red-bg:#fef2f2;
     --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07);
@@ -94,11 +94,30 @@
 
   .toggle-line {
     margin-top:14px; font-size:12px; color:var(--text-muted);
+    display:flex; align-items:center; justify-content:center; gap:10px;
   }
   .toggle-line button {
     background:none; border:none; padding:0;
     color:var(--accent); font-size:12px; font-weight:600;
     font-family:'Inter',sans-serif; cursor:pointer; text-decoration:underline;
+  }
+  .toggle-line button:disabled {
+    color:var(--text-dim); cursor:default; text-decoration:none;
+  }
+
+  /* --- OTP code step --- */
+  .sent-to {
+    font-size:13px; color:var(--text-muted);
+    margin-bottom:18px; line-height:1.5;
+  }
+  .sent-to strong { color:var(--text); font-variant-numeric:tabular-nums; }
+  .code-input {
+    text-align:center;
+    /* Wide tracking so six digits read as six separate characters. */
+    letter-spacing:0.4em; text-indent:0.4em;
+    font-size:24px !important; font-weight:700;
+    font-variant-numeric:tabular-nums;
+    padding:14px !important;
   }
 
   .spin {
@@ -128,7 +147,7 @@
 
   <div id="signedOutState" style="display:none;">
     <div class="login-title">DFL Staff Portal</div>
-    <div class="login-sub">Sign in with your DFL Microsoft account to continue.</div>
+    <div class="login-sub">Sign in with your DFL Microsoft account, or with your phone number.</div>
 
     <div class="login-message" id="loginMessage"></div>
 
@@ -144,30 +163,51 @@
 
     <div class="or-divider">or</div>
 
-    <!-- Phone + password path, for field staff without a DFL email account. -->
-    <div class="field">
-      <label for="phoneInput">Phone number</label>
-      <input type="tel" id="phoneInput" placeholder="876 555 1234"
-             autocomplete="tel" inputmode="tel">
-      <div class="field-hint">Jamaican mobile number</div>
-    </div>
+    <!-- Phone path for field staff without a DFL email account.
+         One flow for everyone: entering a code both signs existing staff in
+         and creates an account for anyone new (who then lands on /pending.html
+         until an admin approves them). There's no separate sign-up, and no
+         password — which also means there's no password to forget or reset,
+         and staff with no email address have no way to self-serve a reset. -->
 
-    <div class="field">
-      <label for="passwordInput">Password</label>
-      <input type="password" id="passwordInput" placeholder="••••••••"
-             autocomplete="current-password">
-      <div class="field-hint" id="passwordHint" style="display:none;">
-        At least 8 characters
+    <!-- STEP 1 — phone number -->
+    <div id="phoneStep">
+      <div class="field">
+        <label for="phoneInput">Phone number</label>
+        <input type="tel" id="phoneInput" placeholder="876 555 1234"
+               autocomplete="tel" inputmode="tel">
+        <div class="field-hint">We'll text you a 6-digit code</div>
       </div>
+
+      <button class="btn-phone" id="sendCodeBtn" onclick="sendCode()">
+        Send code
+      </button>
     </div>
 
-    <button class="btn-phone" id="phoneBtn" onclick="submitPhoneAuth()">
-      Sign in
-    </button>
+    <!-- STEP 2 — the code -->
+    <div id="codeStep" style="display:none;">
+      <div class="sent-to">
+        Code sent to <strong id="sentToNumber"></strong>
+      </div>
 
-    <div class="toggle-line" id="toggleLine">
-      Don't have an account yet?
-      <button type="button" onclick="setPhoneMode('signup')">Sign up</button>
+      <div class="field">
+        <label for="codeInput">6-digit code</label>
+        <!-- autocomplete="one-time-code" lets iOS and Android offer the code
+             straight from the SMS, so nobody has to memorise it. -->
+        <input type="text" id="codeInput" class="code-input" placeholder="······"
+               autocomplete="one-time-code" inputmode="numeric"
+               maxlength="6" pattern="[0-9]*">
+      </div>
+
+      <button class="btn-phone" id="verifyBtn" onclick="verifyCode()">
+        Verify &amp; sign in
+      </button>
+
+      <div class="toggle-line">
+        <button type="button" id="resendBtn" onclick="sendCode(true)">Resend code</button>
+        <span style="color:var(--border)">|</span>
+        <button type="button" onclick="backToPhone()">Use a different number</button>
+      </div>
     </div>
 
     <div class="login-footer">DFL Importers — Staff Portal</div>
@@ -207,13 +247,18 @@
   const loginMessage = document.getElementById('loginMessage');
   const msSignInBtn = document.getElementById('msSignInBtn');
   const phoneInput = document.getElementById('phoneInput');
-  const passwordInput = document.getElementById('passwordInput');
-  const passwordHint = document.getElementById('passwordHint');
-  const phoneBtn = document.getElementById('phoneBtn');
-  const toggleLine = document.getElementById('toggleLine');
+  const phoneStep = document.getElementById('phoneStep');
+  const codeStep = document.getElementById('codeStep');
+  const codeInput = document.getElementById('codeInput');
+  const sendCodeBtn = document.getElementById('sendCodeBtn');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const resendBtn = document.getElementById('resendBtn');
+  const sentToNumber = document.getElementById('sentToNumber');
 
-  // 'signin' or 'signup' — which phone action the button performs.
-  let phoneMode = 'signin';
+  // The normalised (+1876…) number we sent a code to. verifyOtp must be given
+  // exactly the same string that signInWithOtp was given, or it won't match.
+  let pendingPhone = null;
+  let resendTimer = null;
 
   function showMessage(text, kind) {
     loginMessage.textContent = text;
@@ -271,8 +316,13 @@
   }
 
   // ------------------------------------------------------------
-  // Phone + password
+  // Phone -> SMS one-time code -> in
   // ------------------------------------------------------------
+  // signInWithOtp both signs in existing staff AND creates an account for a
+  // number we've never seen (shouldCreateUser defaults to true). That's why
+  // there's no separate sign-up: a new number gets a user, the
+  // on_auth_user_created trigger gives them a `pending` profile, and
+  // handleSignedIn() below sends them to /pending.html to await approval.
 
   // Mirror of the normalize_jm_phone() SQL function. Both sides must agree
   // or the trigger's roster lookup silently misses. Jamaica is +1876/+1658;
@@ -284,82 +334,160 @@
     return null;
   }
 
-  function setPhoneMode(mode) {
-    phoneMode = mode;
-
-    if (mode === 'signup') {
-      phoneBtn.textContent = 'Create account';
-      passwordInput.setAttribute('autocomplete', 'new-password');
-      passwordHint.style.display = 'block';
-      toggleLine.innerHTML =
-        'Already have an account? ' +
-        '<button type="button" onclick="setPhoneMode(\'signin\')">Sign in</button>';
-    } else {
-      phoneBtn.textContent = 'Sign in';
-      passwordInput.setAttribute('autocomplete', 'current-password');
-      passwordHint.style.display = 'none';
-      toggleLine.innerHTML =
-        "Don't have an account yet? " +
-        '<button type="button" onclick="setPhoneMode(\'signup\')">Sign up</button>';
-    }
-
-    loginMessage.className = 'login-message';
+  // +18765551234 -> 876 555 1234, so people can check it against their handset
+  function prettyPhone(e164) {
+    const d = (e164 || '').replace(/\D/g, '');
+    const local = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+    return local.length === 10
+      ? local.slice(0, 3) + ' ' + local.slice(3, 6) + ' ' + local.slice(6)
+      : e164;
   }
 
-  async function submitPhoneAuth() {
+  async function sendCode(isResend) {
     const phone = normalizePhone(phoneInput.value);
-    const password = passwordInput.value;
 
     if (!phone) {
       showMessage('Enter a valid Jamaican phone number, e.g. 876 555 1234.', 'error');
       return;
     }
 
-    if (!password) {
-      showMessage('Please enter your password.', 'error');
-      return;
-    }
+    const btn = isResend ? resendBtn : sendCodeBtn;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = isResend ? 'Sending…' : 'Sending code…';
+    loginMessage.className = 'login-message';
 
-    if (phoneMode === 'signup' && password.length < 8) {
-      showMessage('Your password must be at least 8 characters.', 'error');
-      return;
-    }
-
-    const originalLabel = phoneBtn.textContent;
-    phoneBtn.disabled = true;
-    phoneBtn.textContent = phoneMode === 'signup' ? 'Creating account…' : 'Signing in…';
-
-    const { data, error } = phoneMode === 'signup'
-      ? await sb.auth.signUp({ phone, password })
-      : await sb.auth.signInWithPassword({ phone, password });
+    const { error } = await sb.auth.signInWithOtp({ phone });
 
     if (error) {
-      phoneBtn.disabled = false;
-      phoneBtn.textContent = originalLabel;
+      btn.disabled = false;
+      btn.textContent = originalLabel;
 
-      if (phoneMode === 'signup' && /already registered|already exists/i.test(error.message)) {
-        showMessage('That number already has an account. Try signing in instead.', 'error');
-      } else if (phoneMode === 'signin' && /invalid login credentials/i.test(error.message)) {
-        showMessage('That phone number or password is incorrect.', 'error');
+      // Supabase rate-limits how often a number can be texted.
+      if (/security purposes|rate limit|too many/i.test(error.message)) {
+        showMessage('Please wait a moment before requesting another code.', 'error');
+      } else if (/sms|provider|twilio|messagebird|vonage/i.test(error.message)) {
+        // Most likely no SMS provider configured for this number.
+        showMessage('Text messages are not set up for that number yet. Please contact an admin.', 'error');
+        console.error('SMS send failed — check the Supabase phone provider:', error.message);
       } else {
-        showMessage(error.message || 'Something went wrong. Please try again.', 'error');
+        showMessage(error.message || 'Could not send the code. Please try again.', 'error');
       }
       return;
     }
 
-    // Phone confirmations are disabled, so a successful signup returns a
-    // session straight away and the on_auth_user_created trigger has already
-    // created the profile (pending, if no roster row matched this number).
+    pendingPhone = phone;
+    sentToNumber.textContent = prettyPhone(phone);
+    phoneStep.style.display = 'none';
+    codeStep.style.display = 'block';
+    btn.textContent = originalLabel;
+
+    if (isResend) showMessage('A new code is on its way.', 'info');
+
+    // Reset the verify button too: if a previous attempt was still in flight
+    // when they changed number or asked for a new code, it would otherwise
+    // stay disabled and reading "Checking…".
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = 'Verify & sign in';
+
+    codeInput.value = '';
+    codeInput.focus();
+    startResendCooldown();
+  }
+
+  // Supabase won't text the same number again immediately, so don't offer a
+  // button that's guaranteed to fail.
+  function startResendCooldown() {
+    let left = 60;
+    clearInterval(resendTimer);
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Resend code (' + left + 's)';
+
+    resendTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(resendTimer);
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend code';
+      } else {
+        resendBtn.textContent = 'Resend code (' + left + 's)';
+      }
+    }, 1000);
+  }
+
+  function backToPhone() {
+    clearInterval(resendTimer);
+    pendingPhone = null;
+    codeStep.style.display = 'none';
+    phoneStep.style.display = 'block';
+    sendCodeBtn.disabled = false;
+    sendCodeBtn.textContent = 'Send code';
+    loginMessage.className = 'login-message';
+    phoneInput.focus();
+  }
+
+  async function verifyCode() {
+    const token = (codeInput.value || '').replace(/\D/g, '');
+
+    if (!pendingPhone) { backToPhone(); return; }
+
+    if (token.length !== 6) {
+      showMessage('Enter the 6-digit code from the text message.', 'error');
+      return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = 'Checking…';
+
+    const { data, error } = await sb.auth.verifyOtp({
+      phone: pendingPhone,
+      token: token,
+      type: 'sms'
+    });
+
+    if (error) {
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = 'Verify & sign in';
+
+      if (/expired/i.test(error.message)) {
+        showMessage('That code has expired. Tap "Resend code" for a new one.', 'error');
+      } else if (/invalid|incorrect|token/i.test(error.message)) {
+        showMessage('That code is not right. Check the message and try again.', 'error');
+      } else {
+        showMessage(error.message || 'Could not verify the code. Please try again.', 'error');
+      }
+      codeInput.select();
+      return;
+    }
+
+    // Verifying is what confirms the number, so a brand-new user is created
+    // and signed in in one step. The trigger has already made their profile.
     if (data && data.session) {
+      clearInterval(resendTimer);
       await handleSignedIn(data.session.user);
       return;
     }
 
-    phoneBtn.disabled = false;
-    phoneBtn.textContent = originalLabel;
-    showMessage('Account created. You can now sign in.', 'info');
-    setPhoneMode('signin');
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = 'Verify & sign in';
+    showMessage('Something went wrong signing you in. Please try again.', 'error');
   }
+
+  // Submit on Enter, and auto-submit once six digits are in (including when
+  // the phone autofills the code from the SMS).
+  phoneInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendCode(); }
+  });
+
+  codeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); verifyCode(); }
+  });
+
+  codeInput.addEventListener('input', () => {
+    const digits = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    if (codeInput.value !== digits) codeInput.value = digits;
+    if (digits.length === 6 && !verifyBtn.disabled) verifyCode();
+  });
 
   async function signInWithMicrosoft() {
     msSignInBtn.disabled = true;
