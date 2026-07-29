@@ -35,6 +35,8 @@ h1,h2,h3,.mont{font-family:'Montserrat',sans-serif}
 header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
   padding:calc(env(safe-area-inset-top) + 18px) 20px 40px;position:sticky;top:0;z-index:5}
 .hrow{display:flex;justify-content:space-between;align-items:flex-start}
+/* DFL mark above the greeting. Sized to match the merch app's header logo. */
+.hdr-logo-img{height:26px;width:auto;display:block;margin-bottom:14px;cursor:pointer}
 .hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 .hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
 .logout{background:rgba(255,255,255,.1);border:none;color:#cdd8f0;font-size:12px;font-weight:600;
@@ -210,6 +212,12 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 <div id="app">
   <div id="tab-home" class="tabview">
     <header>
+      <!-- The white-on-navy DFL mark, matching the merch app's header. Clicking
+           it goes "home" per role — a no-op for a rep (this IS home), the hub
+           for a manager/admin. Wired up in wireHomeLogo(). -->
+      <img class="hdr-logo-img" id="homeLogo" title="Go to home"
+           src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+           alt="DFL Importers">
       <div class="hrow">
         <div>
           <div class="hi" id="hgreet">Welcome back</div>
@@ -342,7 +350,23 @@ const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(
 // it replaces the old PIN-based enterApp().
 document.addEventListener('dfl-auth-ready', (e) => {
   initApp(e.detail.profile);
+  wireHomeLogo();
 });
+
+// Header logo -> role-aware home. dflHome() lives in /shared/auth-guard.js so
+// the mapping isn't duplicated per page. For a rep this page IS home, so the
+// logo is left inert rather than reloading.
+function wireHomeLogo(){
+  const img = document.getElementById('homeLogo');
+  if(!img) return;
+  const href = (typeof dflHome === 'function') ? dflHome() : '/hub.html';
+  if(href === window.location.pathname){
+    img.style.cursor = 'default';
+    img.removeAttribute('title');
+    return;
+  }
+  img.addEventListener('click', () => { window.location.href = href; });
+}
 
 async function initApp(profile){
   const h=new Date().getHours();

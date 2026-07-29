@@ -33,90 +33,11 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-  /* ── NAV ── */
-  nav {
-    background: var(--navy);
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; }
-  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
-  .nav-links { display:flex; gap:4px; }
-  .nav-links a {
-    color: rgba(255,255,255,0.65);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 6px;
-    transition: all 0.15s;
-  }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
-  .nav-links a.mgmt { color: var(--gold); }
-  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
-
-  /* ── HAMBURGER ── */
-  .nav-hamburger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    flex-shrink: 0;
-  }
-  .nav-hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 2px;
-    transition: transform 0.25s, opacity 0.25s;
-  }
-  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
-  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  /* ── MOBILE MENU ── */
-  .nav-mobile-menu {
-    display: none;
-    position: fixed;
-    top: 56px;
-    left: 0; right: 0;
-    background: rgba(10,20,50,0.98);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 0.75rem 1.25rem 1.25rem;
-    z-index: 99;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-mobile-menu.open { display: flex; }
-  .nav-mobile-menu a {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: rgba(255,255,255,0.75);
-    text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color: var(--gold); }
-  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
-  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+  /* ── NAV ──
+     This page no longer styles its own navigation. The left rail (and its
+     mobile top bar / drawer) is rendered and fully styled by
+     /shared/side-nav.js, which is deliberately self-contained — don't add
+     nav rules here, change them there so all portal pages move together. */
 
   /* ── HERO ── */
   .hero {
@@ -364,34 +285,8 @@
     border-radius: 20px;
   }
 
-  /* ── USER CHIP / SIGN OUT ── */
-  .nav-user {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-left: 14px;
-    padding-left: 14px;
-    border-left: 1px solid rgba(255,255,255,0.15);
-  }
-  .nav-user-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.75);
-    white-space: nowrap;
-  }
-  .nav-signout {
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.6);
-    background: none;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 5px;
-    padding: 4px 10px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-  }
-  .nav-signout:hover { color: #fff; border-color: rgba(255,255,255,0.45); }
-  @media (max-width: 900px) { .nav-user { display: none; } }
+  /* The signed-in user's name and the Sign out button now live in the rail's
+     footer — see /shared/side-nav.js. */
 
   /* ── FOOTER ── */
   footer {
@@ -403,6 +298,12 @@
   }
 
   /* ── PWA INSTALL BANNER ── */
+  /* Fixed to the viewport, so it has to be told about the rail — the rail is
+     also position:fixed and would otherwise overlap it. 240px matches
+     RAIL_WIDTH in /shared/side-nav.js. */
+  @media (min-width: 768px) {
+    #installBanner { left: 240px; }
+  }
   #installBanner {
     display: none;
     position: fixed;
@@ -439,11 +340,6 @@
     .cards-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 640px) {
-    nav { padding: 0 16px; }
-    .nav-links { display: none; }
-    .nav-hamburger { display: flex; }
-    .nav-title { font-size: 13px; }
-
     .hero { padding: 40px 20px 48px; }
     .hero h1 { font-size: 28px; }
     .hero-sub { font-size: 14px; }
@@ -491,45 +387,10 @@
 </head>
 <body>
 
-<!-- ── NAV ── -->
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Staff Portal</span>
-  </div>
-  <!-- Links to pages still in _staging/ (dashboards, forms, assets,
-       dispatch-portal) are omitted here rather than 404ing. Add them back as
-       each page ships. -->
-  <div class="nav-links">
-    <a href="/admin/" class="mgmt" id="navAdmin" style="display:none">Admin</a>
-    <a href="/management/" class="mgmt">Management</a>
-    <a href="/hub.html" class="active">Hub</a>
-    <a href="/index.html">Sales</a>
-    <a href="/merch.html">Merchandising</a>
-    <a href="/specials.html">Specials</a>
-    <div class="nav-user">
-      <span class="nav-user-name" id="navUserName"></span>
-      <button class="nav-signout" onclick="logout()">Sign out</button>
-    </div>
-  </div>
-  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<!-- ── MOBILE MENU ── -->
-<div class="nav-mobile-menu" id="mobileMenu">
-  <a href="/admin/" class="mgmt" id="navAdminMob" style="display:none">Admin</a>
-  <a href="/management/" class="mgmt">Management</a>
-  <div class="mob-divider"></div>
-  <a href="/hub.html" class="active">Hub</a>
-  <a href="/index.html">Sales</a>
-  <a href="/merch.html">Merchandising</a>
-  <a href="/specials.html">Specials</a>
-  <div class="mob-divider"></div>
-  <a href="#" onclick="logout();return false;">Sign out</a>
-</div>
+<!-- ── NAV ──
+     Rendered by /shared/side-nav.js (loaded at the bottom of this file): a
+     left rail at >=768px, a top bar + drawer below that. The link list,
+     role gating and "Coming soon" items all live in that one file now. -->
 
 <!-- ── HERO ── -->
 <div class="hero">
@@ -662,14 +523,19 @@
   <button class="install-btn" onclick="installApp()">Install</button>
 </div>
 
-<script>window.PAGE_ALLOWED_ROLES = ['manager','admin'];</script>
+<script>
+  window.PAGE_ALLOWED_ROLES = ['manager','admin'];
+  window.DFL_PAGE_TITLE = 'Hub';   // shown in the rail's mobile top bar
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
 <script>
   // ── Role-aware chrome ──
-  // admin and manager see the same cards for now, by design. The only
-  // difference today is the /admin/ nav link, which is admin-only.
+  // admin and manager see the same cards for now, by design. The nav's own
+  // role gating (the admin-only Admin/Approvals items) is handled inside
+  // side-nav.js — this handler only deals with THIS page's content.
   document.addEventListener('dfl-auth-ready', (e) => {
     const p = e.detail.profile;
     const first = (p.full_name || '').trim().split(' ')[0];
@@ -677,15 +543,7 @@
     const hero = document.getElementById('heroName');
     if (hero && first) hero.textContent = ' back, ' + first;
 
-    const nameEl = document.getElementById('navUserName');
-    if (nameEl) nameEl.textContent = (p.full_name || '') + ' · ' + p.role;
-
     if (p.role === 'admin') {
-      const a = document.getElementById('navAdmin');
-      const b = document.getElementById('navAdminMob');
-      if (a) a.style.display = '';
-      if (b) b.style.display = '';
-
       // Approvals card, with a count so a waiting sign-up is visible from the
       // landing page. The card shows regardless; the count is best-effort.
       const card = document.getElementById('approvalsCard');
@@ -696,20 +554,6 @@
         if (link) link.textContent = data.length + ' waiting → ';
       }).catch(() => { /* count is a nicety */ });
     }
-  });
-
-  // ── Hamburger menu ──
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open');
-  });
-  mobileMenu.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileMenu.classList.remove('open');
-    });
   });
 
   // ── PWA ──

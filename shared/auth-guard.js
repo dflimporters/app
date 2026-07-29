@@ -163,3 +163,34 @@ async function logout() {
   await sb.auth.signOut();
   window.location.href = '/login.html';
 }
+
+// ============================================================
+// Where "Home" is, per role.
+// ============================================================
+// This is the SINGLE SOURCE OF TRUTH for the clickable DFL logo on every page,
+// and it mirrors login.html's ROLE_LANDING (which decides where someone goes
+// straight after signing in). If you change one, change the other — otherwise
+// the logo sends people somewhere sign-in wouldn't.
+//
+// /shared/side-nav.js calls this for the rail's logo, and both apps call it for
+// their header logos. It falls back to /hub.html when the role is unknown.
+//
+// Note: `warehouse` maps to /index.html to match login.html, but index.html's
+// own PAGE_ALLOWED_ROLES does NOT include warehouse — so a warehouse user is
+// bounced to /index.html?denied=1 and bounces again. Pre-existing; flagged, not
+// fixed here, because changing it is an auth decision rather than a nav one.
+const DFL_HOME_BY_ROLE = {
+  rep:          '/index.html',
+  warehouse:    '/index.html',
+  merchandiser: '/merch.html',
+  team_leader:  '/merch.html',
+  manager:      '/hub.html',
+  admin:        '/hub.html',
+  pending:      '/pending.html'
+};
+
+function dflHome(profile) {
+  const p = profile || window.DFL_PROFILE;
+  const role = p && p.role;
+  return (role && DFL_HOME_BY_ROLE[role]) || '/hub.html';
+}
