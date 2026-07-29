@@ -115,6 +115,48 @@
   .row.done { background:var(--green-bg); border-color:var(--green-border); }
   .row-done-note { font-size:13px; color:var(--green); font-weight:600; }
 
+  /* ── LINK vs CREATE toggle ── */
+  .mode-tabs {
+    display:inline-flex; gap:2px; padding:2px; margin-bottom:12px;
+    background:var(--bg); border:1px solid var(--border); border-radius:7px;
+  }
+  .mode-tab {
+    background:none; border:none; border-radius:5px;
+    padding:6px 12px; font-size:12px; font-weight:600;
+    font-family:'Inter',sans-serif; color:var(--text-muted); cursor:pointer;
+  }
+  .mode-tab.on { background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
+
+  /* ── CREATE STAFF FORM ── */
+  .create-form { display:flex; flex-direction:column; gap:10px; }
+  .cf-row { display:flex; gap:10px; }
+  .cf-field { flex:1; min-width:0; }
+  .cf-field label {
+    display:block; font-size:11px; font-weight:600; color:var(--text-muted);
+    margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .cf-field input, .cf-field select {
+    width:100%; padding:9px 11px;
+    border:1px solid var(--border); border-radius:7px;
+    /* 16px so iOS Safari doesn't zoom the page on focus */
+    font-size:16px; font-family:'Inter',sans-serif; color:var(--text);
+    background:var(--surface); -webkit-appearance:none; appearance:none;
+  }
+  .cf-field input:focus, .cf-field select:focus { outline:none; border-color:var(--accent); }
+  .cf-hint { font-size:11px; color:var(--text-dim); margin-top:3px; }
+
+  /* ── DUPLICATE WARNING ── */
+  .dupe-warn {
+    background:var(--gold-bg); border:1px solid var(--gold-border);
+    border-radius:8px; padding:11px 13px; font-size:12px; color:#92400e;
+    line-height:1.6; display:none;
+  }
+  .dupe-warn.show { display:block; }
+  .dupe-warn strong { display:block; margin-bottom:5px; font-size:12px; }
+  .dupe-list { margin:6px 0 0; padding-left:16px; }
+  .dupe-list li { margin-bottom:3px; }
+  .dupe-linked { color:#b45309; font-style:italic; }
+
   /* ── EMPTY / LOADING ── */
   .empty {
     background:var(--surface); border:1px dashed var(--border); border-radius:10px;
@@ -184,6 +226,10 @@
   <div id="loading"><div class="spin"></div></div>
   <div class="rows" id="rows"></div>
 
+  <!-- Shared list of areas already in use, so the create form suggests
+       existing spellings instead of inventing new ones. -->
+  <datalist id="areaList"></datalist>
+
   <div class="footnote">
     Their role comes from the staff record you pick, so the two can never disagree.
     Staff records already linked to another login aren't offered, and admin records
@@ -206,6 +252,7 @@
   // function: list_pending_signups(), list_linkable_reps(), approve_pending_user().
 
   let linkableReps = [];   // roster rows still free to link
+  let formOptions = { team_leads: [], areas: [] };   // for the create form
 
   const el = (id) => document.getElementById(id);
 
@@ -310,12 +357,149 @@
             '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="row-action">' +
-          '<select id="sel-' + p.user_id + '">' + options + '</select>' +
-          '<button class="btn-approve" onclick="approve(\'' + p.user_id + '\')">Approve</button>' +
+        '<div class="mode-tabs">' +
+          '<button class="mode-tab on" id="tab-link-' + p.user_id + '" ' +
+            'onclick="setMode(\'' + p.user_id + '\',\'link\')">Link to existing</button>' +
+          '<button class="mode-tab" id="tab-new-' + p.user_id + '" ' +
+            'onclick="setMode(\'' + p.user_id + '\',\'new\')">Create new</button>' +
+        '</div>' +
+
+        // ---- link to an existing roster row ----
+        '<div id="pane-link-' + p.user_id + '">' +
+          '<div class="row-action">' +
+            '<select id="sel-' + p.user_id + '">' + options + '</select>' +
+            '<button class="btn-approve" onclick="approve(\'' + p.user_id + '\')">Approve</button>' +
+          '</div>' +
+        '</div>' +
+
+        // ---- create a brand new roster row ----
+        '<div id="pane-new-' + p.user_id + '" style="display:none">' +
+          '<div class="create-form">' +
+            '<div class="cf-row">' +
+              '<div class="cf-field" style="flex:2">' +
+                '<label>Full name</label>' +
+                '<input type="text" id="nm-' + p.user_id + '" ' +
+                  'value="' + escapeHtml(p.full_name || '') + '" ' +
+                  'placeholder="e.g. Trecia Harley" ' +
+                  'oninput="onNameTyped(\'' + p.user_id + '\')">' +
+              '</div>' +
+              '<div class="cf-field">' +
+                '<label>Role</label>' +
+                '<select id="rl-' + p.user_id + '" onchange="onRoleChanged(\'' + p.user_id + '\')">' +
+                  '<option value="merchandiser">Merchandiser</option>' +
+                  '<option value="team_leader">Team leader</option>' +
+                  '<option value="rep">Sales rep</option>' +
+                  '<option value="warehouse">Warehouse</option>' +
+                  '<option value="manager">Manager</option>' +
+                '</select>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="cf-row">' +
+              '<div class="cf-field">' +
+                '<label>Area</label>' +
+                '<input type="text" id="ar-' + p.user_id + '" list="areaList" ' +
+                  'placeholder="e.g. Kingston &amp; Portmore">' +
+              '</div>' +
+              '<div class="cf-field" id="tlwrap-' + p.user_id + '">' +
+                '<label>Team lead</label>' +
+                '<select id="tl-' + p.user_id + '">' + teamLeadOptions() + '</select>' +
+              '</div>' +
+              '<div class="cf-field" id="spwrap-' + p.user_id + '" style="display:none">' +
+                '<label>Salesperson ID</label>' +
+                '<input type="text" id="sp-' + p.user_id + '" placeholder="ERP code">' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="dupe-warn" id="dupe-' + p.user_id + '"></div>' +
+
+            '<div class="cf-hint">' +
+              'Their phone number is filled in automatically from this sign-up.' +
+            '</div>' +
+
+            '<button class="btn-approve" style="width:100%" ' +
+              'onclick="createAndApprove(\'' + p.user_id + '\')">Create record &amp; approve</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
     }).join('');
+
+    // One shared datalist of existing areas, so spelling stays consistent.
+    const dl = document.getElementById('areaList');
+    if (dl) {
+      dl.innerHTML = (formOptions.areas || [])
+        .map(a => '<option value="' + escapeHtml(a) + '"></option>').join('');
+    }
+
+    // Run the duplicate check against whatever name they arrived with.
+    pending.forEach(p => { if (p.full_name) checkDupes(p.user_id); });
+  }
+
+  function teamLeadOptions() {
+    return '<option value="">— none —</option>' +
+      (formOptions.team_leads || []).map(t =>
+        '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>').join('');
+  }
+
+  // Only show fields that mean something for the chosen role: team lead is a
+  // merchandiser concept, salesperson_id is an ERP code reps have and others
+  // don't.
+  function onRoleChanged(userId) {
+    const role = el('rl-' + userId).value;
+    const tl = el('tlwrap-' + userId);
+    const sp = el('spwrap-' + userId);
+    if (tl) tl.style.display = (role === 'merchandiser') ? '' : 'none';
+    if (sp) sp.style.display = (role === 'rep') ? '' : 'none';
+  }
+
+  function setMode(userId, mode) {
+    el('pane-link-' + userId).style.display = (mode === 'link') ? '' : 'none';
+    el('pane-new-'  + userId).style.display = (mode === 'new')  ? '' : 'none';
+    el('tab-link-'  + userId).classList.toggle('on', mode === 'link');
+    el('tab-new-'   + userId).classList.toggle('on', mode === 'new');
+    clearMsg();
+    if (mode === 'new') { onRoleChanged(userId); checkDupes(userId); }
+  }
+
+  // ---- duplicate guard -------------------------------------------------
+  // The real risk of creating records is a second row for someone already on
+  // the roster: merchandiser_summary and get_merch_stores match on name TEXT,
+  // so a duplicate silently orphans their performance data. Debounced so we
+  // aren't querying on every keystroke.
+  let dupeTimers = {};
+  function onNameTyped(userId) {
+    clearTimeout(dupeTimers[userId]);
+    dupeTimers[userId] = setTimeout(() => checkDupes(userId), 400);
+  }
+
+  async function checkDupes(userId) {
+    const box = el('dupe-' + userId);
+    const nameEl = el('nm-' + userId);
+    if (!box || !nameEl) return;
+
+    const name = nameEl.value.trim();
+    if (name.length < 3) { box.className = 'dupe-warn'; return; }
+
+    try {
+      const { data, error } = await sb.rpc('find_similar_reps', { p_name: name });
+      if (error || !data || !data.length) { box.className = 'dupe-warn'; return; }
+
+      box.innerHTML =
+        '<strong>⚠️ Similar staff records already exist</strong>' +
+        'Creating a second record for the same person splits their data. ' +
+        'If one of these is them, use “Link to existing” instead.' +
+        '<ul class="dupe-list">' +
+        data.map(d =>
+          '<li>' + escapeHtml(d.name) + ' — ' + escapeHtml(d.role) +
+          (d.area ? ' · ' + escapeHtml(d.area) : '') +
+          (!d.active ? ' <span class="dupe-linked">(inactive)</span>' : '') +
+          (d.already_linked ? ' <span class="dupe-linked">(already has a login)</span>' : '') +
+          '</li>').join('') +
+        '</ul>';
+      box.className = 'dupe-warn show';
+    } catch (e) {
+      box.className = 'dupe-warn';   // advisory only, never blocks
+    }
   }
 
   async function loadAll() {
@@ -327,15 +511,18 @@
     try {
       // Both lists are needed together: the dropdown has to reflect which
       // roster rows are still free at the moment the page is drawn.
-      const [pendingRes, repsRes] = await Promise.all([
+      const [pendingRes, repsRes, optsRes] = await Promise.all([
         sb.rpc('list_pending_signups'),
-        sb.rpc('list_linkable_reps')
+        sb.rpc('list_linkable_reps'),
+        sb.rpc('list_staff_form_options')
       ]);
 
       if (pendingRes.error) throw pendingRes.error;
       if (repsRes.error)    throw repsRes.error;
+      if (optsRes.error)    throw optsRes.error;
 
       linkableReps = repsRes.data || [];
+      formOptions  = optsRes.data || { team_leads: [], areas: [] };
       renderPending(pendingRes.data || []);
     } catch (e) {
       console.error(e);
@@ -377,6 +564,8 @@
       const role = result && result.approved_role ? result.approved_role : 'staff';
 
       row.classList.add('done');
+      row.querySelector('.mode-tabs').style.display = 'none';
+      el('pane-new-' + userId).style.display = 'none';
       row.querySelector('.row-action').innerHTML =
         '<div class="row-done-note">✓ Approved as ' + escapeHtml(role) + '</div>';
       showMsg(name + ' can now sign in as ' + role + '.', 'success');
@@ -402,6 +591,78 @@
       btn.disabled = false;
       btn.textContent = 'Approve';
     }
+  }
+
+  // Create a brand new roster row and approve in one go. The RPC does both
+  // writes in a single transaction, so a failure can't leave a new staff
+  // record attached to a still-pending user.
+  async function createAndApprove(userId) {
+    clearMsg();
+
+    const name = (el('nm-' + userId).value || '').trim();
+    const role = el('rl-' + userId).value;
+    const area = (el('ar-' + userId).value || '').trim();
+    const teamLead = role === 'merchandiser' ? (el('tl-' + userId).value || null) : null;
+    const salesId  = role === 'rep' ? ((el('sp-' + userId).value || '').trim() || null) : null;
+
+    if (!name) {
+      showMsg('Enter the person’s full name.', 'error');
+      el('nm-' + userId).focus();
+      return;
+    }
+
+    const row = el('row-' + userId);
+    const btn = row.querySelector('#pane-new-' + userId + ' .btn-approve');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    try {
+      const { data, error } = await sb.rpc('approve_and_create_staff', {
+        p_user_id: userId,
+        p_name: name,
+        p_role: role,
+        p_area: area || null,
+        p_team_lead_id: teamLead,
+        p_salesperson_id: salesId
+      });
+      if (error) throw error;
+
+      const result = Array.isArray(data) ? data[0] : data;
+      const outName = (result && result.approved_name) || name;
+      const outRole = (result && result.approved_role) || role;
+
+      row.classList.add('done');
+      row.querySelector('.mode-tabs').style.display = 'none';
+      el('pane-link-' + userId).style.display = 'none';
+      el('pane-new-'  + userId).innerHTML =
+        '<div class="row-done-note">✓ Staff record created · approved as ' +
+        escapeHtml(outRole) + '</div>';
+
+      showMsg(outName + ' has a staff record and can now sign in as ' + outRole + '.', 'success');
+      updateRemainingCount();
+
+      // A new team leader becomes assignable straight away.
+      if (outRole === 'team_leader' && result && result.created_rep_id) {
+        formOptions.team_leads.push({ id: result.created_rep_id, name: outName, area: area });
+        document.querySelectorAll('.row:not(.done) select[id^="tl-"]').forEach(s => {
+          const keep = s.value;
+          s.innerHTML = teamLeadOptions();
+          if (keep) s.value = keep;
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      showMsg('Could not create the record: ' + (e.message || e), 'error');
+      btn.disabled = false;
+      btn.textContent = 'Create record & approve';
+    }
+  }
+
+  function updateRemainingCount() {
+    const remaining = document.querySelectorAll('.row:not(.done)').length;
+    const badge = el('countBadge');
+    badge.textContent = remaining === 0 ? 'None waiting' : remaining + ' waiting';
+    badge.className = 'count-badge' + (remaining === 0 ? ' zero' : '');
   }
 
   document.addEventListener('dfl-auth-ready', loadAll);
