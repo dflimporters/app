@@ -7,6 +7,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — DFL Staff Portal</title>
+
+<!-- This folder previously had NO auth at all — it was an unguarded
+     placeholder. It's now a real entry point (User Approvals), so it gets the
+     standard guard. -->
+<style>body { visibility: hidden; }</style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07); }
@@ -106,11 +111,37 @@
   <div class="coming-soon-box">
     <div class="coming-soon-icon">🔐</div>
     <div class="coming-soon-title">Admin Panel</div>
-    <div class="coming-soon-sub">This section is being rebuilt with full user management and access control. Coming soon.</div>
+    <div class="coming-soon-sub" style="margin-bottom:20px">
+      Being built out. User approvals are live; broader user management and
+      access control still to come.
+    </div>
+    <a href="/admin/approvals.html" style="display:inline-flex;align-items:center;gap:8px;
+       background:var(--accent);color:#fff;text-decoration:none;font-size:13px;
+       font-weight:600;padding:11px 20px;border-radius:8px">
+      👤 User Approvals
+      <span id="pendingPill" style="display:none;background:rgba(255,255,255,0.25);
+            font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px"></span>
+    </a>
   </div>
 </div>
 
+<script>window.PAGE_ALLOWED_ROLES = ['admin'];</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/auth-guard.js"></script>
 <script>
+  // Show how many people are waiting, so an admin doesn't have to open the
+  // page to find out. Fails silently — it's a nicety, not load-bearing.
+  document.addEventListener('dfl-auth-ready', async () => {
+    try {
+      const { data, error } = await sb.rpc('list_pending_signups');
+      if (error || !data || !data.length) return;
+      const pill = document.getElementById('pendingPill');
+      pill.textContent = data.length;
+      pill.style.display = '';
+    } catch (e) { /* nicety only */ }
+  });
+
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobileMenu');
   hamburger.addEventListener('click', () => {

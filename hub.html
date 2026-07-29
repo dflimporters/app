@@ -587,6 +587,15 @@
       <div class="card-link">Enter Management →</div>
     </a>
 
+    <!-- User Approvals — admin only, revealed by the dfl-auth-ready handler
+         below. Managers don't approve logins. -->
+    <a class="card restricted" href="/admin/approvals.html" id="approvalsCard" style="display:none">
+      <div class="card-icon gold">👤</div>
+      <div class="card-title">User Approvals</div>
+      <div class="card-desc">Restricted. Link new phone sign-ups to a staff record to grant them access.</div>
+      <div class="card-link" id="approvalsCardLink">Review sign-ups →</div>
+    </a>
+
     <!-- ─────────────────────────────────────────────────────────────
          The four cards below are DISABLED: their pages still live in
          _staging/ and are not served at the site root, so linking to them
@@ -676,6 +685,16 @@
       const b = document.getElementById('navAdminMob');
       if (a) a.style.display = '';
       if (b) b.style.display = '';
+
+      // Approvals card, with a count so a waiting sign-up is visible from the
+      // landing page. The card shows regardless; the count is best-effort.
+      const card = document.getElementById('approvalsCard');
+      if (card) card.style.display = '';
+      sb.rpc('list_pending_signups').then(({ data, error }) => {
+        if (error || !data || !data.length) return;
+        const link = document.getElementById('approvalsCardLink');
+        if (link) link.textContent = data.length + ' waiting → ';
+      }).catch(() => { /* count is a nicety */ });
     }
   });
 
