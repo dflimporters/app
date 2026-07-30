@@ -152,8 +152,13 @@
       background: #0f2044;
       border-right: 1px solid rgba(255,255,255,0.08);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      overflow-y: auto;
-      overscroll-behavior: contain;
+      /* The rail itself must NOT scroll. Scrolling belongs to __scroll below.
+         When the rail scrolled, __scroll (flex:1, min-height:0) would shrink
+         below its content, and because it had no overflow of its own the links
+         spilled out unclipped and rendered ON TOP of the footer — the brand and
+         Sign out stayed put while Admin Panel, User Approvals and the Coming
+         Soon rows overlapped them. */
+      overflow: hidden;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -187,6 +192,11 @@
       box-sizing: border-box;
       padding: 14px 10px 10px;
       margin: 0;
+      /* This is the only thing that scrolls. min-height:0 lets it shrink, and
+         overflow-y keeps its content inside instead of spilling over the
+         footer, so the brand and the footer stay pinned. */
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .dfl-rail__grouplabel {
