@@ -45,17 +45,29 @@ A trigger on `auth.users` insert creates the `profiles` row on first sign-in, in
 
 `normalize_jm_phone` maps every plausible format to E.164 (`+1876…`/`+1658…`). This matters: Supabase stores `auth.users.phone` **without** a leading `+`, so comparing raw values would silently miss.
 
+### Routing tables: `shared/routes.js`
+
+**One table decides who can open what.** `DFL_PAGE_ROLES` maps path → allowed roles, and `DFL_HOME_BY_ROLE` maps role → landing page. The guard enforces the first, `login.html` uses both to validate `?redirect=`, and `side-nav.js` derives which links to draw from the first. Pure data plus `dflHome()` / `dflCanAccess()` / `dflRolesFor()` — no side effects, safe to load anywhere.
+
+To change who can reach a page, edit that table. **A path not listed has no role restriction** (any signed-in, provisioned user), so a new guarded page is open to all roles until you add it.
+
+This replaced four copies of the same knowledge — a per-page `PAGE_ALLOWED_ROLES`, a table in the guard, `roles:` on every nav item, and a `ROLE_LANDING` map in `login.html`. They drifted: `login.html`'s copy sent `warehouse` to `/index.html`, which rejects `warehouse`, so the guard bounced it back and the two ping-ponged forever behind a blank screen. Every merchandiser and team leader hit it via the bare domain, since `dflhq.com` serves `index.html`.
+
+`routes.js` self-checks on load that every role's home accepts that role, and `console.error`s if not.
+
 ### The guard: `shared/auth-guard.js`
 
-Usage contract:
+Usage contract — note there is **no per-page role list**:
 
 ```html
 <style>body { visibility: hidden; }</style>          <!-- FIRST style rule -->
-<script>window.PAGE_ALLOWED_ROLES = ['admin','manager'];</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 ```
+
+A rejected user goes to **their own** `dflHome()`, never a hardcoded page — and the guard never redirects to the page it's already on, showing an access-denied panel instead. That loop-breaker is what makes the bug above structurally impossible.
 
 It fires `dfl-auth-ready` on success and exposes `window.DFL_PROFILE`:
 
@@ -94,7 +106,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `warehouse`, `p
 | `/pending.html` | pending | Holding page; lets them set their own name via `set_pending_name()` |
 | `/admin/index.html` | admin | Admin landing |
 | `/admin/approvals.html` | admin | Approve pending sign-ups |
-| `/management/**` | — | Separate plaintext-password gate (see below) |
+| `/management/**` | manager, admin | Shell + 8 embedded dashboards, all individually guarded |
 | `/specials.html`, `/specials-upload.html`, `/rep-weekly-plan.html`, `/field-intel.html` | varies | `rep-weekly-plan.html` is iframe-embedded and has no guard |
 
 ## Two parallel Supabase access patterns — check which one a page uses before editing
@@ -164,15 +176,20 @@ Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong,
 
 `shelf-photos` has **no DELETE policy for any role**, so the merch app's "remove photo" silently fails and orphans the object. Pre-existing; fixing it properly needs ownership scoping.
 
-## Auth is inconsistent by design across sections — check per page
+## Auth is now uniform — one guard, one table
 
-- **`management/index.html`** is gated by a hardcoded client-side password (`MGMT_PASSWORD` in plaintext JS) — a completely separate, much weaker mechanism than the Supabase guard. It loads each `management/*.html` in an iframe tab panel. Those files have **no auth of their own** (except `report-viewer.html`, which has its own separate password prompt), so they are **not protected if opened directly by URL**.
-- **`admin/**`** uses the real guard with `['admin']`.
-- Only extend a section using whichever pattern it already has. Don't mix them on one page.
+Every guarded page uses `shared/auth-guard.js` and takes its allow-list from `DFL_PAGE_ROLES` in `shared/routes.js`. There are no per-section auth mechanisms left.
+
+- **`management/**`** — `manager`, `admin`. The old `MGMT_PASSWORD` hardcoded plaintext gate is gone, along with the gap it left: `management/index.html` still loads each dashboard in an iframe tab panel, but **all eight of those files now carry the guard themselves**, so they're protected when opened directly too. The guard no-ops when framed, so embedding still works.
+- **`admin/**`** — `admin`.
+- **`login.html`** loads `routes.js` only, never the guard — guarding the sign-in page would be circular.
+- Genuinely unguarded, on purpose: `rep-weekly-plan.html` (iframe-embedded only) and `field-intel.html` (deliberately standalone).
+
+**Don't add a new auth mechanism.** If a page needs different access, add it to `DFL_PAGE_ROLES`.
 
 ## No shared UI components
 
-`shared/` holds three JS files (`supabase-client.js`, `auth-guard.js`, `section-switcher.js`) and **no CSS**. The navy/blue palette, nav bar markup and mobile hamburger are copy-pasted independently into most pages with inconsistent exact values — the rep app is `--navy #0D1B3E` with Montserrat/Open Sans, the merch app `#1B2B5E` with a system stack, the portal pages `#0f2044` with Inter. Changing shared-looking UI means repeating the edit per page.
+`shared/` holds five JS files (`supabase-client.js`, `routes.js`, `auth-guard.js`, `side-nav.js`, `section-switcher.js`) and **no CSS**. `side-nav.js` is the exception to the rule below — it renders the portal's left rail on every portal page, fully self-styled. The navy/blue palette, nav bar markup and mobile hamburger are copy-pasted independently into most pages with inconsistent exact values — the rep app is `--navy #0D1B3E` with Montserrat/Open Sans, the merch app `#1B2B5E` with a system stack, the portal pages `#0f2044` with Inter. Changing shared-looking UI means repeating the edit per page.
 
 `shared/section-switcher.js` is the one exception and shows the pattern for future shared widgets: it renders the admin/manager Sales↔Merch control into every `[data-dfl-switcher]` mount, and sets **every** visual property explicitly — no `var()` lookups, no webfont dependency — precisely so it renders identically in two apps with different design tokens.
 

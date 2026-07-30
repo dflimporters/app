@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warehouse — DFL Staff Portal</title>
+
+<!--
+  Landing page for the `warehouse` role.
+
+  WHY THIS EXISTS: warehouse used to be routed to /index.html (the Sales app),
+  which does not accept the role. The guard bounced them to a page that bounced
+  them back — an infinite redirect loop behind a blank screen. Warehouse staff
+  have no app yet, so they need a destination that actually accepts them. Once
+  there's dispatch content or a company blog, this is where it goes.
+-->
+
+<!-- Hide until the guard confirms who's logged in. Must be the FIRST style
+     rule so there's no flash of content. -->
+<style>body { visibility: hidden; }</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#ffffff; --border:#e2e8f0;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --shadow-md:0 4px 12px -2px rgba(0,0,0,0.1), 0 2px 6px -2px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* Navigation is rendered and styled by /shared/side-nav.js. */
+
+  .wrap {
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:24px;
+  }
+  /* side-nav.js reserves 52px at the top for its mobile bar below 768px, so
+     give that back or the page gains a scrollbar. */
+  @media (max-width:767px) {
+    .wrap { min-height:calc(100vh - 52px); }
+  }
+
+  .box {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:44px 36px; text-align:center;
+    max-width:440px; width:100%; box-shadow:var(--shadow-md);
+  }
+  .icon { font-size:42px; line-height:1; margin-bottom:18px; }
+  .title { font-size:21px; font-weight:700; letter-spacing:-0.2px; margin-bottom:10px; }
+  .sub { font-size:13.5px; color:var(--text-muted); line-height:1.65; }
+  .who {
+    margin-top:24px; padding-top:18px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--text-dim);
+  }
+  .who b { color:var(--text-muted); font-weight:600; }
+  .links { margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .links a {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:600; text-decoration:none;
+    color:var(--accent); background:var(--accent-bg);
+    border:1px solid #bfdbfe; border-radius:8px; padding:9px 16px;
+    transition:background 0.15s;
+  }
+  .links a:hover { background:#dbeafe; }
+</style>
+</head>
+<body>
+
+<!-- NAV comes from /shared/side-nav.js, loaded below. -->
+
+<div class="wrap">
+  <div class="box">
+    <div class="icon">📦</div>
+    <div class="title">Warehouse</div>
+    <div class="sub">
+      There's no warehouse app yet. Dispatch information and company updates
+      will appear here once they're ready.
+    </div>
+    <div class="links">
+      <a href="/specials.html">🎯 Specials &amp; Flyers</a>
+    </div>
+    <div class="who">
+      Signed in as <b id="whoName">—</b>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.DFL_PAGE_TITLE = 'Warehouse';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+  document.addEventListener('dfl-auth-ready', (e) => {
+    const p = e.detail.profile;
+    const el = document.getElementById('whoName');
+    if (el) el.textContent = (p.full_name || 'Staff') + ' · ' + p.role;
+  });
+</script>
+
+</body>
+</html>

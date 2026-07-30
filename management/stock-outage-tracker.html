@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL Stock Outage Dashboard</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panels still work. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -668,5 +673,13 @@ async function init() {
 
 init();
 </script>
+
+<!-- Auth. This page used to have NONE: it was reachable by direct URL by
+     anyone, and only the management shell had a (plaintext) password. The guard
+     no-ops when framed, so embedding in management/index.html is unaffected. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 </body>
 </html>

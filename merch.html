@@ -670,11 +670,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- Shared Supabase client. MUST load before this page's own script: the
      helpers below read the session from `sb` to authenticate their calls. -->
 <script>
-  window.PAGE_ALLOWED_ROLES = ['merchandiser','team_leader','manager','admin'];
   window.DFL_SECTION = 'merch';   // highlights the right side of the switcher
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/section-switcher.js"></script>
 <script>

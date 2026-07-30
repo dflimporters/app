@@ -26,18 +26,23 @@
 //
 //     <style>body { visibility: hidden; }</style>
 //
-// STEP 2 — Set which roles are allowed on THIS page, then load the
-// three scripts in order. This can go in <head> or right before
-// </body> — doesn't matter, these are plain scripts, not modules:
+// STEP 2 — Load the scripts in this order. They're plain scripts,
+// not modules, so <head> or just before </body> both work:
 //
-//     <script>window.PAGE_ALLOWED_ROLES = ['admin', 'manager'];</script>
 //     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 //     <script src="/shared/supabase-client.js"></script>
+//     <script src="/shared/routes.js"></script>
 //     <script src="/shared/auth-guard.js"></script>
 //
-// If you skip setting PAGE_ALLOWED_ROLES, the guard defaults to
-// "any logged-in, provisioned staff member" — admin, manager, or
-// rep all pass, it just checks they're logged in and have a profile.
+// Pages do NOT declare which roles may open them. That used to be a
+// per-page window.PAGE_ALLOWED_ROLES, which meant the same fact was
+// written in two places and could disagree — and when it did, the
+// result was an infinite redirect loop. The allow-list now comes from
+// DFL_PAGE_ROLES in /shared/routes.js, keyed by path.
+//
+// To change who can open a page, edit that table. A page whose path
+// isn't in the table has no role restriction: any logged-in,
+// provisioned staff member passes.
 //
 // STEP 3 — Once the guard passes, it fires a custom event so the
 // page's own code can react (e.g. rep_app.html reading its rep's
@@ -58,6 +63,64 @@
 //     <a href="#" onclick="logout()">Log out</a>
 // ============================================================
 
+// ============================================================
+// ROUTING TABLES live in /shared/routes.js
+// ============================================================
+// DFL_HOME_BY_ROLE, DFL_PAGE_ROLES, dflHome(), dflCanAccess(), dflRolesFor()
+// and dflNormalisePath() all come from there. Load it BEFORE this file:
+//
+//     <script src="/shared/routes.js"></script>
+//     <script src="/shared/auth-guard.js"></script>
+//
+// They were briefly defined in this file, but side-nav.js and login.html need
+// them too and neither always loads the guard — so they moved somewhere both
+// can reach without dragging the guard's side effects along.
+// Terminal state for "you can't be here, and your home is here too". Reached
+// only on a config mismatch — but it must exist, because the alternative is the
+// redirect loop this file was fixed for. Self-contained styling (no var(), no
+// webfont) so it renders the same on any page, same rule as side-nav.js.
+function showAccessDenied(profile) {
+  const panel = document.createElement('div');
+  panel.setAttribute('role', 'alert');
+  panel.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:99999',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'padding:24px', 'margin:0', 'box-sizing:border-box',
+    'background:#0f2044', 'color:#ffffff',
+    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"
+  ].join(';');
+
+  const box = document.createElement('div');
+  box.style.cssText = 'max-width:380px;width:100%;text-align:center;box-sizing:border-box';
+
+  const h = document.createElement('div');
+  h.textContent = 'No access to this page';
+  h.style.cssText = 'font-size:19px;font-weight:700;margin:0 0 10px;line-height:1.3';
+
+  const p = document.createElement('div');
+  p.textContent = 'Your account (' + ((profile && profile.role) || 'unknown role') +
+    ") isn't set up to open this page, and it's also where you'd normally land. " +
+    'Please contact an admin.';
+  p.style.cssText = 'font-size:13.5px;line-height:1.6;color:rgba(255,255,255,0.7);margin:0 0 22px';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = 'Sign out';
+  btn.style.cssText = [
+    'appearance:none', '-webkit-appearance:none', 'display:inline-block',
+    'padding:10px 22px', 'margin:0', 'border:1px solid rgba(255,255,255,0.35)',
+    'border-radius:8px', 'background:transparent', 'color:#ffffff',
+    "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
+    'font-size:13px', 'font-weight:600', 'line-height:1', 'cursor:pointer'
+  ].join(';');
+  btn.addEventListener('click', function () { logout(); });
+
+  box.appendChild(h); box.appendChild(p); box.appendChild(btn);
+  panel.appendChild(box);
+  document.body.appendChild(panel);
+  document.body.style.visibility = 'visible';
+}
+
 (async function () {
 
   // If this page is running inside an iframe, the PARENT page has
@@ -74,11 +137,6 @@
 
   const LOGIN_PAGE = '/login.html';
   const PENDING_PAGE = '/pending.html';
-
-  // Where to send someone whose ROLE isn't allowed on this specific
-  // page (they ARE logged in, just not permitted here). For now,
-  // everyone gets bounced back to the main app.
-  const NOT_ALLOWED_REDIRECT = '/index.html?denied=1';
 
   function goToLogin(reason) {
     const here = window.location.pathname + window.location.search;
@@ -143,10 +201,38 @@
   }
 
   // ---- 3. Role check, if this page restricts roles ----
-  const allowedRoles = window.PAGE_ALLOWED_ROLES; // e.g. ['admin','manager']
+  //
+  // This used to redirect every rejected user to a hardcoded
+  // '/index.html?denied=1'. That page only accepts admin/manager/rep, so a
+  // merchandiser, team_leader or warehouse user was sent to a page that
+  // rejected them, which redirected them to the same page again — an infinite,
+  // silent loop behind a blank screen (body starts visibility:hidden). It hit
+  // anyone who reached the site via the bare domain, since dflhq.com serves
+  // index.html.
+  //
+  // Two changes: send people to THEIR OWN home, and never redirect to the page
+  // we're already on. The second is the part that makes a loop structurally
+  // impossible, even if the tables above are later misconfigured.
+  // The allow-list comes from DFL_PAGE_ROLES in /shared/routes.js, keyed by
+  // this page's path — pages no longer declare their own. That removes the
+  // possibility of a page and the routing table disagreeing, which is what
+  // produced the loop in the first place. A path that isn't in the table has
+  // no role restriction.
+  const allowedRoles = dflRolesFor(window.location.pathname);
   if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
     if (!allowedRoles.includes(profile.role)) {
-      window.location.href = NOT_ALLOWED_REDIRECT;
+      const home = dflHome(profile);
+      const here = dflNormalisePath(window.location.pathname);
+
+      if (dflNormalisePath(home) === here) {
+        // Their own home rejects them — a config mismatch between this page's
+        // PAGE_ALLOWED_ROLES and DFL_HOME_BY_ROLE. Redirecting is exactly what
+        // caused the original bug, so stop and say so instead.
+        showAccessDenied(profile);
+        return;
+      }
+
+      window.location.href = home;
       return;
     }
   }
@@ -164,33 +250,5 @@ async function logout() {
   window.location.href = '/login.html';
 }
 
-// ============================================================
-// Where "Home" is, per role.
-// ============================================================
-// This is the SINGLE SOURCE OF TRUTH for the clickable DFL logo on every page,
-// and it mirrors login.html's ROLE_LANDING (which decides where someone goes
-// straight after signing in). If you change one, change the other — otherwise
-// the logo sends people somewhere sign-in wouldn't.
-//
-// /shared/side-nav.js calls this for the rail's logo, and both apps call it for
-// their header logos. It falls back to /hub.html when the role is unknown.
-//
-// Note: `warehouse` maps to /index.html to match login.html, but index.html's
-// own PAGE_ALLOWED_ROLES does NOT include warehouse — so a warehouse user is
-// bounced to /index.html?denied=1 and bounces again. Pre-existing; flagged, not
-// fixed here, because changing it is an auth decision rather than a nav one.
-const DFL_HOME_BY_ROLE = {
-  rep:          '/index.html',
-  warehouse:    '/index.html',
-  merchandiser: '/merch.html',
-  team_leader:  '/merch.html',
-  manager:      '/hub.html',
-  admin:        '/hub.html',
-  pending:      '/pending.html'
-};
-
-function dflHome(profile) {
-  const p = profile || window.DFL_PROFILE;
-  const role = p && p.role;
-  return (role && DFL_HOME_BY_ROLE[role]) || '/hub.html';
-}
+// The routing tables and dflHome()/dflCanAccess() now live at the TOP of this
+// file — they have to be defined before the guard IIFE that uses them.

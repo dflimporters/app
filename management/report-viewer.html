@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weekly Report Viewer — DFL Management</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panel still works. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -228,14 +233,16 @@
   // management tab panel. side-nav.js no-ops when framed, so in the normal
   // embedded case nothing here renders. No Supabase guard on this page (it has
   // its own separate password prompt), so the rail is told which links to draw
-  // — which grants no access, as every destination runs its own guard.
-  window.DFL_NAV_FALLBACK_ROLE = 'manager';
   window.DFL_PAGE_TITLE = 'Report Viewer';
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
 
 <script>
-  const SUPABASE_URL  = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const VIEWER_SB_URL  = 'https://hzagwndglwhcepsirafi.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
 
   let reports = [];
@@ -248,7 +255,7 @@
     showState('loading');
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/weekly_reports?select=id,week_start,week_end,week_label,compiled_at,dept_count,html_storage_path,status&status=eq.complete&order=week_start.desc`,
+        `${VIEWER_SB_URL}/rest/v1/weekly_reports?select=id,week_start,week_end,week_label,compiled_at,dept_count,html_storage_path,status&status=eq.complete&order=week_start.desc`,
         { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -307,7 +314,7 @@
 
     try {
       // Cache-bust to always get the latest compiled version
-      const storageUrl = `${SUPABASE_URL}/storage/v1/object/public/weekly-reports/${report.html_storage_path}?t=${Date.now()}`;
+      const storageUrl = `${VIEWER_SB_URL}/storage/v1/object/public/weekly-reports/${report.html_storage_path}?t=${Date.now()}`;
       const res = await fetch(storageUrl);
       if (!res.ok) throw new Error(`Could not fetch report (HTTP ${res.status})`);
       const html = await res.text();
