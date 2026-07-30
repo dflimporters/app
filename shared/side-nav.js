@@ -116,7 +116,11 @@
     {
       group: 'Coming Soon',
       items: [
-        { label: 'Dashboards',      icon: '📊', soon: true },
+        // Was also called "Dashboards", which collided with the live
+        // /management/ entry above — same label, same icon, two destinations.
+        // This one is _staging/dashboards.html: the old sales + World Cup
+        // tracker. Renamed so the two are tellable apart.
+        { label: 'Sales Dashboard', icon: '🏆', soon: true },
         { label: 'Forms & Links',   icon: '🔗', soon: true },
         { label: 'Assets',          icon: '📁', soon: true },
         { label: 'Dispatch Portal', icon: '🚚', soon: true, roles: ['manager', 'admin'] }
@@ -157,7 +161,8 @@
       display: flex;
       align-items: center;
       box-sizing: border-box;
-      height: 64px;
+      /* Taller than the 64px it was, to give the bigger logo room to breathe. */
+      height: 76px;
       flex-shrink: 0;
       padding: 0 18px;
       margin: 0;
@@ -168,7 +173,8 @@
     }
     .dfl-rail__brand:hover { background: rgba(255,255,255,0.06); }
     .dfl-rail__brand img {
-      height: 26px;
+      /* Was 26px, which read as an afterthought against the rail width. */
+      height: 38px;
       width: auto;
       display: block;
       margin: 0;
@@ -322,6 +328,51 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .dfl-rail__out:hover { color: #ffffff; border-color: rgba(255,255,255,0.45); }
+
+    /* Install app — same shape as the sign-out button, sitting above it.
+       Hidden unless window.DFLInstall says the app can actually be installed,
+       so it simply isn't there once installed or on a browser that can't. */
+    .dfl-rail__install {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 32px;
+      margin: 0 0 8px 0;
+      padding: 6px 12px;
+      border: 1px solid rgba(37,99,235,0.5);
+      border-radius: 7px;
+      background: rgba(37,99,235,0.16);
+      color: #bfdbfe;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.1px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .dfl-rail__install:hover {
+      background: rgba(37,99,235,0.28);
+      color: #ffffff;
+      border-color: rgba(37,99,235,0.8);
+    }
+    .dfl-rail__hint {
+      margin: 0 0 8px 0;
+      padding: 8px 10px;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.7);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
 
     /* ---- Mobile top bar + drawer scrim: hidden at rail widths ---- */
     .dfl-topbar { display: none; }
@@ -584,6 +635,35 @@
       who.appendChild(document.createTextNode(profile.role || ''));
       foot.appendChild(who);
     }
+    // Install app. Replaces the fixed banner hub.html used to show across the
+    // bottom of the viewport, which overlapped this very rail. Only rendered
+    // when window.DFLInstall (shared/user-menu.js) says it's genuinely on
+    // offer — installed already, or a browser with no install path, and it
+    // never appears.
+    if (window.DFLInstall) {
+      const inst = document.createElement('button');
+      inst.type = 'button';
+      inst.className = 'dfl-rail__install';
+      inst.innerHTML = '<span aria-hidden="true">⬇️</span><span>Install app</span>';
+      inst.addEventListener('click', function () {
+        if (window.DFLInstall.run() === 'manual') {
+          // iOS Safari has no programmatic install — show how instead.
+          if (!foot.querySelector('.dfl-rail__hint')) {
+            const hint = document.createElement('div');
+            hint.className = 'dfl-rail__hint';
+            hint.textContent = window.DFLInstall.instructions();
+            foot.insertBefore(hint, inst);
+          }
+        }
+      });
+      const syncInstall = function () {
+        inst.style.display = window.DFLInstall.offerable() ? '' : 'none';
+      };
+      syncInstall();
+      window.DFLInstall.onChange(syncInstall);
+      foot.appendChild(inst);
+    }
+
     const out = document.createElement('button');
     out.type = 'button';
     out.className = 'dfl-rail__out';

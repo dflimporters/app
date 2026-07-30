@@ -24,8 +24,10 @@
   --text:#1A1A2E;--muted:#6B7280;
   --rad:14px;--rad-sm:9px;--shadow:0 1px 4px rgba(0,0,0,0.07);
   /* Matches the Sales app's .wrap max-width, so the two apps read the same
-     width on a desktop screen. */
+     width on a desktop screen. --hdr-h is likewise shared: every header in
+     both apps is this tall. */
   --content-max:640px;
+  --hdr-h:100px;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
 /* The whole app used to be capped at 480px, which left it as a narrow phone
@@ -42,8 +44,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
    would shrink the navy background too; instead the horizontal padding grows to
    absorb the leftover space. The three role screens (s-merch, s-tl, s-admin)
    each have their own .hdr, so this covers all of them. */
+/* Fixed height, shared with the Sales app via the same --hdr-h value, so the
+   two apps' headers are identical rather than merely similar. */
 .hdr{background:var(--navy);color:#fff;display:flex;align-items:center;gap:10px;flex-shrink:0;box-sizing:border-box;
-  padding:14px max(16px, calc((100% - var(--content-max)) / 2)) 12px}
+  height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) max(16px, calc((100% - var(--content-max)) / 2)) 0}
 .hdr-logo{flex:1}
 .hdr-sub{font-size:11px;opacity:0.6;margin-top:1px}
 .avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;border:1.5px solid rgba(255,255,255,0.2)}
@@ -133,7 +138,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* FORM */
 .field label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
-.field select,.field input,.field textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);background:var(--card);color:var(--text);font-size:15px;font-family:inherit;-webkit-appearance:none}
+/* 16px, not 15px: iOS Safari zooms the whole page when you focus an input
+   smaller than 16px, which is jarring mid-form on a phone — and phones are
+   what this app runs on. Applies to all 9 form fields, not just the newest. */
+.field select,.field input,.field textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);background:var(--card);color:var(--text);font-size:16px;font-family:inherit;-webkit-appearance:none}
 .field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--navy)}
 .field textarea{height:76px;resize:none}
 
@@ -222,6 +230,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .nav-btn span{font-size:10px;font-weight:700}
 
+/* VIEW-AS BAR — only while an admin is looking at someone else's app */
+.viewas-bar{display:none;position:fixed;left:0;right:0;
+  bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:110;
+  background:var(--amber);color:#fff;
+  padding:9px max(14px, calc((100% - var(--content-max)) / 2));
+  font-size:12px;font-weight:600;
+  align-items:center;justify-content:space-between;gap:10px;
+  box-shadow:0 -2px 10px rgba(0,0,0,.12)}
+.viewas-bar.show{display:flex}
+.viewas-bar b{font-weight:800}
+.viewas-bar button{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);
+  color:#fff;font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;
+  cursor:pointer;font-family:inherit;flex-shrink:0}
+.viewas-bar button:hover{background:rgba(255,255,255,.34)}
+
+/* Hidden outright while viewing as someone else — an admin must not be able to
+   file a visit or an OOS report under a merchandiser's name. */
+body.dfl-readonly .hide-when-readonly{display:none!important}
+.readonly-note{background:var(--amber-lt);border:1px solid var(--amber);
+  border-radius:var(--rad-sm);padding:12px 14px;font-size:12.5px;color:var(--amber);
+  line-height:1.5;display:none}
+body.dfl-readonly .readonly-note{display:block}
+
+/* Overview cards are clickable in the admin view */
+.merch-card.tappable{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.merch-card.tappable:active{transform:scale(.985)}
+.merch-card.tappable:hover{box-shadow:0 2px 10px rgba(0,0,0,.12)}
+
 /* TL CARDS */
 .merch-card{background:var(--card);border-radius:var(--rad);padding:14px;box-shadow:var(--shadow)}
 .merch-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -294,12 +330,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 
 <style>
-#pwa-install-bar{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:99999;background:#152348;color:#fff;border-radius:12px;padding:14px 20px;box-shadow:0 4px 24px rgba(0,0,0,.5);align-items:center;gap:12px;max-width:360px;width:calc(100% - 32px)}
-#pwa-install-bar.show{display:flex}
-#pwa-install-bar .pwa-txt{flex:1;font-size:13px;font-weight:600;line-height:1.3}
-#pwa-install-bar .pwa-txt small{display:block;font-size:11px;font-weight:400;opacity:.6;margin-top:2px}
-#pwa-install-btn{background:#C8202F;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
-#pwa-install-dismiss{background:none;border:none;color:rgba(255,255,255,.5);font-size:20px;cursor:pointer;padding:0;line-height:1;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -333,7 +363,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- Sales/Merch switcher — renders only for admin/manager. See
          /shared/section-switcher.js -->
     <div data-dfl-switcher></div>
-    <div class="avatar" id="m-av" onclick="logout()"></div>
+    <div data-dfl-user-menu></div>
   </div>
   <div style="position:relative;flex:1;display:flex;flex-direction:column;overflow:hidden">
 
@@ -424,6 +454,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- VISIT LOG -->
     <div class="form-body" id="tab-visit" style="display:none">
+      <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
       <button onclick="goTab('tab-home');setNav('n-home')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:6px 0 10px;flex-shrink:0;-webkit-tap-highlight-color:transparent">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
@@ -509,7 +540,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <!-- Stock count optional row -->
-      <div id="stock-count-row" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:2px">
+      <div id="stock-count-row" class="hide-when-readonly" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:2px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:20px">📦</span>
           <div>
@@ -519,11 +550,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <span style="font-size:18px;color:var(--navy)">›</span>
       </div>
-      <button class="submit-btn" id="v-sbtn" onclick="submitVisit()" disabled style="opacity:.4;cursor:not-allowed">Log this visit →</button>
+      <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="submitVisit()" disabled style="opacity:.4;cursor:not-allowed">Log this visit →</button>
     </div>
 
     <!-- STOCK REPORT -->
     <div class="form-body" id="tab-stock" style="display:none">
+      <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
       <button onclick="goTab('tab-home');setNav('n-home')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:6px 0 10px;flex-shrink:0;-webkit-tap-highlight-color:transparent">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
@@ -571,7 +603,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </div>
         </div>
       </div>
-      <button class="submit-btn red" id="s-sbtn" onclick="submitStock()">Submit report →</button>
+      <button class="submit-btn red hide-when-readonly" id="s-sbtn" onclick="submitStock()">Submit report →</button>
     </div>
 
     <!-- MY STORES TAB -->
@@ -602,6 +634,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 
+  <!-- Shown only while an admin/manager is viewing another person's app.
+       Sits directly above the tab bar, mirroring the Sales app's .viewasbar. -->
+  <div class="viewas-bar" id="viewas-bar">
+    <span>Viewing as <b id="viewas-name"></b> · read-only</span>
+    <button onclick="exitViewAs()">Exit</button>
+  </div>
+
   <nav class="bottom-nav">
     <button class="nav-btn active" id="n-home" onclick="goTab('tab-home');setNav('n-home')">
       <svg viewBox="0 0 24 24"><path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/><path d="M3 12v9h18V12"/></svg><span>Home</span>
@@ -623,7 +662,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="hdr">
     <div style="flex:1"><img src="data:image/png;base64,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" alt="DFL Importers" class="hdr-logo-img" title="Go to home" style="height:34px;width:auto;display:block;cursor:pointer"><div class="hdr-sub" id="tl-sub">Team Leader</div></div>
     <div data-dfl-switcher></div>
-    <div class="avatar" id="tl-av" onclick="logout()"></div>
+    <div data-dfl-user-menu></div>
   </div>
   <div class="scroll-body">
     <div class="stats-grid">
@@ -647,21 +686,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- ADMIN -->
 <div class="screen" id="s-admin">
   <div class="hdr">
-    <div style="flex:1"><img src="data:image/png;base64,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" alt="DFL Importers" class="hdr-logo-img" title="Go to home" style="height:34px;width:auto;display:block;cursor:pointer"><div class="hdr-sub" id="adm-sub">Merchandising — roster</div></div>
+    <div style="flex:1"><img src="data:image/png;base64,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" alt="DFL Importers" class="hdr-logo-img" title="Go to home" style="height:34px;width:auto;display:block;cursor:pointer"><div class="hdr-sub" id="adm-sub">Merchandising</div></div>
     <div data-dfl-switcher></div>
-    <div class="avatar" id="adm-av" onclick="logout()"></div>
+    <div data-dfl-user-menu></div>
   </div>
   <div class="scroll-body">
-    <!-- Was the "PIN Directory": it listed every user's PIN in plaintext.
-         PINs are dead under Supabase Auth, so this is now a read-only
-         roster (name, area, team lead) with no credentials on it. -->
+    <!-- This screen has been through two lives. It was the "PIN Directory",
+         listing everyone's PIN in plaintext; then a static roster. It is now a
+         performance overview across ALL merchandisers that drills into any one
+         person's actual app — the same shape as the Sales app's admin tab. -->
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-lbl">Merchandisers</div><div class="stat-val c-navy" id="ov-tot">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Qualifying</div><div class="stat-val c-green" id="ov-qual">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Total commission</div><div class="stat-val c-amber" id="ov-comm">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="ov-avg">–</div></div>
+    </div>
+
     <a class="dash-link" href="#" onclick="openDash(event)">
       <div class="dash-link-ico">📊</div>
       <div><div class="dash-link-title">Merch Commission Dashboard</div><div class="dash-link-sub">Full team performance & commission view</div></div>
       <div class="dash-link-arr">↗</div>
     </a>
-    <div><div class="sec-hdr">Team leaders</div><div class="admin-section" id="adm-tl" style="margin-top:6px"></div></div>
-    <div><div class="sec-hdr">Merchandisers</div><div class="admin-section" id="adm-merch" style="margin-top:6px"></div></div>
+
+    <div class="field" style="margin-bottom:2px">
+      <input type="text" id="ov-search" placeholder="Search merchandisers…"
+             oninput="renderOverview()" autocomplete="off">
+    </div>
+
+    <div>
+      <div class="sec-hdr" id="ov-hdr">All merchandisers</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px" id="ov-list">
+        <div class="spinner"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -677,6 +734,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/section-switcher.js"></script>
+<script src="/shared/user-menu.js"></script>
 <script>
 // ============================================================
 // PostgREST helpers
@@ -840,7 +898,8 @@ function wireHomeLogos(){
 // ── MERCH ──
 async function launchMerch(u){
   showScreen('s-merch');
-  document.getElementById('m-av').textContent=u.initials;
+  // Avatar/initials now come from shared/user-menu.js, which reads the
+  // profile itself — nothing to set here.
   document.getElementById('m-first').textContent=u.full_name.split(' ')[0];
   document.getElementById('m-terr').textContent=(u.territory||'')+(u.team_lead?' · TL: '+u.team_lead:'');
   document.getElementById('m-date').textContent=new Date().toLocaleDateString('en-JM',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -934,6 +993,9 @@ function setOut(o){
 
 // ── SUBMIT VISIT ──
 async function submitVisit(){
+  // Hiding the button is presentation; this is the guard. A visit written
+  // while viewing as someone else would be attributed to THEM.
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!storeSelected.name){alert('Please select a store.');return;}
   const btn=document.getElementById('v-sbtn');
   btn.disabled=true;btn.textContent='Getting location…';
@@ -988,6 +1050,7 @@ async function submitVisit(){
 
 // ── SUBMIT STOCK ──
 async function submitStock(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!sfStoreSelected.name){alert('Please select a store.');return;}
   const flagged=Array.from(document.querySelectorAll('.tog.on')).map(t=>t.closest('.sku-row').querySelector('.sku-name').textContent);
   if(!flagged.length){alert('Please flag at least one SKU.');return;}
@@ -1059,6 +1122,7 @@ function renderFeed(){
 }
 
 async function checkOut(visitId, btn){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   btn.disabled=true;
   btn.textContent='Saving…';
   const now=new Date().toISOString();
@@ -1084,7 +1148,6 @@ async function checkOut(visitId, btn){
 // ── TEAM LEADER ──
 async function launchTL(u){
   showScreen('s-tl');
-  document.getElementById('tl-av').textContent=u.initials;
   document.getElementById('tl-sub').textContent=u.full_name+' · '+(u.territory||'');
   await loadTLData(u);
 }
@@ -1165,29 +1228,154 @@ async function loadTLData(u){
 // Was the "PIN Directory", which printed every user's PIN in plaintext. PINs
 // are dead under Supabase Auth, so this now shows the roster from `reps` with
 // team leads resolved through team_lead_id instead of a free-text name.
+// Every active merchandiser + their performance for this period. Held so the
+// search box can re-filter without refetching.
+let overviewRows=[];
+// The admin's own identity, kept aside while they view as someone else so
+// exitViewAs() can put it back.
+let adminSelf=null;
+
 async function launchAdmin(){
   showScreen('s-admin');
-  const av=document.getElementById('adm-av');
-  if(av) av.textContent=cu?cu.initials:'';
   try{
-    const users=await rest('reps?active=eq.true&role=in.(merchandiser,team_leader)&select=id,name,area,role,team_lead_id&order=role,name');
-    const all=users||[];
-    // id -> name, so each merchandiser can show who leads them
-    const nameById={};
-    all.forEach(u=>{ nameById[u.id]=u.name; });
+    // Roster and performance in parallel — the roster is the source of truth
+    // for WHO exists; merchandiser_summary only has rows for people with data.
+    const [reps, summary] = await Promise.all([
+      rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
+      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`)
+    ]);
 
-    const tls=all.filter(u=>u.role==='team_leader');
-    const ms=all.filter(u=>u.role==='merchandiser');
-    const rows=arr=>arr.map(u=>{
-      const lead=u.team_lead_id?nameById[u.team_lead_id]:'';
-      return `<div class="admin-row"><div><div class="admin-lbl">${u.name}</div>`+
-             `<div class="admin-sub">${u.area||'–'}${lead?' · TL: '+lead:''}</div></div></div>`;
-    }).join('');
-    document.getElementById('adm-tl').innerHTML=rows(tls)||'<div class="admin-row"><div class="admin-sub">None</div></div>';
-    document.getElementById('adm-merch').innerHTML=rows(ms)||'<div class="admin-row"><div class="admin-sub">None</div></div>';
-    const sub=document.getElementById('adm-sub');
-    if(sub) sub.textContent=`Merchandising — ${ms.length} merchandisers, ${tls.length} team leaders`;
-  }catch(e){console.error(e);}
+    const leads=await rest('reps?active=eq.true&role=eq.team_leader&select=id,name');
+    const leadById={};
+    (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
+
+    // merchandiser_summary is keyed by NAME, not id (see CLAUDE.md gotcha 7),
+    // so this join is a name match. A rename on either side silently drops the
+    // performance data — the roster row still appears, just without numbers.
+    const perfByName={};
+    (summary||[]).forEach(r=>{ perfByName[r.merchandiser_name]=r; });
+
+    overviewRows=(reps||[]).map(r=>({
+      id:r.id, name:r.name, area:r.area||'',
+      team_lead:r.team_lead_id?(leadById[r.team_lead_id]||''):'',
+      team_lead_id:r.team_lead_id||null,
+      perf:perfByName[r.name]||null
+    }));
+
+    renderOverviewStats();
+    renderOverview();
+  }catch(e){
+    console.error(e);
+    document.getElementById('ov-list').innerHTML=
+      '<div class="empty-feed">Failed to load. Check connection.</div>';
+  }
+}
+
+function renderOverviewStats(){
+  const withPerf=overviewRows.filter(r=>r.perf);
+  const totComm=withPerf.reduce((s,r)=>s+parseFloat(r.perf.commission||0),0);
+  const qual=withPerf.filter(r=>r.perf.stores_qualified>0).length;
+  const avgPct=withPerf.length
+    ? withPerf.reduce((s,r)=>s+parseFloat(r.perf.achievement_pct||0),0)/withPerf.length : 0;
+
+  document.getElementById('ov-tot').textContent=overviewRows.length;
+  document.getElementById('ov-qual').textContent=qual;
+  document.getElementById('ov-comm').textContent='$'+Math.round(totComm).toLocaleString();
+  const ae=document.getElementById('ov-avg');
+  ae.textContent=avgPct.toFixed(1)+'%';
+  ae.className='stat-val '+(avgPct>=80?'c-green':avgPct>=50?'c-amber':'c-red');
+  document.getElementById('ov-hdr').textContent='All merchandisers — '+_curLabel;
+}
+
+function renderOverview(){
+  const q=(document.getElementById('ov-search').value||'').trim().toLowerCase();
+  const rows=q
+    ? overviewRows.filter(r=>r.name.toLowerCase().includes(q)||r.area.toLowerCase().includes(q))
+    : overviewRows;
+
+  const list=document.getElementById('ov-list');
+  if(!rows.length){
+    list.innerHTML='<div class="empty-feed">No merchandisers match “'+escapeHtmlM(q)+'”.</div>';
+    return;
+  }
+
+  list.innerHTML=rows.map(r=>{
+    const m=r.perf;
+    const pct=m?parseFloat(m.achievement_pct||0):0;
+    const fc=pct>=80?'pf-green':pct>=50?'pf-amber':'pf-red';
+    const comm=m?parseFloat(m.commission||0):0;
+    const actual=m?parseFloat(m.total_actual||0):0;
+    const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const qb=(m&&m.stores_qualified>0)
+      ?`<div class="badge b-ok">${m.stores_qualified} qualifying</div>`
+      :`<div class="badge b-issue">None qualifying</div>`;
+    return `<div class="merch-card tappable" onclick="viewAsMerchandiser('${r.id}')">
+      <div class="merch-hdr">
+        <div class="merch-av">${ini}</div>
+        <div style="flex:1">
+          <div class="merch-nm">${escapeHtmlM(r.name)}</div>
+          <div class="merch-rt">${escapeHtmlM(r.area||'No area')}${r.team_lead?' · TL: '+escapeHtmlM(r.team_lead):''}</div>
+        </div>
+        ${qb}
+      </div>
+      ${m?`<div class="prog-bar"><div class="prog-fill ${fc}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="merch-stats">
+        <span><strong>${pct.toFixed(1)}%</strong> achieved</span>
+        <span><strong>$${Math.round(actual).toLocaleString()}</strong> actual</span>
+        ${comm>0?`<span style="color:var(--green)"><strong>$${Math.round(comm).toLocaleString()}</strong> comm</span>`:''}
+      </div>`:'<div style="font-size:12px;color:var(--muted);padding-top:4px">No performance data this period</div>'}
+      <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their app →</div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtmlM(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── VIEW AS ──
+// Loads a merchandiser's real app — their stores, visits and performance —
+// exactly as they'd see it, but read-only. Writes stay disabled because an
+// admin filing a visit here would be recorded as that merchandiser, with
+// nothing in the row showing who actually did it.
+async function viewAsMerchandiser(repId){
+  const row=overviewRows.find(r=>r.id===repId);
+  if(!row) return;
+
+  if(!adminSelf) adminSelf=cu;          // remember who we really are
+
+  cu={
+    id: row.id,
+    full_name: row.name,
+    initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
+    territory: row.area,
+    team_lead: row.team_lead,
+    team_lead_id: row.team_lead_id,
+    role: 'merchandiser',
+    viewingAs: true
+  };
+
+  document.body.classList.add('dfl-readonly');
+  document.getElementById('viewas-name').textContent=row.name;
+  document.getElementById('viewas-bar').classList.add('show');
+
+  await launchMerch(cu);
+}
+
+function exitViewAs(){
+  cu=adminSelf;
+  adminSelf=null;
+  document.body.classList.remove('dfl-readonly');
+  document.getElementById('viewas-bar').classList.remove('show');
+  // Reset the merchandiser-scoped state so nothing leaks into the next person.
+  visits=[];issueCount=0;myStores=[];storePerf=[];storesLoaded=false;
+  storeSelected={id:'',name:''};sfStoreSelected={name:''};
+  // Clear the filter too — otherwise you come back to a list showing only the
+  // person you just looked at and wonder where everyone went.
+  const sq=document.getElementById('ov-search');
+  if(sq) sq.value='';
+  launchAdmin();
 }
 
 // ── DASHBOARD LINK ──
@@ -1912,69 +2100,11 @@ window.addEventListener('online',  updateLiveDot);
 window.addEventListener('offline', updateLiveDot);
 </script>
 
-<!-- PWA install bar -->
-<div id="pwa-install-bar">
-  <div class="pwa-txt">Add to home screen<small>Works like a native app — no browser bar</small></div>
-  <button class="pwa-install-btn" id="pwa-install-btn" onclick="triggerInstall()">Install</button>
-  <button class="pwa-install-dismiss" onclick="dismissInstall()">×</button>
-</div>
-
-<script>
-// PWA install prompt
-let _deferredPrompt = null;
-
-function showInstallBar(){
-  // Clear any old dismiss state so it always shows fresh on new deploy
-  var bar = document.getElementById('pwa-install-bar');
-  if(bar) bar.classList.add('show');
-}
-
-window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault();
-  _deferredPrompt = e;
-  setTimeout(showInstallBar, 1500);
-});
-
-// Also show after 3s as fallback even if event already fired
-window.addEventListener('load', function(){
-  setTimeout(function(){
-    if(!localStorage.getItem('pwa-installed')){
-      var bar = document.getElementById('pwa-install-bar');
-      if(bar && !bar.classList.contains('show')) bar.classList.add('show');
-    }
-  }, 3000);
-});
-
-function triggerInstall() {
-  if (_deferredPrompt) {
-    _deferredPrompt.prompt();
-    _deferredPrompt.userChoice.then(function(result) {
-      if(result.outcome === 'accepted') localStorage.setItem('pwa-installed','1');
-      _deferredPrompt = null;
-      document.getElementById('pwa-install-bar').classList.remove('show');
-    });
-  } else {
-    // Manual instructions fallback
-    var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    if(isIOS){
-      alert('Install on iPhone:\n\n1. Tap the Share button (box with arrow at bottom of Safari)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"\n\nMust use Safari browser.');
-    } else {
-      alert('Install on Android:\n\n1. Tap the ⋮ menu (3 dots) in Chrome\n2. Tap "Add to Home Screen" or "Install app"\n3. Tap "Install"\n\nMust use Chrome browser.');
-    }
-  }
-}
-
-function dismissInstall() {
-  document.getElementById('pwa-install-bar').classList.remove('show');
-}
-
-window.addEventListener('appinstalled', function() {
-  localStorage.setItem('pwa-installed','1');
-  var bar = document.getElementById('pwa-install-bar');
-  if (bar) bar.classList.remove('show');
-  _deferredPrompt = null;
-});
-</script>
+<!-- The PWA install bar lived here: a fixed banner that showed itself
+     1.5s after load, plus a fallback that force-showed it after 3s whether
+     or not the browser said the app was installable. Installing is now a
+     item in the avatar menu (shared/user-menu.js) that appears only when
+     it is genuinely on offer, and hides once installed. -->
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->
 <div id="eval-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:#0E2A4E;flex-direction:column">
@@ -2206,6 +2336,7 @@ function updateStockSaveBtn(){
 }
 
 async function saveStockCount(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   const counted = Object.entries(skuCounts).filter(([,v])=>v.stock_on_hand !== null && v.stock_on_hand !== undefined);
   if(!counted.length){
     closeStockCount();
