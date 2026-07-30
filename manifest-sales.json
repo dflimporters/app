@@ -1,0 +1,23 @@
+{
+  "name": "DFL Field App — Sales",
+  "short_name": "DFL Sales",
+  "description": "DFL Importers sales rep field app",
+  "start_url": "https://dflhq.com/index.html",
+  "scope": "https://dflhq.com/",
+  "display": "standalone",
+  "background_color": "#0D1B3E",
+  "theme_color": "#0D1B3E",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
