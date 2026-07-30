@@ -21,92 +21,16 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-    /* ── NAV ── */
-  nav {
-    background: var(--navy);
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; }
-  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
-  .nav-links { display:flex; gap:4px; }
-  .nav-links a {
-    color: rgba(255,255,255,0.65);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 6px;
-    transition: all 0.15s;
-  }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
-  .nav-links a.mgmt { color:#fbbf24; }
-  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
-  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
-  .nav-hamburger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    flex-shrink: 0;
-  }
-  .nav-hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 2px;
-    transition: transform 0.25s, opacity 0.25s;
-  }
-  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
-  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .nav-mobile-menu {
-    display: none;
-    position: fixed;
-    top: 56px;
-    left: 0; right: 0;
-    background: rgba(10,20,50,0.98);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 0.75rem 1.25rem 1.25rem;
-    z-index: 99;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-mobile-menu.open { display: flex; }
-  .nav-mobile-menu a {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: rgba(255,255,255,0.75);
-    text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color:#fbbf24; }
-  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
-  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+    /* ── NAV ──
+     Rendered and styled by /shared/side-nav.js. */
 
   /* LOGIN */
   .login-wrap {
     display:flex; align-items:center; justify-content:center;
-    min-height:calc(100vh - 56px);
+    /* Was calc(100vh - 56px) for the old sticky top bar. The rail is a fixed
+       left column and consumes no vertical space. Below 768px side-nav.js adds
+       52px of body padding-top for its top bar — see the media query below. */
+    min-height:100vh;
   }
   .login-box {
     background:var(--surface); border:1px solid var(--border);
@@ -138,7 +62,8 @@
   .btn-primary:hover { background:#1d4ed8; }
 
   /* MAIN PANEL */
-  .main-panel { display:none; flex-direction:column; height:calc(100vh - 56px); }
+  /* Same reasoning as .login-wrap above — the 56px top bar is gone. */
+  .main-panel { display:none; flex-direction:column; height:100vh; }
 
   /* TABS BAR */
   .tabs-bar {
@@ -161,11 +86,13 @@
   .panel.active { display:block; }
   .panel iframe { width:100%; height:100%; border:none; display:block; }
 
+  /* side-nav.js reserves 52px at the top for its mobile bar, so the full-height
+     panels have to give that back or the page gains a scrollbar. */
+  @media (max-width: 767px) {
+    .login-wrap { min-height: calc(100vh - 52px); }
+    .main-panel { height: calc(100vh - 52px); }
+  }
   @media (max-width: 640px) {
-    nav { padding: 0 16px; }
-    .nav-links { display: none; }
-    .nav-hamburger { display: flex; }
-    .nav-title { font-size: 13px; }
     .tabs-bar { padding: 0 16px; overflow-x: auto; }
     .page-header { padding: 18px 16px 22px; }
   }
@@ -173,39 +100,13 @@
 </head>
 <body>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Staff Portal</span>
-  </div>
-  <div class="nav-links">
-    <a href="/admin/" class="mgmt">Admin</a>
-    <a href="/management/" class="mgmt active">Management</a>
-    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-    <a href="/index.html">Home</a>
-    <a href="/specials.html">Specials</a>
-    <a href="/dashboards.html">Dashboards</a>
-    <a href="/forms.html">Forms</a>
-    <a href="/assets.html">Assets</a>
-  </div>
-  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<div class="nav-mobile-menu" id="mobileMenu">
-  <a href="/admin/" class="mgmt">Admin</a>
-  <a href="/management/" class="mgmt active">Management</a>
-  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-  <div class="mob-divider"></div>
-  <a href="/index.html">Home</a>
-  <a href="/specials.html">Specials</a>
-  <a href="/dashboards.html">Dashboards</a>
-  <a href="/forms.html">Forms</a>
-  <a href="/assets.html">Assets</a>
-</div>
+<!-- NAV
+     Comes from /shared/side-nav.js, loaded at the bottom of this file. The bar
+     that used to be here linked to /dispatch-portal.html, /dashboards.html,
+     /forms.html and /assets.html — all four are still in _staging/ and 404.
+     They're now disabled "Soon" items in side-nav.js, defined once.
+     Its "Home" link also pointed at /index.html, which is the rep app, not the
+     hub; the rail's logo now routes by role instead. -->
 
 <!-- LOGIN -->
 <div class="login-wrap" id="loginWrap">
@@ -280,6 +181,15 @@
 </div>
 
 <script>
+  // This page has no Supabase auth guard — it uses the separate MGMT_PASSWORD
+  // gate below, so there's no DFL_PROFILE for the rail to read. Tell it which
+  // links to draw. This grants nothing: /hub.html, /admin/ etc. each run their
+  // own guard and will bounce anyone who isn't really a manager or admin.
+  window.DFL_NAV_FALLBACK_ROLE = 'manager';
+  window.DFL_PAGE_TITLE = 'Management';
+</script>
+<script src="/shared/side-nav.js"></script>
+<script>
   const MGMT_PASSWORD = 'admin';
 
   function doLogin() {
@@ -299,20 +209,6 @@
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
   }
-
-    // Hamburger menu
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open');
-  });
-  mobileMenu.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileMenu.classList.remove('open');
-    });
-  });
 </script>
 
 </body>

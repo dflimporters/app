@@ -25,29 +25,9 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-  /* ── NAV (matches hub.html) ── */
-  nav {
-    background:var(--navy); height:56px; display:flex; align-items:center;
-    justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:10;
-  }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:22px; width:auto; display:block; }
-  .nav-divider { width:1px; height:20px; background:rgba(255,255,255,0.2); }
-  .nav-title { color:#fff; font-size:13px; font-weight:600; letter-spacing:0.2px; }
-  .nav-links { display:flex; align-items:center; gap:4px; }
-  .nav-links a {
-    color:rgba(255,255,255,0.7); text-decoration:none; font-size:12px;
-    font-weight:500; padding:6px 12px; border-radius:6px;
-  }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.14); }
-  .nav-signout {
-    font-size:11px; font-weight:600; color:rgba(255,255,255,0.6);
-    background:none; border:1px solid rgba(255,255,255,0.2);
-    border-radius:5px; padding:5px 10px; cursor:pointer;
-    font-family:'Inter',sans-serif; margin-left:10px;
-  }
-  .nav-signout:hover { color:#fff; border-color:rgba(255,255,255,0.45); }
+  /* ── NAV ──
+     Rendered and styled by /shared/side-nav.js. Sign out lives in the rail's
+     footer now. */
 
   /* ── PAGE ── */
   .page { max-width:860px; margin:0 auto; padding:32px; }
@@ -176,9 +156,6 @@
   }
 
   @media (max-width:640px) {
-    nav { padding:0 16px; }
-    .nav-links a { padding:6px 8px; font-size:11px; }
-    .nav-title { display:none; }
     .page { padding:20px 16px 40px; }
     .page-title { font-size:19px; }
     /* Stack the picker above the button so neither gets squeezed */
@@ -189,21 +166,7 @@
 </head>
 <body>
 
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo"
-         src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
-         alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Admin</span>
-  </div>
-  <div class="nav-links">
-    <a href="/hub.html">Hub</a>
-    <a href="/admin/">Admin</a>
-    <a href="/admin/approvals.html" class="active">Approvals</a>
-    <button class="nav-signout" onclick="logout()">Sign out</button>
-  </div>
-</nav>
+<!-- Navigation comes from /shared/side-nav.js, loaded below. -->
 
 <div class="page">
 
@@ -241,10 +204,14 @@
 
 </div>
 
-<script>window.PAGE_ALLOWED_ROLES = ['admin'];</script>
+<script>
+  window.PAGE_ALLOWED_ROLES = ['admin'];
+  window.DFL_PAGE_TITLE = 'User Approvals';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
 <script>
   // This page uses the shared `sb` client's .rpc() rather than raw fetch.
   // profiles is readable only by its owner and has no client write path, so

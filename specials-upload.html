@@ -18,15 +18,9 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-  /* ── NAV ── */
-  nav { background:var(--navy); height:56px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; }
-  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
-  .nav-links { display:flex; gap:4px; }
-  .nav-links a { color:rgba(255,255,255,0.65); text-decoration:none; font-size:13px; font-weight:500; padding:6px 14px; border-radius:6px; transition:all 0.15s; cursor:pointer; }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
+  /* ── NAV ──
+     Rendered and styled by /shared/side-nav.js. Sign out lives in the rail's
+     footer now. */
 
   /* ── PAGE HEADER ── */
   .page-header { background:var(--navy2); padding:28px 32px 32px; }
@@ -143,9 +137,6 @@
   footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px; }
 
   @media (max-width:640px) {
-    nav { padding:0 16px; }
-    .nav-title { font-size:13px; }
-    .nav-links a { padding:6px 10px; }
     .content { padding:16px; }
     .form-row { grid-template-columns:1fr; }
     .manage-toolbar { flex-direction:column; align-items:stretch; }
@@ -156,25 +147,21 @@
 <!-- Auth: this page is for managers/admins only. The guard checks the logged-in
      session + role, reveals the page if allowed, or redirects if not. Load order
      matters: supabase library -> shared client (`sb`) -> guard. -->
-<script>window.PAGE_ALLOWED_ROLES = ['admin', 'manager'];</script>
+<script>
+  window.PAGE_ALLOWED_ROLES = ['admin', 'manager'];
+  window.DFL_PAGE_TITLE = 'Manage Specials';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
 </head>
 <body>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Manage Specials &amp; Flyers</span>
-  </div>
-  <div class="nav-links">
-    <a href="/index.html">&larr; Back to Portal</a>
-    <a onclick="logout(); return false;">Sign out</a>
-  </div>
-</nav>
+<!-- NAV
+     Comes from /shared/side-nav.js. The old bar's "← Back to Portal" pointed at
+     /index.html — the rep app, not the hub; the rail's logo now routes by
+     role, and Sign out sits in its footer. -->
 
 <!-- MAIN PANEL -->
 <div class="main-panel" id="mainPanel">

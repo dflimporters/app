@@ -7,6 +7,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Specials & Flyers — DFL Staff Portal</title>
+
+<!-- Hide until the guard confirms a signed-in staff member. Must be the FIRST
+     style rule so there's no flash of content. auth-guard.js reveals it — and
+     reveals immediately when framed, so the rep app's "More" tab still works. -->
+<style>body { visibility: hidden; }</style>
+
 <script>
   // Loaded inside the app's iframe? Then let the shell own the navigation.
   if (window.self !== window.top) document.documentElement.classList.add('embedded');
@@ -26,93 +32,14 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
 
-  /* When shown inside the app shell (iframe), hide this page's own chrome */
-.embedded nav,
-.embedded .nav-mobile-menu,
+  /* When shown inside the app shell (iframe), hide this page's own chrome.
+     The nav itself no longer needs hiding — side-nav.js doesn't render at all
+     when framed — but the page header and upload button still do. */
 .embedded .page-header,
 .embedded .btn-upload { display: none !important; }
 
-  /* ── NAV ── */
-  nav {
-    background: var(--navy);
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 32px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .nav-left { display:flex; align-items:center; gap:14px; }
-  .nav-logo { height:26px; }
-  .nav-divider { width:1px; height:22px; background:rgba(255,255,255,0.2); }
-  .nav-title { font-size:14px; font-weight:600; color:#fff; letter-spacing:-0.1px; }
-  .nav-links { display:flex; gap:4px; }
-  .nav-links a {
-    color: rgba(255,255,255,0.65);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 6px 14px;
-    border-radius: 6px;
-    transition: all 0.15s;
-  }
-  .nav-links a:hover { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-links a.active { color:#fff; background:rgba(255,255,255,0.15); }
-  .nav-links a.mgmt { color:#fbbf24; }
-  .nav-links a.mgmt:hover { color:#fef3c7; background:rgba(251,191,36,0.15); }
-  .nav-links a.mgmt.active { color:#fef3c7; background:rgba(251,191,36,0.15); }
-  .nav-hamburger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    flex-shrink: 0;
-  }
-  .nav-hamburger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: rgba(255,255,255,0.8);
-    border-radius: 2px;
-    transition: transform 0.25s, opacity 0.25s;
-  }
-  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .nav-hamburger.open span:nth-child(2) { opacity: 0; }
-  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .nav-mobile-menu {
-    display: none;
-    position: fixed;
-    top: 56px;
-    left: 0; right: 0;
-    background: rgba(10,20,50,0.98);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    padding: 0.75rem 1.25rem 1.25rem;
-    z-index: 99;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-mobile-menu.open { display: flex; }
-  .nav-mobile-menu a {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    color: rgba(255,255,255,0.75);
-    text-decoration: none;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .nav-mobile-menu a:hover { color:#fff; background:rgba(255,255,255,0.07); }
-  .nav-mobile-menu a.active { color:#fff; background:rgba(255,255,255,0.1); }
-  .nav-mobile-menu a.mgmt { color:#fbbf24; }
-  .nav-mobile-menu a.mgmt:hover { background:rgba(251,191,36,0.12); }
-  .mob-divider { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+  /* ── NAV ──
+     Rendered and styled by /shared/side-nav.js. */
 
   .page-header { background:var(--navy2); padding:32px 32px 36px; }
   .page-header-inner { max-width:1060px; margin:0 auto; }
@@ -297,10 +224,6 @@
   .modal-btn-download:hover { background:#1d4ed8; }
 
   @media (max-width: 640px) {
-    nav { padding: 0 16px; }
-    .nav-links { display: none; }
-    .nav-hamburger { display: flex; }
-    .nav-title { font-size: 13px; }
     .page-header { padding: 24px 16px 28px; }
     .toolbar { padding: 16px 16px 0; }
     .grid { padding: 16px 16px 48px; }
@@ -314,38 +237,10 @@
 </head>
 <body>
 
-<nav>
-  <div class="nav-left">
-    <img class="nav-logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div class="nav-divider"></div>
-    <span class="nav-title">Staff Portal</span>
-  </div>
-  <div class="nav-links">
-    <a href="/admin/" class="mgmt">Admin</a>
-    <a href="/management/" class="mgmt">Management</a>
-    <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-    <a href="/index.html">Home</a>
-    <a href="/specials.html" class="active">Specials</a>
-    <a href="/dashboards.html">Dashboards</a>
-    <a href="/forms.html">Forms</a>
-    <a href="/assets.html">Assets</a>
-  </div>
-  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<div class="nav-mobile-menu" id="mobileMenu">
-  <a href="/admin/" class="mgmt">Admin</a>
-  <a href="/management/" class="mgmt">Management</a>
-  <a href="/dispatch-portal.html" class="mgmt">Dispatch</a>
-  <div class="mob-divider"></div>
-  <a href="/index.html">Home</a>
-  <a href="/specials.html" class="active">Specials</a>
-  <a href="/dashboards.html">Dashboards</a>
-  <a href="/forms.html">Forms</a>
-  <a href="/assets.html">Assets</a>
-</div>
+<!-- NAV
+     Comes from /shared/side-nav.js. The bar that used to be here linked to
+     /dispatch-portal.html, /dashboards.html, /forms.html and /assets.html —
+     all four still live in _staging/ and 404. -->
 
 <div class="page-header">
   <div class="page-header-inner">
@@ -392,8 +287,25 @@
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
 <script>
-  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  window.PAGE_ALLOWED_ROLES =
+    ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'warehouse'];
+  window.DFL_PAGE_TITLE = 'Specials';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+  // These were named SUPABASE_URL / SUPABASE_KEY. They had to be renamed when
+  // this page started loading /shared/supabase-client.js, which declares its
+  // own `const SUPABASE_URL` — two `const`s of the same name in the shared
+  // global scope is a SyntaxError that blanks the entire page with no useful
+  // error. Same fix rep-weekly-plan.html needed (its PLAN_SB_* constants).
+  //
+  // This page keeps its raw-fetch data access rather than switching to the
+  // shared client's fluent API — that would be an unrelated change.
+  const SPECIALS_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SPECIALS_SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
 
   let all = [];
   let currentType = 'all';
@@ -425,8 +337,8 @@
   // ── Load from Supabase ──────────────────────────────────────────────────────
   async function load() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/specials?active=eq.true&order=created_at.desc`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      const res = await fetch(`${SPECIALS_SB_URL}/rest/v1/specials?active=eq.true&order=created_at.desc`, {
+        headers: { 'apikey': SPECIALS_SB_KEY, 'Authorization': `Bearer ${SPECIALS_SB_KEY}` }
       });
       const data = await res.json();
       // Hide expired Specials — Flyers always show (no expiry concept)
@@ -510,20 +422,6 @@
         `<button class="cat-btn" data-cat="${c}" onclick="filterCategory(this.dataset.cat,this)">${c}</button>`
       ).join('');
   }
-
-  // ── Hamburger menu ──────────────────────────────────────────────────────────
-  const hamburger = document.getElementById('hamburger');
-  const mobileMenu = document.getElementById('mobileMenu');
-  hamburger.addEventListener('click', () => {
-    hamburger.classList.toggle('open');
-    mobileMenu.classList.toggle('open');
-  });
-  mobileMenu.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => {
-      hamburger.classList.remove('open');
-      mobileMenu.classList.remove('open');
-    });
-  });
 
   // ── Modal ───────────────────────────────────────────────────────────────────
   function openModal(id) {

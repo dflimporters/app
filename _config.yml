@@ -1,0 +1,30 @@
+# GitHub Pages / Jekyll configuration.
+#
+# This file exists for ONE reason: to keep internal documentation out of the
+# published site. Without it, Jekyll runs on defaults and copies every root
+# file to dflhq.com — so CLAUDE.md and the handoff brief were fetchable by
+# anyone who guessed the URL. They stay in the repo (Claude Code reads
+# CLAUDE.md from the repo root, and it stops working if moved), they just
+# aren't served any more.
+#
+# Note: folders starting with _ (like _staging/) and . (like .claude/) are
+# already skipped by Jekyll's own rules, so they don't need listing here.
+
+exclude:
+  # --- internal docs: in the repo, not on the website ---
+  - CLAUDE.md
+  - DFL_Portal_Claude_Code_Handoff.md
+
+  # --- Jekyll's own defaults, restated ---
+  # Specifying `exclude` REPLACES the built-in list rather than adding to it,
+  # so these have to be repeated or they'd start being published.
+  - Gemfile
+  - Gemfile.lock
+  - gemfiles/
+  - node_modules/
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .sass-cache/
+  - .jekyll-cache/
