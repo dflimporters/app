@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Management — DFL Staff Portal</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted dashboards. -->
+<style>body { visibility: hidden; }</style>
+
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/favicon.ico">
 <meta name="theme-color" content="#0f2044">
@@ -24,46 +29,13 @@
     /* ── NAV ──
      Rendered and styled by /shared/side-nav.js. */
 
-  /* LOGIN */
-  .login-wrap {
-    display:flex; align-items:center; justify-content:center;
-    /* Was calc(100vh - 56px) for the old sticky top bar. The rail is a fixed
-       left column and consumes no vertical space. Below 768px side-nav.js adds
-       52px of body padding-top for its top bar — see the media query below. */
-    min-height:100vh;
-  }
-  .login-box {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:12px; padding:36px 32px;
-    width:100%; max-width:360px;
-    box-shadow:var(--shadow-md);
-  }
-  .login-icon { font-size:32px; text-align:center; margin-bottom:16px; }
-  .login-title { font-size:18px; font-weight:700; text-align:center; margin-bottom:4px; }
-  .login-sub { font-size:13px; color:var(--text-muted); text-align:center; margin-bottom:24px; }
-  .login-error {
-    background:var(--red-bg); color:var(--red);
-    font-size:12px; padding:8px 12px; border-radius:6px;
-    margin-bottom:14px; display:none;
-  }
-  .field { margin-bottom:16px; }
-  .field label { display:block; font-size:12px; font-weight:500; margin-bottom:6px; color:var(--text-muted); }
-  .field input {
-    width:100%; padding:10px 12px; border:1px solid var(--border);
-    border-radius:7px; font-size:14px; font-family:'Inter',sans-serif;
-    outline:none; transition:border 0.15s;
-  }
-  .field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
-  .btn-primary {
-    width:100%; padding:11px; background:var(--accent); color:#fff;
-    border:none; border-radius:7px; font-size:14px; font-weight:600;
-    cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s;
-  }
-  .btn-primary:hover { background:#1d4ed8; }
 
   /* MAIN PANEL */
-  /* Same reasoning as .login-wrap above — the 56px top bar is gone. */
-  .main-panel { display:none; flex-direction:column; height:100vh; }
+  /* Was display:none until the password prompt unlocked it. There's no prompt
+     any more — the guard keeps unauthorised people off the page entirely, so
+     this is simply the page. Height is 100vh because the rail is a fixed left
+     column and takes no vertical space. */
+  .main-panel { display:flex; flex-direction:column; height:100vh; }
 
   /* TABS BAR */
   .tabs-bar {
@@ -89,7 +61,6 @@
   /* side-nav.js reserves 52px at the top for its mobile bar, so the full-height
      panels have to give that back or the page gains a scrollbar. */
   @media (max-width: 767px) {
-    .login-wrap { min-height: calc(100vh - 52px); }
     .main-panel { height: calc(100vh - 52px); }
   }
   @media (max-width: 640px) {
@@ -108,21 +79,9 @@
      Its "Home" link also pointed at /index.html, which is the rep app, not the
      hub; the rail's logo now routes by role instead. -->
 
-<!-- LOGIN -->
-<div class="login-wrap" id="loginWrap">
-  <div class="login-box">
-    <div class="login-icon">📊</div>
-    <div class="login-title">Management Area</div>
-    <div class="login-sub">Enter the password to access management tools</div>
-    <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
-    <div class="field">
-      <label>Password</label>
-      <input type="password" id="pwInput" placeholder="Enter password"
-             onkeydown="if(event.key==='Enter') doLogin()">
-    </div>
-    <button class="btn-primary" onclick="doLogin()">Enter</button>
-  </div>
-</div>
+<!-- The password prompt that used to be here is gone — the auth guard decides
+     who gets in, so by the time this renders the visitor is already a
+     signed-in manager or admin. -->
 
 <!-- MAIN PANEL -->
 <div class="main-panel" id="mainPanel">
@@ -181,27 +140,20 @@
 </div>
 
 <script>
-  // This page has no Supabase auth guard — it uses the separate MGMT_PASSWORD
-  // gate below, so there's no DFL_PROFILE for the rail to read. Tell it which
-  // links to draw. This grants nothing: /hub.html, /admin/ etc. each run their
-  // own guard and will bounce anyone who isn't really a manager or admin.
-  window.DFL_NAV_FALLBACK_ROLE = 'manager';
   window.DFL_PAGE_TITLE = 'Management';
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
 <script>
-  const MGMT_PASSWORD = 'admin';
-
-  function doLogin() {
-    const pw = document.getElementById('pwInput').value;
-    if (pw === MGMT_PASSWORD) {
-      document.getElementById('loginWrap').style.display = 'none';
-      const panel = document.getElementById('mainPanel');
-      panel.style.display = 'flex';
-    } else {
-      document.getElementById('loginError').style.display = 'block';
-    }
-  }
+  // The MGMT_PASSWORD gate that used to live here is gone. It was a hardcoded
+  // plaintext string compared in client-side JS — visible to anyone who opened
+  // view-source — and it protected only this shell, not the eight dashboards it
+  // embeds. Access is now "are you a signed-in manager or admin", enforced by
+  // the real auth guard against DFL_PAGE_ROLES in /shared/routes.js, and the
+  // embedded pages each enforce it too.
 
   function showPanel(id, btn) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));

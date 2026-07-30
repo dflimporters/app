@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL — Sales Manager Dashboard</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panels still work. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -562,7 +567,7 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const REPPERF_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -580,7 +585,7 @@ async function sbGet(path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/${path}`, {
       signal: controller.signal,
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -602,7 +607,7 @@ async function sbGet(path) {
 }
 
 async function sbRpc(fn, params) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+  const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
       'apikey':        SUPABASE_KEY,
@@ -1172,7 +1177,7 @@ async function saveFollowup() {
   btn.textContent = 'Saving…';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups`, {
+    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_followups`, {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1219,7 +1224,7 @@ async function deleteFollowup(id, rowId, salesperson) {
   item.style.pointerEvents = 'none';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups?id=eq.${id}`, {
+    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_followups?id=eq.${id}`, {
       method: 'DELETE',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1328,7 +1333,7 @@ async function init() {
 // Quick connection test before full init
 async function testConnection() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
+    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     if (res.ok) {
@@ -1365,5 +1370,13 @@ async function testConnection() {
 
 testConnection();
 </script>
+
+<!-- Auth. This page used to have NONE: it was reachable by direct URL by
+     anyone, and only the management shell had a (plaintext) password. The guard
+     no-ops when framed, so embedding in management/index.html is unaffected. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 </body>
 </html>

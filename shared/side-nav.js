@@ -23,8 +23,11 @@
 // HOW TO USE IT ON A PAGE
 // ------------------------------------------------------------
 // 1. Delete the page's own <nav>, .nav-mobile-menu and hamburger JS.
-// 2. Load this AFTER /shared/auth-guard.js:
+// 2. Load /shared/routes.js first (this file reads DFL_PAGE_ROLES from it to
+//    decide which links a role may see), then this, after the auth guard:
 //
+//        <script src="/shared/routes.js"></script>
+//        <script src="/shared/auth-guard.js"></script>   <!-- guarded pages -->
 //        <script src="/shared/side-nav.js"></script>
 //
 // 3. Optionally name the current page for the mobile top bar's title:
@@ -56,76 +59,58 @@
 
   const LOGO = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png';
 
-  // Where the logo takes each role. The canonical map is DFL_HOME_BY_ROLE in
-  // /shared/auth-guard.js — this copy is only a fallback for the pages that
-  // load the rail WITHOUT the guard (management/index.html and the two
-  // management/report-* pages). Keep the two in step.
-  const HOME_BY_ROLE_FALLBACK = {
-    rep:          '/index.html',
-    warehouse:    '/index.html',
-    merchandiser: '/merch.html',
-    team_leader:  '/merch.html',
-    manager:      '/hub.html',
-    admin:        '/hub.html',
-    pending:      '/pending.html'
-  };
-
   // ------------------------------------------------------------
-  // THE LINK LIST — the portal's information architecture, in one place.
+  // THE LINK LIST — the portal's information architecture.
   //
-  //   roles : omit for "anyone who can see this page". Otherwise an allow-list.
+  //   href  : a real page. WHO CAN SEE IT IS NOT LISTED HERE — it's derived
+  //           from DFL_PAGE_ROLES in /shared/routes.js, the same table the
+  //           guard enforces. That's deliberate: a nav item and the page it
+  //           points at can no longer disagree, so the rail can't offer a link
+  //           that bounces you.
+  //   roles : ONLY for entries routes.js can't answer for — i.e. the `soon`
+  //           items, which have no href to look up yet.
   //   soon  : renders as a disabled row instead of a link. Use for pages still
   //           sitting in _staging/, which would 404 if linked. To ship one,
   //           move the file to the repo root and swap `soon:true` for an href.
   //   tone  : 'gold' marks the restricted sections, matching hub.html's cards.
-  //
-  // IMPORTANT: each `roles` list must MIRROR that page's own
-  // window.PAGE_ALLOWED_ROLES. If the rail offers a link the target page's
-  // guard rejects, the user gets silently bounced to /index.html?denied=1 —
-  // which reads as a broken link. Change both together.
   // ------------------------------------------------------------
   const GROUPS = [
     {
       group: null,
       items: [
-        { label: 'Hub', href: '/hub.html', icon: '🏠', roles: ['manager', 'admin'] }
+        { label: 'Hub', href: '/hub.html', icon: '🏠' }
       ]
     },
     {
       group: 'Field Apps',
       items: [
-        // mirrors index.html
-        { label: 'Sales',         href: '/index.html', icon: '📈',
-          roles: ['admin', 'manager', 'rep'] },
-        // mirrors merch.html
-        { label: 'Merchandising', href: '/merch.html', icon: '🛒',
-          roles: ['merchandiser', 'team_leader', 'manager', 'admin'] }
+        { label: 'Sales',         href: '/index.html',     icon: '📈' },
+        { label: 'Merchandising', href: '/merch.html',     icon: '🛒' },
+        { label: 'Warehouse',     href: '/warehouse.html', icon: '📦' }
       ]
     },
     {
       group: 'Tools',
       items: [
-        // mirrors specials.html
-        { label: 'Specials & Flyers', href: '/specials.html', icon: '🎯',
-          roles: ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'warehouse'] },
-        // mirrors specials-upload.html
-        { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤',
-          roles: ['manager', 'admin'] }
+        { label: 'Specials & Flyers', href: '/specials.html',        icon: '🎯' },
+        { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' }
       ]
     },
     {
       group: 'Management',
       tone: 'gold',
       items: [
-        { label: 'Dashboards', href: '/management/', icon: '📊', roles: ['manager', 'admin'] }
+        // Derived like everything else now — /management/** lost its plaintext
+        // password gate and is in DFL_PAGE_ROLES as manager/admin.
+        { label: 'Dashboards', href: '/management/', icon: '📊' }
       ]
     },
     {
       group: 'Admin',
       tone: 'gold',
       items: [
-        { label: 'Admin Panel',    href: '/admin/',                icon: '🔐', roles: ['admin'] },
-        { label: 'User Approvals', href: '/admin/approvals.html',  icon: '👤', roles: ['admin'] }
+        { label: 'Admin Panel',    href: '/admin/',               icon: '🔐' },
+        { label: 'User Approvals', href: '/admin/approvals.html', icon: '👤' }
       ]
     },
     {
@@ -473,35 +458,30 @@
   }
 
   function homeFor(profile) {
-    const role = effectiveRole(profile);
-    // Prefer the guard's map so there's one definition. On a guard-less page
-    // dflHome() doesn't exist, so fall back to the local copy — and pass the
-    // role through as a synthetic profile so DFL_NAV_FALLBACK_ROLE is honoured.
-    if (typeof window.dflHome === 'function') return window.dflHome({ role: role });
-    if (role && HOME_BY_ROLE_FALLBACK[role]) return HOME_BY_ROLE_FALLBACK[role];
-    return '/hub.html';
+    return dflHome({ role: roleOf(profile) });
   }
 
-  // Which role to gate against. Normally the signed-in profile's.
-  //
-  // DFL_NAV_FALLBACK_ROLE exists for management/index.html, which is gated by
-  // its own plaintext MGMT_PASSWORD rather than the Supabase guard (see
-  // CLAUDE.md) and therefore has no DFL_PROFILE to read. Without it that page
-  // would render an empty rail.
-  //
-  // This grants NO access: every destination still runs its own auth guard, so
-  // a visitor who isn't really a manager gets bounced on arrival. It only
-  // decides which links are drawn. A real profile always wins over the hint.
-  function effectiveRole(profile) {
-    if (profile && profile.role) return profile.role;
-    if (typeof window.DFL_NAV_FALLBACK_ROLE === 'string') return window.DFL_NAV_FALLBACK_ROLE;
-    return null;
+  // There used to be a DFL_NAV_FALLBACK_ROLE escape hatch here, because
+  // management/** was gated by a plaintext password instead of the auth guard
+  // and so had no DFL_PROFILE for the rail to read. That password is gone and
+  // every page carrying the rail is properly guarded, so the hatch went too.
+  function roleOf(profile) {
+    return (profile && profile.role) || null;
   }
 
+  // An explicit `roles` list wins (soon items, /management/**). Otherwise ask
+  // routes.js whether this role could actually open the href — so the rail
+  // shows exactly what the guard would let through, by construction.
   function visible(item, role) {
-    if (!item.roles) return true;               // unrestricted
-    if (!role) return false;                    // no role known — hide gated
-    return item.roles.indexOf(role) !== -1;
+    if (item.roles) {
+      if (!role) return false;                  // no role known — hide gated
+      return item.roles.indexOf(role) !== -1;
+    }
+    if (item.href) {
+      if (!role) return false;
+      return dflCanAccess(role, item.href);
+    }
+    return true;                                // no href, no roles — always on
   }
 
   // ------------------------------------------------------------
@@ -510,7 +490,7 @@
   // ------------------------------------------------------------
   function buildLinks(profile) {
     const here = normalise(window.location.pathname);
-    const role = effectiveRole(profile);
+    const role = roleOf(profile);
     const frag = document.createDocumentFragment();
 
     GROUPS.forEach(function (g) {

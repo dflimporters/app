@@ -6,6 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Category Intelligence — DFL Importers</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panels still work. -->
+<style>body { visibility: hidden; }</style>
+
 <style>
 :root{
   --blue:#326BD3;--navy:#0D1B3E;--navy2:#152444;--bg:#F5F7FA;--surface:#FFFFFF;--surface-alt:#F9FAFC;
@@ -1416,5 +1421,13 @@ function hideLdr(){document.getElementById('ldr').style.display='none';}
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeModal();});
 loadAll();
 </script>
+
+<!-- Auth. This page used to have NONE: it was reachable by direct URL by
+     anyone, and only the management shell had a (plaintext) password. The guard
+     no-ops when framed, so embedding in management/index.html is unaffected. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 </body>
 </html>

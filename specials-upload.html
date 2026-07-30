@@ -148,11 +148,11 @@
      session + role, reveals the page if allowed, or redirects if not. Load order
      matters: supabase library -> shared client (`sb`) -> guard. -->
 <script>
-  window.PAGE_ALLOWED_ROLES = ['admin', 'manager'];
   window.DFL_PAGE_TITLE = 'Manage Specials';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
 </head>

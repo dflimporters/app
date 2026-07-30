@@ -128,17 +128,19 @@
 </div>
 
 <!--
-  NOTE: no window.PAGE_ALLOWED_ROLES here, on purpose.
+  This page is restricted to role `pending` via DFL_PAGE_ROLES in
+  /shared/routes.js.
 
-  Setting it to ['pending'] would mean that the moment an admin approves
-  someone, their next visit fails the guard's role check and gets bounced to
-  /index.html?denied=1 — the wrong destination for a merchandiser. Instead the
-  guard's own 'pending' branch is what herds pending users onto this page, and
-  the script below sends anyone who is NO LONGER pending back through
-  login.html so they get routed to the right app for their role.
+  That used to be unsafe: the guard sent everyone it rejected to a hardcoded
+  /index.html?denied=1, so the moment an admin approved a merchandiser, their
+  next visit here bounced them to the rep app — which rejected them too, and
+  looped. The guard now routes rejected users to their OWN home, so restricting
+  this page does exactly the right thing: an approved user who lands here is
+  forwarded straight to their app.
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script>
   const nameInput = document.getElementById('nameInput');
@@ -152,15 +154,10 @@
   }
 
   document.addEventListener('dfl-auth-ready', (e) => {
+    // Anyone who is no longer `pending` never reaches this handler — the guard
+    // now forwards them to their own app before firing dfl-auth-ready. The
+    // manual bounce that used to live here is gone.
     const profile = e.detail.profile;
-
-    // Approved while they were sitting here (or they reached this page by
-    // hand). Hand them to login.html, which routes by role.
-    if (profile.role !== 'pending') {
-      window.location.href = '/login.html';
-      return;
-    }
-
     if (profile.full_name) nameInput.value = profile.full_name;
   });
 

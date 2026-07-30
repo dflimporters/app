@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weekly Report Upload — DFL Management</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panel still works. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -693,7 +698,6 @@
 </head>
 <body>
 
-<!-- NAV -->
 <!-- NAV
      Removed: this page is normally shown inside an iframe panel in
      management/index.html, so it was rendering a SECOND full nav bar inside
@@ -702,16 +706,12 @@
      /shared/side-nav.js no-ops when framed, so the embedded view is now clean;
      opened directly, this page gets the real rail. -->
 
-    <div class="auth-field">
-      <label>Password</label>
-      <input type="password" id="password-input" placeholder="Enter access password" onkeydown="if(event.key==='Enter') attemptLogin()">
-    </div>
-    <button class="btn btn-primary" onclick="attemptLogin()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      Access Portal
-    </button>
-  </div>
-</div>
+<!-- A dead "Enter access password" form used to sit here: an input and an
+     "Access Portal" button wired to attemptLogin(), which was never defined
+     anywhere in this file. It had no styling (.auth-field didn't exist), no
+     surrounding container, and #upload-app was display:block regardless — so
+     it gated nothing and left two unbalanced </div> tags behind it. Removed
+     along with the real password gate; the auth guard is the gate now. -->
 
 <!-- UPLOAD APP -->
 <div id="upload-app">
@@ -1067,10 +1067,12 @@
   // embedded case nothing below renders. This page has no Supabase guard of its
   // own (see CLAUDE.md — management/* relies on management/index.html's
   // password gate), so the rail is told which links to draw. It grants no
-  // access: every destination runs its own guard.
-  window.DFL_NAV_FALLBACK_ROLE = 'manager';
   window.DFL_PAGE_TITLE = 'Report Upload';
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
 
 <script>

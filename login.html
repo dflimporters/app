@@ -217,25 +217,17 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
+
+<!-- Routing tables only — NOT auth-guard.js. This is the sign-in page, so
+     guarding it would be circular; routes.js is pure data plus dflHome() and
+     dflCanAccess(), with no side effects, so it's safe to load here.
+
+     The role→landing map used to be duplicated in this file as ROLE_LANDING,
+     and it drifted: it sent `warehouse` to /index.html, a page that rejects
+     that role, which produced an infinite redirect loop. One table now. -->
+<script src="/shared/routes.js"></script>
+
 <script>
-  // Where each role lands after signing in. Reps and merchandisers go
-  // straight to their own app; admins and managers get the hub, which has
-  // cards into both apps plus the management tools.
-  //
-  // `warehouse` has no app of its own yet, so it falls back to the rep app.
-  const ROLE_LANDING = {
-    rep:           '/index.html',
-    merchandiser:  '/merch.html',
-    team_leader:   '/merch.html',
-    manager:       '/hub.html',
-    admin:         '/hub.html',
-    warehouse:     '/index.html',
-    pending:       '/pending.html'
-  };
-
-  // Fallback if a role somehow isn't in the table above.
-  const DEFAULT_LANDING = '/index.html';
-
   const params = new URLSearchParams(window.location.search);
   // An explicit ?redirect= (set by auth-guard when it bounces someone off a
   // page they wanted) wins over role-based landing.
@@ -300,7 +292,7 @@
     // out — they need their session to set their name on the holding page.
     // So this check has to come before the active check below.
     if (profile.role === 'pending') {
-      window.location.href = ROLE_LANDING.pending;
+      window.location.href = DFL_HOME_BY_ROLE.pending;
       return;
     }
 
@@ -311,8 +303,27 @@
       return;
     }
 
-    window.location.href =
-      explicitRedirect || ROLE_LANDING[profile.role] || DEFAULT_LANDING;
+    // An explicit ?redirect= (set by the guard when it bounced someone off a
+    // page they asked for) is honoured ONLY if the role can actually open it.
+    //
+    // It used to win unconditionally, and that's what turned a harmless bounce
+    // into an infinite loop: a merchandiser opening dflhq.com got bounced here
+    // with redirect=/, signed in, was sent straight back to index.html, was
+    // rejected again... A redirect we know will be refused is worse than no
+    // redirect at all, so fall back to where they actually belong.
+    const home = dflHome(profile);
+    let target = home;
+
+    if (explicitRedirect) {
+      if (dflCanAccess(profile.role, explicitRedirect)) {
+        target = explicitRedirect;
+      } else {
+        console.warn('Ignoring ?redirect=' + explicitRedirect +
+                     ' — role "' + profile.role + '" cannot open it. Going to ' + home);
+      }
+    }
+
+    window.location.href = target;
   }
 
   // ------------------------------------------------------------
