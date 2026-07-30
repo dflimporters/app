@@ -138,7 +138,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* FORM */
 .field label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
-.field select,.field input,.field textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);background:var(--card);color:var(--text);font-size:15px;font-family:inherit;-webkit-appearance:none}
+/* 16px, not 15px: iOS Safari zooms the whole page when you focus an input
+   smaller than 16px, which is jarring mid-form on a phone — and phones are
+   what this app runs on. Applies to all 9 form fields, not just the newest. */
+.field select,.field input,.field textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);background:var(--card);color:var(--text);font-size:16px;font-family:inherit;-webkit-appearance:none}
 .field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--navy)}
 .field textarea{height:76px;resize:none}
 
@@ -226,6 +229,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nav-btn.active{color:var(--navy)}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .nav-btn span{font-size:10px;font-weight:700}
+
+/* VIEW-AS BAR — only while an admin is looking at someone else's app */
+.viewas-bar{display:none;position:fixed;left:0;right:0;
+  bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:110;
+  background:var(--amber);color:#fff;
+  padding:9px max(14px, calc((100% - var(--content-max)) / 2));
+  font-size:12px;font-weight:600;
+  align-items:center;justify-content:space-between;gap:10px;
+  box-shadow:0 -2px 10px rgba(0,0,0,.12)}
+.viewas-bar.show{display:flex}
+.viewas-bar b{font-weight:800}
+.viewas-bar button{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.45);
+  color:#fff;font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;
+  cursor:pointer;font-family:inherit;flex-shrink:0}
+.viewas-bar button:hover{background:rgba(255,255,255,.34)}
+
+/* Hidden outright while viewing as someone else — an admin must not be able to
+   file a visit or an OOS report under a merchandiser's name. */
+body.dfl-readonly .hide-when-readonly{display:none!important}
+.readonly-note{background:var(--amber-lt);border:1px solid var(--amber);
+  border-radius:var(--rad-sm);padding:12px 14px;font-size:12.5px;color:var(--amber);
+  line-height:1.5;display:none}
+body.dfl-readonly .readonly-note{display:block}
+
+/* Overview cards are clickable in the admin view */
+.merch-card.tappable{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.merch-card.tappable:active{transform:scale(.985)}
+.merch-card.tappable:hover{box-shadow:0 2px 10px rgba(0,0,0,.12)}
 
 /* TL CARDS */
 .merch-card{background:var(--card);border-radius:var(--rad);padding:14px;box-shadow:var(--shadow)}
@@ -423,6 +454,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- VISIT LOG -->
     <div class="form-body" id="tab-visit" style="display:none">
+      <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
       <button onclick="goTab('tab-home');setNav('n-home')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:6px 0 10px;flex-shrink:0;-webkit-tap-highlight-color:transparent">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
@@ -508,7 +540,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <!-- Stock count optional row -->
-      <div id="stock-count-row" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:2px">
+      <div id="stock-count-row" class="hide-when-readonly" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:2px">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:20px">📦</span>
           <div>
@@ -518,11 +550,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
         <span style="font-size:18px;color:var(--navy)">›</span>
       </div>
-      <button class="submit-btn" id="v-sbtn" onclick="submitVisit()" disabled style="opacity:.4;cursor:not-allowed">Log this visit →</button>
+      <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="submitVisit()" disabled style="opacity:.4;cursor:not-allowed">Log this visit →</button>
     </div>
 
     <!-- STOCK REPORT -->
     <div class="form-body" id="tab-stock" style="display:none">
+      <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
       <button onclick="goTab('tab-home');setNav('n-home')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:6px 0 10px;flex-shrink:0;-webkit-tap-highlight-color:transparent">
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
@@ -570,7 +603,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           </div>
         </div>
       </div>
-      <button class="submit-btn red" id="s-sbtn" onclick="submitStock()">Submit report →</button>
+      <button class="submit-btn red hide-when-readonly" id="s-sbtn" onclick="submitStock()">Submit report →</button>
     </div>
 
     <!-- MY STORES TAB -->
@@ -599,6 +632,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="ov-sub" id="ov-sub"></div>
       <button class="ov-btn" onclick="closeOv()">Continue →</button>
     </div>
+  </div>
+
+  <!-- Shown only while an admin/manager is viewing another person's app.
+       Sits directly above the tab bar, mirroring the Sales app's .viewasbar. -->
+  <div class="viewas-bar" id="viewas-bar">
+    <span>Viewing as <b id="viewas-name"></b> · read-only</span>
+    <button onclick="exitViewAs()">Exit</button>
   </div>
 
   <nav class="bottom-nav">
@@ -651,16 +691,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div data-dfl-user-menu></div>
   </div>
   <div class="scroll-body">
-    <!-- Was the "PIN Directory": it listed every user's PIN in plaintext.
-         PINs are dead under Supabase Auth, so this is now a read-only
-         roster (name, area, team lead) with no credentials on it. -->
+    <!-- This screen has been through two lives. It was the "PIN Directory",
+         listing everyone's PIN in plaintext; then a static roster. It is now a
+         performance overview across ALL merchandisers that drills into any one
+         person's actual app — the same shape as the Sales app's admin tab. -->
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-lbl">Merchandisers</div><div class="stat-val c-navy" id="ov-tot">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Qualifying</div><div class="stat-val c-green" id="ov-qual">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Total commission</div><div class="stat-val c-amber" id="ov-comm">–</div></div>
+      <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="ov-avg">–</div></div>
+    </div>
+
     <a class="dash-link" href="#" onclick="openDash(event)">
       <div class="dash-link-ico">📊</div>
       <div><div class="dash-link-title">Merch Commission Dashboard</div><div class="dash-link-sub">Full team performance & commission view</div></div>
       <div class="dash-link-arr">↗</div>
     </a>
-    <div><div class="sec-hdr">Team leaders</div><div class="admin-section" id="adm-tl" style="margin-top:6px"></div></div>
-    <div><div class="sec-hdr">Merchandisers</div><div class="admin-section" id="adm-merch" style="margin-top:6px"></div></div>
+
+    <div class="field" style="margin-bottom:2px">
+      <input type="text" id="ov-search" placeholder="Search merchandisers…"
+             oninput="renderOverview()" autocomplete="off">
+    </div>
+
+    <div>
+      <div class="sec-hdr" id="ov-hdr">All merchandisers</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px" id="ov-list">
+        <div class="spinner"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -935,6 +993,9 @@ function setOut(o){
 
 // ── SUBMIT VISIT ──
 async function submitVisit(){
+  // Hiding the button is presentation; this is the guard. A visit written
+  // while viewing as someone else would be attributed to THEM.
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!storeSelected.name){alert('Please select a store.');return;}
   const btn=document.getElementById('v-sbtn');
   btn.disabled=true;btn.textContent='Getting location…';
@@ -989,6 +1050,7 @@ async function submitVisit(){
 
 // ── SUBMIT STOCK ──
 async function submitStock(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!sfStoreSelected.name){alert('Please select a store.');return;}
   const flagged=Array.from(document.querySelectorAll('.tog.on')).map(t=>t.closest('.sku-row').querySelector('.sku-name').textContent);
   if(!flagged.length){alert('Please flag at least one SKU.');return;}
@@ -1060,6 +1122,7 @@ function renderFeed(){
 }
 
 async function checkOut(visitId, btn){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   btn.disabled=true;
   btn.textContent='Saving…';
   const now=new Date().toISOString();
@@ -1165,27 +1228,154 @@ async function loadTLData(u){
 // Was the "PIN Directory", which printed every user's PIN in plaintext. PINs
 // are dead under Supabase Auth, so this now shows the roster from `reps` with
 // team leads resolved through team_lead_id instead of a free-text name.
+// Every active merchandiser + their performance for this period. Held so the
+// search box can re-filter without refetching.
+let overviewRows=[];
+// The admin's own identity, kept aside while they view as someone else so
+// exitViewAs() can put it back.
+let adminSelf=null;
+
 async function launchAdmin(){
   showScreen('s-admin');
   try{
-    const users=await rest('reps?active=eq.true&role=in.(merchandiser,team_leader)&select=id,name,area,role,team_lead_id&order=role,name');
-    const all=users||[];
-    // id -> name, so each merchandiser can show who leads them
-    const nameById={};
-    all.forEach(u=>{ nameById[u.id]=u.name; });
+    // Roster and performance in parallel — the roster is the source of truth
+    // for WHO exists; merchandiser_summary only has rows for people with data.
+    const [reps, summary] = await Promise.all([
+      rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
+      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`)
+    ]);
 
-    const tls=all.filter(u=>u.role==='team_leader');
-    const ms=all.filter(u=>u.role==='merchandiser');
-    const rows=arr=>arr.map(u=>{
-      const lead=u.team_lead_id?nameById[u.team_lead_id]:'';
-      return `<div class="admin-row"><div><div class="admin-lbl">${u.name}</div>`+
-             `<div class="admin-sub">${u.area||'–'}${lead?' · TL: '+lead:''}</div></div></div>`;
-    }).join('');
-    document.getElementById('adm-tl').innerHTML=rows(tls)||'<div class="admin-row"><div class="admin-sub">None</div></div>';
-    document.getElementById('adm-merch').innerHTML=rows(ms)||'<div class="admin-row"><div class="admin-sub">None</div></div>';
-    // The header subtitle deliberately stays static — it used to report
-    // "47 merchandisers, 4 team leaders", which was noise in the chrome.
-  }catch(e){console.error(e);}
+    const leads=await rest('reps?active=eq.true&role=eq.team_leader&select=id,name');
+    const leadById={};
+    (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
+
+    // merchandiser_summary is keyed by NAME, not id (see CLAUDE.md gotcha 7),
+    // so this join is a name match. A rename on either side silently drops the
+    // performance data — the roster row still appears, just without numbers.
+    const perfByName={};
+    (summary||[]).forEach(r=>{ perfByName[r.merchandiser_name]=r; });
+
+    overviewRows=(reps||[]).map(r=>({
+      id:r.id, name:r.name, area:r.area||'',
+      team_lead:r.team_lead_id?(leadById[r.team_lead_id]||''):'',
+      team_lead_id:r.team_lead_id||null,
+      perf:perfByName[r.name]||null
+    }));
+
+    renderOverviewStats();
+    renderOverview();
+  }catch(e){
+    console.error(e);
+    document.getElementById('ov-list').innerHTML=
+      '<div class="empty-feed">Failed to load. Check connection.</div>';
+  }
+}
+
+function renderOverviewStats(){
+  const withPerf=overviewRows.filter(r=>r.perf);
+  const totComm=withPerf.reduce((s,r)=>s+parseFloat(r.perf.commission||0),0);
+  const qual=withPerf.filter(r=>r.perf.stores_qualified>0).length;
+  const avgPct=withPerf.length
+    ? withPerf.reduce((s,r)=>s+parseFloat(r.perf.achievement_pct||0),0)/withPerf.length : 0;
+
+  document.getElementById('ov-tot').textContent=overviewRows.length;
+  document.getElementById('ov-qual').textContent=qual;
+  document.getElementById('ov-comm').textContent='$'+Math.round(totComm).toLocaleString();
+  const ae=document.getElementById('ov-avg');
+  ae.textContent=avgPct.toFixed(1)+'%';
+  ae.className='stat-val '+(avgPct>=80?'c-green':avgPct>=50?'c-amber':'c-red');
+  document.getElementById('ov-hdr').textContent='All merchandisers — '+_curLabel;
+}
+
+function renderOverview(){
+  const q=(document.getElementById('ov-search').value||'').trim().toLowerCase();
+  const rows=q
+    ? overviewRows.filter(r=>r.name.toLowerCase().includes(q)||r.area.toLowerCase().includes(q))
+    : overviewRows;
+
+  const list=document.getElementById('ov-list');
+  if(!rows.length){
+    list.innerHTML='<div class="empty-feed">No merchandisers match “'+escapeHtmlM(q)+'”.</div>';
+    return;
+  }
+
+  list.innerHTML=rows.map(r=>{
+    const m=r.perf;
+    const pct=m?parseFloat(m.achievement_pct||0):0;
+    const fc=pct>=80?'pf-green':pct>=50?'pf-amber':'pf-red';
+    const comm=m?parseFloat(m.commission||0):0;
+    const actual=m?parseFloat(m.total_actual||0):0;
+    const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const qb=(m&&m.stores_qualified>0)
+      ?`<div class="badge b-ok">${m.stores_qualified} qualifying</div>`
+      :`<div class="badge b-issue">None qualifying</div>`;
+    return `<div class="merch-card tappable" onclick="viewAsMerchandiser('${r.id}')">
+      <div class="merch-hdr">
+        <div class="merch-av">${ini}</div>
+        <div style="flex:1">
+          <div class="merch-nm">${escapeHtmlM(r.name)}</div>
+          <div class="merch-rt">${escapeHtmlM(r.area||'No area')}${r.team_lead?' · TL: '+escapeHtmlM(r.team_lead):''}</div>
+        </div>
+        ${qb}
+      </div>
+      ${m?`<div class="prog-bar"><div class="prog-fill ${fc}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="merch-stats">
+        <span><strong>${pct.toFixed(1)}%</strong> achieved</span>
+        <span><strong>$${Math.round(actual).toLocaleString()}</strong> actual</span>
+        ${comm>0?`<span style="color:var(--green)"><strong>$${Math.round(comm).toLocaleString()}</strong> comm</span>`:''}
+      </div>`:'<div style="font-size:12px;color:var(--muted);padding-top:4px">No performance data this period</div>'}
+      <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their app →</div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtmlM(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── VIEW AS ──
+// Loads a merchandiser's real app — their stores, visits and performance —
+// exactly as they'd see it, but read-only. Writes stay disabled because an
+// admin filing a visit here would be recorded as that merchandiser, with
+// nothing in the row showing who actually did it.
+async function viewAsMerchandiser(repId){
+  const row=overviewRows.find(r=>r.id===repId);
+  if(!row) return;
+
+  if(!adminSelf) adminSelf=cu;          // remember who we really are
+
+  cu={
+    id: row.id,
+    full_name: row.name,
+    initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
+    territory: row.area,
+    team_lead: row.team_lead,
+    team_lead_id: row.team_lead_id,
+    role: 'merchandiser',
+    viewingAs: true
+  };
+
+  document.body.classList.add('dfl-readonly');
+  document.getElementById('viewas-name').textContent=row.name;
+  document.getElementById('viewas-bar').classList.add('show');
+
+  await launchMerch(cu);
+}
+
+function exitViewAs(){
+  cu=adminSelf;
+  adminSelf=null;
+  document.body.classList.remove('dfl-readonly');
+  document.getElementById('viewas-bar').classList.remove('show');
+  // Reset the merchandiser-scoped state so nothing leaks into the next person.
+  visits=[];issueCount=0;myStores=[];storePerf=[];storesLoaded=false;
+  storeSelected={id:'',name:''};sfStoreSelected={name:''};
+  // Clear the filter too — otherwise you come back to a list showing only the
+  // person you just looked at and wonder where everyone went.
+  const sq=document.getElementById('ov-search');
+  if(sq) sq.value='';
+  launchAdmin();
 }
 
 // ── DASHBOARD LINK ──
@@ -2146,6 +2336,7 @@ function updateStockSaveBtn(){
 }
 
 async function saveStockCount(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   const counted = Object.entries(skuCounts).filter(([,v])=>v.stock_on_hand !== null && v.stock_on_hand !== undefined);
   if(!counted.length){
     closeStockCount();
