@@ -23,6 +23,11 @@ body { visibility: hidden; }
   --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
   --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
   --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  /* Shared layout constants. --content-max and --hdr-h are deliberately the
+     same values the merch app uses, so the two apps line up. */
+  --content-max:640px;
+  --hdr-h:100px;
+  --tabbar-h:60px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -32,11 +37,24 @@ h1,h2,h3,.mont{font-family:'Montserrat',sans-serif}
 .hidden{display:none!important}
 
 /* ---- app ---- */
+/* Every header in this app is the SAME height. They used to differ per tab —
+   the home header was 141px, .planhdr about 56px — which made the app feel
+   like it was jumping as you moved between tabs, and neither matched the merch
+   app. --hdr-h is the single source of truth: the iframe height calcs below
+   subtract it rather than hardcoding a number that then drifts.
+   Contents are capped at --content-max so the bar is full-bleed but its
+   contents line up with the page content, exactly as the merch app does. */
 header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
-  padding:calc(env(safe-area-inset-top) + 18px) 20px 40px;position:sticky;top:0;z-index:5}
-.hrow{display:flex;justify-content:space-between;align-items:flex-start}
+  box-sizing:border-box;
+  height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) max(20px, calc((100% - var(--content-max)) / 2)) 0;
+  display:flex;align-items:center;
+  position:sticky;top:0;z-index:5}
+.hrow{display:flex;justify-content:space-between;align-items:center;width:100%}
 /* DFL mark above the greeting. Sized to match the merch app's header logo. */
-.hdr-logo-img{height:26px;width:auto;display:block;margin-bottom:14px;cursor:pointer}
+/* margin was 14px when the header was free to grow; tightened so the logo,
+   greeting and name all fit the standard --hdr-h without crowding. */
+.hdr-logo-img{height:22px;width:auto;display:block;margin-bottom:7px;cursor:pointer}
 .hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 .hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
 .logout{background:rgba(255,255,255,.1);border:none;color:#cdd8f0;font-size:12px;font-weight:600;
@@ -46,10 +64,12 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 /* tabs */
 .tabview{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
 #tab-plan{padding-bottom:0}
-.planhdr{padding:calc(env(safe-area-inset-top) + 14px) 20px 14px}
+/* .planhdr no longer sets its own height — it inherits the standard one from
+   `header` above so every tab matches. It keeps only its tighter side padding
+   for the back-button layout. */
 #planframe{width:100%;border:0;display:block;
-  height:calc(100vh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  height:calc(100dvh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  height:calc(100vh - var(--tabbar-h) - var(--hdr-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height:calc(100dvh - var(--tabbar-h) - var(--hdr-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 .homebtn{background:rgba(255,255,255,.12);border:none;color:#fff;width:38px;height:38px;
   border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;
   flex-shrink:0;transition:background .12s}
@@ -60,10 +80,15 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .viewasbar b{font-weight:800}
 .viewasbar button{background:#326BD3;border:none;color:#fff;font-weight:700;font-size:12px;
   padding:6px 14px;border-radius:8px;cursor:pointer;font-family:'Open Sans'}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+/* Full-bleed bar, but the buttons stop growing once they reach the content
+   column — matching the merch app. They used to stretch edge to edge, which
+   meant 300px-wide tab buttons on a 1200px desktop. Identical on mobile,
+   where flex:1 wins long before the max-width bites. */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;
   background:#fff;border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 12px rgba(13,27,62,.06)}
-.tabbtn{flex:1;border:none;background:none;padding:9px 0 8px;display:flex;flex-direction:column;
+.tabbtn{flex:1 1 0;max-width:calc(var(--content-max) / 4);
+  border:none;background:none;padding:9px 0 8px;display:flex;flex-direction:column;
   align-items:center;gap:3px;color:var(--mut);font-family:'Open Sans';font-weight:700;font-size:11px;cursor:pointer}
 .tabbtn.on{color:var(--blue)}
 .tabbtn svg{display:block}
@@ -202,8 +227,8 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .launch-title{font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--ink)}
 .launch-sub{font-size:12px;color:var(--mut);line-height:1.4}
 #moreframe{width:100%;border:0;display:block;
-  height:calc(100vh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  height:calc(100dvh - 60px - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  height:calc(100vh - var(--tabbar-h) - var(--hdr-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height:calc(100dvh - var(--tabbar-h) - var(--hdr-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -215,15 +240,20 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
       <!-- The white-on-navy DFL mark, matching the merch app's header. Clicking
            it goes "home" per role — a no-op for a rep (this IS home), the hub
            for a manager/admin. Wired up in wireHomeLogo(). -->
-      <img class="hdr-logo-img" id="homeLogo" title="Go to home"
-           src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
-           alt="DFL Importers">
       <div class="hrow">
+        <!-- Logo sits INSIDE the row's left cell, stacked above the greeting.
+             It used to be a sibling of .hrow, which was fine when the header
+             was display:block — but the header is now a flex row (for the
+             fixed 100px height), and a sibling became a side-by-side column
+             that shoved the greeting 54px to the right. -->
         <div>
+          <img class="hdr-logo-img" id="homeLogo" title="Go to home"
+               src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+               alt="DFL Importers">
           <div class="hi" id="hgreet">Welcome back</div>
           <div class="hname" id="hname">—</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
+        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
       </div>
     </header>
     <div class="wrap" id="content"><div class="spin"></div></div>
@@ -267,7 +297,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
           <div class="hi">Team Overview</div>
           <div class="hname" id="adminhdr">Admin</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
+        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
       </div>
     </header>
     <div class="wrap" id="admincontent"><div class="spin"></div></div>
@@ -282,7 +312,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
             <div class="hi">DFL Staff Portal</div>
             <div class="hname">More</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><button class="logout" onclick="logout()">Sign out</button></div>
+          <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
         </div>
       </header>
       <div class="launch-wrap"><div class="launch-grid" id="launchGrid"></div></div>
@@ -336,6 +366,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/section-switcher.js"></script>
+<script src="/shared/user-menu.js"></script>
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";

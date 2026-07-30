@@ -297,44 +297,6 @@
     border-top: 1px solid var(--border);
   }
 
-  /* ── PWA INSTALL BANNER ── */
-  /* Fixed to the viewport, so it has to be told about the rail — the rail is
-     also position:fixed and would otherwise overlap it. 240px matches
-     RAIL_WIDTH in /shared/side-nav.js. */
-  @media (min-width: 768px) {
-    #installBanner { left: 240px; }
-  }
-  #installBanner {
-    display: none;
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: var(--navy);
-    padding: 14px 20px;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 999;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-  }
-  .install-info { display:flex; align-items:center; gap:12px; }
-  .install-info img { height:30px; }
-  .install-title { color:#fff; font-size:13px; font-weight:600; }
-  .install-sub { color:rgba(255,255,255,0.5); font-size:11px; margin-top:1px; }
-  .install-btn {
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 7px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    transition: background 0.15s;
-    flex-shrink: 0;
-  }
-  .install-btn:hover { background: #1d4ed8; }
-
   /* ── RESPONSIVE ── */
   @media (max-width: 900px) {
     .cards-grid { grid-template-columns: repeat(2, 1fr); }
@@ -440,12 +402,15 @@
       <div class="card-link">View specials →</div>
     </a>
 
-    <!-- Management — restricted / gold -->
+    <!-- Dashboards — restricted / gold.
+         Named to match the side nav's "Dashboards" entry, which points at the
+         same place. It was called "Management" here and "Dashboards" there,
+         which read as two destinations. -->
     <a class="card restricted" href="/management/">
-      <div class="card-icon gold">📈</div>
-      <div class="card-title">Management</div>
+      <div class="card-icon gold">📊</div>
+      <div class="card-title">Dashboards</div>
       <div class="card-desc">Restricted. Performance dashboards, category intelligence and key account tools.</div>
-      <div class="card-link">Enter Management →</div>
+      <div class="card-link">Open dashboards →</div>
     </a>
 
     <!-- User Approvals — admin only, revealed by the dfl-auth-ready handler
@@ -465,14 +430,11 @@
          <a class="card" href="/<file>.html"> and drop the <span class="soon-tag">.
          ───────────────────────────────────────────────────────────── -->
 
-    <!-- Dashboards — _staging/dashboards.html -->
-    <div class="card soon">
-      <span class="soon-tag">Coming soon</span>
-      <div class="card-icon">📊</div>
-      <div class="card-title">Dashboards</div>
-      <div class="card-desc">Sales performance dashboard and World Cup competition tracker.</div>
-      <div class="card-link">Not yet available</div>
-    </div>
+    <!-- NOTE: there was a "Dashboards" Coming Soon card here for
+         _staging/dashboards.html (the old sales + World Cup tracker). Removed
+         because the live /management/ card above is now called Dashboards and
+         two cards with the same name is confusing. If that staged page ships,
+         give it a distinct name like "Sales Dashboard". -->
 
     <!-- Forms — _staging/forms.html -->
     <div class="card soon">
@@ -511,17 +473,10 @@
 
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
-<!-- ── PWA INSTALL BANNER ── -->
-<div id="installBanner">
-  <div class="install-info">
-    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
-    <div>
-      <div class="install-title">DFL Staff Portal</div>
-      <div class="install-sub">Add to home screen for quick access</div>
-    </div>
-  </div>
-  <button class="install-btn" onclick="installApp()">Install</button>
-</div>
+<!-- The install banner lived here: a fixed bar across the bottom that
+     overlapped the side rail. Installing is now an item in the rail itself
+     (see shared/side-nav.js + shared/user-menu.js), shown only when the
+     browser says the app can actually be installed. -->
 
 <script>
   window.DFL_PAGE_TITLE = 'Hub';   // shown in the rail's mobile top bar
@@ -530,6 +485,7 @@
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
 <script src="/shared/side-nav.js"></script>
 <script>
   // ── Role-aware chrome ──
@@ -563,22 +519,8 @@
     });
   }
 
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    document.getElementById('installBanner').style.display = 'flex';
-  });
-
-  function installApp() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(() => {
-        deferredPrompt = null;
-        document.getElementById('installBanner').style.display = 'none';
-      });
-    }
-  }
+  // PWA install is handled by shared/user-menu.js (window.DFLInstall),
+  // surfaced as an item in the side rail.
 </script>
 
 </body>
