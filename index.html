@@ -56,10 +56,19 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
   display:flex;align-items:center;
   position:sticky;top:0;z-index:5}
 .hrow{display:flex;justify-content:space-between;align-items:center;width:100%}
-/* DFL mark above the greeting. Sized to match the merch app's header logo. */
-/* margin was 14px when the header was free to grow; tightened so the logo,
-   greeting and name all fit the standard --hdr-h without crowding. */
-.hdr-logo-img{height:22px;width:auto;display:block;margin-bottom:7px;cursor:pointer}
+/* Logo left, large — matches the merch app's header logo size exactly so the
+   two apps read as one product. It used to sit stacked ABOVE the greeting in
+   its own column; now it's a plain flex sibling, left-aligned, with the
+   greeting centered in the space to its right. */
+.hdr-logo-img{height:34px;width:auto;display:block;cursor:pointer;flex-shrink:0}
+/* One-line greeting, replacing the old two-line hi/hname stack in the main
+   headers (tab-home/tab-admin/tab-more). .hi/.hname themselves are untouched —
+   the Plan/Customers/More sub-headers still use .hname for their own titles. */
+.hdr-greet{flex:1;min-width:0;text-align:center;font-family:'Montserrat';
+  font-weight:700;font-size:15px;color:#fff;letter-spacing:-.1px;padding:0 10px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-greet-name{font-weight:800}
+.hdr-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
 .hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
 .logout{background:rgba(255,255,255,.1);border:none;color:#cdd8f0;font-size:12px;font-weight:600;
@@ -244,21 +253,13 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
     <header>
       <!-- The white-on-navy DFL mark, matching the merch app's header. Clicking
            it goes "home" per role — a no-op for a rep (this IS home), the hub
-           for a manager/admin. Wired up in wireHomeLogo(). -->
+           for a manager/admin. Wired up in wireHomeLogos(). -->
       <div class="hrow">
-        <!-- Logo sits INSIDE the row's left cell, stacked above the greeting.
-             It used to be a sibling of .hrow, which was fine when the header
-             was display:block — but the header is now a flex row (for the
-             fixed 100px height), and a sibling became a side-by-side column
-             that shoved the greeting 54px to the right. -->
-        <div>
-          <img class="hdr-logo-img" id="homeLogo" title="Go to home"
-               src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
-               alt="DFL Importers">
-          <div class="hi" id="hgreet">Welcome back</div>
-          <div class="hname" id="hname">—</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
+        <img class="hdr-logo-img" title="Go to home"
+             src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+             alt="DFL Importers">
+        <div class="hdr-greet"><span class="hdr-greet-word">Welcome back</span>, <span class="hdr-greet-name">—</span></div>
+        <div class="hdr-actions"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-hub-button></div><div data-dfl-user-menu></div></div>
       </div>
     </header>
     <div class="wrap" id="content"><div class="spin"></div></div>
@@ -298,11 +299,11 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
   <div id="tab-admin" class="tabview hidden">
     <header>
       <div class="hrow">
-        <div>
-          <div class="hi">Team Overview</div>
-          <div class="hname" id="adminhdr">Admin</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
+        <img class="hdr-logo-img" title="Go to home"
+             src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+             alt="DFL Importers">
+        <div class="hdr-greet"><span class="hdr-greet-word">Welcome back</span>, <span class="hdr-greet-name">—</span></div>
+        <div class="hdr-actions"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-hub-button></div><div data-dfl-user-menu></div></div>
       </div>
     </header>
     <div class="wrap" id="admincontent"><div class="spin"></div></div>
@@ -313,11 +314,11 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
     <div id="moreLauncher">
       <header>
         <div class="hrow">
-          <div>
-            <div class="hi">DFL Staff Portal</div>
-            <div class="hname">More</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-user-menu></div></div>
+          <img class="hdr-logo-img" title="Go to home"
+               src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png"
+               alt="DFL Importers">
+          <div class="hdr-greet"><span class="hdr-greet-word">Welcome back</span>, <span class="hdr-greet-name">—</span></div>
+          <div class="hdr-actions"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-hub-button></div><div data-dfl-user-menu></div></div>
         </div>
       </header>
       <div class="launch-wrap"><div class="launch-grid" id="launchGrid"></div></div>
@@ -371,6 +372,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/section-switcher.js"></script>
+<script src="/shared/hub-button.js"></script>
 <script src="/shared/user-menu.js"></script>
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
@@ -386,28 +388,45 @@ const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(
 // it replaces the old PIN-based enterApp().
 document.addEventListener('dfl-auth-ready', (e) => {
   initApp(e.detail.profile);
-  wireHomeLogo();
+  wireHomeLogos();
 });
 
 // Header logo -> role-aware home. dflHome() lives in /shared/auth-guard.js so
 // the mapping isn't duplicated per page. For a rep this page IS home, so the
 // logo is left inert rather than reloading.
-function wireHomeLogo(){
-  const img = document.getElementById('homeLogo');
-  if(!img) return;
+//
+// Plural because the logo now appears in THREE headers (Home/Admin/More),
+// each rendered once in the DOM at all times (tabs just toggle .hidden) — so
+// there's one image per tab, not one shared element, and all three need the
+// same click handler. Matches merch.html's wireHomeLogos() (same name, same
+// pattern) rather than the old singular id-based version.
+function wireHomeLogos(){
   const href = (typeof dflHome === 'function') ? dflHome() : '/hub.html';
-  if(href === window.location.pathname){
-    img.style.cursor = 'default';
-    img.removeAttribute('title');
-    return;
-  }
-  img.addEventListener('click', () => { window.location.href = href; });
+  document.querySelectorAll('.hdr-logo-img').forEach(img=>{
+    if(href === window.location.pathname){
+      img.style.cursor = 'default';
+      img.removeAttribute('title');
+      return;
+    }
+    img.addEventListener('click', () => { window.location.href = href; });
+  });
+}
+
+// Header greeting: "{Good morning/afternoon/evening}, {first name}". Updates
+// EVERY header at once via class, not id — Home/Admin/More each have their
+// own copy of .hdr-greet-word/.hdr-greet-name in the DOM simultaneously (tabs
+// toggle .hidden, they don't get created/destroyed), so a single id would
+// only ever reach the first one and leave the other two headers blank.
+function updateGreeting(name){
+  const h=new Date().getHours();
+  const word=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  const first=(name||'').trim().split(' ')[0]||'—';
+  document.querySelectorAll('.hdr-greet-word').forEach(el=>el.textContent=word);
+  document.querySelectorAll('.hdr-greet-name').forEach(el=>el.textContent=first);
 }
 
 async function initApp(profile){
-  const h=new Date().getHours();
-  document.getElementById("hgreet").textContent=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
-  document.getElementById("hname").textContent=profile.full_name||"—";
+  updateGreeting(profile.full_name);
 
   // Portal-level role (admin/manager) drives the in-app Admin/Team tab —
   // one source of truth, instead of a separate role field on `reps`.
@@ -424,7 +443,10 @@ async function initApp(profile){
       const repRow=Array.isArray(rows)&&rows[0]?rows[0]:null;
       if(repRow){
         REP={name:repRow.name, salesperson_id:profile.salesperson_id, area:repRow.area};
-        document.getElementById("hname").textContent=repRow.name;
+        // reps.name is the canonical roster name — profiles.full_name can
+        // legitimately differ (CLAUDE.md gotcha 7), so once it resolves it
+        // wins over whatever the profile-based greeting above showed first.
+        updateGreeting(repRow.name);
         loadData(REP);
         return;
       }
