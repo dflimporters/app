@@ -18,7 +18,7 @@
     --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
     --accent:#2563eb; --accent-bg:#eff6ff;
     --green:#16a34a; --green-bg:#f0fdf4; --green-border:#bbf7d0;
-    --red:#dc2626; --red-bg:#fef2f2;
+    --red:#dc2626; --red-bg:#fef2f2; --red-border:#fecaca;
     --gold:#fbbf24; --gold-bg:#fffbeb; --gold-border:#fde68a;
     --shadow:0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
   }
@@ -94,6 +94,20 @@
 
   .row.done { background:var(--green-bg); border-color:var(--green-border); }
   .row-done-note { font-size:13px; color:var(--green); font-weight:600; }
+
+  /* ── REJECT ── */
+  /* Sits in row-top, next to name/phone, so it's reachable regardless of
+     which mode tab (Link/Create) is open — rejecting applies to the signup
+     itself, not to either form. */
+  .btn-reject {
+    background:none; color:var(--red); border:1px solid var(--red-border);
+    border-radius:7px; padding:7px 12px; font-size:12px; font-weight:600;
+    font-family:'Inter',sans-serif; cursor:pointer; flex-shrink:0; white-space:nowrap;
+  }
+  .btn-reject:hover { background:var(--red-bg); }
+  .btn-reject:disabled { opacity:0.5; cursor:default; }
+  .row.rejected { background:var(--bg); border-color:var(--border); }
+  .row-rejected-note { font-size:13px; color:var(--text-dim); font-weight:600; }
 
   /* ── LINK vs CREATE toggle ── */
   .mode-tabs {
@@ -324,6 +338,8 @@
               ' · signed up ' + escapeHtml(whenSignedUp(p.created_at)) +
             '</div>' +
           '</div>' +
+          '<button class="btn-reject" data-phone="' + escapeHtml(prettyPhone(p.phone)) + '" ' +
+            'onclick="rejectSignup(\'' + p.user_id + '\')">Reject</button>' +
         '</div>' +
         '<div class="mode-tabs">' +
           '<button class="mode-tab on" id="tab-link-' + p.user_id + '" ' +
@@ -547,10 +563,7 @@
         if (keep && keep !== repId) s.value = keep;
       });
 
-      const remaining = document.querySelectorAll('.row:not(.done)').length;
-      const badge = el('countBadge');
-      badge.textContent = remaining === 0 ? 'None waiting' : remaining + ' waiting';
-      badge.className = 'count-badge' + (remaining === 0 ? ' zero' : '');
+      updateRemainingCount();
 
     } catch (e) {
       console.error(e);
@@ -558,6 +571,49 @@
       showMsg('Could not approve: ' + (e.message || e), 'error');
       btn.disabled = false;
       btn.textContent = 'Approve';
+    }
+  }
+
+  // Deletes the signup outright (reject_pending_signup drops auth.users,
+  // which cascades the profile away — see the migration). Not a ban: if the
+  // same number texts in again later it just starts over as an ordinary new
+  // pending signup, same as anyone the portal has never seen. Irreversible
+  // for THIS request, so it's confirmed with the phone number shown, per
+  // CLAUDE.md's "confirm destructive DB changes" rule.
+  async function rejectSignup(userId) {
+    clearMsg();
+    const row = el('row-' + userId);
+    const btn = row.querySelector('.btn-reject');
+    const phone = btn.dataset.phone || 'this number';
+
+    if (!confirm('Reject the sign-up from ' + phone + '?\n\n' +
+                 'This deletes the request. They can text in again later ' +
+                 'and it will show up here again as a new sign-up.')) {
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Rejecting…';
+
+    try {
+      const { error } = await sb.rpc('reject_pending_signup', { p_user_id: userId });
+      if (error) throw error;
+
+      row.classList.add('rejected');
+      row.querySelector('.mode-tabs').style.display = 'none';
+      el('pane-link-' + userId).style.display = 'none';
+      el('pane-new-' + userId).style.display = 'none';
+      row.querySelector('.row-top').removeChild(btn);
+      row.querySelector('.row-top').insertAdjacentHTML('beforeend',
+        '<div class="row-rejected-note">Rejected</div>');
+      showMsg(phone + '’s request was rejected.', 'success');
+      updateRemainingCount();
+
+    } catch (e) {
+      console.error(e);
+      showMsg('Could not reject: ' + (e.message || e), 'error');
+      btn.disabled = false;
+      btn.textContent = 'Reject';
     }
   }
 
@@ -627,7 +683,7 @@
   }
 
   function updateRemainingCount() {
-    const remaining = document.querySelectorAll('.row:not(.done)').length;
+    const remaining = document.querySelectorAll('.row:not(.done):not(.rejected)').length;
     const badge = el('countBadge');
     badge.textContent = remaining === 0 ? 'None waiting' : remaining + ' waiting';
     badge.className = 'count-badge' + (remaining === 0 ? ' zero' : '');
