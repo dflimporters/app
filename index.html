@@ -219,6 +219,11 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .cbar{height:6px;border-radius:6px;background:#eef1f8;margin:11px 0 9px;overflow:hidden}
 .cbar>span{display:block;height:100%;border-radius:6px;background:var(--blue)}
 .cbar>span.met{background:var(--good)}
+.catbar{height:5px;border-radius:5px;background:#eef1f8;margin-top:5px;overflow:hidden;width:100%;max-width:110px}
+.catbar>span{display:block;height:100%;border-radius:5px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.catbar>span.bad{background:linear-gradient(90deg,#c9302c,#e05c57)}
+.catbar>span.good{background:linear-gradient(90deg,#178a55,#25b06e)}
+.catbar>span.warn{background:linear-gradient(90deg,#d9920a,#f0b13d)}
 .cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600}
 .cmeta b{color:var(--ink)}
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
@@ -731,14 +736,15 @@ function paceChip(s){
 function catCard(){
   const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
   const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
+  const catCls=p=>p>=60?"good":p>=40?"warn":"bad";
   const rows=CAT_CLASSES.map(cls=>CATMTD.find(r=>r.item_class===cls)).filter(r=>r&&+r.budget_full>0)
-    .map(r=>{const bud=+r.budget_full,a=+r.actual_mtd;return{cat:r.item_class,bud,actual:a,pct:bud>0?Math.round(a/bud*100):0};})
-    .sort((a,b)=>b.bud-a.bud);
+    .map(r=>{const bud=+r.budget_full,a=+r.actual_mtd,pct=bud>0?Math.round(a/bud*100):0;return{cat:r.item_class,bud,actual:a,pct};})
+    .sort((a,b)=>a.pct-b.pct);
   if(!rows.length) return "";
-  return `<div class="dcard">
+  return `<div class="dcard" style="margin-top:16px">
     <div class="dlbl">Item class · MTD</div>
     <table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+      ${rows.map(r=>`<tr><td><div>${r.cat}</div><div class="catbar"><span class="${catCls(r.pct)}" style="width:${Math.max(0,Math.min(r.pct,100))}%"></span></div></td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
     </tbody></table>
   </div>`;
 }
