@@ -634,7 +634,8 @@ function closeMorePage(){
   document.getElementById('moreLauncher').classList.remove('hidden');
 }
 
-let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null;
+let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null, CATMTD=[];
+const CAT_CLASSES=["BEVERAGES","CLEARPACK","ECOBOX","ECOCUP","FOIL","FOODSUP","GARBAGEBAG","HOUSEHOLD","PAPER","PLASTIC","PROCESSING"];
 
 function setOrdSort(s){ ORDSORT=s; if(ORDCTX) openOrders(ORDCTX.bucket, ORDCTX.label); }
 
@@ -686,16 +687,20 @@ async function loadData(rep){
   try{
     const name=encodeURIComponent(rep.name);
     const spid=encodeURIComponent(rep.salesperson_id||"");
-    const [sumR,custR,ordR,ordListR]=await Promise.all([
+    const today=new Date();
+    const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
+    const [sumR,custR,ordR,ordListR,catR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json())
+      fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:H}).then(r=>r.json())
     ]);
     const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
     CUST=Array.isArray(custR)?custR:[];
     ORD=Array.isArray(ordR)&&ordR[0]?ordR[0]:null;
     ORDLIST=Array.isArray(ordListR)?ordListR:[];
+    CATMTD=Array.isArray(catR)?catR:[];
     render(s);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load your numbers. Check your connection and pull to refresh.</div>`; }
 }
@@ -723,6 +728,20 @@ function paceChip(s){
   return `<span class="chip ${cls}">${label.charAt(0).toUpperCase()+label.slice(1)}</span>`;
 }
 
+function catCard(){
+  const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
+  const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
+  const rows=CAT_CLASSES.map(cls=>CATMTD.find(r=>r.item_class===cls)).filter(r=>r&&+r.budget_full>0)
+    .map(r=>{const bud=+r.budget_full,a=+r.actual_mtd;return{cat:r.item_class,bud,actual:a,pct:bud>0?Math.round(a/bud*100):0};})
+    .sort((a,b)=>b.bud-a.bud);
+  if(!rows.length) return "";
+  return `<div class="dcard">
+    <div class="dlbl">Item class · MTD</div>
+    <table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+    </tbody></table>
+  </div>`;
+}
 function render(s){
   LASTS=s;
   const c=document.getElementById("content");
@@ -755,6 +774,8 @@ function render(s){
       <div class="bar"><span class="${paceFillClass(s,pct,elapsed)}" style="width:${Math.max(0,Math.min(pct,100))}%"></span><i class="barmark" style="left:${Math.min(elapsed,100)}%"></i></div>
       <div class="pacerow"><span><b>Day ${sd.done} of ${sd.total}</b> &nbsp;·&nbsp; ${sd.left} selling ${sd.left===1?'day':'days'} left</span><span>${gap>0?(sd.left>0?"<b>"+Jk(perDay)+"</b>/day to hit target":J(gap)+" to go"):"Target met · +"+J(-gap)}</span></div>
     </div>
+
+    ${catCard()}
 
     <div class="secthdr" style="margin-top:22px"><h2>My Orders</h2><span class="cnt">entered this month</span></div>
     <div class="ordtot">

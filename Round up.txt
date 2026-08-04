@@ -1,0 +1,65 @@
+Let me compile everything from this conversation directly since the uploaded merch.html was the starting point:Here is the full changelog from the merch.html upload to now:
+
+---
+
+## DFL Merch App — Changes Since Aug 4 Upload
+
+### 🗄️ Database (Supabase)
+
+*Schema*
+- Added tl_merch to merch_app_users_role_check constraint (allows dual TL+merch role)
+- Created merch_store_audits table (6-criterion scoring, overall_score generated column)
+- Created merch_stock_counts table (storeroom stock + suggested reorder per SKU)
+- Recreated shelf-photos storage bucket (was missing — root cause of photo upload failures)
+- Updated get_merch_stores RPC to include service_day, route_tag, customer_tier
+- Updated get_merch_store_perf RPC to pull live targets from budget_2026 and actuals from invoiced_items dynamically by month
+- Created get_customer_sku_history RPC — 12-month purchase history per customer, grouped by category
+
+*Team assignments*
+- *Andrew Kennedy* team set to: Joel Gordon, Ameline Brown-Price, Oshine Cunningham, Carla Reid, Ricardo Davis, Rayon Smith, Junior Dennis, Jermaine Whittingham, Robert Clarke, Darien Watson, Jovian Morgan (11)
+- *Orian Bernard* trimmed to 5: Sadiek Murphy, Melissa Ebanks, Keisha Dennis, Junior Chin, Dwayne Granston
+- *Coliesha Smith* upgraded to tl_merch (dual role, PIN 1004), leads: Akeam McDonald, Alister Forbes, Andrea Jamieson, Felecia Ebanks, Georgia Lloyd, Jomo Thompson, Prince Wanlis, Shanique Salmon, Trecia Harley
+- *Abina Clarke* upgraded to tl_merch (dual role, PIN 1101), leads: Fabian Williams (1133), Kemar Doeman (1134), Latoya Smith (1135), Delroy Tracey (1136) — all newly added to system
+- *Angela Whitter* — Marcus Cameron confirmed under her
+- *Susan Blair* — Latoya Smith moved to her team
+- *Unassigned* (no team lead): Chad Wayne Reid, Richard Wheeler, Mark Ellis, Orlando Watkis, Christina Lindo, Dayna Henry, Latoya Gray, Ravaughn Willocks
+
+---
+
+### 📱 Merch App (merch_index.html)
+
+*Visit form*
+- Store search now searches assigned stores first; falls back to global customer search (all stores in DB) after 3+ characters typed — name only shown, no target data
+- Stock count button text updated to "Record stock count (do now or later)" — available during visit
+- Photo upload completely fixed: bucket recreated, error now surfaced to user, HEIC/HEIF handled for iPhone, sequential retry on submit, clear error message if photos fail
+
+*Stock count feature*
+- Label changed from "stock on shelf" → "stock in storeroom"
+- New *📋 My stock counts* button on home screen
+- *📦 Stock count* tab in bottom nav — end-of-day view showing:
+  - Today's visited stores with Record/Update/View buttons
+  - Recent counts (past stores) with View button
+  - *View stock history* modal — all past counts for a store, grouped by date, showing SKU, storeroom qty, suggested reorder
+
+*My Week tab (new)*
+- New *📅 My Week* button in bottom nav
+- Stats strip: visits this week, stores covered, stock counts done
+- *Visits tab* — grouped by day (latest first), each card shows store, time, photos, issue/OOS flags
+- *Stock counts tab* — grouped by store, expandable cards showing SKUs by category with storeroom qty and reorder badge
+
+*TL screen*
+- Dashboard link removed (no longer needed)
+- *Store Audit* feature added — amber button opens full audit tool:
+  - Searches all stores across TL's team by name
+  - 6-criterion scoring: Shelf cleanliness, Shelf presence, Facing, Stock rotation (FIFO), Pricing accuracy, POS materials
+  - 1–5 star rating per criterion, notes field per criterion, overall notes
+  - Live overall % in header, submit enabled after 3+ criteria scored
+  - Saves to merch_store_audits table with success confirmation
+- *Activity feed* now pulls full week (Monday → today) instead of just today
+- Toggle buttons: *Today* (who's active, who hasn't visited yet) and *This week* (per-merch visit count colour-coded 🟢🟡🔴 + day-by-day breakdown)
+
+*Dual role (tl_merch)*
+- Coliesha Smith and Abina Clarke now have tl_merch role
+- Single PIN login → lands on TL view
+- *"👤 My visits"* button in TL header switches to their own merch visit form
+- *"👥 TL view"* button in merch header switches back to TL screen
