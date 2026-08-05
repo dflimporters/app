@@ -276,10 +276,10 @@
     });
 
     // Field staff first — they're the ones who actually self-sign-up.
-    const order = ['merchandiser','team_leader','rep','warehouse','manager'];
+    const order = ['merchandiser','team_leader','relief_merchandiser','rep','warehouse','manager'];
     const roleLabel = {
-      merchandiser:'Merchandisers', team_leader:'Team leaders', rep:'Sales reps',
-      warehouse:'Warehouse', manager:'Managers'
+      merchandiser:'Merchandisers', team_leader:'Team leaders', relief_merchandiser:'Relief merchandisers',
+      rep:'Sales reps', warehouse:'Warehouse', manager:'Managers'
     };
 
     let html = '<option value="">Select a staff record…</option>';
@@ -372,6 +372,7 @@
                 '<select id="rl-' + p.user_id + '" onchange="onRoleChanged(\'' + p.user_id + '\')">' +
                   '<option value="merchandiser">Merchandiser</option>' +
                   '<option value="team_leader">Team leader</option>' +
+                  '<option value="relief_merchandiser">Relief merchandiser</option>' +
                   '<option value="rep">Sales rep</option>' +
                   '<option value="warehouse">Warehouse</option>' +
                   '<option value="manager">Manager</option>' +
