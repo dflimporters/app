@@ -18,7 +18,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --navy:#1B2B5E;--red:#C8202F;--red-lt:#FCEBEB;
+  --navy:#1B2B5E;--navy2:#2A3F7A;--red:#C8202F;--red-lt:#FCEBEB;
   --green:#3B6D11;--green-lt:#EAF3DE;--amber:#BA7517;--amber-lt:#FAEEDA;
   --bg:#F2F4F8;--card:#fff;--border:#E2E5ED;
   --text:#1A1A2E;--muted:#6B7280;
@@ -399,32 +399,23 @@ body.dfl-readonly .readonly-note{display:block}
         </div>
       </div>
 
-      <div class="stats-grid">
+      <div class="stats-grid" id="m-stats-grid">
         <div class="stat-box"><div class="stat-lbl">Visits today</div><div class="stat-val c-navy" id="m-vtd">0</div></div>
         <div class="stat-box"><div class="stat-lbl">Issues flagged</div><div class="stat-val c-red" id="m-itd">0</div></div>
-        <div class="stat-box"><div class="stat-lbl">Stores achieving</div><div class="stat-val c-green" id="m-squal">–</div></div>
-        <div class="stat-box"><div class="stat-lbl">Period achievement</div><div class="stat-val" id="m-pct">–</div></div>
+        <div class="stat-box" id="m-squal-box"><div class="stat-lbl">Stores achieving</div><div class="stat-val c-green" id="m-squal">–</div></div>
+        <div class="stat-box" id="m-pct-box"><div class="stat-lbl">Period achievement</div><div class="stat-val" id="m-pct">–</div></div>
       </div>
 
-      <a class="dash-link" id="dash-link" href="#" onclick="openDash(event)">
-        <div class="dash-link-ico">📊</div>
-        <div>
-          <div class="dash-link-title">Merch Commission Dashboard</div>
-          <div class="dash-link-sub">View full team targets & commissions</div>
-        </div>
-        <div class="dash-link-arr">↗</div>
-      </a>
-
       <!-- PRIMARY ACTION BUTTONS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
+      <div id="m-action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
         <!-- LOG VISIT — primary large button -->
         <div onclick="goTab('tab-visit');setNav('n-visit')" style="background:var(--navy2);border-radius:var(--rad);padding:18px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px solid rgba(255,255,255,.1);-webkit-tap-highlight-color:rgba(255,255,255,.1);active:opacity:.8">
           <div style="font-size:36px;line-height:1">📍</div>
           <div style="font-size:15px;font-weight:800;color:#fff;text-align:center">Log a Visit</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);text-align:center">Check in to a store</div>
         </div>
-        <!-- MY STORES — secondary large button -->
-        <div onclick="goTab('tab-stores');setNav('n-stores');ensureStoresLoaded()" style="background:var(--card);border-radius:var(--rad);padding:18px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px solid var(--border);-webkit-tap-highlight-color:rgba(27,43,94,.08)">
+        <!-- MY STORES — secondary large button (targets/performance — hidden for relief) -->
+        <div id="m-mystores-btn" onclick="goTab('tab-stores');setNav('n-stores');ensureStoresLoaded()" style="background:var(--card);border-radius:var(--rad);padding:18px 14px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px solid var(--border);-webkit-tap-highlight-color:rgba(27,43,94,.08)">
           <div style="font-size:36px;line-height:1">🏪</div>
           <div style="font-size:15px;font-weight:800;color:var(--navy);text-align:center">My Stores</div>
           <div style="font-size:11px;color:var(--muted);text-align:center">Targets & performance</div>
@@ -450,8 +441,8 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
-      <!-- QUARTERLY EVALUATION -->
-      <div onclick="openEvaluationTool()" style="background:var(--blue-lt);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--navy);margin-bottom:4px">
+      <!-- QUARTERLY EVALUATION (performance-review cycle — hidden for relief) -->
+      <div id="m-eval-tile" onclick="openEvaluationTool()" style="background:var(--blue-lt);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--navy);margin-bottom:4px">
         <div style="font-size:22px">📋</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--navy)">Quarterly Evaluation</div>
@@ -460,8 +451,8 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--navy)">›</div>
       </div>
 
-      <!-- RECENT STORES QUICK ACCESS -->
-      <div>
+      <!-- RECENT STORES QUICK ACCESS (assigned-route widget — hidden for relief, who has none) -->
+      <div id="m-quickstores-section">
         <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between">
           <span>My stores <span style="font-size:11px;color:var(--muted);font-weight:400" id="stores-quick-count"></span></span>
           <button onclick="goTab('tab-stores');setNav('n-stores');ensureStoresLoaded()" style="font-size:11px;font-weight:700;color:var(--navy);background:none;border:none;cursor:pointer">See all ↗</button>
@@ -525,7 +516,7 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="field">
         <label>Notes / competitor sighting</label>
         <div class="notes-wrap">
-          <textarea id="vf-notes" placeholder="Type or tap 🎤 to speak…" style="height:80px;resize:none"></textarea>
+          <textarea id="vf-notes" placeholder="Type or tap 🎤 to speak…" style="height:80px;resize:none" oninput="onVisitNotesInput()"></textarea>
           <button class="voice-btn" id="voice-visit" onclick="toggleVoice('vf-notes','voice-visit','vstatus','vai-box')" title="Record voice note">🎤</button>
         </div>
         <div class="voice-status" id="vstatus"></div>
@@ -875,6 +866,47 @@ let myStores=[];
 let storeSelected={id:'',name:''};
 let sfStoreSelected={name:''};
 
+// merch_stock_counts has no store_name column — look names up from the
+// merchandiser's own store list instead of falling back to the raw customer_id.
+function storeNameFor(custId){
+  const s=myStores.find(x=>x.id===custId);
+  return s?s.name:null;
+}
+
+// Relief merchandisers have no route (merchandiser_map has nothing under
+// their name) and no target/commission data — they cover any store nationwide
+// on an ad hoc basis. Checked wherever the app would otherwise assume a fixed
+// assigned-store list or show target/achievement numbers.
+function isRelief(){
+  return !!(cu && cu.role==='relief_merchandiser');
+}
+
+// Hides every target/commission/KPI/route-bound surface on the merchandiser
+// home screen for a relief login — "Stores achieving"/"Period achievement"
+// stats, the My Stores tab (nav + tile + quick-access widget, all three are
+// 100% target/route-shaped and reference myStores/storePerf, which relief
+// never populates), and Quarterly Evaluation (a performance-review cycle that
+// doesn't apply to ad hoc coverage). Everything else — Log a Visit, Report
+// OOS, My stock counts — stays exactly as-is.
+function applyReliefUI(){
+  const relief=isRelief();
+  const hide=function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; };
+  const show=function(id){ const el=document.getElementById(id); if(el) el.style.display=''; };
+  if(relief){
+    hide('m-squal-box'); hide('m-pct-box');
+    hide('m-mystores-btn'); hide('n-stores');
+    hide('m-eval-tile'); hide('m-quickstores-section');
+    const grid=document.getElementById('m-action-grid');
+    if(grid) grid.style.gridTemplateColumns='1fr';
+  } else {
+    show('m-squal-box'); show('m-pct-box');
+    show('m-mystores-btn'); show('n-stores');
+    show('m-eval-tile'); show('m-quickstores-section');
+    const grid=document.getElementById('m-action-grid');
+    if(grid) grid.style.gridTemplateColumns='1fr 1fr';
+  }
+}
+
 // ============================================================
 // BOOT — identity from the auth guard, not a PIN
 // ============================================================
@@ -939,7 +971,7 @@ async function startApp(profile){
     // Route by role. A merchandiser/team_leader with no roster row can't do
     // anything useful (no stores, no team), so that's an explicit error rather
     // than a silently empty app.
-    if(cu.role==='merchandiser'){
+    if(cu.role==='merchandiser'||cu.role==='relief_merchandiser'){
       if(!cu.id){ bootError('Your staff record is not linked yet — ask an admin to link your account.'); return; }
       await launchMerch(cu);
     }else if(cu.role==='team_leader'){
@@ -994,6 +1026,7 @@ async function launchMerch(u){
   // here. Territory is the one thing that's still this screen's own.
   document.getElementById('m-terr').textContent=(u.territory||'')+(u.team_lead?' · TL: '+u.team_lead:'');
   goTab('tab-home');setNav('n-home');
+  applyReliefUI();
   // Dual role (tl_merch) — add a button to switch back to the TL screen.
   if(u&&u.role==='tl_merch'&&!document.getElementById('merch-tl-switch-btn')){
     const hdrActions=document.querySelector('#s-merch .hdr-actions');
@@ -1013,9 +1046,17 @@ async function launchMerch(u){
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
   await Promise.all([loadMyStores(u), loadTodayVisits(u)]);
+  restoreVisitDraft();
 }
 
 async function loadMyStores(u){
+  if(isRelief()){
+    // Relief has no route — merchandiser_map has nothing under their name.
+    // They search any store nationwide instead, via the fallback search
+    // already built into filterStores()/filterStoresSF() below.
+    myStores=[];
+    return;
+  }
   try{
     // Use RPC which does a proper SQL JOIN — merchandiser_map has no FK to customers
     const rows=await restRpc('get_merch_stores',{p_name:u.full_name});
@@ -1030,7 +1071,18 @@ async function loadTodayVisits(u){
   try{
     const today=new Date().toISOString().slice(0,10);
     const v=await rest(`merch_visit_log?user_id=eq.${u.id}&visit_date=eq.${today}&select=*&order=created_at.desc`);
-    visits=v||[];issueCount=visits.filter(x=>x.outcome==='issue').length;
+    let merged=v||[];
+    // Surface relief coverage of MY stores on the same feed I already check —
+    // no separate section, per how this was asked for. Relief has no stores of
+    // its own in merchandiser_map, so this is a no-op (and skipped) for them.
+    if(!isRelief()){
+      try{
+        const relief=await restRpc('get_relief_visits_for_merchandisers',{p_names:[u.full_name],p_since:today});
+        if(relief&&relief.length) merged=merged.concat(relief);
+      }catch(e){ console.warn('relief coverage fetch failed:',e); }
+    }
+    merged.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    visits=merged;issueCount=visits.filter(x=>x.outcome==='issue').length;
     renderFeed();
   }catch(e){console.error(e);}
 }
@@ -1070,11 +1122,13 @@ function filterStores(q){
 // in invoiced_items by name. Name/city only, no target or performance data,
 // since this bypasses merchandiser_map entirely.
 let _storeSearchTimer=null;
-async function searchAllCustomers(q){
+async function searchAllCustomers(q,dropId,prefix){
+  dropId=dropId||'store-drop';
+  prefix=prefix||'vf';
   clearTimeout(_storeSearchTimer);
   _storeSearchTimer=setTimeout(async function(){
     try{
-      const drop=document.getElementById('store-drop');
+      const drop=document.getElementById(dropId);
       const rows=await rest('invoiced_items?customer_name=ilike.*'+encodeURIComponent(q)+'*&select=customer_id,customer_name,city&order=customer_name&limit=20');
       const seen={};const unique=[];
       (rows||[]).forEach(function(r){if(!seen[r.customer_id]){seen[r.customer_id]=true;unique.push(r);}});
@@ -1088,12 +1142,12 @@ async function searchAllCustomers(q){
         const div=document.createElement('div');
         div.className='store-opt';
         div.innerHTML='<div class="so-name">'+r.customer_name+'</div>'+(r.city?'<div class="so-city">'+r.city+'</div>':'');
-        div.onclick=function(){selectStore('vf',r.customer_id,r.customer_name||'',r.city||'');};
+        div.onclick=function(){selectStore(prefix,r.customer_id,r.customer_name||'',r.city||'');};
         drop.appendChild(div);
       });
-      openDropdown();
+      if(prefix==='sf')openDropdownSF();else openDropdown();
     }catch(e){
-      const drop=document.getElementById('store-drop');
+      const drop=document.getElementById(dropId);
       if(drop)drop.innerHTML='<div class="store-none">Search error — check connection</div>';
     }
   },400);
@@ -1101,7 +1155,17 @@ async function searchAllCustomers(q){
 function filterStoresSF(q){
   const f=myStores.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||(s.city&&s.city.toLowerCase().includes(q.toLowerCase())));
   const drop=document.getElementById('sf-store-drop');
-  drop.innerHTML=f.length?f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join(''):'<div class="store-none">No match</div>';
+  if(f.length){
+    drop.innerHTML=f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
+  } else if(q.length>=3){
+    // Falls back to the same nationwide search filterStores() uses — needed
+    // for relief (no assigned stores at all) and useful for anyone covering
+    // an unassigned store.
+    drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
+    searchAllCustomers(q,'sf-store-drop','sf');
+  } else {
+    drop.innerHTML='<div class="store-none">'+(q?'Type 3+ characters to search all stores…':'No match')+'</div>';
+  }
   openDropdownSF();
   document.getElementById('sf-store-clear').style.display=q?'':'none';
 }
@@ -1111,6 +1175,7 @@ function selectStore(prefix,id,name,city){
     document.getElementById('store-input').value=name+(city?' – '+city:'');
     document.getElementById('store-clear').style.display='block';
     document.getElementById('store-drop').classList.remove('open');
+    saveVisitDraft();
   } else {
     sfStoreSelected={name};
     document.getElementById('sf-store-input').value=name+(city?' – '+city:'');
@@ -1120,7 +1185,7 @@ function selectStore(prefix,id,name,city){
 }
 function openDropdown(){document.getElementById('store-drop').classList.add('open');}
 function openDropdownSF(){document.getElementById('sf-store-drop').classList.add('open');}
-function clearStore(){document.getElementById('store-input').value='';document.getElementById('store-drop').classList.remove('open');document.getElementById('store-clear').style.display='none';storeSelected={id:'',name:''};buildDropdown('store-drop',myStores,'vf');}
+function clearStore(){document.getElementById('store-input').value='';document.getElementById('store-drop').classList.remove('open');document.getElementById('store-clear').style.display='none';storeSelected={id:'',name:''};buildDropdown('store-drop',myStores,'vf');saveVisitDraft();}
 function clearStoreSF(){document.getElementById('sf-store-input').value='';document.getElementById('sf-store-drop').classList.remove('open');document.getElementById('sf-store-clear').style.display='none';sfStoreSelected={name:''};buildDropdown('sf-store-drop',myStores,'sf');}
 document.addEventListener('click',e=>{
   if(!e.target.closest('#store-wrap'))document.getElementById('store-drop').classList.remove('open');
@@ -1134,12 +1199,19 @@ function cycleCat(c){
   if(cur==='off'){catState[c]='on';el.className='cat-tile on';}
   else if(cur==='on'){catState[c]='oos';el.className='cat-tile oos';}
   else{catState[c]='off';el.className='cat-tile';}
+  saveVisitDraft();
 }
 function setOut(o){
   outcome=o;
   document.getElementById('oo-ok').classList.toggle('on',o==='ok');
   document.getElementById('oo-iss').classList.toggle('on',o==='issue');
   document.getElementById('oo-pen').classList.toggle('on',o==='pending');
+  saveVisitDraft();
+}
+let _notesSaveTimer=null;
+function onVisitNotesInput(){
+  clearTimeout(_notesSaveTimer);
+  _notesSaveTimer=setTimeout(saveVisitDraft,500);
 }
 
 // ── SUBMIT VISIT ──
@@ -1171,7 +1243,8 @@ async function submitVisit(){
       latitude:  currentGeo ? currentGeo.lat  : null,
       longitude: currentGeo ? currentGeo.lng  : null,
       geo_accuracy: currentGeo ? currentGeo.acc : null,
-      shelf_photo_urls: await ensureAllPhotosUploaded()
+      shelf_photo_urls: await ensureAllPhotosUploaded(),
+      visit_type: isRelief() ? 'relief' : 'regular'
     };
     // Try online first, queue offline if fails
     let saved = false;
@@ -1194,6 +1267,7 @@ async function submitVisit(){
     clearStore();catState={};['hh','gb','fo','pr','pp','pl','ec','fs','eb','bv','cp','ea','es'].forEach(c=>{document.getElementById('ct-'+c).className='cat-tile';});
     outcome='ok';setOut('ok');document.getElementById('vf-notes').value='';
     resetPhotos();;
+    clearVisitDraft();
     showOv('✅','Visit logged!',storeSelected.name+' checked in successfully.');
   }catch(e){alert('Save failed — check connection.');console.error(e);}
   finally{btn.disabled=false;btn.textContent='Log this visit →';}
@@ -1211,7 +1285,8 @@ async function submitStock(){
     await rest('merch_stock_reports',{method:'POST',body:{
       user_id:cu.id,user_name:cu.full_name,store_name:sfStoreSelected.name,
       report_date:new Date().toISOString().slice(0,10),flagged_skus:flagged,
-      notes:document.getElementById('sf-notes').value.trim()||null
+      notes:document.getElementById('sf-notes').value.trim()||null,
+      visit_type: isRelief() ? 'relief' : 'regular'
     }});
     clearStoreSF();
     document.querySelectorAll('.tog.on').forEach(t=>{t.classList.remove('on');t.closest('.sku-row').classList.remove('flagged');});
@@ -1245,14 +1320,16 @@ function renderFeed(){
     const catMap={cat_household:'HH',cat_garbage:'GB',cat_foil:'Foil',cat_processing:'Proc',cat_paper:'Paper',cat_plastic:'Plastic',cat_ecocup:'Ecocup',cat_foodsup:'FoodSup',cat_ecobox:'Ecobox',cat_beverages:'Bev',cat_clearpack:'Clearpack',cat_ecobag:'Ecobag',cat_ecostraw:'Ecostraw'};
     const cats=Object.entries(catMap).filter(([k])=>v[k]).map(([,lbl])=>lbl).join('·');
     const tIn=new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
-    // Right side: either checkout button or duration
+    const isReliefRow=v.visit_type==='relief';
+    // Right side: either checkout button or duration. Relief rows are someone
+    // else's in-progress visit merged into this feed — never offer to check
+    // THEM out from here.
     let rightHtml='';
-    if(v.clock_out){
-      const tOut=new Date(v.clock_out).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
+    if(v.clock_out||isReliefRow){
+      const tOut=v.clock_out?new Date(v.clock_out).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):null;
       rightHtml=`<div class="fi-right">
         <span class="badge ${bc}">${lbl}</span>
-        <span class="duration-pill">⏱ ${fmtDuration(v.clock_in,v.clock_out)}</span>
-        <span class="time-range">${tIn} – ${tOut}</span>
+        ${tOut?`<span class="duration-pill">⏱ ${fmtDuration(v.clock_in,v.clock_out)}</span><span class="time-range">${tIn} – ${tOut}</span>`:`<span class="time-range">In: ${tIn}</span>`}
       </div>`;
     } else {
       rightHtml=`<div class="fi-right">
@@ -1261,11 +1338,13 @@ function renderFeed(){
         <button class="checkout-btn" onclick="checkOut('${v.id}',this)">Check out →</button>
       </div>`;
     }
+    const reliefBadge=isReliefRow?`<div class="fi-meta" style="color:var(--navy);font-weight:700">🔄 Covered by ${v.user_name||'relief'}</div>`:'';
     return`<div class="feed-item" id="visit-${v.id}">
       <div class="fi-ico ${ic}">${ico}</div>
       <div class="fi-info">
         <div class="fi-name">${v.store_name}</div>
         <div class="fi-meta">${cats?cats:'No categories checked'}</div>
+        ${reliefBadge}
       </div>
       ${rightHtml}
     </div>`;
@@ -1353,13 +1432,17 @@ async function loadTLData(u){
     mon.setDate(now.getDate()-(now.getDay()===0?6:now.getDay()-1));
     const weekStart=mon.toISOString().slice(0,10);
     const todayStr=now.toISOString().slice(0,10);
-    const [all,weekVisits]=await Promise.all([
+    const [all,ownVisits,reliefVisits]=await Promise.all([
       rest(`merchandiser_summary?period=eq.${period}&merchandiser_name=in.(${nameList})&select=*&order=achievement_pct.desc`),
-      rest(`merch_visit_log?user_name=in.(${nameList})&visit_date=gte.${weekStart}&select=*&order=created_at.desc`)
+      rest(`merch_visit_log?user_name=in.(${nameList})&visit_date=gte.${weekStart}&select=*&order=created_at.desc`),
+      // Relief coverage of this team's stores — same "screen they already
+      // check for daily team activity", not a separate section.
+      restRpc('get_relief_visits_for_merchandisers',{p_names:myNames,p_since:weekStart}).catch(function(e){console.warn('relief coverage fetch failed:',e);return [];})
     ]);
     const team=all||[];
-    const todayVisits=(weekVisits||[]).filter(v=>v.visit_date===todayStr);
-    renderTLVisitFeed(weekVisits||[], myNames, todayVisits);
+    const weekVisits=(ownVisits||[]).concat(reliefVisits||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    const todayVisits=weekVisits.filter(v=>v.visit_date===todayStr);
+    renderTLVisitFeed(weekVisits, myNames, todayVisits);
 
     // 3. Stats
     const totComm=team.reduce((s,m)=>s+parseFloat(m.commission||0),0);
@@ -1453,7 +1536,7 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
     row.innerHTML=
       '<div class="tl-av-sm">'+ini+'</div>'+
       '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:12px;font-weight:700">'+v.user_name+'</div>'+
+        '<div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
         '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
         (v.outcome==='issue'?'<div style="font-size:10px;font-weight:700;color:var(--red)">⚠ Issue</div>':'')+
         ((v.shelf_photo_urls&&v.shelf_photo_urls.length)?'<div style="font-size:10px;color:var(--muted)">📷 '+v.shelf_photo_urls.length+'</div>':'')+
@@ -1521,7 +1604,7 @@ function renderWeekFeed(feedEl,visits,myNames){
       const row=document.createElement('div');
       row.className='tl-visit-row';
       row.innerHTML='<div class="tl-av-sm" style="font-size:9px">'+ini+'</div>'+
-        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+'</div>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
         '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div></div>'+
         '<div style="font-size:11px;color:var(--muted)">'+time+'</div>';
       feedEl.appendChild(row);
@@ -1929,11 +2012,12 @@ async function loadMyWeek(){
   mon.setDate(now.getDate()-(dow===0?6:dow-1));
   const weekStart=mon.toISOString().slice(0,10);
   try{
-    const [visRows,stRows]=await Promise.all([
+    const [visRows,stRows,reliefRows]=await Promise.all([
       rest(`merch_visit_log?user_id=eq.${cu.id}&visit_date=gte.${weekStart}&order=visit_date.desc,created_at.desc`),
-      rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${weekStart}T00:00:00Z&order=counted_at.desc`)
+      rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${weekStart}T00:00:00Z&order=counted_at.desc`),
+      isRelief()?Promise.resolve([]):restRpc('get_relief_visits_for_merchandisers',{p_names:[cu.full_name],p_since:weekStart}).catch(function(e){console.warn('relief coverage fetch failed:',e);return [];})
     ]);
-    _weekVisits=visRows||[];
+    _weekVisits=(visRows||[]).concat(reliefRows||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     _weekCounts=stRows||[];
   }catch(e){
     _weekVisits=[];_weekCounts=[];
@@ -2013,6 +2097,7 @@ function renderWeekVisits(){
             (v.outcome==='issue'?'<span style="color:var(--red);font-weight:700">⚠ Issue</span>':'')+
             (v.outcome==='oos'?'<span style="color:var(--amber)">OOS flagged</span>':'')+
           '</div>'+
+          (v.visit_type==='relief'?'<div style="font-size:11px;font-weight:700;color:var(--navy);margin-top:2px">🔄 Covered by '+(v.user_name||'relief')+'</div>':'')+
         '</div>';
       el.appendChild(card);
     });
@@ -2038,7 +2123,7 @@ function renderWeekStockCounts(){
   const byStore={};
   _weekCounts.forEach(r=>{
     const key=r.customer_id||r.store_name||'unknown';
-    if(!byStore[key])byStore[key]={name:r.store_name||r.customer_id,items:[],cid:r.customer_id};
+    if(!byStore[key])byStore[key]={name:storeNameFor(r.customer_id)||r.store_name||r.customer_id,items:[],cid:r.customer_id};
     byStore[key].items.push(r);
   });
   el.innerHTML='';
@@ -2104,7 +2189,17 @@ async function loadEOD(){
   const todayV=visits.filter(v=>v.visit_date===today);
   let recentCounts=[];
   try{
-    recentCounts=await rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&order=counted_at.desc&limit=200`)||[];
+    if(isRelief()){
+      // No route of their own — just their own logged activity.
+      recentCounts=await rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&order=counted_at.desc&limit=200`)||[];
+    } else {
+      // Scoped by MY stores rather than by who logged it, so a relief-covered
+      // stock count at one of my stores shows up here too.
+      const myIds=myStores.map(s=>s.id).filter(Boolean);
+      if(myIds.length){
+        recentCounts=await rest(`merch_stock_counts?customer_id=in.(${myIds.join(',')})&order=counted_at.desc&limit=200`)||[];
+      }
+    }
   }catch(e){ console.warn('stock history fetch:',e); }
   const countsByStore={};
   recentCounts.forEach(r=>{
@@ -2144,13 +2239,15 @@ async function loadEOD(){
     recentStores.forEach(cid=>{
       const counts=countsByStore[cid];
       const latestDate=counts[0].counted_at?new Date(counts[0].counted_at).toLocaleDateString('en-JM',{day:'numeric',month:'short'}):'–';
-      const storeName=counts[0].store_name||cid;
+      const storeName=storeNameFor(cid)||counts[0].store_name||cid;
+      const latestByOther=counts[0].merchandiser_name&&cu&&counts[0].merchandiser_name!==cu.full_name;
       const card=document.createElement('div');
       card.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px';
       card.innerHTML=
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+storeName+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+counts.length+' SKUs · last '+latestDate+'</div>'+
+          (latestByOther?'<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(counts[0].visit_type==='relief'?'🔄 Covered by ':'Counted by ')+counts[0].merchandiser_name+'</div>':'')+
         '</div>'+
         '<button data-cid="'+cid+'" data-name="'+encodeURIComponent(storeName)+'" onclick="viewStockHistory(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--blue-lt);border:1px solid var(--navy);border-radius:6px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer">View</button>';
       listEl.appendChild(card);
@@ -2173,7 +2270,9 @@ function closeStockHistory(){
 
 async function viewStockHistory(custId,custName){
   try{
-    const rows=await rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&customer_id=eq.${custId}&order=counted_at.desc&limit=100`);
+    // customer_id only, not filtered to my own name — the latest count at a
+    // store reflects who counted it last, whoever that was (relief included).
+    const rows=await rest(`merch_stock_counts?customer_id=eq.${custId}&order=counted_at.desc&limit=100`);
     if(!rows||!rows.length){ alert('No stock counts found for '+custName); return; }
     const byDate={};
     rows.forEach(r=>{
@@ -2195,8 +2294,11 @@ async function viewStockHistory(custId,custName){
       skus.forEach(r=>{
         const reorder=r.suggested_reorder>0?'<span style="background:var(--amber-lt);color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Reorder: '+r.suggested_reorder+'cs</span>':'';
         html+='<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
+        const countedByOther=r.merchandiser_name&&cu&&r.merchandiser_name!==cu.full_name;
         html+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.description+'</div>';
-        html+='<div style="font-size:10px;color:var(--muted)">'+(r.item_class||'')+'</div></div>';
+        html+='<div style="font-size:10px;color:var(--muted)">'+(r.item_class||'')+'</div>';
+        if(countedByOther)html+='<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(r.visit_type==='relief'?'🔄 Covered by ':'Counted by ')+r.merchandiser_name+'</div>';
+        html+='</div>';
         html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800">'+r.stock_on_hand+'cs</div>';
         html+='<div style="font-size:10px;color:var(--muted)">in storeroom</div>'+reorder+'</div>';
         html+='</div>';
@@ -2216,6 +2318,7 @@ async function viewStockHistory(custId,custName){
 let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
 
 async function ensureStoresLoaded(){
+  if(isRelief())return; // no route, no targets — nothing for this tab to show
   if(storesLoaded) return;
   await loadStorePerf();
 }
@@ -2292,14 +2395,22 @@ function renderStores(){
           </div>
         </div>`;
       } else {
+        // A relief visit merged into `visits` — someone else's in-progress
+        // check-in. Never offer to check THEM out from this card.
+        const checkoutOrPending=todayVisit.visit_type==='relief'
+          ?'<div class="spc-time-val" style="color:var(--amber);font-size:11px">In progress</div>'
+          :`<button class="checkout-btn" data-vid="${todayVisit.id}" data-cid="${s.customer_id}" onclick="checkOutFromStore(this.dataset.vid,this,this.dataset.cid)">Check out</button>`;
         visitBlock=`<div class="spc-timebox spc-timebox-live">
           <div class="spc-timebox-row">
             <div class="spc-timecol"><div class="spc-time-lbl">Clock in</div><div class="spc-time-val">${tIn}</div></div>
             <div class="spc-time-sep">to</div>
             <div class="spc-timecol"><div class="spc-time-lbl">Clock out</div><div class="spc-time-val" style="color:var(--amber)">Not yet</div></div>
-            <button class="checkout-btn" data-vid="${todayVisit.id}" data-cid="${s.customer_id}" onclick="checkOutFromStore(this.dataset.vid,this,this.dataset.cid)">Check out</button>
+            ${checkoutOrPending}
           </div>
         </div>`;
+      }
+      if(todayVisit.visit_type==='relief'){
+        visitBlock=`<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">🔄 Covered today by ${todayVisit.user_name||'relief'}</div>`+visitBlock;
       }
     } else if(lastPastVisit){
       const lIn=new Date(lastPastVisit.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
@@ -2510,6 +2621,81 @@ const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 5;
 let pendingPhotos = [];
 
+// ── IN-PROGRESS VISIT DRAFT ──
+// The camera button uses capture="environment", which hands the whole tab to
+// the native camera app. On Android especially, if that takes a while (walking
+// shelves, taking several photos, an interruption), the OS can reclaim the
+// backgrounded tab and Chrome silently reloads merch.html from scratch on
+// return. Every bit of in-progress visit state (store, categories, notes,
+// photos) lived only in JS variables, so that reload wiped the whole visit and
+// the merchandiser had to start over — even though their shelf photos had
+// already finished uploading to storage by then. This persists the form to
+// localStorage as it's filled in and restores it after a reload.
+const VISIT_DRAFT_MAX_AGE_MS = 12*60*60*1000; // stale after 12h — discard silently
+function visitDraftKey(){ return 'dfl_merch_visit_draft_'+(cu&&cu.id||'anon'); }
+
+function saveVisitDraft(){
+  if(!cu) return;
+  const notesEl=document.getElementById('vf-notes');
+  const notes = notesEl?notesEl.value:'';
+  const photos = pendingPhotos.filter(function(p){return p.uploadedUrl;}).map(function(p){return {uploadedUrl:p.uploadedUrl};});
+  const hasContent = !!(storeSelected&&storeSelected.name) || photos.length ||
+    (notes&&notes.trim()) || Object.values(catState||{}).some(function(v){return v&&v!=='off';});
+  if(!hasContent){ clearVisitDraft(); return; }
+  try{
+    localStorage.setItem(visitDraftKey(), JSON.stringify({
+      storeSelected:storeSelected, catState:catState, outcome:outcome,
+      notes:notes, photos:photos, savedAt:Date.now()
+    }));
+  }catch(e){ console.warn('draft save failed:',e); }
+}
+
+function clearVisitDraft(){
+  if(!cu) return;
+  try{ localStorage.removeItem(visitDraftKey()); }catch(e){}
+}
+
+function restoreVisitDraft(){
+  if(!cu) return;
+  let raw;
+  try{ raw = localStorage.getItem(visitDraftKey()); }catch(e){ return; }
+  if(!raw) return;
+  let draft;
+  try{ draft = JSON.parse(raw); }catch(e){ clearVisitDraft(); return; }
+  if(!draft.savedAt || Date.now()-draft.savedAt > VISIT_DRAFT_MAX_AGE_MS){ clearVisitDraft(); return; }
+
+  if(draft.storeSelected && draft.storeSelected.name){
+    storeSelected = draft.storeSelected;
+    const inp=document.getElementById('store-input');
+    if(inp) inp.value = draft.storeSelected.name;
+    const clr=document.getElementById('store-clear');
+    if(clr) clr.style.display='block';
+  }
+
+  catState = draft.catState || {};
+  Object.keys(catState).forEach(function(c){
+    const el=document.getElementById('ct-'+c);
+    if(el) el.className = 'cat-tile'+(catState[c]==='on'?' on':catState[c]==='oos'?' oos':'');
+  });
+
+  if(draft.outcome) setOut(draft.outcome);
+
+  const notesEl=document.getElementById('vf-notes');
+  if(notesEl && draft.notes) notesEl.value = draft.notes;
+
+  // Only already-uploaded photos survive — their blob preview URLs die with the
+  // page, but the files themselves are safely in storage, so the public URL
+  // works fine as the thumbnail source too.
+  pendingPhotos = (draft.photos||[]).map(function(p){
+    return {file:null, previewUrl:p.uploadedUrl, uploadedUrl:p.uploadedUrl, uploading:false};
+  });
+  renderPhotoThumbs();
+  updatePhotoGating();
+
+  goTab('tab-visit'); setNav('n-visit');
+  showOv('📝','Draft restored','Picked up where you left off'+(storeSelected.name?' at '+storeSelected.name:'')+'.');
+}
+
 function openCamera(){
   if(pendingPhotos.length >= MAX_PHOTOS){ alert('Maximum '+MAX_PHOTOS+' photos per visit.'); return; }
   // Reset file input so same file can be re-triggered
@@ -2526,6 +2712,7 @@ function handlePhotoSelect(files){
   });
   renderPhotoThumbs();
   updatePhotoGating();
+  saveVisitDraft();
   // Upload in background immediately
   pendingPhotos.forEach(function(_,i){ if(!pendingPhotos[i].uploadedUrl && !pendingPhotos[i].uploading) uploadPhoto(i); });
 }
@@ -2629,6 +2816,7 @@ function removePhoto(i){
   pendingPhotos.splice(i,1);
   renderPhotoThumbs();
   updatePhotoGating();
+  saveVisitDraft();
 }
 
 async function uploadPhoto(i){
@@ -2649,6 +2837,9 @@ async function uploadPhoto(i){
     pendingPhotos[i].uploadedUrl = SB_STORAGE+'/object/public/shelf-photos/'+path;
     pendingPhotos[i].uploading = false;
     renderPhotoThumbs();
+    // Persist now, not just on selection — this URL is what survives a reload
+    // if the tab gets killed while the native camera app is in the foreground.
+    saveVisitDraft();
   }catch(e){
     pendingPhotos[i].uploading = false;
     renderPhotoThumbs();
@@ -2683,16 +2874,24 @@ function renderQuickStores(){
   }
   if(countEl) countEl.textContent = '('+myStores.length+')';
   list.innerHTML = '';
+  // storePerf (customer_id/target_amount/actual_amount) only loads once the My
+  // Stores tab has been opened — myStores (id/name/city) loads at boot. Look
+  // target/actual up by id rather than expecting them on myStores directly.
+  const perfById = {};
+  (storePerf||[]).forEach(function(p){ perfById[p.customer_id]=p; });
   const shown = myStores.slice(0, 6);
   shown.forEach(function(s){
-    const visited = visits && visits.some(function(v){return v.customer_id===s.customer_id && v.visit_date===today;});
-    const pct = s.target>0 ? Math.round(s.actual/s.target*100) : 0;
+    const perf = perfById[s.id];
+    const target = perf ? parseFloat(perf.target_amount||0) : 0;
+    const actual = perf ? parseFloat(perf.actual_amount||0) : 0;
+    const visited = visits && visits.some(function(v){return v.customer_id===s.id && v.visit_date===today;});
+    const pct = target>0 ? Math.round(actual/target*100) : 0;
     const col = pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
-    const nm = s.store_name||s.customer_name||'–';
+    const nm = s.name||'–';
     const row = document.createElement('div');
     row.style.cssText = 'background:var(--card);border-radius:var(--rad-sm);border:1.5px solid '+(visited?'var(--green)':'var(--border)')+';padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px';
-    row.dataset.cid = s.customer_id;
-    row.dataset.cnm = nm;
+    row.dataset.cid = s.id;
+    row.dataset.cnm = encodeURIComponent(nm);
     row.onclick = function(){ quickLogVisit(this.dataset.cid, this.dataset.cnm); };
     var left = document.createElement('div');
     left.style.cssText = 'flex:1;min-width:0';
@@ -2700,7 +2899,7 @@ function renderQuickStores(){
     nameEl.style.cssText = 'font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
     nameEl.textContent = nm;
     left.appendChild(nameEl);
-    if(s.target>0){
+    if(target>0){
       var barWrap = document.createElement('div');
       barWrap.style.cssText = 'height:4px;background:var(--border);border-radius:20px;overflow:hidden;margin-top:5px';
       var barFill = document.createElement('div');
@@ -2734,10 +2933,13 @@ function renderQuickStores(){
 
 
 function quickLogVisit(custId, custName){
-  const decoded = decodeURIComponent(custName||'');
+  // custName arrives URI-encoded (see renderQuickStores) — prefillStore decodes
+  // it itself, same as its other caller. Decoding here too double-decoded it,
+  // which threw for any store name containing a literal '%'.
   if(typeof prefillStore === 'function'){
-    prefillStore(custId, decoded);
+    prefillStore(custId, custName);
   } else {
+    const decoded = decodeURIComponent(custName||'');
     storeSelected = {id: custId, name: decoded};
     document.getElementById('vf-store-input').value = decoded;
   }
@@ -3168,7 +3370,8 @@ async function saveStockCount(){
       item_class:        v.item_class || null,
       stock_on_hand:     v.stock_on_hand,
       suggested_reorder: v.suggested_reorder !== undefined ? v.suggested_reorder : null,
-      counted_at:        new Date().toISOString()
+      counted_at:        new Date().toISOString(),
+      visit_type:        isRelief() ? 'relief' : 'regular'
     }));
     await rest('merch_stock_counts', {method:'POST', prefer:'return=minimal', body:rows});
     skuSaved = true;

@@ -39,7 +39,8 @@
 // Every role the portal knows about. `pending` is the pre-approval holding
 // state; the rest come from reps.role.
 const DFL_ROLES = [
-  'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending'
+  'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
+  'relief_merchandiser'
 ];
 
 // ------------------------------------------------------------
@@ -59,7 +60,8 @@ const DFL_HOME_BY_ROLE = {
   manager:      '/hub.html',
   admin:        '/hub.html',
   warehouse:    '/warehouse.html',
-  pending:      '/pending.html'
+  pending:      '/pending.html',
+  relief_merchandiser: '/merch.html'
 };
 
 // ------------------------------------------------------------
@@ -70,13 +72,13 @@ const DFL_HOME_BY_ROLE = {
 // to all roles until you add it here.
 const DFL_PAGE_ROLES = {
   '/index.html':           ['admin', 'manager', 'rep'],
-  '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin'],
+  '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'relief_merchandiser'],
   '/hub.html':             ['manager', 'admin'],
   '/warehouse.html':       ['warehouse', 'manager', 'admin'],
   '/admin/index.html':     ['admin'],
   '/admin/approvals.html': ['admin'],
   '/specials-upload.html': ['admin', 'manager'],
-  '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse'],
+  '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser'],
   '/pending.html':         ['pending'],
 
   // ---- Management ----

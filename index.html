@@ -880,7 +880,7 @@ function drawList(){
 const EXCL=['0','Z-NONSTOCK','MEZSMALLWA','PLSWRAP'];
 let KEYSKUS=null, PERIOD="MTD", CURCUST=null;
 function switchToCustList(){ renderCustList(); window.scrollTo(0,0); }
-function setPeriod(p){ PERIOD=p; if(CURCUST) renderCustDetail(CURCUST.cid, CURCUST.cache, CURCUST.budget, CURCUST.mbudget); }
+function setPeriod(p){ PERIOD=p; if(CURCUST) renderCustDetail(CURCUST.cid, CURCUST.cache, CURCUST.budget, CURCUST.mbudget, CURCUST.merch); }
 
 function openCustFromHome(cid){
   switchTab('custs');
@@ -892,23 +892,49 @@ async function openCust(cid){
   document.getElementById("custhdr").textContent="Account";
   const mnum=new Date().getMonth()+1;
   try{
-    const [cacheR,budR,mbudR,skuR]=await Promise.all([
+    const [cacheR,budR,mbudR,skuR,visitR,stockR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/budget_2026?customer_id=eq.${cid}&month_number=eq.${mnum}&select=item_class,budget`,{headers:H}).then(r=>r.json()),
-      KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json())
+      KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json()),
+      // Merch app activity for this store — same customer_id, no rep linkage needed.
+      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${cid}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      // One save writes one row per SKU sharing the same counted_at — fetch a
+      // batch, then keep just the rows matching the latest timestamp so the
+      // rep can see the full itemized count, not only its date.
+      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${cid}&order=counted_at.desc&limit=60&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name`,{headers:H}).then(r=>r.json()).catch(()=>[])
     ]);
     KEYSKUS=Array.isArray(skuR)?skuR:[];
     const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
     const budget={}; (Array.isArray(budR)?budR:[]).forEach(b=>{budget[b.item_class]=Number(b.total_budget)||0;});
     const mbudget={}; (Array.isArray(mbudR)?mbudR:[]).forEach(b=>{mbudget[b.item_class]=(mbudget[b.item_class]||0)+(Number(b.budget)||0);});
-    renderCustDetail(cid, cache, budget, mbudget);
+    const lastVisit=Array.isArray(visitR)&&visitR[0]?visitR[0]:null;
+    // merch_stock_reports (OOS flags) has no customer_id column — only a free-text
+    // store_name, filled in from whatever the merchandiser app had on hand at the
+    // time (same name-matching fragility as merchandiser_map elsewhere in this
+    // project). Match against the name the merch app itself would have used for
+    // this store, so it's at least internally consistent.
+    const reportName=(lastVisit&&lastVisit.store_name)||(cache&&cache.customer_name)||null;
+    let reportR=[];
+    if(reportName){
+      try{
+        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(reportName)}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
+      }catch(e){ reportR=[]; }
+    }
+    const stockRows=Array.isArray(stockR)?stockR:[];
+    const latestCountedAt=stockRows[0]?stockRows[0].counted_at:null;
+    const merch={
+      lastVisit,
+      lastStockCount: latestCountedAt?{counted_at:latestCountedAt, items:stockRows.filter(r=>r.counted_at===latestCountedAt)}:null,
+      lastReport: Array.isArray(reportR)&&reportR[0]?reportR[0]:null
+    };
+    renderCustDetail(cid, cache, budget, mbudget, merch);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load this account. <span class="link" onclick="switchToCustList()">Back</span></div>`; }
   window.scrollTo(0,0);
 }
 
-function renderCustDetail(cid, cache, budget, mbudget){
-  CURCUST={cid, cache, budget, mbudget};
+function renderCustDetail(cid, cache, budget, mbudget, merch){
+  CURCUST={cid, cache, budget, mbudget, merch};
   const c=document.getElementById("custcontent");
   const today=new Date();
   const name=cache?cache.customer_name:cid;
@@ -956,6 +982,13 @@ function renderCustDetail(cid, cache, budget, mbudget){
   const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
   const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
 
+  // Merch app activity — same customer_id as everything else here, populated
+  // by whichever merchandiser (regular or relief) last visited/counted this
+  // store. Not rep-specific, so no ownership filtering.
+  const mv=merch&&merch.lastVisit, msc=merch&&merch.lastStockCount, mr=merch&&merch.lastReport;
+  const mvOutcome=mv&&mv.outcome==='issue'?'⚠ Issue':mv&&mv.outcome==='pending'?'↩ Follow-up':'✓ Good';
+  const flaggedSkus=(mr&&Array.isArray(mr.flagged_skus))?mr.flagged_skus:[];
+
   c.innerHTML=`
     <div class="detailhead">
       <div class="detailnav">
@@ -973,6 +1006,15 @@ function renderCustDetail(cid, cache, budget, mbudget){
         <div><div class="tk">Avg frequency</div><div class="tv">${avgFreq}d</div><div class="ts">between orders</div></div>
         <div class="${(overdue||dueSoon)?'due':''}"><div class="tk">Next due</div><div class="tv" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--ink)'}">${dueTxt}</div><div class="ts" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--mut)'}">${dueSub}</div></div>
       </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">Merch activity</div>
+      <div class="timing" style="grid-template-columns:1fr 1fr">
+        <div><div class="tk">Last visit</div><div class="tv">${mv?fmtDate(mv.visit_date):"None yet"}</div><div class="ts">${mv?mvOutcome+" · "+esc(mv.user_name||""):""}</div></div>
+        <div ${msc&&msc.items&&msc.items.length?`onclick="viewCustStockCount()" style="cursor:pointer"`:""}><div class="tk">Last stock count</div><div class="tv" style="${msc&&msc.items&&msc.items.length?'text-decoration:underline':''}">${msc?fmtDate(msc.counted_at):"None yet"}</div><div class="ts">${msc&&msc.items&&msc.items.length?msc.items.length+" SKUs · tap to view":""}</div></div>
+      </div>
+      ${flaggedSkus.length?`<div class="listrow" style="margin-top:8px"><span class="dot reddot"></span><div><div class="lr1" style="color:var(--bad)">⚠ ${flaggedSkus.length} SKU${flaggedSkus.length!==1?'s':''} flagged out of stock</div><div class="lr2">${fmtDate(mr.report_date)} · ${flaggedSkus.slice(0,4).map(esc).join(", ")}${flaggedSkus.length>4?"…":""}</div></div></div>`:""}
     </div>
 
     <div class="dcard">
@@ -1021,6 +1063,36 @@ function renderCustDetail(cid, cache, budget, mbudget){
 
     <div class="foot">Figures in JMD · directional for GP.<br>Account data updated ${cache&&cache.refreshed_at?fmtDate(cache.refreshed_at):"daily"}</div>`;
 }
+
+function viewCustStockCount(){
+  const msc=CURCUST&&CURCUST.merch&&CURCUST.merch.lastStockCount;
+  if(!msc||!msc.items||!msc.items.length)return;
+  const storeName=(CURCUST.cache&&CURCUST.cache.customer_name)||CURCUST.cid;
+  const byClass={};
+  msc.items.forEach(r=>{const k=r.item_class||"Other";(byClass[k]=byClass[k]||[]).push(r);});
+  let html='<div style="position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end" id="custStockModal">';
+  html+='<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column">';
+  html+='<div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--ink);border-radius:18px 18px 0 0">';
+  html+='<div><div style="font-size:15px;font-weight:800;color:#fff">📋 Stock count</div>';
+  html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+esc(storeName)+' · '+fmtDate(msc.counted_at)+(msc.items[0].merchandiser_name?' · by '+esc(msc.items[0].merchandiser_name):'')+'</div></div>';
+  html+='<button onclick="closeCustStockCount()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  html+='<div style="flex:1;overflow-y:auto;padding:4px 18px">';
+  Object.keys(byClass).sort().forEach(cls=>{
+    html+='<div style="padding:8px 0 4px;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">'+esc(cls)+'</div>';
+    byClass[cls].forEach(r=>{
+      const reorder=r.suggested_reorder>0?'<span style="background:#fffbeb;color:'+'var(--warn)'+';font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Reorder: '+r.suggested_reorder+'cs</span>':'';
+      html+='<div class="listrow"><div style="flex:1;min-width:0"><div class="lr1">'+esc(r.description)+reorder+'</div></div>';
+      html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">'+r.stock_on_hand+'cs</div></div></div>';
+    });
+  });
+  html+='</div>';
+  html+='<div style="padding:12px 16px;border-top:1px solid var(--line)">';
+  html+='<button onclick="closeCustStockCount()" style="width:100%;padding:12px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Close</button>';
+  html+='</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeCustStockCount(){ const m=document.getElementById('custStockModal'); if(m)m.remove(); }
+
 function monthElapsed(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();return n.getDate()/d*100;}
 function yearElapsed(){const n=new Date();const s=new Date(n.getFullYear(),0,1);const e=new Date(n.getFullYear()+1,0,1);return (n-s)/(e-s)*100;}
 function sellingDays(){
