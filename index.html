@@ -895,7 +895,7 @@ async function openCust(cid){
     const [cacheR,budR,mbudR,skuR,visitR,stockR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/budget_2026?customer_id=eq.${cid}&month_number=eq.${mnum}&select=item_class,budget`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
       KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json()),
       // Merch app activity for this store — same customer_id, no rep linkage needed.
       fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${cid}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
