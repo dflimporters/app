@@ -158,7 +158,21 @@ function showAccessDenied(profile) {
   }
 
   // ---- 1. Is there a session at all? ----
-  const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+  // A signed-in merchandiser's tab can get killed and reloaded by the OS mid
+  // task (the native camera app backgrounding the page during a shelf photo
+  // is the reliable way to trigger this), and immediately after a fresh
+  // reload the very first getSession() call has occasionally come back empty
+  // even though the session is sitting right there in localStorage — a
+  // one-time init race, not an actual sign-out. One short retry costs
+  // nothing for a real sign-out (still lands on login a few hundred ms
+  // later) but saves a real session from being treated as gone.
+  async function getSessionWithRetry() {
+    const first = await sb.auth.getSession();
+    if (first.data && first.data.session) return first;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return sb.auth.getSession();
+  }
+  const { data: sessionData, error: sessionError } = await getSessionWithRetry();
 
   if (sessionError || !sessionData || !sessionData.session) {
     goToLogin();
