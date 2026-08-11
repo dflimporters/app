@@ -184,6 +184,24 @@ tbody td { padding: 9px 11px; vertical-align: middle; }
 /* VISIT LOG */
 #visitMap{height:380px;border-radius:9px;border:1px solid var(--border);margin-bottom:16px}
 .leaflet-popup-content{font-family:var(--body);font-size:11px;line-height:1.5}
+tbody tr.clickable{cursor:pointer}
+
+/* VISIT DETAIL MODAL */
+.vd-row{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:14px}
+.vd-item{font-size:11px;color:var(--ink)}
+.vd-item b{display:block;font-family:var(--mono);font-size:8px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
+.vd-notes{background:var(--paper);border:1px solid var(--border);border-radius:7px;padding:10px 12px;font-size:12px;line-height:1.5;white-space:pre-wrap;margin-bottom:14px}
+.vd-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-bottom:14px}
+.vd-cat{border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:10px;display:flex;align-items:center;gap:5px}
+.vd-cat .dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0}
+.vd-cat.on{border-color:var(--green);background:#eaf6ee}
+.vd-cat.on .dot{background:var(--green)}
+.vd-cat.oos{border-color:var(--red);background:#fdecea}
+.vd-cat.oos .dot{background:var(--red)}
+.vd-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+.vd-photos a{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--border);aspect-ratio:1}
+.vd-photos img{width:100%;height:100%;object-fit:cover;display:block}
+.vd-section-title{font-family:var(--mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -348,6 +366,30 @@ tbody td { padding: 9px 11px; vertical-align: middle; }
         </tr></thead>
         <tbody id="visitTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- VISIT DETAIL MODAL -->
+<div class="modal-overlay" id="visit-detail-modal" onclick="if(event.target===this)closeVisitDetail()">
+  <div class="modal" style="width:560px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title" id="vd-store">—</div>
+    <div class="modal-sub" id="vd-sub">—</div>
+    <div class="vd-row" id="vd-meta"></div>
+    <div id="vd-notes-wrap" style="display:none">
+      <div class="vd-section-title">Notes</div>
+      <div class="vd-notes" id="vd-notes"></div>
+    </div>
+    <div id="vd-cats-wrap" style="display:none">
+      <div class="vd-section-title">Category Check</div>
+      <div class="vd-cats" id="vd-cats"></div>
+    </div>
+    <div id="vd-photos-wrap" style="display:none">
+      <div class="vd-section-title" id="vd-photos-title">Shelf Photos</div>
+      <div class="vd-photos" id="vd-photos"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-outline" onclick="closeVisitDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -1256,7 +1298,7 @@ function periodBounds(period){
 async function loadVisits(){
   const {start, end} = periodBounds(currentPeriod);
   try {
-    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,outcome,visit_type,latitude,longitude&order=visit_date.desc,clock_in.desc&limit=5000`);
+    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,outcome,visit_type,latitude,longitude,geo_accuracy,notes,oos_skus,shelf_photo_urls,cat_household,cat_garbage,cat_foil,cat_processing,cat_paper,cat_plastic,cat_ecocup,cat_foodsup,cat_ecobox,cat_beverages,cat_clearpack,cat_ecobag,cat_ecostraw&order=visit_date.desc,clock_in.desc&limit=5000`);
   } catch(e) {
     toast('Visit log load failed: '+e.message, 'error');
     visitRows = [];
@@ -1317,16 +1359,72 @@ function renderVisitTable(){
     const typeLbl = r.visit_type==='relief'?'<span class="pill pill-amber">🔄 Relief</span>':'<span class="pill pill-grey">Regular</span>';
     const loc = (r.latitude!=null&&r.longitude!=null) ? `<a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--accent)">${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}</a>` : '<span style="color:var(--muted)">—</span>';
     const time = r.clock_in ? new Date(r.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}) : '';
-    return `<tr>
+    return `<tr class="clickable" onclick="openVisitDetail('${r.id}')">
       <td class="td-id">${r.visit_date} ${time}</td>
       <td>${r.user_name||''}</td>
       <td>${r.store_name||r.customer_id}</td>
       <td>${outcomeLbl}</td>
       <td>${typeLbl}</td>
-      <td class="td-id">${loc}</td>
+      <td class="td-id" onclick="event.stopPropagation()">${loc}</td>
     </tr>`;
   }).join('');
 }
+
+// ── VISIT DETAIL MODAL ──
+const VD_CATS = [
+  ['cat_household','hh','Household'],['cat_garbage','gb','Garbagebag'],['cat_foil','fo','Foil'],
+  ['cat_processing','pr','Processing'],['cat_paper','pp','Paper'],['cat_plastic','pl','Plastic'],
+  ['cat_ecocup','ec','Ecocup'],['cat_foodsup','fs','Food Supply'],['cat_ecobox','eb','Ecobox'],
+  ['cat_beverages','bv','Beverages'],['cat_clearpack','cp','Clearpack'],['cat_ecobag','ea','Ecobag'],
+  ['cat_ecostraw','es','Ecostraw']
+];
+
+function openVisitDetail(id){
+  const r = (visitRows||[]).find(v=>String(v.id)===String(id));
+  if(!r) return;
+  const outcomeLbl = r.outcome==='issue'?'<span class="pill pill-red">⚠ Issue</span>':r.outcome==='pending'?'<span class="pill pill-amber">↩ Follow-up</span>':'<span class="pill pill-green">✓ Good</span>';
+  const typeLbl = r.visit_type==='relief'?'<span class="pill pill-amber">🔄 Relief</span>':'<span class="pill pill-grey">Regular</span>';
+  const time = r.clock_in ? new Date(r.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}) : '';
+
+  document.getElementById('vd-store').textContent = r.store_name || r.customer_id || 'Store';
+  document.getElementById('vd-sub').textContent = `${r.user_name||'—'} · ${r.visit_date}${time?' '+time:''}`;
+
+  const loc = (r.latitude!=null&&r.longitude!=null)
+    ? `<a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--accent)">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}${r.geo_accuracy?' (±'+Math.round(r.geo_accuracy)+'m)':''}</a>`
+    : '<span style="color:var(--muted)">Not captured</span>';
+  document.getElementById('vd-meta').innerHTML = `
+    <div class="vd-item"><b>Outcome</b>${outcomeLbl}</div>
+    <div class="vd-item"><b>Visit Type</b>${typeLbl}</div>
+    <div class="vd-item"><b>Location</b>${loc}</div>
+  `;
+
+  const notesWrap = document.getElementById('vd-notes-wrap');
+  if(r.notes){ notesWrap.style.display='block'; document.getElementById('vd-notes').textContent = r.notes; }
+  else notesWrap.style.display='none';
+
+  const oos = new Set(r.oos_skus||[]);
+  const catsWrap = document.getElementById('vd-cats-wrap');
+  const catHtml = VD_CATS.map(([field,code,label])=>{
+    const isOos = oos.has(code);
+    const isOn = !!r[field];
+    const cls = isOos ? 'oos' : (isOn ? 'on' : '');
+    return `<div class="vd-cat ${cls}"><span class="dot"></span>${label}</div>`;
+  }).join('');
+  const anyCatData = VD_CATS.some(([field,code])=>r[field]!=null || oos.has(code));
+  if(anyCatData){ catsWrap.style.display='block'; document.getElementById('vd-cats').innerHTML = catHtml; }
+  else catsWrap.style.display='none';
+
+  const photosWrap = document.getElementById('vd-photos-wrap');
+  const photos = r.shelf_photo_urls||[];
+  if(photos.length){
+    photosWrap.style.display='block';
+    document.getElementById('vd-photos-title').textContent = `Shelf Photos (${photos.length})`;
+    document.getElementById('vd-photos').innerHTML = photos.map(u=>`<a href="${u}" target="_blank"><img src="${u}" loading="lazy" alt="shelf photo"></a>`).join('');
+  } else photosWrap.style.display='none';
+
+  document.getElementById('visit-detail-modal').classList.add('open');
+}
+function closeVisitDetail(){ document.getElementById('visit-detail-modal').classList.remove('open'); }
 
 function exportVisitsCSV(){
   const rows=[['Date','Time','Merchandiser','Store','Outcome','Type','Latitude','Longitude']];
