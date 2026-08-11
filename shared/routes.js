@@ -80,6 +80,7 @@ const DFL_PAGE_ROLES = {
   '/specials-upload.html': ['admin', 'manager'],
   '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser'],
   '/pending.html':         ['pending'],
+  '/budget-explorer.html': ['manager', 'admin'],
 
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in

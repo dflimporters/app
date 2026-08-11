@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Budget Explorer — DFL Importers</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed (iframe test harness), same contract as every other guarded page. -->
+<style>body { visibility: hidden; }</style>
+
+<style>
+:root{
+  --blue:#326BD3;--navy:#0D1B3E;--navy2:#152444;--bg:#F5F7FA;--surface:#FFFFFF;--surface-alt:#F9FAFC;
+  --border:#E4E9F2;--border-soft:#EEF1F8;--text:#1A2340;--text-mid:#4A5578;--text-soft:#8A95B0;
+  --amber:#C47A1A;--amber-bg:#FFFBEB;--amber-bdr:#FDE68A;
+  --radius:10px;--sh:0 1px 4px rgba(26,35,64,.08);--sh-md:0 4px 16px rgba(26,35,64,.12);
+  --f:'Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:var(--f);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
+
+/* HEADER */
+.header{position:sticky;top:0;z-index:200;}
+.topbar{background:var(--navy);height:70px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.25);flex-wrap:wrap;gap:10px;}
+.tb-l{display:flex;align-items:center;gap:16px;}
+.tb-logo{width:40px;height:40px;border-radius:10px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:17px;flex-shrink:0;}
+.tb-div{width:1px;height:28px;background:rgba(255,255,255,.2);}
+.tb-titles{display:flex;flex-direction:column;}
+.tb-h1{font-weight:800;font-size:20px;color:#fff;letter-spacing:-.02em;}
+.tb-sub{font-size:11px;color:rgba(255,255,255,.45);margin-top:2px;}
+.tb-r{display:flex;align-items:center;gap:10px;}
+
+.source-toggle{display:flex;background:rgba(255,255,255,.1);border-radius:20px;padding:3px;gap:2px;}
+.source-toggle button{border:none;background:transparent;color:rgba(255,255,255,.62);font-size:12px;font-weight:700;font-family:var(--f);padding:6px 15px;border-radius:16px;cursor:pointer;transition:all .15s;}
+.source-toggle button.active{background:var(--blue);color:#fff;}
+.source-toggle button.active.stretch{background:var(--amber);color:#2B1B04;}
+
+.stretch-banner{display:none;background:var(--amber-bg);border-bottom:2px solid var(--amber);color:#7C4A03;font-weight:700;font-size:12.5px;text-align:center;padding:7px 12px;}
+.stretch-banner.show{display:block;}
+
+/* PAGE */
+.page{max-width:1440px;margin:0 auto;padding:22px 28px 52px;}
+
+.controls{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+.ctrl-group{display:flex;align-items:center;gap:8px;}
+.ctrl-lbl{font-size:10.5px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.07em;}
+
+.dim-tabs{display:flex;gap:3px;background:var(--surface-alt);padding:4px;border-radius:9px;border:1px solid var(--border);flex-wrap:wrap;}
+.dim-tab{padding:7px 13px;font-size:12.5px;font-weight:600;font-family:var(--f);color:var(--text-mid);background:transparent;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.dim-tab:hover{color:var(--text);}
+.dim-tab.active{background:var(--navy);color:#fff;}
+
+select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:7px;font-size:13px;font-family:var(--f);color:var(--text);cursor:pointer;outline:none;box-shadow:var(--sh);}
+
+.time-toggle{display:flex;gap:3px;background:var(--surface-alt);padding:4px;border-radius:9px;border:1px solid var(--border);}
+.time-tab{padding:7px 12px;font-size:12px;font-weight:600;font-family:var(--f);color:var(--text-mid);background:transparent;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.time-tab.active{background:var(--blue);color:#fff;}
+
+.search-input{border:1px solid var(--border);border-radius:7px;padding:7px 12px;font-size:13px;font-family:var(--f);min-width:200px;outline:none;box-shadow:var(--sh);}
+.search-input:focus{border-color:var(--blue);}
+
+.export-btn{background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:7px;font-size:12.5px;font-weight:700;font-family:var(--f);cursor:pointer;transition:opacity .2s;margin-left:auto;}
+.export-btn:hover{opacity:.85;}
+.export-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.breadcrumb{font-size:12.5px;color:var(--text-soft);margin-bottom:14px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.breadcrumb .crumb{color:var(--blue);cursor:pointer;font-weight:600;}
+.breadcrumb .crumb:hover{text-decoration:underline;}
+.breadcrumb .crumb.current{color:var(--text);cursor:default;text-decoration:none;}
+.breadcrumb .sep{color:var(--text-soft);}
+
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--sh);}
+table.budget-table{width:100%;border-collapse:collapse;font-size:13px;}
+.budget-table thead th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;z-index:1;}
+.budget-table thead th:first-child{text-align:left;}
+.budget-table tbody td{padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;white-space:nowrap;color:var(--text);}
+.budget-table tbody td:first-child{text-align:left;font-weight:600;}
+.budget-table tbody tr.grp-row td:first-child{cursor:pointer;}
+.budget-table tbody tr.grp-row:hover td{background:var(--surface-alt);}
+.budget-table tbody tr.grp-row:hover td:first-child{color:var(--blue);}
+.budget-table tbody td.total{font-weight:800;}
+.budget-table tbody tr.sub-row td{color:var(--text-mid);font-weight:500;background:var(--surface-alt);}
+.budget-table tbody tr.sub-row td:first-child{padding-left:38px;cursor:default;font-weight:500;}
+.budget-table tbody tr.sub-row td:first-child::before{content:'\2514\2500 ';color:var(--text-soft);}
+.expand-caret{display:inline-block;width:16px;text-align:center;margin-right:2px;color:var(--text-soft);cursor:pointer;user-select:none;font-size:10px;}
+.budget-table tfoot td{padding:12px 16px;font-weight:800;background:var(--surface-alt);border-top:2px solid var(--border);text-align:right;color:var(--text);}
+.budget-table tfoot td:first-child{text-align:left;}
+.table-empty{padding:48px 16px;text-align:center;color:var(--text-soft);font-size:13px;}
+.table-error{padding:48px 16px;text-align:center;color:#D63B3B;font-size:13px;}
+
+@media (max-width:640px){
+  .topbar{padding:0 16px;height:auto;min-height:64px;}
+  .page{padding:16px 16px 40px;}
+  .controls{gap:10px;}
+  .export-btn{margin-left:0;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="topbar">
+    <div class="tb-l">
+      <div class="tb-logo">B</div>
+      <div class="tb-div"></div>
+      <div class="tb-titles"><div class="tb-h1">Budget Explorer</div><div class="tb-sub">DFL Importers — 2026 Sales Budget</div></div>
+    </div>
+    <div class="tb-r">
+      <div class="source-toggle" id="sourceToggle">
+        <button type="button" data-source="budget_2026">Operational</button>
+        <button type="button" data-source="budget_2026_stretch">Stretch</button>
+      </div>
+    </div>
+  </div>
+  <div class="stretch-banner" id="stretchBanner">⚠ Viewing STRETCH TARGETS (budget_2026_stretch) — not the operational budget</div>
+</div>
+
+<div class="page">
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <div class="dim-tabs" id="dimTabs"></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-lbl">Split by</span>
+      <select class="ctrl" id="splitSelect"></select>
+    </div>
+    <div class="ctrl-group">
+      <div class="time-toggle" id="timeToggle"></div>
+    </div>
+    <div class="ctrl-group">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search…">
+    </div>
+    <button type="button" class="export-btn" id="exportBtn">Export CSV</button>
+  </div>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+
+  <div class="table-wrap">
+    <table class="budget-table">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"><tr><td class="table-empty">Loading…</td></tr></tbody>
+      <tfoot id="tableFoot"></tfoot>
+    </table>
+  </div>
+
+</div>
+
+<script>
+window.DFL_PAGE_TITLE = 'Budget Explorer';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const DIM_ORDER = ['item_class', 'customer', 'salesperson', 'area', 'segment', 'tier'];
+  const DIM_LABEL = {
+    item_class:  'Item Class',
+    customer:    'Customer',
+    salesperson: 'Sales Rep',
+    area:        'Area',
+    segment:     'Segment',
+    tier:        'Tier'
+  };
+
+  // This project's PostgREST caps every request at 1000 rows (db-max-rows), so
+  // a plain fetch silently truncates both budget_2026 (57k rows) and customers
+  // (9.8k rows). Page through with the Range header until a short page ends it.
+  const PAGE_SIZE = 1000;
+  async function sbGet(path) {
+    let offset = 0;
+    let all = [];
+    for (;;) {
+      const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+        headers: {
+          apikey: SB_KEY,
+          Authorization: `Bearer ${SB_KEY}`,
+          Accept: 'application/json',
+          Range: `${offset}-${offset + PAGE_SIZE - 1}`
+        }
+      });
+      if (!res.ok && res.status !== 206) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
+      const batch = await res.json();
+      all = all.concat(batch);
+      if (batch.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+    return all;
+  }
+
+  // ------------------------------------------------------------
+  // State
+  // ------------------------------------------------------------
+  const state = {
+    source: 'budget_2026',
+    loading: true,
+    error: null,
+    rawRows: [],
+    custMap: null,
+    dimHistory: ['item_class'],   // stack of primary dims; length = drillFilters.length + 1
+    drillFilters: [],             // [{dimKey, rawValue, label}]
+    splitDim: '',
+    timeView: 'full',             // monthly | quarterly | ytd | full
+    search: '',
+    expanded: new Set()
+  };
+
+  function primaryDim() { return state.dimHistory[state.dimHistory.length - 1]; }
+
+  // ------------------------------------------------------------
+  // Dimension helpers — 'customer' groups by id but labels by name; every
+  // other dimension's key IS its row property name, so no per-dim mapping.
+  // ------------------------------------------------------------
+  function dimRawValue(row, dimKey) {
+    return dimKey === 'customer' ? row.customer_id : row[dimKey];
+  }
+  function normVal(v) { return (v === null || v === undefined || v === '') ? null : v; }
+  function dimLabel(row, dimKey) {
+    if (dimKey === 'customer') return row.customer_name || row.customer_id;
+    const v = row[dimKey];
+    return normVal(v) === null ? '(Unassigned)' : v;
+  }
+
+  // ------------------------------------------------------------
+  // Data loading
+  // ------------------------------------------------------------
+  async function loadCustomerMap() {
+    if (state.custMap) return state.custMap;
+    const rows = await sbGet('customers?select=customer_id,segment,tier');
+    const map = new Map();
+    rows.forEach(r => map.set(r.customer_id, { segment: r.segment, tier: r.tier }));
+    state.custMap = map;
+    return map;
+  }
+
+  async function loadBudget(source) {
+    state.loading = true;
+    state.error = null;
+    renderAll();
+    try {
+      const custMap = await loadCustomerMap();
+      const raw = await sbGet(
+        `${source}?select=customer_id,customer_name,item_class,salesperson,area,month_number,budget`
+      );
+      state.rawRows = raw.map(r => {
+        const c = custMap.get(r.customer_id) || {};
+        return {
+          customer_id: r.customer_id,
+          customer_name: r.customer_name,
+          item_class: r.item_class,
+          salesperson: r.salesperson,
+          area: r.area,
+          segment: c.segment || null,
+          tier: c.tier || null,
+          month_number: r.month_number,
+          budget: parseFloat(r.budget) || 0
+        };
+      });
+      state.source = source;
+    } catch (e) {
+      state.error = e.message || String(e);
+    } finally {
+      state.loading = false;
+      renderAll();
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Aggregation
+  // ------------------------------------------------------------
+  function getFilteredRows() {
+    return state.rawRows.filter(r =>
+      state.drillFilters.every(f => normVal(dimRawValue(r, f.dimKey)) === f.rawValue)
+    );
+  }
+
+  function aggregate(rows, dimKey) {
+    const map = new Map();
+    rows.forEach(row => {
+      const raw = normVal(dimRawValue(row, dimKey));
+      const mapKey = raw === null ? ' none' : String(raw);
+      let g = map.get(mapKey);
+      if (!g) {
+        g = { key: raw, mapKey, label: dimLabel(row, dimKey), months: new Array(12).fill(0) };
+        map.set(mapKey, g);
+      }
+      const mi = row.month_number - 1;
+      if (mi >= 0 && mi < 12) g.months[mi] += row.budget;
+    });
+    return Array.from(map.values());
+  }
+
+  function timeColumns() {
+    if (state.timeView === 'monthly') {
+      return Array.from({ length: 12 }, (_, i) => ({ label: MONTH_ABBR[i], months: [i + 1] }));
+    }
+    if (state.timeView === 'quarterly') {
+      return [
+        { label: 'Q1', months: [1, 2, 3] },
+        { label: 'Q2', months: [4, 5, 6] },
+        { label: 'Q3', months: [7, 8, 9] },
+        { label: 'Q4', months: [10, 11, 12] }
+      ];
+    }
+    if (state.timeView === 'ytd') {
+      const cm = new Date().getMonth() + 1;
+      const months = Array.from({ length: cm }, (_, i) => i + 1);
+      return [{ label: `YTD (Jan–${MONTH_ABBR[cm - 1]})`, months }];
+    }
+    return [{ label: 'Full Year', months: Array.from({ length: 12 }, (_, i) => i + 1) }];
+  }
+
+  function colSum(group, months) {
+    return months.reduce((s, m) => s + group.months[m - 1], 0);
+  }
+  function groupTotal(group, cols) {
+    const allMonths = new Set();
+    cols.forEach(c => c.months.forEach(m => allMonths.add(m)));
+    return colSum(group, Array.from(allMonths));
+  }
+
+  function fmt(n) {
+    const sign = n < 0 ? '-' : '';
+    return sign + '$' + Math.round(Math.abs(n)).toLocaleString('en-US');
+  }
+
+  // ------------------------------------------------------------
+  // Drill-down / breadcrumb
+  // ------------------------------------------------------------
+  function setPrimaryDim(dimKey) {
+    state.dimHistory = [dimKey];
+    state.drillFilters = [];
+    state.expanded.clear();
+    renderAll();
+  }
+  function drillInto(dimKey, rawValue, label) {
+    state.drillFilters.push({ dimKey, rawValue, label });
+    state.dimHistory.push(dimKey === 'customer' ? 'item_class' : 'customer');
+    state.expanded.clear();
+    renderAll();
+  }
+  function goToBreadcrumb(index) {
+    state.drillFilters = state.drillFilters.slice(0, index);
+    state.dimHistory = state.dimHistory.slice(0, index + 1);
+    state.expanded.clear();
+    renderAll();
+  }
+
+  // ------------------------------------------------------------
+  // Rendering
+  // ------------------------------------------------------------
+  function renderSourceToggle() {
+    const el = document.getElementById('sourceToggle');
+    el.querySelectorAll('button').forEach(btn => {
+      const isActive = btn.dataset.source === state.source;
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('stretch', btn.dataset.source === 'budget_2026_stretch');
+    });
+    document.getElementById('stretchBanner').classList.toggle('show', state.source === 'budget_2026_stretch');
+  }
+
+  function renderDimTabs() {
+    const el = document.getElementById('dimTabs');
+    el.innerHTML = '';
+    DIM_ORDER.forEach(dimKey => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dim-tab' + (primaryDim() === dimKey ? ' active' : '');
+      btn.textContent = DIM_LABEL[dimKey];
+      btn.addEventListener('click', () => setPrimaryDim(dimKey));
+      el.appendChild(btn);
+    });
+  }
+
+  function renderSplitSelect() {
+    const el = document.getElementById('splitSelect');
+    const current = state.splitDim;
+    el.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = 'None';
+    el.appendChild(noneOpt);
+    DIM_ORDER.filter(d => d !== primaryDim()).forEach(dimKey => {
+      const opt = document.createElement('option');
+      opt.value = dimKey;
+      opt.textContent = DIM_LABEL[dimKey];
+      el.appendChild(opt);
+    });
+    el.value = DIM_ORDER.includes(current) && current !== primaryDim() ? current : '';
+    state.splitDim = el.value;
+  }
+
+  function renderTimeToggle() {
+    const el = document.getElementById('timeToggle');
+    el.innerHTML = '';
+    [['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['ytd', 'YTD'], ['full', 'Full Year']].forEach(([key, label]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'time-tab' + (state.timeView === key ? ' active' : '');
+      btn.textContent = label;
+      btn.addEventListener('click', () => { state.timeView = key; renderAll(); });
+      el.appendChild(btn);
+    });
+  }
+
+  function renderBreadcrumb() {
+    const el = document.getElementById('breadcrumb');
+    el.innerHTML = '';
+    const crumbs = [{ label: 'All' }].concat(state.drillFilters);
+    crumbs.forEach((c, i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'sep';
+        sep.textContent = '›';
+        el.appendChild(sep);
+      }
+      const isCurrent = i === crumbs.length - 1;
+      const span = document.createElement('span');
+      span.className = 'crumb' + (isCurrent ? ' current' : '');
+      span.textContent = c.label;
+      if (!isCurrent) span.addEventListener('click', () => goToBreadcrumb(i));
+      el.appendChild(span);
+    });
+  }
+
+  function renderTable() {
+    const thead = document.getElementById('tableHead');
+    const tbody = document.getElementById('tableBody');
+    const tfoot = document.getElementById('tableFoot');
+    const cols = timeColumns();
+
+    if (state.loading) {
+      thead.innerHTML = '';
+      tbody.innerHTML = `<tr><td class="table-empty">Loading…</td></tr>`;
+      tfoot.innerHTML = '';
+      return;
+    }
+    if (state.error) {
+      thead.innerHTML = '';
+      tbody.innerHTML = `<tr><td class="table-error">Couldn't load budget data: ${escapeHtml(state.error)}</td></tr>`;
+      tfoot.innerHTML = '';
+      return;
+    }
+
+    const dim = primaryDim();
+    const filtered = getFilteredRows();
+    let groups = aggregate(filtered, dim);
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      groups = groups.filter(g => g.label.toLowerCase().includes(q));
+    }
+    groups.sort((a, b) => groupTotal(b, cols) - groupTotal(a, cols) || a.label.localeCompare(b.label));
+
+    // Head
+    thead.innerHTML = '';
+    const headRow = document.createElement('tr');
+    const firstTh = document.createElement('th');
+    firstTh.textContent = DIM_LABEL[dim];
+    headRow.appendChild(firstTh);
+    cols.forEach(c => {
+      const th = document.createElement('th');
+      th.textContent = c.label;
+      headRow.appendChild(th);
+    });
+    const totalTh = document.createElement('th');
+    totalTh.textContent = 'Total';
+    headRow.appendChild(totalTh);
+    thead.appendChild(headRow);
+
+    // Body
+    tbody.innerHTML = '';
+    if (!groups.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.className = 'table-empty';
+      td.textContent = 'No rows match the current filters.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+
+    groups.forEach(g => {
+      const tr = document.createElement('tr');
+      tr.className = 'grp-row';
+
+      const labelTd = document.createElement('td');
+      if (state.splitDim) {
+        const caret = document.createElement('span');
+        caret.className = 'expand-caret';
+        caret.textContent = state.expanded.has(g.mapKey) ? '▾' : '▸';
+        caret.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (state.expanded.has(g.mapKey)) state.expanded.delete(g.mapKey);
+          else state.expanded.add(g.mapKey);
+          renderTable();
+        });
+        labelTd.appendChild(caret);
+      }
+      labelTd.appendChild(document.createTextNode(g.label));
+      labelTd.addEventListener('click', (e) => {
+        if (e.target.classList.contains('expand-caret')) return;
+        drillInto(dim, g.key, g.label);
+      });
+      tr.appendChild(labelTd);
+
+      cols.forEach(c => {
+        const td = document.createElement('td');
+        td.textContent = fmt(colSum(g, c.months));
+        tr.appendChild(td);
+      });
+      const totalTd = document.createElement('td');
+      totalTd.className = 'total';
+      totalTd.textContent = fmt(groupTotal(g, cols));
+      tr.appendChild(totalTd);
+      tbody.appendChild(tr);
+
+      if (state.splitDim && state.expanded.has(g.mapKey)) {
+        const groupRows = filtered.filter(r => normVal(dimRawValue(r, dim)) === g.key);
+        const subGroups = aggregate(groupRows, state.splitDim)
+          .sort((a, b) => groupTotal(b, cols) - groupTotal(a, cols) || a.label.localeCompare(b.label));
+        subGroups.forEach(sg => {
+          const subTr = document.createElement('tr');
+          subTr.className = 'sub-row';
+          const subLabelTd = document.createElement('td');
+          subLabelTd.textContent = sg.label;
+          subTr.appendChild(subLabelTd);
+          cols.forEach(c => {
+            const td = document.createElement('td');
+            td.textContent = fmt(colSum(sg, c.months));
+            subTr.appendChild(td);
+          });
+          const subTotalTd = document.createElement('td');
+          subTotalTd.textContent = fmt(groupTotal(sg, cols));
+          subTr.appendChild(subTotalTd);
+          tbody.appendChild(subTr);
+        });
+      }
+    });
+
+    // Totals footer — always a live SUM over the rows currently rendered above,
+    // never a stored figure (top-level groups only; sub-rows are a breakdown of
+    // the same totals, not additional amounts).
+    tfoot.innerHTML = '';
+    const footRow = document.createElement('tr');
+    const footLabelTd = document.createElement('td');
+    footLabelTd.textContent = 'Total';
+    footRow.appendChild(footLabelTd);
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = fmt(groups.reduce((s, g) => s + colSum(g, c.months), 0));
+      footRow.appendChild(td);
+    });
+    const grandTd = document.createElement('td');
+    grandTd.textContent = fmt(groups.reduce((s, g) => s + groupTotal(g, cols), 0));
+    footRow.appendChild(grandTd);
+    tfoot.appendChild(footRow);
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderAll() {
+    renderSourceToggle();
+    renderDimTabs();
+    renderSplitSelect();
+    renderTimeToggle();
+    renderBreadcrumb();
+    renderTable();
+    document.getElementById('exportBtn').disabled = state.loading || !!state.error;
+  }
+
+  // ------------------------------------------------------------
+  // Export — reflects the full current grouping/split/time-view/search, not
+  // which rows happen to be expanded in the UI right now.
+  // ------------------------------------------------------------
+  function csvField(v) {
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportCSV() {
+    const dim = primaryDim();
+    const cols = timeColumns();
+    const filtered = getFilteredRows();
+    let groups = aggregate(filtered, dim);
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      groups = groups.filter(g => g.label.toLowerCase().includes(q));
+    }
+    groups.sort((a, b) => groupTotal(b, cols) - groupTotal(a, cols) || a.label.localeCompare(b.label));
+
+    const header = state.splitDim
+      ? [DIM_LABEL[dim], DIM_LABEL[state.splitDim], ...cols.map(c => c.label), 'Total']
+      : [DIM_LABEL[dim], ...cols.map(c => c.label), 'Total'];
+
+    const lines = [header.map(csvField).join(',')];
+
+    groups.forEach(g => {
+      if (state.splitDim) {
+        const groupRows = filtered.filter(r => normVal(dimRawValue(r, dim)) === g.key);
+        const subGroups = aggregate(groupRows, state.splitDim)
+          .sort((a, b) => groupTotal(b, cols) - groupTotal(a, cols) || a.label.localeCompare(b.label));
+        subGroups.forEach(sg => {
+          const row = [g.label, sg.label, ...cols.map(c => colSum(sg, c.months).toFixed(2)), groupTotal(sg, cols).toFixed(2)];
+          lines.push(row.map(csvField).join(','));
+        });
+      } else {
+        const row = [g.label, ...cols.map(c => colSum(g, c.months).toFixed(2)), groupTotal(g, cols).toFixed(2)];
+        lines.push(row.map(csvField).join(','));
+      }
+    });
+
+    const totalRow = state.splitDim
+      ? ['Total', '', ...cols.map(c => groups.reduce((s, g) => s + colSum(g, c.months), 0).toFixed(2)), groups.reduce((s, g) => s + groupTotal(g, cols), 0).toFixed(2)]
+      : ['Total', ...cols.map(c => groups.reduce((s, g) => s + colSum(g, c.months), 0).toFixed(2)), groups.reduce((s, g) => s + groupTotal(g, cols), 0).toFixed(2)];
+    lines.push(totalRow.map(csvField).join(','));
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = `budget_${state.source}_${dim}${state.splitDim ? '_by_' + state.splitDim : ''}_${state.timeView}_${stamp}.csv`;
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ------------------------------------------------------------
+  // Wiring
+  // ------------------------------------------------------------
+  document.getElementById('sourceToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn || btn.dataset.source === state.source) return;
+    loadBudget(btn.dataset.source);
+  });
+  document.getElementById('splitSelect').addEventListener('change', (e) => {
+    state.splitDim = e.target.value;
+    state.expanded.clear();
+    renderAll();
+  });
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    state.search = e.target.value;
+    renderTable();
+  });
+  document.getElementById('exportBtn').addEventListener('click', exportCSV);
+
+  function init() {
+    renderAll();
+    loadBudget(state.source);
+  }
+
+  document.addEventListener('dfl-auth-ready', init);
+})();
+</script>
+</body>
+</html>
