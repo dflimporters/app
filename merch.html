@@ -1129,7 +1129,8 @@ async function searchAllCustomers(q,dropId,prefix){
   _storeSearchTimer=setTimeout(async function(){
     try{
       const drop=document.getElementById(dropId);
-      const rows=await rest('invoiced_items?customer_name=ilike.*'+encodeURIComponent(q)+'*&select=customer_id,customer_name,city&order=customer_name&limit=20');
+      const eq=encodeURIComponent(q);
+      const rows=await rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit=20');
       const seen={};const unique=[];
       (rows||[]).forEach(function(r){if(!seen[r.customer_id]){seen[r.customer_id]=true;unique.push(r);}});
       if(!unique.length){drop.innerHTML='<div class="store-none">No stores found</div>';return;}
@@ -1530,7 +1531,9 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
   Array.from(feedEl.children).slice(1).forEach(el=>el.remove());
   tvToday.slice(0,10).forEach(v=>{
     const ini=(v.user_name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const time=v.clock_in?new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):'';
+    const tIn=v.clock_in?new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):'';
+    const tOut=v.clock_out?new Date(v.clock_out).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):null;
+    const timeLbl=tOut?(tIn+' – '+tOut):('In: '+tIn);
     const row=document.createElement('div');
     row.className='tl-visit-row';
     row.innerHTML=
@@ -1541,7 +1544,9 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
         (v.outcome==='issue'?'<div style="font-size:10px;font-weight:700;color:var(--red)">⚠ Issue</div>':'')+
         ((v.shelf_photo_urls&&v.shelf_photo_urls.length)?'<div style="font-size:10px;color:var(--muted)">📷 '+v.shelf_photo_urls.length+'</div>':'')+
       '</div>'+
-      '<div style="font-size:11px;color:var(--muted);flex-shrink:0">'+time+'</div>';
+      '<div style="font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">'+timeLbl+
+        (tOut?'<div style="font-size:10px;color:var(--navy);font-weight:700">⏱ '+fmtDuration(v.clock_in,v.clock_out)+'</div>':'')+
+      '</div>';
     feedEl.appendChild(row);
   });
   if(notVisited.length){
@@ -1600,13 +1605,17 @@ function renderWeekFeed(feedEl,visits,myNames){
     feedEl.appendChild(dHdr);
     dayVisits.slice(0,5).forEach(v=>{
       const ini=(v.user_name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const time=v.clock_in?new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):'';
+      const tIn=v.clock_in?new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):'';
+      const tOut=v.clock_out?new Date(v.clock_out).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):null;
+      const timeLbl=tOut?(tIn+' – '+tOut):('In: '+tIn);
       const row=document.createElement('div');
       row.className='tl-visit-row';
       row.innerHTML='<div class="tl-av-sm" style="font-size:9px">'+ini+'</div>'+
         '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
         '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div></div>'+
-        '<div style="font-size:11px;color:var(--muted)">'+time+'</div>';
+        '<div style="font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">'+timeLbl+
+          (tOut?'<div style="font-size:10px;color:var(--navy);font-weight:700">⏱ '+fmtDuration(v.clock_in,v.clock_out)+'</div>':'')+
+        '</div>';
       feedEl.appendChild(row);
     });
     if(dayVisits.length>5){
@@ -1624,6 +1633,45 @@ function renderWeekFeed(feedEl,visits,myNames){
 let auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{}};
 let auditAllStores=[];
 
+// ── IN-PROGRESS AUDIT DRAFT ──
+// Same failure mode as the visit draft above (see saveVisitDraft): the tab
+// can get killed and reloaded mid-audit — a phone call backgrounding the
+// browser is enough on some devices — and auditState lived only in a JS
+// variable, so every score and note was lost and the team leader had to
+// restart the whole audit. This persists it to localStorage as it's filled
+// in and restores it when the audit modal is reopened.
+const AUDIT_DRAFT_MAX_AGE_MS = 12*60*60*1000;
+function auditDraftKey(){ return 'dfl_merch_audit_draft_'+(cu&&cu.id||'anon'); }
+
+function saveAuditDraft(){
+  if(!cu) return;
+  const overallEl=document.getElementById('audit-overall-notes');
+  const overallNotes=overallEl?overallEl.value:'';
+  if(!auditState.customer_id){ clearAuditDraft(); return; }
+  try{
+    localStorage.setItem(auditDraftKey(), JSON.stringify({
+      auditState:auditState, overallNotes:overallNotes, savedAt:Date.now()
+    }));
+  }catch(e){ console.warn('audit draft save failed:',e); }
+}
+
+function clearAuditDraft(){
+  if(!cu) return;
+  try{ localStorage.removeItem(auditDraftKey()); }catch(e){}
+}
+
+function restoreAuditDraft(){
+  if(!cu) return null;
+  let raw;
+  try{ raw = localStorage.getItem(auditDraftKey()); }catch(e){ return null; }
+  if(!raw) return null;
+  let draft;
+  try{ draft = JSON.parse(raw); }catch(e){ clearAuditDraft(); return null; }
+  if(!draft.savedAt || Date.now()-draft.savedAt > AUDIT_DRAFT_MAX_AGE_MS){ clearAuditDraft(); return null; }
+  if(!draft.auditState || !draft.auditState.customer_id) return null;
+  return draft;
+}
+
 const AUDIT_CRITERIA=[
   {id:'shelves_clean',    label:'Shelf cleanliness',        icon:'🧹', desc:'Shelves free of dust, damage and debris'},
   {id:'shelf_presence',   label:'Shelf presence & space',   icon:'📦', desc:'DFL products adequately spaced and dominant'},
@@ -1634,15 +1682,26 @@ const AUDIT_CRITERIA=[
 ];
 
 function openStoreAudit(){
-  auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{}};
   document.getElementById('audit-store-search').value='';
-  document.getElementById('audit-store-lbl').textContent='Select a store to audit';
-  document.getElementById('audit-score-display').style.display='none';
-  document.getElementById('audit-submit-btn').disabled=true;
-  document.getElementById('audit-submit-btn').style.opacity='.5';
-  document.getElementById('audit-form-body').innerHTML=
-    '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Select a store above to start the audit</div>';
   document.getElementById('audit-modal').style.display='flex';
+  const draft=restoreAuditDraft();
+  if(draft){
+    auditState=draft.auditState;
+    document.getElementById('audit-store-lbl').textContent=auditState.store_name+' · '+auditState.merchandiser_name+' — draft restored';
+    renderAuditForm();
+    const overallEl=document.getElementById('audit-overall-notes');
+    if(overallEl) overallEl.value=draft.overallNotes||'';
+    document.getElementById('audit-score-display').style.display='block';
+    updateAuditScore();
+  } else {
+    auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{}};
+    document.getElementById('audit-store-lbl').textContent='Select a store to audit';
+    document.getElementById('audit-score-display').style.display='none';
+    document.getElementById('audit-submit-btn').disabled=true;
+    document.getElementById('audit-submit-btn').style.opacity='.5';
+    document.getElementById('audit-form-body').innerHTML=
+      '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Select a store above to start the audit</div>';
+  }
   loadAuditStores();
 }
 
@@ -1716,6 +1775,7 @@ function selectAuditStore(cid,name,merch){
   renderAuditForm();
   document.getElementById('audit-score-display').style.display='block';
   updateAuditScore();
+  saveAuditDraft();
 }
 
 function renderAuditForm(){
@@ -1742,7 +1802,7 @@ function renderAuditForm(){
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+crit.desc+'</div></div>'+
       '</div>'+
       '<div style="display:flex;gap:5px;margin-bottom:8px">'+btnHTML+'</div>'+
-      '<textarea data-crit="'+crit.id+'" placeholder="Notes (optional)..." oninput="auditState.notes[this.dataset.crit]=this.value" '+
+      '<textarea data-crit="'+crit.id+'" placeholder="Notes (optional)..." oninput="auditState.notes[this.dataset.crit]=this.value;saveAuditDraft()" '+
         'style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:52px">'+
         (auditState.notes[crit.id]||'')+'</textarea>';
     body.appendChild(section);
@@ -1750,7 +1810,7 @@ function renderAuditForm(){
   const overall=document.createElement('div');
   overall.innerHTML=
     '<div style="font-size:14px;font-weight:800;color:var(--navy);margin-bottom:6px">📝 Overall notes</div>'+
-    '<textarea id="audit-overall-notes" placeholder="General observations, competitor activity, anything else..." '+
+    '<textarea id="audit-overall-notes" placeholder="General observations, competitor activity, anything else..." oninput="saveAuditDraft()" '+
       'style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:80px"></textarea>';
   body.appendChild(overall);
 }
@@ -1766,6 +1826,7 @@ function setAuditScore(critId,score){
     btn.style.color     =sel?'#fff':'var(--muted)';
   });
   updateAuditScore();
+  saveAuditDraft();
 }
 
 function updateAuditScore(){
@@ -1807,6 +1868,7 @@ async function submitAudit(){
       overall_notes:       overallEl?overallEl.value:null
     };
     await rest('merch_store_audits',{method:'POST',prefer:'return=minimal',body:payload});
+    clearAuditDraft();
     const pctText=document.getElementById('audit-score-display').textContent;
     document.getElementById('audit-form-body').innerHTML=
       '<div style="text-align:center;padding:40px 24px">'+
@@ -2693,11 +2755,14 @@ function restoreVisitDraft(){
   updatePhotoGating();
 
   goTab('tab-visit'); setNav('n-visit');
-  showOv('📝','Draft restored','Picked up where you left off'+(storeSelected.name?' at '+storeSelected.name:'')+'.');
+  const photoNote = pendingPhotos.length>=MAX_PHOTOS
+    ? ' Already has '+MAX_PHOTOS+' photos saved — remove one (×) if you need to take more.'
+    : '';
+  showOv('📝','Draft restored','Picked up where you left off'+(storeSelected.name?' at '+storeSelected.name:'')+'.'+photoNote);
 }
 
 function openCamera(){
-  if(pendingPhotos.length >= MAX_PHOTOS){ alert('Maximum '+MAX_PHOTOS+' photos per visit.'); return; }
+  if(pendingPhotos.length >= MAX_PHOTOS){ alert('Maximum '+MAX_PHOTOS+' photos per visit — remove one first (tap the × on a photo below) to add another.'); return; }
   // Reset file input so same file can be re-triggered
   const inp = document.getElementById('shelf-file-input');
   inp.value = '';

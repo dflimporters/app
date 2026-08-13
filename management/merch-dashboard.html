@@ -520,7 +520,7 @@ async function supa(path){
 async function loadStaticRefs(){
   const [mapRows, repsRows] = await Promise.all([
     supa(`merchandiser_map?select=customer_id,merchandiser_name,commission_share`),
-    supa(`reps?select=id,name,role,area,active,team_lead_id&active=eq.true`)
+    supa(`reps?select=id,name,role,area,active,team_lead_id,acting_tl_shares_credit&active=eq.true`)
   ]);
   mapByCid = {};
   const nameSet = new Set();
@@ -552,14 +552,24 @@ function buildTeamLeaderRoster(repsRows){
     if(r.role==='tl_merch') (dualsByLeaderId[r.team_lead_id] = dualsByLeaderId[r.team_lead_id]||[]).push(r);
   });
 
-  // A team leader's own name is included too — merchandiser_map assignment is
-  // independent of reps.role, and a TL can personally hold stores (e.g. Susan
-  // Blair has 9 of her own). Same for an acting tl_merch person's own stores.
+  // A person's own name is included in their own team too — merchandiser_map
+  // assignment is independent of reps.role, and a TL can personally hold
+  // stores (e.g. Susan Blair has 9 of her own).
+  function ownTeamFor(rep){
+    return [...new Set([rep.name, ...(merchByLeaderId[rep.id]||[])])].sort();
+  }
+
+  // A formal team leader's full team includes any acting (tl_merch) TL
+  // reporting to them and THAT person's own team — but only when that acting
+  // TL is flagged to share credit with their formal leader
+  // (acting_tl_shares_credit, default true). Coliesha Smith is the first
+  // exception: her team moved under her directly and should count only for
+  // her, not also roll up into Orian Bernard's totals.
   function fullTeamFor(formalRep){
-    const names = new Set([formalRep.name, ...(merchByLeaderId[formalRep.id]||[])]);
+    const names = new Set(ownTeamFor(formalRep));
     (dualsByLeaderId[formalRep.id]||[]).forEach(dual => {
-      names.add(dual.name);
-      (merchByLeaderId[dual.id]||[]).forEach(n=>names.add(n));
+      if(dual.acting_tl_shares_credit===false) return;
+      ownTeamFor(dual).forEach(n=>names.add(n));
     });
     return [...names].sort();
   }
@@ -569,11 +579,15 @@ function buildTeamLeaderRoster(repsRows){
     if(r.role==='team_leader'){
       roster.push({ id:r.id, name:r.name, region:r.area||'', acting:false, merchandisers: fullTeamFor(r) });
     } else if(r.role==='tl_merch'){
-      // Acting TL — Travis: paid separately, but credited over the exact same
-      // full area their formal TL covers (not just their own direct reports).
       const formalId = r.team_lead_id;
       const formal = formalId ? byId[formalId] : null;
-      roster.push({ id:r.id, name:r.name, region:r.area||'', acting:true, actingFor: formal?formal.name:null, merchandisers: formal?fullTeamFor(formal):[r.name] });
+      const shares = r.acting_tl_shares_credit!==false;
+      // Sharing (default, e.g. Abina Clarke): credited over the exact same
+      // full area her formal TL covers, not just her own direct reports.
+      // Not sharing (e.g. Coliesha Smith): her own team only — it does not
+      // also appear on the formal TL's card (see fullTeamFor above).
+      const merchandisers = shares ? (formal?fullTeamFor(formal):ownTeamFor(r)) : ownTeamFor(r);
+      roster.push({ id:r.id, name:r.name, region:r.area||'', acting:true, actingFor: (shares&&formal)?formal.name:null, merchandisers });
     }
   });
   return roster.sort((a,b)=>a.name.localeCompare(b.name));
@@ -1115,7 +1129,7 @@ function buildTLCard(tl, res, storeData){
       <div class="tl-me has">${fmtComm(r.earn)}</div>
     </div>`;
   }).join('');
-  const subtitle = tl.acting ? `Acting TL · shares credit with ${tl.actingFor||'—'}` : tl.region;
+  const subtitle = tl.acting ? (tl.actingFor ? `Acting TL · shares credit with ${tl.actingFor}` : 'Acting TL · own team') : tl.region;
   return `<div class="tl-card ${cls}"><div class="tl-head"><div><div class="tl-tname">${tl.name}</div><div class="tl-region ${cls}">${subtitle}</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">${fmtComm(res.earn)}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">${res.totalStores}</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">${res.s100}</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">${res.s80}</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:${pc}">${pct}%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">${fmtComm(res.earn)}</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Merchandiser</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>${rows}<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">${res.totalStores}</div><div class="tl-mtot-v" style="color:var(--amber)">${res.s80}</div><div class="tl-mtot-v" style="color:var(--green)">${res.s100}</div><div class="tl-mtot-v" style="color:${pc}">${pct}%</div><div class="tl-mtot-e">${fmtComm(res.earn)}</div></div></div>`;
 }
 
