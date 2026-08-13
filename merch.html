@@ -724,11 +724,12 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="stat-box"><div class="stat-lbl">Team commission</div><div class="stat-val c-amber" id="tl-comm">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="tl-avg">–</div></div>
     </div>
-    <div class="dash-link" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB">
+    <div class="dash-link hide-when-readonly" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB">
       <div class="dash-link-ico">📋</div>
       <div><div class="dash-link-title" style="color:var(--amber)">Store Audit</div><div class="dash-link-sub">Score shelf presence, cleanliness, pricing & rotation</div></div>
       <div class="dash-link-arr" style="color:var(--amber)">›</div>
     </div>
+    <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <span>Today's activity</span>
@@ -767,6 +768,13 @@ body.dfl-readonly .readonly-note{display:block}
       <div><div class="dash-link-title">Merch Commission Dashboard</div><div class="dash-link-sub">Full team performance & commission view</div></div>
       <div class="dash-link-arr">↗</div>
     </a>
+
+    <div>
+      <div class="sec-hdr" id="tl-ov-hdr">Team leaders</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px" id="tl-ov-list">
+        <div class="spinner"></div>
+      </div>
+    </div>
 
     <div class="field" style="margin-bottom:2px">
       <input type="text" id="ov-search" placeholder="Search merchandisers…"
@@ -1914,6 +1922,9 @@ function closeAudit(){
 // Every active merchandiser + their performance for this period. Held so the
 // search box can re-filter without refetching.
 let overviewRows=[];
+// Team leads, held separately from overviewRows (merchandisers) since they
+// have no entry in merchandiser_summary and get their own small card list.
+let teamLeadRows=[];
 // The admin's own identity, kept aside while they view as someone else so
 // exitViewAs() can put it back.
 let adminSelf=null;
@@ -1923,14 +1934,15 @@ async function launchAdmin(){
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
-    const [reps, summary] = await Promise.all([
+    const [reps, summary, leads] = await Promise.all([
       rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
-      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`)
+      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
+      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name')
     ]);
 
-    const leads=await rest('reps?active=eq.true&role=eq.team_leader&select=id,name');
     const leadById={};
     (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
+    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||''}));
 
     // merchandiser_summary is keyed by NAME, not id (see CLAUDE.md gotcha 7),
     // so this join is a name match. A rename on either side silently drops the
@@ -1947,11 +1959,34 @@ async function launchAdmin(){
 
     renderOverviewStats();
     renderOverview();
+    renderTeamLeadOverview();
   }catch(e){
     console.error(e);
     document.getElementById('ov-list').innerHTML=
       '<div class="empty-feed">Failed to load. Check connection.</div>';
   }
+}
+
+function renderTeamLeadOverview(){
+  const list=document.getElementById('tl-ov-list');
+  if(!list) return;
+  if(!teamLeadRows.length){
+    list.innerHTML='<div class="empty-feed">No team leaders on the roster.</div>';
+    return;
+  }
+  list.innerHTML=teamLeadRows.map(r=>{
+    const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return `<div class="merch-card tappable" onclick="viewAsTeamLeader('${r.id}')">
+      <div class="merch-hdr">
+        <div class="merch-av">${ini}</div>
+        <div style="flex:1">
+          <div class="merch-nm">${escapeHtmlM(r.name)}</div>
+          <div class="merch-rt">${escapeHtmlM(r.area||'No area')}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their team view →</div>
+    </div>`;
+  }).join('');
 }
 
 function renderOverviewStats(){
@@ -2044,6 +2079,32 @@ async function viewAsMerchandiser(repId){
   document.getElementById('viewas-bar').classList.add('show');
 
   await launchMerch(cu);
+}
+
+// Same idea as viewAsMerchandiser, but routes into the team-leader screen.
+// The Store Audit action there writes under cu.full_name too, so it's gated
+// by the same .hide-when-readonly / dfl-readonly mechanism.
+async function viewAsTeamLeader(repId){
+  const row=teamLeadRows.find(r=>r.id===repId);
+  if(!row) return;
+
+  if(!adminSelf) adminSelf=cu;
+
+  cu={
+    id: row.id,
+    full_name: row.name,
+    initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
+    territory: row.area,
+    team_lead: '', team_lead_id: null,
+    role: 'team_leader',
+    viewingAs: true
+  };
+
+  document.body.classList.add('dfl-readonly');
+  document.getElementById('viewas-name').textContent=row.name;
+  document.getElementById('viewas-bar').classList.add('show');
+
+  await launchTL(cu);
 }
 
 function exitViewAs(){
