@@ -1105,15 +1105,21 @@ function filterStores(q){
   const ql=q.toLowerCase();
   const assigned=myStores.filter(s=>(s.name||'').toLowerCase().includes(ql)||(s.city||'').toLowerCase().includes(ql));
   if(assigned.length){
-    drop.innerHTML=assigned.map(s=>`<div class="store-opt" onclick="selectStore('vf','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
-    openDropdown();
-  } else if(q.length>=3){
-    drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
-    openDropdown();
-    searchAllCustomers(q);
+    drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
+      +assigned.map(s=>`<div class="store-opt" onclick="selectStore('vf','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
   } else {
+    drop.innerHTML='';
+  }
+  openDropdown();
+  // Nationwide search is always reachable at 3+ characters now, not just when
+  // your own list comes up empty — a merchandiser covering someone else's
+  // route, or a genuine walk-in store, shouldn't be a dead end just because
+  // something in their own list happened to also match.
+  if(q.length>=3){
+    if(!assigned.length) drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
+    searchAllCustomers(q,'store-drop','vf',assigned.map(s=>s.id));
+  } else if(!assigned.length){
     drop.innerHTML='<div class="store-none">Type 3+ characters to search all stores…</div>';
-    openDropdown();
   }
 }
 
@@ -1122,9 +1128,10 @@ function filterStores(q){
 // in invoiced_items by name. Name/city only, no target or performance data,
 // since this bypasses merchandiser_map entirely.
 let _storeSearchTimer=null;
-async function searchAllCustomers(q,dropId,prefix){
+async function searchAllCustomers(q,dropId,prefix,excludeIds){
   dropId=dropId||'store-drop';
   prefix=prefix||'vf';
+  const excluded=new Set(excludeIds||[]);
   clearTimeout(_storeSearchTimer);
   _storeSearchTimer=setTimeout(async function(){
     try{
@@ -1132,9 +1139,16 @@ async function searchAllCustomers(q,dropId,prefix){
       const eq=encodeURIComponent(q);
       const rows=await rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit=20');
       const seen={};const unique=[];
-      (rows||[]).forEach(function(r){if(!seen[r.customer_id]){seen[r.customer_id]=true;unique.push(r);}});
-      if(!unique.length){drop.innerHTML='<div class="store-none">No stores found</div>';return;}
-      drop.innerHTML='';
+      (rows||[]).forEach(function(r){if(!seen[r.customer_id]&&!excluded.has(r.customer_id)){seen[r.customer_id]=true;unique.push(r);}});
+      // Append below whatever's already there (e.g. a "Your stores" section
+      // from the caller) rather than replacing it — both stay reachable at
+      // once. Only clear an existing placeholder ("Searching…"/"No match"),
+      // never an already-rendered list of real store options.
+      if(drop.querySelector('.store-none')) drop.innerHTML='';
+      if(!unique.length){
+        if(!drop.querySelector('.store-opt')) drop.innerHTML='<div class="store-none">No other stores found</div>';
+        return;
+      }
       const hdr=document.createElement('div');
       hdr.style.cssText='padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)';
       hdr.textContent='All stores';
@@ -1149,7 +1163,7 @@ async function searchAllCustomers(q,dropId,prefix){
       if(prefix==='sf')openDropdownSF();else openDropdown();
     }catch(e){
       const drop=document.getElementById(dropId);
-      if(drop)drop.innerHTML='<div class="store-none">Search error — check connection</div>';
+      if(drop&&!drop.querySelector('.store-opt'))drop.innerHTML='<div class="store-none">Search error — check connection</div>';
     }
   },400);
 }
@@ -1157,14 +1171,18 @@ function filterStoresSF(q){
   const f=myStores.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||(s.city&&s.city.toLowerCase().includes(q.toLowerCase())));
   const drop=document.getElementById('sf-store-drop');
   if(f.length){
-    drop.innerHTML=f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
-  } else if(q.length>=3){
-    // Falls back to the same nationwide search filterStores() uses — needed
-    // for relief (no assigned stores at all) and useful for anyone covering
-    // an unassigned store.
-    drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
-    searchAllCustomers(q,'sf-store-drop','sf');
+    drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
+      +f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
   } else {
+    drop.innerHTML='';
+  }
+  // Nationwide search is always reachable at 3+ characters, same as the visit
+  // form's store search — needed for relief (no assigned stores at all) and
+  // for anyone reporting stock at a store outside their own route.
+  if(q.length>=3){
+    if(!f.length) drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
+    searchAllCustomers(q,'sf-store-drop','sf',f.map(s=>s.id));
+  } else if(!f.length){
     drop.innerHTML='<div class="store-none">'+(q?'Type 3+ characters to search all stores…':'No match')+'</div>';
   }
   openDropdownSF();
