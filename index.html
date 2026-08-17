@@ -1095,13 +1095,25 @@ function closeCustStockCount(){ const m=document.getElementById('custStockModal'
 
 function monthElapsed(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();return n.getDate()/d*100;}
 function yearElapsed(){const n=new Date();const s=new Date(n.getFullYear(),0,1);const e=new Date(n.getFullYear()+1,0,1);return (n-s)/(e-s)*100;}
+// Jamaica public holidays (YYYY, MM-1, DD) — exclude from working days
+// Month is 0-indexed (JS Date convention): Jan=0, May=4, etc.
+const JM_HOLIDAYS_2026 = [
+  '2026-0-1',              // New Year's Day
+  '2026-1-18',             // Ash Wednesday
+  '2026-3-3','2026-3-6',   // Good Friday, Easter Monday
+  '2026-4-25',             // Labour Day (observed — May 23 falls on Saturday)
+  '2026-7-6',              // Independence Day (Emancipation Day Aug 1 falls on Saturday, no weekday impact)
+  '2026-9-19',             // National Heroes Day
+  '2026-11-25',            // Christmas Day (Boxing Day Dec 26 falls on Saturday, no weekday impact)
+];
+function isJmHoliday(y,m,d){ return JM_HOLIDAYS_2026.includes(y+'-'+m+'-'+d); }
 function sellingDays(){
   const n=new Date(), y=n.getFullYear(), m=n.getMonth(), today=n.getDate();
   const last=new Date(y,m+1,0).getDate();
   let total=0, done=0;
   for(let d=1; d<=last; d++){
     const wd=new Date(y,m,d).getDay();     // 0=Sun,6=Sat
-    if(wd!==0 && wd!==6){ total++; if(d<=today) done++; }
+    if(wd!==0 && wd!==6 && !isJmHoliday(y,m,d)){ total++; if(d<=today) done++; }
   }
   return {total, done, left: total-done};
 }
