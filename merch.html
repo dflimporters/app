@@ -724,11 +724,12 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="stat-box"><div class="stat-lbl">Team commission</div><div class="stat-val c-amber" id="tl-comm">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="tl-avg">–</div></div>
     </div>
-    <div class="dash-link" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB">
+    <div class="dash-link hide-when-readonly" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB">
       <div class="dash-link-ico">📋</div>
       <div><div class="dash-link-title" style="color:var(--amber)">Store Audit</div><div class="dash-link-sub">Score shelf presence, cleanliness, pricing & rotation</div></div>
       <div class="dash-link-arr" style="color:var(--amber)">›</div>
     </div>
+    <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <span>Today's activity</span>
@@ -767,6 +768,13 @@ body.dfl-readonly .readonly-note{display:block}
       <div><div class="dash-link-title">Merch Commission Dashboard</div><div class="dash-link-sub">Full team performance & commission view</div></div>
       <div class="dash-link-arr">↗</div>
     </a>
+
+    <div>
+      <div class="sec-hdr" id="tl-ov-hdr">Team leaders</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px" id="tl-ov-list">
+        <div class="spinner"></div>
+      </div>
+    </div>
 
     <div class="field" style="margin-bottom:2px">
       <input type="text" id="ov-search" placeholder="Search merchandisers…"
@@ -1105,15 +1113,21 @@ function filterStores(q){
   const ql=q.toLowerCase();
   const assigned=myStores.filter(s=>(s.name||'').toLowerCase().includes(ql)||(s.city||'').toLowerCase().includes(ql));
   if(assigned.length){
-    drop.innerHTML=assigned.map(s=>`<div class="store-opt" onclick="selectStore('vf','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
-    openDropdown();
-  } else if(q.length>=3){
-    drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
-    openDropdown();
-    searchAllCustomers(q);
+    drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
+      +assigned.map(s=>`<div class="store-opt" onclick="selectStore('vf','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
   } else {
+    drop.innerHTML='';
+  }
+  openDropdown();
+  // Nationwide search is always reachable at 3+ characters now, not just when
+  // your own list comes up empty — a merchandiser covering someone else's
+  // route, or a genuine walk-in store, shouldn't be a dead end just because
+  // something in their own list happened to also match.
+  if(q.length>=3){
+    if(!assigned.length) drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
+    searchAllCustomers(q,'store-drop','vf',assigned.map(s=>s.id));
+  } else if(!assigned.length){
     drop.innerHTML='<div class="store-none">Type 3+ characters to search all stores…</div>';
-    openDropdown();
   }
 }
 
@@ -1122,9 +1136,10 @@ function filterStores(q){
 // in invoiced_items by name. Name/city only, no target or performance data,
 // since this bypasses merchandiser_map entirely.
 let _storeSearchTimer=null;
-async function searchAllCustomers(q,dropId,prefix){
+async function searchAllCustomers(q,dropId,prefix,excludeIds){
   dropId=dropId||'store-drop';
   prefix=prefix||'vf';
+  const excluded=new Set(excludeIds||[]);
   clearTimeout(_storeSearchTimer);
   _storeSearchTimer=setTimeout(async function(){
     try{
@@ -1132,9 +1147,16 @@ async function searchAllCustomers(q,dropId,prefix){
       const eq=encodeURIComponent(q);
       const rows=await rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit=20');
       const seen={};const unique=[];
-      (rows||[]).forEach(function(r){if(!seen[r.customer_id]){seen[r.customer_id]=true;unique.push(r);}});
-      if(!unique.length){drop.innerHTML='<div class="store-none">No stores found</div>';return;}
-      drop.innerHTML='';
+      (rows||[]).forEach(function(r){if(!seen[r.customer_id]&&!excluded.has(r.customer_id)){seen[r.customer_id]=true;unique.push(r);}});
+      // Append below whatever's already there (e.g. a "Your stores" section
+      // from the caller) rather than replacing it — both stay reachable at
+      // once. Only clear an existing placeholder ("Searching…"/"No match"),
+      // never an already-rendered list of real store options.
+      if(drop.querySelector('.store-none')) drop.innerHTML='';
+      if(!unique.length){
+        if(!drop.querySelector('.store-opt')) drop.innerHTML='<div class="store-none">No other stores found</div>';
+        return;
+      }
       const hdr=document.createElement('div');
       hdr.style.cssText='padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)';
       hdr.textContent='All stores';
@@ -1149,7 +1171,7 @@ async function searchAllCustomers(q,dropId,prefix){
       if(prefix==='sf')openDropdownSF();else openDropdown();
     }catch(e){
       const drop=document.getElementById(dropId);
-      if(drop)drop.innerHTML='<div class="store-none">Search error — check connection</div>';
+      if(drop&&!drop.querySelector('.store-opt'))drop.innerHTML='<div class="store-none">Search error — check connection</div>';
     }
   },400);
 }
@@ -1157,14 +1179,18 @@ function filterStoresSF(q){
   const f=myStores.filter(s=>s.name.toLowerCase().includes(q.toLowerCase())||(s.city&&s.city.toLowerCase().includes(q.toLowerCase())));
   const drop=document.getElementById('sf-store-drop');
   if(f.length){
-    drop.innerHTML=f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
-  } else if(q.length>=3){
-    // Falls back to the same nationwide search filterStores() uses — needed
-    // for relief (no assigned stores at all) and useful for anyone covering
-    // an unassigned store.
-    drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
-    searchAllCustomers(q,'sf-store-drop','sf');
+    drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
+      +f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
   } else {
+    drop.innerHTML='';
+  }
+  // Nationwide search is always reachable at 3+ characters, same as the visit
+  // form's store search — needed for relief (no assigned stores at all) and
+  // for anyone reporting stock at a store outside their own route.
+  if(q.length>=3){
+    if(!f.length) drop.innerHTML='<div class="store-none" style="color:var(--muted);font-style:italic">Searching all stores…</div>';
+    searchAllCustomers(q,'sf-store-drop','sf',f.map(s=>s.id));
+  } else if(!f.length){
     drop.innerHTML='<div class="store-none">'+(q?'Type 3+ characters to search all stores…':'No match')+'</div>';
   }
   openDropdownSF();
@@ -1896,6 +1922,9 @@ function closeAudit(){
 // Every active merchandiser + their performance for this period. Held so the
 // search box can re-filter without refetching.
 let overviewRows=[];
+// Team leads, held separately from overviewRows (merchandisers) since they
+// have no entry in merchandiser_summary and get their own small card list.
+let teamLeadRows=[];
 // The admin's own identity, kept aside while they view as someone else so
 // exitViewAs() can put it back.
 let adminSelf=null;
@@ -1905,14 +1934,15 @@ async function launchAdmin(){
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
-    const [reps, summary] = await Promise.all([
+    const [reps, summary, leads] = await Promise.all([
       rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
-      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`)
+      rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
+      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name')
     ]);
 
-    const leads=await rest('reps?active=eq.true&role=eq.team_leader&select=id,name');
     const leadById={};
     (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
+    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||''}));
 
     // merchandiser_summary is keyed by NAME, not id (see CLAUDE.md gotcha 7),
     // so this join is a name match. A rename on either side silently drops the
@@ -1929,11 +1959,34 @@ async function launchAdmin(){
 
     renderOverviewStats();
     renderOverview();
+    renderTeamLeadOverview();
   }catch(e){
     console.error(e);
     document.getElementById('ov-list').innerHTML=
       '<div class="empty-feed">Failed to load. Check connection.</div>';
   }
+}
+
+function renderTeamLeadOverview(){
+  const list=document.getElementById('tl-ov-list');
+  if(!list) return;
+  if(!teamLeadRows.length){
+    list.innerHTML='<div class="empty-feed">No team leaders on the roster.</div>';
+    return;
+  }
+  list.innerHTML=teamLeadRows.map(r=>{
+    const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return `<div class="merch-card tappable" onclick="viewAsTeamLeader('${r.id}')">
+      <div class="merch-hdr">
+        <div class="merch-av">${ini}</div>
+        <div style="flex:1">
+          <div class="merch-nm">${escapeHtmlM(r.name)}</div>
+          <div class="merch-rt">${escapeHtmlM(r.area||'No area')}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their team view →</div>
+    </div>`;
+  }).join('');
 }
 
 function renderOverviewStats(){
@@ -2026,6 +2079,32 @@ async function viewAsMerchandiser(repId){
   document.getElementById('viewas-bar').classList.add('show');
 
   await launchMerch(cu);
+}
+
+// Same idea as viewAsMerchandiser, but routes into the team-leader screen.
+// The Store Audit action there writes under cu.full_name too, so it's gated
+// by the same .hide-when-readonly / dfl-readonly mechanism.
+async function viewAsTeamLeader(repId){
+  const row=teamLeadRows.find(r=>r.id===repId);
+  if(!row) return;
+
+  if(!adminSelf) adminSelf=cu;
+
+  cu={
+    id: row.id,
+    full_name: row.name,
+    initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
+    territory: row.area,
+    team_lead: '', team_lead_id: null,
+    role: 'team_leader',
+    viewingAs: true
+  };
+
+  document.body.classList.add('dfl-readonly');
+  document.getElementById('viewas-name').textContent=row.name;
+  document.getElementById('viewas-bar').classList.add('show');
+
+  await launchTL(cu);
 }
 
 function exitViewAs(){
