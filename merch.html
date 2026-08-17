@@ -201,6 +201,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .submit-btn:disabled{opacity:.4;cursor:default}
 .submit-btn.red{background:var(--red);box-shadow:0 2px 10px rgba(200,32,47,.22)}
 
+/* VISIT STEPPER — Log visit / Stock / Pictures / Close out, in that order.
+   .done vs .active is purely visual; the actual gating (Stock optional,
+   Pictures mandatory before Close out) lives in JS. */
+.vsteps{display:flex;justify-content:space-between;margin-bottom:2px}
+.vstep{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;position:relative}
+.vstep:not(:last-child)::after{content:'';position:absolute;top:13px;left:calc(50% + 17px);width:calc(100% - 34px);height:2px;background:var(--border);z-index:0}
+.vstep.done:not(:last-child)::after{background:var(--green)}
+.vstep-dot{width:26px;height:26px;border-radius:50%;background:var(--border);color:var(--muted);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+.vstep-lbl{font-size:10px;color:var(--muted);font-weight:700;text-align:center}
+.vstep.done .vstep-dot{background:var(--green);color:#fff}
+.vstep.active .vstep-dot{background:var(--navy);color:#fff}
+.vstep.active .vstep-lbl{color:var(--navy)}
+.vstep-back{display:flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+
 /* voice note */
 .notes-wrap{position:relative}
 .notes-wrap textarea{padding-right:48px}
@@ -469,7 +483,10 @@ body.dfl-readonly .readonly-note{display:block}
       </div>
     </div>
 
-    <!-- VISIT LOG -->
+    <!-- VISIT LOG — 4-step wizard: Log visit (arrival) → Stock (optional) →
+         Pictures (mandatory, taken when leaving) → Close out (departure).
+         Steps 1-4 map to #vstep-panel-1..4 below; see goToVisitStep(),
+         startVisit(), saveStockStage(), savePhotosStage(), closeOutVisit(). -->
     <div class="form-body" id="tab-visit" style="display:none">
       <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
       <button onclick="goTab('tab-home');setNav('n-home')" style="display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:6px 0 10px;flex-shrink:0;-webkit-tap-highlight-color:transparent">
@@ -477,97 +494,126 @@ body.dfl-readonly .readonly-note{display:block}
         Home
       </button>
 
-      <div class="field">
-        <label>Store / account</label>
-        <div class="store-search-wrap" id="store-wrap">
-          <input type="text" id="store-input" placeholder="Search your stores…" autocomplete="off" oninput="filterStores(this.value)" onfocus="openDropdown()">
-          <button class="store-clear" id="store-clear" onclick="clearStore()" style="display:none">×</button>
-          <div class="store-dropdown" id="store-drop"></div>
-        </div>
-        <input type="hidden" id="store-id">
-        <input type="hidden" id="store-name-val">
+      <div class="vsteps" id="visit-steps">
+        <div class="vstep" data-vstep="1"><div class="vstep-dot">1</div><div class="vstep-lbl">Log visit</div></div>
+        <div class="vstep" data-vstep="2"><div class="vstep-dot">2</div><div class="vstep-lbl">Stock</div></div>
+        <div class="vstep" data-vstep="3"><div class="vstep-dot">3</div><div class="vstep-lbl">Pictures</div></div>
+        <div class="vstep" data-vstep="4"><div class="vstep-dot">4</div><div class="vstep-lbl">Close out</div></div>
       </div>
-      <div class="field">
-        <label>Category shelf presence <span style="font-weight:400;text-transform:none;font-size:11px">(tap = stocked · tap again = OOS)</span></label>
-        <div class="cat-grid">
-          <div class="cat-tile" id="ct-hh" onclick="cycleCat('hh')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Household</div><div class="ct-sub">Bleach · W&B</div></div></div>
-          <div class="cat-tile" id="ct-gb" onclick="cycleCat('gb')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Garbagebag</div><div class="ct-sub">Rhino · CoveBay</div></div></div>
-          <div class="cat-tile" id="ct-fo" onclick="cycleCat('fo')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Foil</div><div class="ct-sub">Pans · Rolls</div></div></div>
-          <div class="cat-tile" id="ct-pr" onclick="cycleCat('pr')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Processing</div><div class="ct-sub">Meat · Egg trays</div></div></div>
-          <div class="cat-tile" id="ct-pp" onclick="cycleCat('pp')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Paper</div><div class="ct-sub">Tissue · Towel</div></div></div>
-          <div class="cat-tile" id="ct-pl" onclick="cycleCat('pl')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Plastic</div><div class="ct-sub">Containers · Bags</div></div></div>
-          <div class="cat-tile" id="ct-ec" onclick="cycleCat('ec')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecocup</div><div class="ct-sub">Cups · Lids</div></div></div>
-          <div class="cat-tile" id="ct-fs" onclick="cycleCat('fs')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Food Supply</div><div class="ct-sub">Food service items</div></div></div>
-          <div class="cat-tile" id="ct-eb" onclick="cycleCat('eb')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecobox</div><div class="ct-sub">Takeout containers</div></div></div>
-          <div class="cat-tile" id="ct-bv" onclick="cycleCat('bv')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Beverages</div><div class="ct-sub">Drinks range</div></div></div>
-          <div class="cat-tile" id="ct-cp" onclick="cycleCat('cp')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Clearpack</div><div class="ct-sub">Clear packaging</div></div></div>
-          <div class="cat-tile" id="ct-ea" onclick="cycleCat('ea')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecobag</div><div class="ct-sub">Reusable bags</div></div></div>
-          <div class="cat-tile" id="ct-es" onclick="cycleCat('es')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecostraw</div><div class="ct-sub">Eco straws</div></div></div>
+
+      <!-- STEP 1 — LOG VISIT (arrival) -->
+      <div id="vstep-panel-1">
+        <div class="field">
+          <label>Store / account</label>
+          <div class="store-search-wrap" id="store-wrap">
+            <input type="text" id="store-input" placeholder="Search your stores…" autocomplete="off" oninput="filterStores(this.value)" onfocus="openDropdown()">
+            <button class="store-clear" id="store-clear" onclick="clearStore()" style="display:none">×</button>
+            <div class="store-dropdown" id="store-drop"></div>
+          </div>
+          <input type="hidden" id="store-id">
+          <input type="hidden" id="store-name-val">
         </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Tap below the moment you reach the store — this records your arrival time.</div>
+        <button class="submit-btn hide-when-readonly" id="v-step1-btn" onclick="startVisit()" disabled style="opacity:.4;cursor:not-allowed">Log visit — I've arrived →</button>
       </div>
-      <div class="field">
-        <label>Outcome</label>
-        <div class="outcome-row">
-          <div class="out-opt o-ok on" id="oo-ok" onclick="setOut('ok')">✓ All good</div>
-          <div class="out-opt o-iss" id="oo-iss" onclick="setOut('issue')">⚠ Issues</div>
-          <div class="out-opt o-pen" id="oo-pen" onclick="setOut('pending')">↩ Follow-up</div>
-        </div>
-      </div>
-      <div class="field">
-        <label>Notes / competitor sighting</label>
-        <div class="notes-wrap">
-          <textarea id="vf-notes" placeholder="Type or tap 🎤 to speak…" style="height:80px;resize:none" oninput="onVisitNotesInput()"></textarea>
-          <button class="voice-btn" id="voice-visit" onclick="toggleVoice('vf-notes','voice-visit','vstatus','vai-box')" title="Record voice note">🎤</button>
-        </div>
-        <div class="voice-status" id="vstatus"></div>
-        <div class="ai-note-box" id="vai-box">
-          <div class="ai-note-label">✨ AI summary <span class="ai-badge">Claude</span></div>
-          <div class="ai-note-text" id="vai-text"></div>
-          <div class="ai-note-actions">
-            <button class="ai-note-btn ai-use-btn" onclick="useAiNote('vf-notes','vai-box','vai-text')">Use this</button>
-            <button class="ai-note-btn ai-dismiss-btn" onclick="dismissAi('vai-box')">Dismiss</button>
+
+      <!-- STEP 2 — STOCK (optional, never blocks progress) -->
+      <div id="vstep-panel-2" style="display:none">
+        <button class="vstep-back" onclick="goToVisitStep(1)">‹ Back</button>
+        <div class="field">
+          <label>Category shelf presence <span style="font-weight:400;text-transform:none;font-size:11px">(tap = stocked · tap again = OOS — optional)</span></label>
+          <div class="cat-grid">
+            <div class="cat-tile" id="ct-hh" onclick="cycleCat('hh')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Household</div><div class="ct-sub">Bleach · W&B</div></div></div>
+            <div class="cat-tile" id="ct-gb" onclick="cycleCat('gb')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Garbagebag</div><div class="ct-sub">Rhino · CoveBay</div></div></div>
+            <div class="cat-tile" id="ct-fo" onclick="cycleCat('fo')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Foil</div><div class="ct-sub">Pans · Rolls</div></div></div>
+            <div class="cat-tile" id="ct-pr" onclick="cycleCat('pr')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Processing</div><div class="ct-sub">Meat · Egg trays</div></div></div>
+            <div class="cat-tile" id="ct-pp" onclick="cycleCat('pp')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Paper</div><div class="ct-sub">Tissue · Towel</div></div></div>
+            <div class="cat-tile" id="ct-pl" onclick="cycleCat('pl')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Plastic</div><div class="ct-sub">Containers · Bags</div></div></div>
+            <div class="cat-tile" id="ct-ec" onclick="cycleCat('ec')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecocup</div><div class="ct-sub">Cups · Lids</div></div></div>
+            <div class="cat-tile" id="ct-fs" onclick="cycleCat('fs')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Food Supply</div><div class="ct-sub">Food service items</div></div></div>
+            <div class="cat-tile" id="ct-eb" onclick="cycleCat('eb')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecobox</div><div class="ct-sub">Takeout containers</div></div></div>
+            <div class="cat-tile" id="ct-bv" onclick="cycleCat('bv')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Beverages</div><div class="ct-sub">Drinks range</div></div></div>
+            <div class="cat-tile" id="ct-cp" onclick="cycleCat('cp')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Clearpack</div><div class="ct-sub">Clear packaging</div></div></div>
+            <div class="cat-tile" id="ct-ea" onclick="cycleCat('ea')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecobag</div><div class="ct-sub">Reusable bags</div></div></div>
+            <div class="cat-tile" id="ct-es" onclick="cycleCat('es')"><div class="ct-dot"><div class="ct-inner"></div></div><div><div class="ct-name">Ecostraw</div><div class="ct-sub">Eco straws</div></div></div>
           </div>
         </div>
-      </div>
-      <!-- Shelf photos — MANDATORY 3 minimum, camera only -->
-      <div class="field" style="background:var(--red-lt);border:2px solid var(--red);border-radius:var(--rad-sm);padding:12px">
-        <label style="font-weight:800;color:var(--red)">📷 Shelf photos <span style="font-weight:600;font-size:11px">(minimum 3 required)</span></label>
-        <!-- Camera-only input: no accept attribute gallery fallback, capture=environment forces camera -->
-        <input type="file" id="shelf-file-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(this.files)" style="display:none">
-        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-          <!-- Photo counter -->
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:12px;color:var(--muted)" id="photo-counter-lbl">0 of 3 required</div>
-            <div style="display:flex;gap:6px">
-              <div id="ph-dot-0" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
-              <div id="ph-dot-1" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
-              <div id="ph-dot-2" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
+        <!-- Stock count optional row -->
+        <div id="stock-count-row" class="hide-when-readonly" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">📦</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--navy)">Stock count <span style="font-size:10px;font-weight:400;color:var(--muted)">(optional)</span></div>
+              <div style="font-size:11px;color:var(--muted)" id="stock-count-status">Record storeroom stock after shelves are restocked</div>
             </div>
           </div>
-          <!-- Camera button -->
-          <button type="button" onclick="openCamera()" id="camera-btn"
-            style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:16px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;width:100%">
-            <span style="font-size:24px">📷</span>
-            <span id="camera-btn-lbl">Take photo (0/5)</span>
-          </button>
-          <!-- Thumbnails -->
-          <div class="photo-thumb-grid" id="photo-thumb-grid"></div>
-          <!-- Status -->
-          <div id="photo-status" style="font-size:11px;text-align:center;font-weight:600;color:var(--red)" id="photo-status">Take at least 3 shelf photos to continue</div>
+          <span style="font-size:18px;color:var(--navy)">›</span>
         </div>
+        <button class="submit-btn hide-when-readonly" id="v-step2-btn" onclick="saveStockStage()">Next: Pictures →</button>
       </div>
-      <!-- Stock count optional row -->
-      <div id="stock-count-row" class="hide-when-readonly" onclick="openStockCount()" style="background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:2px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:20px">📦</span>
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--navy)">Stock count <span style="font-size:10px;font-weight:400;color:var(--muted)">(optional)</span></div>
-            <div style="font-size:11px;color:var(--muted)" id="stock-count-status">Record storeroom stock after shelves are restocked</div>
+
+      <!-- STEP 3 — PICTURES (mandatory, take these when leaving the store) -->
+      <div id="vstep-panel-3" style="display:none">
+        <button class="vstep-back" onclick="goToVisitStep(2)">‹ Back</button>
+        <!-- Shelf photos — MANDATORY 3 minimum, camera only -->
+        <div class="field" style="background:var(--red-lt);border:2px solid var(--red);border-radius:var(--rad-sm);padding:12px">
+          <label style="font-weight:800;color:var(--red)">📷 Shelf photos <span style="font-weight:600;font-size:11px">(minimum 3 required — take these as you're leaving)</span></label>
+          <!-- Camera-only input: no accept attribute gallery fallback, capture=environment forces camera -->
+          <input type="file" id="shelf-file-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(this.files)" style="display:none">
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+            <!-- Photo counter -->
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:12px;color:var(--muted)" id="photo-counter-lbl">0 of 3 required</div>
+              <div style="display:flex;gap:6px">
+                <div id="ph-dot-0" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
+                <div id="ph-dot-1" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
+                <div id="ph-dot-2" style="width:10px;height:10px;border-radius:50%;background:var(--border)"></div>
+              </div>
+            </div>
+            <!-- Camera button -->
+            <button type="button" onclick="openCamera()" id="camera-btn"
+              style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:16px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;width:100%">
+              <span style="font-size:24px">📷</span>
+              <span id="camera-btn-lbl">Take photo (0/5)</span>
+            </button>
+            <!-- Thumbnails -->
+            <div class="photo-thumb-grid" id="photo-thumb-grid"></div>
+            <!-- Status -->
+            <div id="photo-status" style="font-size:11px;text-align:center;font-weight:600;color:var(--red)" id="photo-status">Take at least 3 shelf photos to continue</div>
           </div>
         </div>
-        <span style="font-size:18px;color:var(--navy)">›</span>
+        <button class="submit-btn hide-when-readonly" id="v-step3-btn" onclick="savePhotosStage()" disabled style="opacity:.4;cursor:not-allowed">Next: Close out →</button>
       </div>
-      <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="submitVisit()" disabled style="opacity:.4;cursor:not-allowed">Log this visit →</button>
+
+      <!-- STEP 4 — CLOSE OUT (departure) -->
+      <div id="vstep-panel-4" style="display:none">
+        <button class="vstep-back" onclick="goToVisitStep(3)">‹ Back</button>
+        <div class="field">
+          <label>Outcome</label>
+          <div class="outcome-row">
+            <div class="out-opt o-ok on" id="oo-ok" onclick="setOut('ok')">✓ All good</div>
+            <div class="out-opt o-iss" id="oo-iss" onclick="setOut('issue')">⚠ Issues</div>
+            <div class="out-opt o-pen" id="oo-pen" onclick="setOut('pending')">↩ Follow-up</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notes / competitor sighting</label>
+          <div class="notes-wrap">
+            <textarea id="vf-notes" placeholder="Type or tap 🎤 to speak…" style="height:80px;resize:none" oninput="onVisitNotesInput()"></textarea>
+            <button class="voice-btn" id="voice-visit" onclick="toggleVoice('vf-notes','voice-visit','vstatus','vai-box')" title="Record voice note">🎤</button>
+          </div>
+          <div class="voice-status" id="vstatus"></div>
+          <div class="ai-note-box" id="vai-box">
+            <div class="ai-note-label">✨ AI summary <span class="ai-badge">Claude</span></div>
+            <div class="ai-note-text" id="vai-text"></div>
+            <div class="ai-note-actions">
+              <button class="ai-note-btn ai-use-btn" onclick="useAiNote('vf-notes','vai-box','vai-text')">Use this</button>
+              <button class="ai-note-btn ai-dismiss-btn" onclick="dismissAi('vai-box')">Dismiss</button>
+            </div>
+          </div>
+        </div>
+        <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="closeOutVisit()">Close out — leaving store →</button>
+      </div>
     </div>
 
     <!-- STOCK REPORT -->
@@ -874,6 +920,13 @@ let myStores=[];
 let storeSelected={id:'',name:''};
 let sfStoreSelected={name:''};
 
+// The in-progress visit's write target — set the moment startVisit() checks
+// someone in, carried through the Stock/Pictures/Close-out stages. `id` is a
+// real merch_visit_log uuid once the arrival write reached the server;
+// `offlineLocalId` is the IndexedDB key when it's still only queued (see
+// queueOfflineVisit/updateOfflineVisit). Exactly one of the two is set.
+let activeVisit=null;
+
 // merch_stock_counts has no store_name column — look names up from the
 // merchandiser's own store list instead of falling back to the raw customer_id.
 function storeNameFor(custId){
@@ -1107,6 +1160,7 @@ function filterStores(q){
     drop.innerHTML='';drop.classList.remove('open');
     document.getElementById('store-clear').style.display='none';
     storeSelected={id:'',name:''};
+    updateStep1Gating();
     return;
   }
   document.getElementById('store-clear').style.display='block';
@@ -1202,6 +1256,7 @@ function selectStore(prefix,id,name,city){
     document.getElementById('store-input').value=name+(city?' – '+city:'');
     document.getElementById('store-clear').style.display='block';
     document.getElementById('store-drop').classList.remove('open');
+    updateStep1Gating();
     saveVisitDraft();
   } else {
     sfStoreSelected={name};
@@ -1212,7 +1267,7 @@ function selectStore(prefix,id,name,city){
 }
 function openDropdown(){document.getElementById('store-drop').classList.add('open');}
 function openDropdownSF(){document.getElementById('sf-store-drop').classList.add('open');}
-function clearStore(){document.getElementById('store-input').value='';document.getElementById('store-drop').classList.remove('open');document.getElementById('store-clear').style.display='none';storeSelected={id:'',name:''};buildDropdown('store-drop',myStores,'vf');saveVisitDraft();}
+function clearStore(){document.getElementById('store-input').value='';document.getElementById('store-drop').classList.remove('open');document.getElementById('store-clear').style.display='none';storeSelected={id:'',name:''};buildDropdown('store-drop',myStores,'vf');updateStep1Gating();saveVisitDraft();}
 function clearStoreSF(){document.getElementById('sf-store-input').value='';document.getElementById('sf-store-drop').classList.remove('open');document.getElementById('sf-store-clear').style.display='none';sfStoreSelected={name:''};buildDropdown('sf-store-drop',myStores,'sf');}
 document.addEventListener('click',e=>{
   if(!e.target.closest('#store-wrap'))document.getElementById('store-drop').classList.remove('open');
@@ -1242,62 +1297,234 @@ function onVisitNotesInput(){
 }
 
 // ── SUBMIT VISIT ──
-async function submitVisit(){
+// ── VISIT WIZARD — 4 stages, one merch_visit_log row per visit ──
+// Stage 1 (startVisit) creates the row at arrival. Stages 2/3 are best-effort
+// live-progress PATCHes — their failure is swallowed because stage 4 always
+// resends the complete picture. Stage 4 (closeOutVisit) is the only stage
+// that must succeed for the visit to actually close.
+function goToVisitStep(n){
+  if(activeVisit) activeVisit.stage=n;
+  for(let i=1;i<=4;i++){
+    const panel=document.getElementById('vstep-panel-'+i);
+    if(panel) panel.style.display=i===n?'block':'none';
+  }
+  document.querySelectorAll('#visit-steps .vstep').forEach(el=>{
+    const s=parseInt(el.dataset.vstep,10);
+    el.classList.toggle('done', s<n);
+    el.classList.toggle('active', s===n);
+  });
+  saveVisitDraft();
+}
+
+function updateStep1Gating(){
+  const btn=document.getElementById('v-step1-btn');
+  if(!btn) return;
+  const has=!!(storeSelected&&storeSelected.name);
+  btn.disabled=!has;
+  btn.style.opacity=has?'1':'.4';
+  btn.style.cursor=has?'pointer':'not-allowed';
+}
+
+function currentCatPatch(){
+  return {
+    cat_household:catState['hh']==='on',cat_garbage:catState['gb']==='on',
+    cat_foil:catState['fo']==='on',cat_processing:catState['pr']==='on',
+    cat_paper:catState['pp']==='on',cat_plastic:catState['pl']==='on',
+    cat_ecocup:catState['ec']==='on',cat_foodsup:catState['fs']==='on',
+    cat_ecobox:catState['eb']==='on',cat_beverages:catState['bv']==='on',
+    cat_clearpack:catState['cp']==='on',cat_ecobag:catState['ea']==='on',
+    cat_ecostraw:catState['es']==='on',
+    oos_skus:Object.entries(catState).filter(([k,v])=>v==='oos').map(([k])=>k)
+  };
+}
+
+// ── STAGE 1: LOG VISIT (arrival) ──
+async function startVisit(){
   // Hiding the button is presentation; this is the guard. A visit written
   // while viewing as someone else would be attributed to THEM.
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!storeSelected.name){alert('Please select a store.');return;}
-  const btn=document.getElementById('v-sbtn');
+  const btn=document.getElementById('v-step1-btn');
   btn.disabled=true;btn.textContent='Getting location…';
-  // Capture geolocation just before submit
+  // Capture geolocation at arrival — this is when "were they actually at the
+  // store" matters, not at close-out.
   await captureGeoForVisit();
   btn.textContent='Saving…';
+  const p={
+    user_id:cu.id,user_name:cu.full_name,
+    customer_id:storeSelected.id||null,store_name:storeSelected.name,
+    visit_date:new Date().toISOString().slice(0,10),clock_in:new Date().toISOString(),
+    latitude:  currentGeo ? currentGeo.lat  : null,
+    longitude: currentGeo ? currentGeo.lng  : null,
+    geo_accuracy: currentGeo ? currentGeo.acc : null,
+    visit_type: isRelief() ? 'relief' : 'regular'
+  };
+  activeVisit={id:null, offlineLocalId:null, stage:1, stockLoggedAt:null, photosLoggedAt:null};
   try{
-    const p={
-      user_id:cu.id,user_name:cu.full_name,
-      customer_id:storeSelected.id||null,store_name:storeSelected.name,
-      visit_date:new Date().toISOString().slice(0,10),clock_in:new Date().toISOString(),
-      outcome,
-      cat_household:catState['hh']==='on',cat_garbage:catState['gb']==='on',
-      cat_foil:catState['fo']==='on',cat_processing:catState['pr']==='on',
-      cat_paper:catState['pp']==='on',cat_plastic:catState['pl']==='on',
-      cat_ecocup:catState['ec']==='on',cat_foodsup:catState['fs']==='on',
-      cat_ecobox:catState['eb']==='on',cat_beverages:catState['bv']==='on',
-      cat_clearpack:catState['cp']==='on',cat_ecobag:catState['ea']==='on',
-      cat_ecostraw:catState['es']==='on',
-      oos_skus:Object.entries(catState).filter(([k,v])=>v==='oos').map(([k])=>k),
-      notes:document.getElementById('vf-notes').value.trim()||null,
-      latitude:  currentGeo ? currentGeo.lat  : null,
-      longitude: currentGeo ? currentGeo.lng  : null,
-      geo_accuracy: currentGeo ? currentGeo.acc : null,
-      shelf_photo_urls: await ensureAllPhotosUploaded(),
-      visit_type: isRelief() ? 'relief' : 'regular'
-    };
-    // Try online first, queue offline if fails
-    let saved = false;
+    let saved=false;
     if(navigator.onLine){
       try{
         const res=await rest('merch_visit_log',{method:'POST',body:p});
-        if(res&&res[0]){visits.unshift(res[0]); saved=true;}
-      }catch(netErr){ console.warn('Online submit failed, queuing offline:', netErr); }
+        if(res&&res[0]){ activeVisit.id=res[0].id; visits.unshift(res[0]); saved=true; }
+      }catch(netErr){ console.warn('Online check-in failed, queuing offline:', netErr); }
     }
     if(!saved){
-      // Save to IndexedDB offline queue
+      // Save to IndexedDB offline queue — Stock/Pictures accumulate locally
+      // and Close-out merges into this same queued record (see closeOutVisit).
       p.synced_offline = true;
-      await queueOfflineVisit(p);
-      visits.unshift({...p, id:'offline_'+Date.now(), offline:true});
+      const localId=await queueOfflineVisit(p);
+      activeVisit.offlineLocalId=localId;
+      visits.unshift({...p, id:'offline_'+localId, offline:true});
+      updateSyncBadge();
+    }
+    renderFeed();
+    goToVisitStep(2);
+  }catch(e){
+    activeVisit=null;
+    alert('Could not log arrival — check connection.');
+    console.error(e);
+  }finally{
+    btn.disabled=false;btn.textContent="Log visit — I've arrived →";
+  }
+}
+
+// ── STAGE 2: STOCK (optional — never blocks moving on) ──
+async function saveStockStage(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
+  const stamp=new Date().toISOString();
+  if(activeVisit&&activeVisit.id){
+    try{
+      await rest(`merch_visit_log?id=eq.${activeVisit.id}`,{
+        method:'PATCH',headers:{'Prefer':'return=minimal'},
+        body:{...currentCatPatch(), stock_logged_at:stamp}
+      });
+      activeVisit.stockLoggedAt=stamp;
+    }catch(e){ console.warn('stock stage patch failed (will resend at close out):',e); }
+  }
+  goToVisitStep(3);
+}
+
+// ── STAGE 3: PICTURES (mandatory — gates Close out via updatePhotoGating) ──
+async function savePhotosStage(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
+  if(pendingPhotos.length<MIN_PHOTOS){alert('Take at least '+MIN_PHOTOS+' shelf photos first.');return;}
+  const btn=document.getElementById('v-step3-btn');
+  btn.disabled=true;btn.textContent='Saving…';
+  try{
+    const urls=await ensureAllPhotosUploaded();
+    const stamp=new Date().toISOString();
+    if(activeVisit&&activeVisit.id){
+      try{
+        await rest(`merch_visit_log?id=eq.${activeVisit.id}`,{
+          method:'PATCH',headers:{'Prefer':'return=minimal'},
+          body:{shelf_photo_urls:urls, photos_logged_at:stamp}
+        });
+        activeVisit.photosLoggedAt=stamp;
+      }catch(e){ console.warn('photos stage patch failed (will resend at close out):',e); }
+    }
+    goToVisitStep(4);
+  }finally{
+    updatePhotoGating();
+  }
+}
+
+// ── STAGE 4: CLOSE OUT (departure) — the write that must succeed ──
+async function closeOutVisit(){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
+  if(!activeVisit){alert('No visit in progress.');return;}
+  const btn=document.getElementById('v-sbtn');
+  btn.disabled=true;btn.textContent='Saving…';
+  const now=new Date().toISOString();
+  const finalPatch={
+    ...currentCatPatch(),
+    outcome,
+    notes:document.getElementById('vf-notes').value.trim()||null,
+    shelf_photo_urls: await ensureAllPhotosUploaded(),
+    stock_logged_at: activeVisit.stockLoggedAt||now,
+    photos_logged_at: activeVisit.photosLoggedAt||now,
+    clock_out:now
+  };
+  try{
+    if(activeVisit.id){
+      try{
+        await rest(`merch_visit_log?id=eq.${activeVisit.id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:finalPatch});
+        const v=visits.find(x=>x.id===activeVisit.id);
+        if(v) Object.assign(v,finalPatch);
+      }catch(netErr){
+        alert('Could not close out — check connection and try again.');
+        console.error(netErr);
+        btn.disabled=false;btn.textContent='Close out — leaving store →';
+        return;
+      }
+    } else if(activeVisit.offlineLocalId!=null){
+      // Never made it online since arrival — merge the full record into the
+      // same queued row rather than adding a second one. The existing sync
+      // badge / auto-sync-on-reconnect flow uploads it whole from here.
+      await updateOfflineVisit(activeVisit.offlineLocalId, finalPatch);
+      const v=visits.find(x=>x.id==='offline_'+activeVisit.offlineLocalId);
+      if(v) Object.assign(v,finalPatch);
       updateSyncBadge();
     }
     if(outcome==='issue')issueCount++;
     renderFeed();
-    // reset
+    // reset for next visit
+    activeVisit=null;
     clearStore();catState={};['hh','gb','fo','pr','pp','pl','ec','fs','eb','bv','cp','ea','es'].forEach(c=>{document.getElementById('ct-'+c).className='cat-tile';});
     outcome='ok';setOut('ok');document.getElementById('vf-notes').value='';
-    resetPhotos();;
+    resetPhotos();
     clearVisitDraft();
-    showOv('✅','Visit logged!',storeSelected.name+' checked in successfully.');
+    goToVisitStep(1);
+    showOv('✅','Visit closed out!','Logged successfully.');
   }catch(e){alert('Save failed — check connection.');console.error(e);}
-  finally{btn.disabled=false;btn.textContent='Log this visit →';}
+  finally{btn.disabled=false;btn.textContent='Close out — leaving store →';}
+}
+
+// Re-open an in-progress visit (from the home feed or My Stores) at whatever
+// stage it was left on — replaces the old one-tap "Check out" buttons, which
+// used to let someone close out without ever doing Stock/Pictures.
+function continueVisit(visitId){
+  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
+  const v=visits.find(x=>x.id===visitId);
+  if(!v){alert('Visit not found.');return;}
+
+  storeSelected={id:v.customer_id||'', name:v.store_name};
+  const inp=document.getElementById('store-input');
+  if(inp) inp.value=v.store_name;
+  const clr=document.getElementById('store-clear');
+  if(clr) clr.style.display='block';
+  updateStep1Gating();
+
+  const catKeyToField={hh:'cat_household',gb:'cat_garbage',fo:'cat_foil',pr:'cat_processing',
+    pp:'cat_paper',pl:'cat_plastic',ec:'cat_ecocup',fs:'cat_foodsup',eb:'cat_ecobox',
+    bv:'cat_beverages',cp:'cat_clearpack',ea:'cat_ecobag',es:'cat_ecostraw'};
+  const oos=new Set(v.oos_skus||[]);
+  catState={};
+  Object.keys(catKeyToField).forEach(function(k){
+    catState[k]=oos.has(k)?'oos':(v[catKeyToField[k]]?'on':'off');
+    const el=document.getElementById('ct-'+k);
+    if(el) el.className='cat-tile'+(catState[k]==='on'?' on':catState[k]==='oos'?' oos':'');
+  });
+
+  setOut(v.outcome||'ok');
+  const notesEl=document.getElementById('vf-notes');
+  if(notesEl) notesEl.value=v.notes||'';
+
+  pendingPhotos=(v.shelf_photo_urls||[]).map(function(u){return {file:null,previewUrl:u,uploadedUrl:u,uploading:false};});
+  renderPhotoThumbs();
+  updatePhotoGating();
+
+  const isOffline=typeof v.id==='string'&&v.id.indexOf('offline_')===0;
+  const stage=(v.shelf_photo_urls&&v.shelf_photo_urls.length>=MIN_PHOTOS)?4:(v.stock_logged_at?3:2);
+  activeVisit={
+    id: isOffline?null:v.id,
+    offlineLocalId: isOffline?parseInt(v.id.slice('offline_'.length),10):null,
+    stage: stage,
+    stockLoggedAt: v.stock_logged_at||null,
+    photosLoggedAt: v.photos_logged_at||null
+  };
+
+  goTab('tab-visit');setNav('n-visit');
+  goToVisitStep(stage);
 }
 
 // ── SUBMIT STOCK ──
@@ -1332,6 +1559,22 @@ function fmtDuration(inTs,outTs){
   return Math.floor(mins/60)+'h '+(mins%60)+'m';
 }
 
+// One-line stage trail — Log visit / Stock / Pictures / Close out — reused
+// wherever a visit's progress needs to be visible: the merchandiser's own
+// feed, the My Stores card, the Team Leader dashboard, and the admin overview.
+function visitStageChip(v){
+  const t=ts=>new Date(ts).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
+  const dim=s=>`<span style="opacity:.4">${s}</span>`;
+  const photoCount=(v.shelf_photo_urls||[]).length;
+  const parts=[
+    v.clock_in ? '📍 '+t(v.clock_in) : dim('📍 —'),
+    v.stock_logged_at ? '📦 Stock' : dim('📦 Stock'),
+    photoCount ? '📷 '+photoCount : dim('📷 Photos'),
+    v.clock_out ? '🚪 '+t(v.clock_out) : dim('🚪 Open')
+  ];
+  return parts.join(' <span style="color:var(--border)">→</span> ');
+}
+
 function renderFeed(){
   if(typeof renderQuickStores==='function') renderQuickStores();
   document.getElementById('m-vtd').textContent=visits.length;
@@ -1361,45 +1604,25 @@ function renderFeed(){
     } else {
       rightHtml=`<div class="fi-right">
         <span class="badge ${bc}">${lbl}</span>
-        <span class="time-range">In: ${tIn}</span>
-        <button class="checkout-btn" onclick="checkOut('${v.id}',this)">Check out →</button>
+        <button class="checkout-btn" onclick="continueVisit('${v.id}')">Continue visit →</button>
       </div>`;
     }
     const reliefBadge=isReliefRow?`<div class="fi-meta" style="color:var(--navy);font-weight:700">🔄 Covered by ${v.user_name||'relief'}</div>`:'';
+    // Stage trail only for the merchandiser's own in-progress visits — a
+    // closed visit already shows its duration, and a relief row belongs to
+    // someone else, so neither needs the extra line.
+    const stageChip=(!v.clock_out&&!isReliefRow)?`<div class="fi-meta" style="margin-top:2px">${visitStageChip(v)}</div>`:'';
     return`<div class="feed-item" id="visit-${v.id}">
       <div class="fi-ico ${ic}">${ico}</div>
       <div class="fi-info">
         <div class="fi-name">${v.store_name}</div>
         <div class="fi-meta">${cats?cats:'No categories checked'}</div>
+        ${stageChip}
         ${reliefBadge}
       </div>
       ${rightHtml}
     </div>`;
   }).join('');
-}
-
-async function checkOut(visitId, btn){
-  if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
-  btn.disabled=true;
-  btn.textContent='Saving…';
-  const now=new Date().toISOString();
-  try{
-    await rest(`merch_visit_log?id=eq.${visitId}`,{
-      method:'PATCH',
-      prefer:'return=minimal',
-      headers:{'Prefer':'return=minimal'},
-      body:{clock_out:now}
-    });
-    // Update local state
-    const v=visits.find(x=>x.id===visitId);
-    if(v) v.clock_out=now;
-    renderFeed();
-  }catch(e){
-    btn.disabled=false;
-    btn.textContent='Check out →';
-    alert('Could not save checkout. Check connection.');
-    console.error(e);
-  }
 }
 
 // ── TEAM LEADER ──
@@ -1567,8 +1790,8 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
       '<div style="flex:1;min-width:0">'+
         '<div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
         '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+        '<div style="font-size:10px;margin-top:2px">'+visitStageChip(v)+'</div>'+
         (v.outcome==='issue'?'<div style="font-size:10px;font-weight:700;color:var(--red)">⚠ Issue</div>':'')+
-        ((v.shelf_photo_urls&&v.shelf_photo_urls.length)?'<div style="font-size:10px;color:var(--muted)">📷 '+v.shelf_photo_urls.length+'</div>':'')+
       '</div>'+
       '<div style="font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">'+timeLbl+
         (tOut?'<div style="font-size:10px;color:var(--navy);font-weight:700">⏱ '+fmtDuration(v.clock_in,v.clock_out)+'</div>':'')+
@@ -1638,7 +1861,8 @@ function renderWeekFeed(feedEl,visits,myNames){
       row.className='tl-visit-row';
       row.innerHTML='<div class="tl-av-sm" style="font-size:9px">'+ini+'</div>'+
         '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div></div>'+
+        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+        '<div style="font-size:10px;margin-top:2px">'+visitStageChip(v)+'</div></div>'+
         '<div style="font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">'+timeLbl+
           (tOut?'<div style="font-size:10px;color:var(--navy);font-weight:700">⏱ '+fmtDuration(v.clock_in,v.clock_out)+'</div>':'')+
         '</div>';
@@ -1925,6 +2149,9 @@ let overviewRows=[];
 // Team leads, held separately from overviewRows (merchandisers) since they
 // have no entry in merchandiser_summary and get their own small card list.
 let teamLeadRows=[];
+// Today's latest visit per merchandiser name, so the overview cards can show
+// the same Log visit/Stock/Pictures/Close out stage chip as the TL dashboard.
+let latestVisitByName={};
 // The admin's own identity, kept aside while they view as someone else so
 // exitViewAs() can put it back.
 let adminSelf=null;
@@ -1934,15 +2161,22 @@ async function launchAdmin(){
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
-    const [reps, summary, leads] = await Promise.all([
+    const today=new Date().toISOString().slice(0,10);
+    const [reps, summary, leads, todayVisits] = await Promise.all([
       rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
       rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
-      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name')
+      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name'),
+      rest(`merch_visit_log?visit_date=eq.${today}&select=*&order=created_at.desc`)
     ]);
 
     const leadById={};
     (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
     teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||''}));
+
+    // Latest row per name — "created_at.desc" above means the first match
+    // per name wins, i.e. their most recent visit today.
+    latestVisitByName={};
+    (todayVisits||[]).forEach(v=>{ if(!latestVisitByName[v.user_name]) latestVisitByName[v.user_name]=v; });
 
     // merchandiser_summary is keyed by NAME, not id (see CLAUDE.md gotcha 7),
     // so this join is a name match. A rename on either side silently drops the
@@ -2027,6 +2261,10 @@ function renderOverview(){
     const qb=(m&&m.stores_qualified>0)
       ?`<div class="badge b-ok">${m.stores_qualified} qualifying</div>`
       :`<div class="badge b-issue">None qualifying</div>`;
+    const todayVisit=latestVisitByName[r.name];
+    const stageRow=todayVisit
+      ?`<div style="font-size:10px;margin-top:6px">${visitStageChip(todayVisit)}</div>`
+      :`<div style="font-size:11px;color:var(--muted);margin-top:6px">No visits yet today</div>`;
     return `<div class="merch-card tappable" onclick="viewAsMerchandiser('${r.id}')">
       <div class="merch-hdr">
         <div class="merch-av">${ini}</div>
@@ -2042,6 +2280,7 @@ function renderOverview(){
         <span><strong>$${Math.round(actual).toLocaleString()}</strong> actual</span>
         ${comm>0?`<span style="color:var(--green)"><strong>$${Math.round(comm).toLocaleString()}</strong> comm</span>`:''}
       </div>`:'<div style="font-size:12px;color:var(--muted);padding-top:4px">No performance data this period</div>'}
+      ${stageRow}
       <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their app →</div>
     </div>`;
   }).join('');
@@ -2114,7 +2353,7 @@ function exitViewAs(){
   document.getElementById('viewas-bar').classList.remove('show');
   // Reset the merchandiser-scoped state so nothing leaks into the next person.
   visits=[];issueCount=0;myStores=[];storePerf=[];storesLoaded=false;
-  storeSelected={id:'',name:''};sfStoreSelected={name:''};
+  storeSelected={id:'',name:''};sfStoreSelected={name:''};activeVisit=null;
   // Clear the filter too — otherwise you come back to a list showing only the
   // person you just looked at and wonder where everyone went.
   const sq=document.getElementById('ov-search');
@@ -2537,10 +2776,10 @@ function renderStores(){
         </div>`;
       } else {
         // A relief visit merged into `visits` — someone else's in-progress
-        // check-in. Never offer to check THEM out from this card.
+        // check-in. Never offer to continue/close out THEM from this card.
         const checkoutOrPending=todayVisit.visit_type==='relief'
           ?'<div class="spc-time-val" style="color:var(--amber);font-size:11px">In progress</div>'
-          :`<button class="checkout-btn" data-vid="${todayVisit.id}" data-cid="${s.customer_id}" onclick="checkOutFromStore(this.dataset.vid,this,this.dataset.cid)">Check out</button>`;
+          :`<button class="checkout-btn" data-vid="${todayVisit.id}" onclick="continueVisit(this.dataset.vid)">Continue visit →</button>`;
         visitBlock=`<div class="spc-timebox spc-timebox-live">
           <div class="spc-timebox-row">
             <div class="spc-timecol"><div class="spc-time-lbl">Clock in</div><div class="spc-time-val">${tIn}</div></div>
@@ -2548,6 +2787,7 @@ function renderStores(){
             <div class="spc-timecol"><div class="spc-time-lbl">Clock out</div><div class="spc-time-val" style="color:var(--amber)">Not yet</div></div>
             ${checkoutOrPending}
           </div>
+          ${todayVisit.visit_type==='relief'?'':`<div style="font-size:11px;margin-top:6px">${visitStageChip(todayVisit)}</div>`}
         </div>`;
       }
       if(todayVisit.visit_type==='relief'){
@@ -2599,36 +2839,20 @@ function renderStores(){
   }).join('');
 }
 
-async function checkOutFromStore(visitId, btn, custId){
-  btn.disabled=true;
-  btn.textContent='Saving...';
-  const now=new Date().toISOString();
-  try{
-    await rest(`merch_visit_log?id=eq.${visitId}`,{
-      method:'PATCH',
-      headers:{'Prefer':'return=minimal'},
-      body:{clock_out:now}
-    });
-    // Update local visits state
-    const v=visits.find(x=>x.id===visitId);
-    if(v) v.clock_out=now;
-    // Re-render just the affected card by re-rendering the whole list
-    renderStores();
-    // Also refresh home feed
-    renderFeed();
-  }catch(e){
-    btn.disabled=false;
-    btn.textContent='Check out';
-    alert('Could not save. Check connection.');
-    console.error(e);
-  }
-}
-
 function prefillStore(custId, custName){
   custName = decodeURIComponent(custName||custName);
+  if(activeVisit){
+    // A visit is already in progress somewhere — only one can be open at a
+    // time, so resume it instead of silently overwriting its store.
+    goTab('tab-visit');setNav('n-visit');
+    goToVisitStep(activeVisit.stage||1);
+    return;
+  }
   storeSelected={id:custId,name:custName};
   document.getElementById('store-input').value=custName;
   document.getElementById('store-clear').style.display='block';
+  updateStep1Gating();
+  goToVisitStep(1);
   goTab('tab-visit');
   setNav('n-visit');
 }
@@ -2786,7 +3010,7 @@ function saveVisitDraft(){
   try{
     localStorage.setItem(visitDraftKey(), JSON.stringify({
       storeSelected:storeSelected, catState:catState, outcome:outcome,
-      notes:notes, photos:photos, savedAt:Date.now()
+      notes:notes, photos:photos, activeVisit:activeVisit, savedAt:Date.now()
     }));
   }catch(e){ console.warn('draft save failed:',e); }
 }
@@ -2812,6 +3036,7 @@ function restoreVisitDraft(){
     const clr=document.getElementById('store-clear');
     if(clr) clr.style.display='block';
   }
+  updateStep1Gating();
 
   catState = draft.catState || {};
   Object.keys(catState).forEach(function(c){
@@ -2832,6 +3057,13 @@ function restoreVisitDraft(){
   });
   renderPhotoThumbs();
   updatePhotoGating();
+
+  // A draft with activeVisit means arrival was already logged (this build or
+  // later) — resume at that stage. An older draft (pre-dating the wizard, or
+  // one abandoned before tapping "Log visit") has no activeVisit, so stage 1
+  // is correct: nothing was checked in yet.
+  activeVisit = draft.activeVisit || null;
+  goToVisitStep(activeVisit ? (activeVisit.stage||2) : 1);
 
   goTab('tab-visit'); setNav('n-visit');
   const photoNote = pendingPhotos.length>=MAX_PHOTOS
@@ -2936,8 +3168,9 @@ function updatePhotoGating(){
     }
   }
 
-  // Submit button gating
-  var sbtn = document.getElementById('v-sbtn');
+  // Next-step button gating — Pictures is the hard gate, Close out itself
+  // (v-sbtn) is never blocked, since it's only reachable after this passes.
+  var sbtn = document.getElementById('v-step3-btn');
   if(sbtn){
     sbtn.disabled = !met;
     sbtn.style.opacity = met ? '1' : '0.4';
@@ -3176,8 +3409,28 @@ async function queueOfflineVisit(payload){
   const d = await openDB();
   return new Promise((resolve, reject) => {
     const tx = d.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).add({...payload, _queuedAt: new Date().toISOString()});
-    tx.oncomplete = resolve;
+    // resolve with the generated key (not just tx completion) so callers can
+    // patch this record in place later — e.g. closing out a visit that was
+    // checked in while offline and is still sitting in this queue.
+    const req = tx.objectStore(IDB_STORE).add({...payload, _queuedAt: new Date().toISOString()});
+    req.onsuccess = () => resolve(req.result);
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+async function updateOfflineVisit(localId, patch){
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(IDB_STORE, 'readwrite');
+    const store = tx.objectStore(IDB_STORE);
+    const getReq = store.get(localId);
+    getReq.onsuccess = () => {
+      const existing = getReq.result;
+      if(!existing){ resolve(null); return; }
+      store.put({...existing, ...patch});
+    };
+    getReq.onerror = e => reject(e.target.error);
+    tx.oncomplete = () => resolve(true);
     tx.onerror = e => reject(e.target.error);
   });
 }
