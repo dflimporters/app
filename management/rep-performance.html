@@ -634,13 +634,13 @@ function calcPaceElapsed() {
   // Jamaica public holidays (YYYY, MM-1, DD) — exclude from working days
   // Month is 0-indexed (JS Date convention): Jan=0, May=4, etc.
   const holidays = [
-    '2026-0-1','2026-0-2',   // New Year's Day + observed
+    '2026-0-1',              // New Year's Day
     '2026-1-18',             // Ash Wednesday
     '2026-3-3','2026-3-6',   // Good Friday, Easter Monday
-    '2026-4-25',             // Labour Day observed (May 23 falls Sat, observed Mon May 25)
-    '2026-7-1','2026-7-3',   // Emancipation Day + Independence Day
+    '2026-4-25',             // Labour Day (observed — May 23 falls on Saturday)
+    '2026-7-6',              // Independence Day (Emancipation Day Aug 1 falls on Saturday, no weekday impact)
     '2026-9-19',             // National Heroes Day
-    '2026-11-25','2026-11-26', // Christmas + Boxing Day
+    '2026-11-25',            // Christmas Day (Boxing Day Dec 26 falls on Saturday, no weekday impact)
   ];
   const isHoliday = (y, m, d) => holidays.includes(y+'-'+m+'-'+d);
 
