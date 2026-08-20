@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merch Field Guide — DFL Training</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --navy:#1B2B5E; --navy-2:#25397a;
+  --orange:#C8562E; --orange-soft:#f7e2d7;
+  --bg:#f3f4f8; --surface:#ffffff; --surface-2:#eceef5;
+  --text:#1c2333; --muted:#616a85; --border:#e1e3ee;
+  --good:#1f9d55; --warn:#c9860f; --bad:#c8443a;
+  --good-bg:#e8f7ee; --warn-bg:#fbf0dc; --bad-bg:#fbe9e7;
+  --shadow: 0 1px 2px rgba(27,43,94,0.06), 0 8px 24px -12px rgba(27,43,94,0.18);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'IBM Plex Sans',system-ui,sans-serif; font-weight:700; text-wrap:balance; color:var(--text); margin:0;}
+code{
+  font-family:'IBM Plex Mono',monospace; font-size:0.8em;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:5px;
+  padding:0.1em 0.45em; color:var(--navy);
+}
+a{color:var(--navy);}
+.wrap{max-width:760px; margin:0 auto; padding:0 20px 80px;}
+.masthead{background:linear-gradient(155deg,var(--navy),var(--navy-2)); color:#fff; padding:36px 20px 28px;}
+.masthead .inner{max-width:760px; margin:0 auto;}
+.masthead .back{display:inline-block; margin-bottom:16px; color:#c3c9e6; font-size:0.9rem; text-decoration:none;}
+.masthead .back:hover{color:#fff;}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace;
+  font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--orange);
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18);
+  padding:4px 10px; border-radius:100px; margin-bottom:14px;
+}
+.masthead h1{font-size:clamp(1.7rem,5vw,2.3rem); color:#fff;}
+.masthead p{margin:10px 0 0; color:#c3c9e6; max-width:54ch; font-size:1.02rem;}
+.quicknav{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow);}
+.quicknav .row{max-width:760px; margin:0 auto; display:flex; gap:8px; overflow-x:auto; padding:10px 20px; scrollbar-width:none;}
+.quicknav .row::-webkit-scrollbar{display:none;}
+.quicknav a{
+  flex:none; text-decoration:none; font-size:0.86rem; font-weight:600; color:var(--text);
+  background:var(--surface-2); border:1px solid var(--border); padding:7px 13px; border-radius:100px; white-space:nowrap;
+}
+.quicknav a:hover{border-color:var(--orange); color:var(--navy);}
+section{padding-top:44px;}
+section:first-of-type{padding-top:36px;}
+.section-head{display:flex; align-items:baseline; gap:12px; margin-bottom:6px;}
+.section-num{font-family:'IBM Plex Mono',monospace; color:var(--orange); font-weight:600; font-size:0.95rem;}
+.section-head h2{font-size:1.4rem;}
+.section-sub{color:var(--muted); margin:6px 0 20px; max-width:60ch;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow); margin-bottom:16px;}
+.card h3{font-size:1.02rem; margin-bottom:10px;}
+ul.ref{margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:10px;}
+ul.ref li{padding-left:18px; position:relative;}
+ul.ref li::before{content:"›"; position:absolute; left:0; color:var(--orange); font-weight:700;}
+.callout{border-radius:12px; padding:14px 16px; margin:16px 0; font-size:0.94rem; display:flex; gap:10px; align-items:flex-start;}
+.callout .tag{font-weight:700; flex:none;}
+.callout.tip{background:var(--surface-2); border:1px solid var(--border);}
+.callout.tip .tag{color:var(--navy);}
+.callout.watch{background:var(--warn-bg);} .callout.watch .tag{color:var(--warn);}
+.chiprow{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 4px;}
+.chip{display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600; padding:5px 12px; border-radius:100px; border:1px solid var(--border);}
+.chip .dot{width:8px; height:8px; border-radius:50%;}
+.chip.good{background:var(--good-bg); color:var(--good);} .chip.good .dot{background:var(--good);}
+.chip.warn{background:var(--warn-bg); color:var(--warn);} .chip.warn .dot{background:var(--warn);}
+.chip.bad{background:var(--bad-bg); color:var(--bad);} .chip.bad .dot{background:var(--bad);}
+.tabpills{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 24px;}
+.tabpill{font-family:'IBM Plex Mono',monospace; font-size:0.8rem; font-weight:500; padding:7px 14px; border-radius:9px; border:1px solid var(--border); color:var(--muted); background:var(--surface);}
+.tabpill.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+.stepper{display:flex; flex-direction:column; gap:0; margin:6px 0 8px;}
+.stepnode{display:flex; gap:16px;}
+.stepnode .rail{display:flex; flex-direction:column; align-items:center; flex:none;}
+.stepnode .num{
+  width:34px; height:34px; border-radius:50%; background:var(--navy); color:#fff;
+  font-family:'IBM Plex Mono',monospace; font-weight:600; display:flex; align-items:center; justify-content:center;
+  flex:none; z-index:1;
+}
+.stepnode .line{width:2px; flex:1; background:var(--border); margin:2px 0;}
+.stepnode:last-child .line{display:none;}
+.stepbody{padding-bottom:26px; flex:1;}
+.stepbody h3{font-size:1.05rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;}
+.stepbody .req{
+  font-family:'IBM Plex Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+  padding:2px 8px; border-radius:100px; font-weight:600;
+}
+.req.required{background:var(--bad-bg); color:var(--bad);}
+.req.optional{background:var(--surface-2); color:var(--muted); border:1px solid var(--border);}
+.stepbody p{margin:6px 0 0; color:var(--text);}
+.stepbody .muted{color:var(--muted); font-size:0.92rem;}
+.tablewrap{overflow-x:auto; border-radius:14px; border:1px solid var(--border); box-shadow:var(--shadow);}
+table{width:100%; border-collapse:collapse; background:var(--surface); font-size:0.92rem; min-width:520px;}
+th,td{text-align:left; padding:12px 16px; border-bottom:1px solid var(--border); vertical-align:top;}
+th{background:var(--surface-2); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted);}
+tr:last-child td{border-bottom:none;}
+td b{color:var(--navy);}
+details{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-bottom:10px;}
+details summary{font-weight:700; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+"; font-size:1.3rem; color:var(--orange); font-weight:400;}
+details[open] summary::after{content:"–";}
+details p{margin:10px 0 0; color:var(--muted);}
+footer{border-top:1px solid var(--border); margin-top:50px; padding-top:24px; color:var(--muted); font-size:0.88rem; text-align:center;}
+.divider{height:1px; background:var(--border); margin:44px 0 0;}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="inner">
+    <a class="back" href="/training/">← All guides</a>
+    <span class="eyebrow">Training Guide</span>
+    <h1>The DFL Merch App — Field Guide</h1>
+    <p>For merchandisers and team leaders: how to log a store visit, count stock, and everything the app tracks along the way.</p>
+  </div>
+</div>
+
+<nav class="quicknav">
+  <div class="row">
+    <a href="#start">Getting started</a>
+    <a href="#home">Home</a>
+    <a href="#visit">Logging a visit</a>
+    <a href="#stock">Stock features</a>
+    <a href="#voice">Voice notes</a>
+    <a href="#offline">Offline &amp; GPS</a>
+    <a href="#tl">Team leaders</a>
+    <a href="#faq">FAQ</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<section id="start">
+  <div class="section-head"><span class="section-num">00</span><h2>Getting started</h2></div>
+  <p class="section-sub">Sign in with your phone — no separate app to install first.</p>
+  <div class="card">
+    <p>Go to <code>dflhq.com</code>, enter your phone number, and type in the SMS code you receive. First time signing in? Your account is created automatically — a team leader or admin may need to approve it before you see your stores.</p>
+    <div class="tabpills">
+      <span class="tabpill active">Home</span>
+      <span class="tabpill">Visit</span>
+      <span class="tabpill">Stock</span>
+      <span class="tabpill">My Stores</span>
+      <span class="tabpill">My Week</span>
+    </div>
+    <p class="section-sub" style="margin:0;">Merchandisers get these five tabs along the bottom. Team leaders land straight on a team dashboard instead — see <a href="#tl">Team Leaders</a>.</p>
+  </div>
+</section>
+
+<section id="home">
+  <div class="section-head"><span class="section-num">01</span><h2>Home</h2></div>
+  <div class="card">
+    <h3>Two big buttons</h3>
+    <p><b>Log a Visit</b> starts the visit wizard (below). <b>My Stores</b> takes you to your assigned store list.</p>
+    <h3 style="margin-top:18px;">Below that</h3>
+    <ul class="ref">
+      <li><b>Report OOS</b> — flag specific products as out of stock, without needing an active visit.</li>
+      <li><b>My stock counts</b> — jump into the full stock count tool for any store.</li>
+      <li><b>Quarterly Evaluation</b> — hidden if you're a relief merchandiser covering someone else's route.</li>
+      <li>A <b>Today's visits</b> feed — tap <b>Continue visit →</b> to resume one you started but didn't finish.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>The two status dots</h3>
+    <div class="chiprow">
+      <span class="chip good"><span class="dot"></span>Location locked</span>
+      <span class="chip warn"><span class="dot"></span>Getting a fix</span>
+      <span class="chip bad"><span class="dot"></span>Location unavailable</span>
+    </div>
+    <div class="chiprow">
+      <span class="chip good"><span class="dot"></span>Online</span>
+      <span class="chip bad"><span class="dot"></span>Offline</span>
+    </div>
+    <p class="section-sub" style="margin:10px 0 0;">Neither one blocks you from working — see <a href="#offline">Offline &amp; GPS</a>.</p>
+  </div>
+</section>
+
+<section id="visit">
+  <div class="section-head"><span class="section-num">02</span><h2>Logging a store visit</h2></div>
+  <p class="section-sub">Four stages, always in this order: <b>Log visit → Stock → Pictures → Close out</b>. You can leave and come back — reopening a visit resumes exactly where you stopped.</p>
+
+  <div class="card">
+    <div class="stepper">
+      <div class="stepnode">
+        <div class="rail"><div class="num">1</div><div class="line"></div></div>
+        <div class="stepbody">
+          <h3>Log visit <span class="req required">arrival</span></h3>
+          <p>Search and select your store from your assigned list, then tap <code>Log visit — I've arrived →</code>. This captures your GPS location and the time.</p>
+          <p class="muted">Don't see your store? It isn't assigned to you yet — tell your team leader.</p>
+        </div>
+      </div>
+      <div class="stepnode">
+        <div class="rail"><div class="num">2</div><div class="line"></div></div>
+        <div class="stepbody">
+          <h3>Stock <span class="req optional">optional</span></h3>
+          <p>A grid of about 13 product categories. Tap a tile to cycle it: off → <b>stocked</b> (green) → <b>out of stock</b> → off. This is a fast shelf check, separate from the full stock count tool.</p>
+          <p class="muted">Want exact quantities instead? Tap the "Stock count" row to open the full tool — see <a href="#stock">Stock features</a>. Either way, <code>Next: Pictures →</code> always works.</p>
+        </div>
+      </div>
+      <div class="stepnode">
+        <div class="rail"><div class="num">3</div><div class="line"></div></div>
+        <div class="stepbody">
+          <h3>Pictures <span class="req required">3–5 photos</span></h3>
+          <p>Opens your phone's camera directly — you can't pick from your gallery, so old photos won't work. Take at least 3 shelf photos (up to 5); each shows a <code>✓ Saved</code> once uploaded. Tap the × on a thumbnail to retake one.</p>
+          <p class="muted"><code>Next: Close out →</code> stays greyed out until you have 3.</p>
+        </div>
+      </div>
+      <div class="stepnode">
+        <div class="rail"><div class="num">4</div></div>
+        <div class="stepbody">
+          <h3>Close out <span class="req required">departure</span></h3>
+          <p>Choose an outcome — <b>✓ All good</b>, <b>⚠ Issues</b>, or <b>↩ Follow-up</b> — add optional notes (typed or spoken, see <a href="#voice">Voice notes</a>), then tap <code>Close out — leaving store →</code>. This is the step that actually finishes the visit.</p>
+        </div>
+      </div>
+    </div>
+    <div class="callout watch"><span class="tag">Watch out</span><span>Best practice: take your photos <b>on the way out</b>, once the shelf reflects the visit you just did.</span></div>
+  </div>
+</section>
+
+<section id="stock">
+  <div class="section-head"><span class="section-num">03</span><h2>The three "stock" features</h2></div>
+  <p class="section-sub">Three different tools share the word "stock" — here's how to tell them apart.</p>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Feature</th><th>Where you find it</th><th>What it's for</th><th>Required?</th></tr>
+      <tr>
+        <td><b>Category tiles</b></td>
+        <td>Stage 2 of a visit</td>
+        <td>Fast shelf-presence check, by category</td>
+        <td>Optional</td>
+      </tr>
+      <tr>
+        <td><b>Stock Count tool</b></td>
+        <td>Stage 2's "Stock count" row, Home's "My stock counts", or My Week</td>
+        <td>Exact quantity per SKU, with a suggested reorder</td>
+        <td>Optional, any time that day</td>
+      </tr>
+      <tr>
+        <td><b>Report OOS</b></td>
+        <td>Stock tab</td>
+        <td>Flag specific named products as out-of-stock or damaged</td>
+        <td>Standalone — no visit needed</td>
+      </tr>
+    </table>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h3>Using the Stock Count tool</h3>
+    <p>Opens a sheet of that store's real SKUs, grouped into category tabs with a search box. Each line shows the last purchase date, quantity, and average, plus an urgency color, and two boxes: <b>Stock in storeroom</b> and an auto-suggested <b>reorder</b> quantity you can adjust. You don't have to fill in every SKU — save covers whatever you counted.</p>
+  </div>
+</section>
+
+<section id="voice">
+  <div class="section-head"><span class="section-num">04</span><h2>Voice notes</h2></div>
+  <div class="card">
+    <p>Tap the 🎤 on any Notes field to speak instead of type — it turns red/⏹ while listening and transcribes live. The result is labeled <b>"Voice transcript — RAW"</b>: it's your exact words, not an AI-cleaned summary — that part of the feature isn't switched on yet. Tap <b>Use this</b> to keep it, or <b>Dismiss</b> to throw it away and try again.</p>
+  </div>
+</section>
+
+<section id="offline">
+  <div class="section-head"><span class="section-num">05</span><h2>Offline &amp; GPS</h2></div>
+  <div class="card">
+    <ul class="ref">
+      <li>No signal when you tap "I've arrived"? The visit queues on your phone with an amber <code>⏳ N unsynced</code> badge, and syncs automatically once you're back online — or tap it to sync manually.</li>
+      <li>GPS failing to lock doesn't stop you from logging a visit — it just proceeds without coordinates.</li>
+      <li>Store search only shows stores assigned to you. If one's missing, that's a roster issue, not a search problem — flag it to your team leader.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Progress bars &amp; percentages</h3>
+    <p>The same green/amber/red scale appears everywhere progress shows up — My Stores, the team roster, evaluations:</p>
+    <div class="chiprow">
+      <span class="chip good"><span class="dot"></span>80% or above</span>
+      <span class="chip warn"><span class="dot"></span>50–79%</span>
+      <span class="chip bad"><span class="dot"></span>Below 50%</span>
+    </div>
+  </div>
+</section>
+
+<section id="tl">
+  <div class="section-head"><span class="section-num">06</span><h2>For team leaders</h2></div>
+  <div class="card">
+    <p>You land on a single dashboard instead of the tab bar: team stats, a <b>Store Audit</b> tool (rate shelf cleanliness, presence, facing, rotation, pricing and POS on a 1–5 star scale — it rolls up into an overall %), a <b>Today's activity</b> feed with a Today / This week toggle showing each merchandiser's progress trail (<code>📍 arrival → 📦 Stock → 📷 Photos → 🚪 Close out</code>) plus who hasn't started yet, and a roster of progress cards.</p>
+  </div>
+  <div class="card">
+    <h3>Viewing a merchandiser's app</h3>
+    <p>Tap anyone on your roster to open their app exactly as they see it — a yellow <b>"Viewing as [Name] · read-only"</b> bar appears, and every Log/Submit/Close-out button is disabled. Nothing you do there gets recorded under their name — it's for coaching, not editing. Tap <b>Exit</b> to return to your own dashboard.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="faq">
+  <div class="section-head"><span class="section-num">FAQ</span><h2>Common questions</h2></div>
+  <details>
+    <summary>Why can't I find my store?</summary>
+    <p>Store lists are assignment-based — search only shows stores on your route. If it's missing, ask your team leader to check your assignments.</p>
+  </details>
+  <details>
+    <summary>"Next: Close out" won't light up</summary>
+    <p>You need at least 3 shelf photos taken with the in-app camera before you can move on.</p>
+  </details>
+  <details>
+    <summary>My visit shows "unsynced" — did it save?</summary>
+    <p>Yes — it's queued on your device and will sync automatically once you're back online. You can also tap it to sync right away.</p>
+  </details>
+  <details>
+    <summary>Do I need to fill in Stock (Stage 2) to finish a visit?</summary>
+    <p>No — Stock is optional. Pictures (Stage 3) is the only stage that's required before you can close out.</p>
+  </details>
+  <details>
+    <summary>I didn't get my SMS code</summary>
+    <p>Double-check your number and wait a minute for delivery. Still nothing? Tell your team leader or an admin — it's usually a carrier issue, not your device.</p>
+  </details>
+</section>
+
+<footer>
+  Need help beyond this guide? Ask your team leader — or an admin for sign-in and account access issues.
+</footer>
+
+</div>
+</body>
+</html>
