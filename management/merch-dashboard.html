@@ -1312,7 +1312,7 @@ function periodBounds(period){
 async function loadVisits(){
   const {start, end} = periodBounds(currentPeriod);
   try {
-    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,outcome,visit_type,latitude,longitude,geo_accuracy,notes,oos_skus,shelf_photo_urls,cat_household,cat_garbage,cat_foil,cat_processing,cat_paper,cat_plastic,cat_ecocup,cat_foodsup,cat_ecobox,cat_beverages,cat_clearpack,cat_ecobag,cat_ecostraw&order=visit_date.desc,clock_in.desc&limit=5000`);
+    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,clock_out,outcome,visit_type,latitude,longitude,geo_accuracy,notes,oos_skus,shelf_photo_urls,cat_household,cat_garbage,cat_foil,cat_processing,cat_paper,cat_plastic,cat_ecocup,cat_foodsup,cat_ecobox,cat_beverages,cat_clearpack,cat_ecobag,cat_ecostraw&order=visit_date.desc,clock_in.desc&limit=5000`);
   } catch(e) {
     toast('Visit log load failed: '+e.message, 'error');
     visitRows = [];
@@ -1393,6 +1393,12 @@ const VD_CATS = [
   ['cat_ecostraw','es','Ecostraw']
 ];
 
+function formatVisitDuration(clockIn, clockOut){
+  const mins = Math.max(0, Math.round((new Date(clockOut) - new Date(clockIn)) / 60000));
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
+
 function openVisitDetail(id){
   const r = (visitRows||[]).find(v=>String(v.id)===String(id));
   if(!r) return;
@@ -1406,9 +1412,11 @@ function openVisitDetail(id){
   const loc = (r.latitude!=null&&r.longitude!=null)
     ? `<a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--accent)">${r.latitude.toFixed(5)}, ${r.longitude.toFixed(5)}${r.geo_accuracy?' (±'+Math.round(r.geo_accuracy)+'m)':''}</a>`
     : '<span style="color:var(--muted)">Not captured</span>';
+  const hoursLbl = r.clock_in && r.clock_out ? formatVisitDuration(r.clock_in, r.clock_out) : '<span style="color:var(--muted)">In progress</span>';
   document.getElementById('vd-meta').innerHTML = `
     <div class="vd-item"><b>Outcome</b>${outcomeLbl}</div>
     <div class="vd-item"><b>Visit Type</b>${typeLbl}</div>
+    <div class="vd-item"><b>Hours Logged</b>${hoursLbl}</div>
     <div class="vd-item"><b>Location</b>${loc}</div>
   `;
 

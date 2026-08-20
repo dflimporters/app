@@ -72,12 +72,12 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
 .breadcrumb .crumb.current{color:var(--text);cursor:default;text-decoration:none;}
 .breadcrumb .sep{color:var(--text-soft);}
 
-.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--sh);}
+.table-wrap{overflow:auto;max-height:calc(100vh - 260px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--sh);}
 table.budget-table{width:100%;border-collapse:collapse;font-size:13px;}
-.budget-table thead th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;z-index:1;}
-.budget-table thead th:first-child{text-align:left;}
+.budget-table thead th{position:sticky;top:0;background:var(--navy2);color:#fff;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:11px 16px;text-align:right;white-space:nowrap;z-index:2;}
+.budget-table thead th:first-child{text-align:left;left:0;z-index:3;}
 .budget-table tbody td{padding:9px 16px;border-bottom:1px solid var(--border-soft);text-align:right;white-space:nowrap;color:var(--text);}
-.budget-table tbody td:first-child{text-align:left;font-weight:600;}
+.budget-table tbody td:first-child{text-align:left;font-weight:600;position:sticky;left:0;z-index:1;background:var(--surface);}
 .budget-table tbody tr.grp-row td:first-child{cursor:pointer;}
 .budget-table tbody tr.grp-row:hover td{background:var(--surface-alt);}
 .budget-table tbody tr.grp-row:hover td:first-child{color:var(--blue);}
@@ -86,8 +86,8 @@ table.budget-table{width:100%;border-collapse:collapse;font-size:13px;}
 .budget-table tbody tr.sub-row td:first-child{padding-left:38px;cursor:default;font-weight:500;}
 .budget-table tbody tr.sub-row td:first-child::before{content:'\2514\2500 ';color:var(--text-soft);}
 .expand-caret{display:inline-block;width:16px;text-align:center;margin-right:2px;color:var(--text-soft);cursor:pointer;user-select:none;font-size:10px;}
-.budget-table tfoot td{padding:12px 16px;font-weight:800;background:var(--surface-alt);border-top:2px solid var(--border);text-align:right;color:var(--text);}
-.budget-table tfoot td:first-child{text-align:left;}
+.budget-table tfoot td{padding:12px 16px;font-weight:800;background:var(--surface-alt);border-top:2px solid var(--border);text-align:right;color:var(--text);position:sticky;bottom:0;}
+.budget-table tfoot td:first-child{text-align:left;left:0;z-index:1;}
 .table-empty{padding:48px 16px;text-align:center;color:var(--text-soft);font-size:13px;}
 .table-error{padding:48px 16px;text-align:center;color:#D63B3B;font-size:13px;}
 
@@ -306,6 +306,10 @@ window.DFL_PAGE_TITLE = 'Budget Explorer';
     if (state.timeView === 'monthly') {
       return Array.from({ length: 12 }, (_, i) => ({ label: MONTH_ABBR[i], months: [i + 1] }));
     }
+    if (state.timeView === 'current') {
+      const cm = new Date().getMonth() + 1;
+      return [{ label: MONTH_ABBR[cm - 1], months: [cm] }];
+    }
     if (state.timeView === 'quarterly') {
       return [
         { label: 'Q1', months: [1, 2, 3] },
@@ -405,7 +409,7 @@ window.DFL_PAGE_TITLE = 'Budget Explorer';
   function renderTimeToggle() {
     const el = document.getElementById('timeToggle');
     el.innerHTML = '';
-    [['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['ytd', 'YTD'], ['full', 'Full Year']].forEach(([key, label]) => {
+    [['monthly', 'Monthly'], ['current', 'Current Month'], ['quarterly', 'Quarterly'], ['ytd', 'YTD'], ['full', 'Full Year']].forEach(([key, label]) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'time-tab' + (state.timeView === key ? ' active' : '');

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Training Guides</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
+<style>
+  :root{
+    --navy:#0f2044; --navy-2:#1a3260; --blue:#2563eb; --blue-bg:#eff6ff;
+    --bg:#f0f4f8; --surface:#ffffff; --text:#1e293b; --muted:#64748b; --border:#e2e8f0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif; display:flex; align-items:center; justify-content:center;
+    padding:32px 16px;
+  }
+  .wrap{max-width:640px; width:100%;}
+  h1{font-size:clamp(1.5rem,5vw,2rem); color:var(--navy); margin:0 0 8px; text-wrap:balance;}
+  p.lede{color:var(--muted); margin:0 0 28px; font-size:1.02rem;}
+  .cards{display:flex; flex-direction:column; gap:14px;}
+  a.card{
+    display:flex; align-items:center; gap:16px; text-decoration:none; color:var(--text);
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:20px 22px; box-shadow:0 1px 2px rgba(15,32,68,0.05), 0 8px 20px -12px rgba(15,32,68,0.15);
+    transition:border-color 0.15s ease, transform 0.15s ease;
+  }
+  a.card:hover{border-color:var(--blue); transform:translateY(-1px);}
+  a.card .emoji{font-size:1.8rem; flex:none;}
+  a.card .label{flex:1;}
+  a.card .label b{display:block; font-size:1.08rem; color:var(--navy);}
+  a.card .label span{display:block; color:var(--muted); font-size:0.9rem; margin-top:2px;}
+  a.card .arrow{color:var(--blue); font-size:1.2rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DFL Training Guides</h1>
+  <p class="lede">Quick-reference guides for the apps you use every day.</p>
+  <div class="cards">
+    <a class="card" href="/training/my-numbers-guide.html">
+      <span class="emoji">📈</span>
+      <span class="label"><b>My Numbers</b><span>For reps — dashboard, customers, weekly plan</span></span>
+      <span class="arrow">→</span>
+    </a>
+    <a class="card" href="/training/merch-field-guide.html">
+      <span class="emoji">🛒</span>
+      <span class="label"><b>Merch Field Guide</b><span>For merchandisers &amp; team leaders — store visits, stock, photos</span></span>
+      <span class="arrow">→</span>
+    </a>
+  </div>
+</div>
+</body>
+</html>

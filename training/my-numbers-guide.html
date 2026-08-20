@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Numbers Guide — DFL Training</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --navy:#0D1B3E; --navy-2:#16295c;
+  --gold:#B8862F; --gold-soft:#f2e6c9;
+  --bg:#f5f6fb; --surface:#ffffff; --surface-2:#eef0f8;
+  --text:#1b2340; --muted:#5b6485; --border:#e3e6f0;
+  --good:#1f9d55; --warn:#c9860f; --bad:#c8443a;
+  --good-bg:#e8f7ee; --warn-bg:#fbf0dc; --bad-bg:#fbe9e7;
+  --shadow: 0 1px 2px rgba(13,27,62,0.06), 0 8px 24px -12px rgba(13,27,62,0.18);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Open Sans',system-ui,sans-serif;
+  font-size:16px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'Montserrat',system-ui,sans-serif; text-wrap:balance; color:var(--text); margin:0;}
+code, .kbd{
+  font-family:'JetBrains Mono',monospace; font-size:0.82em;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:5px;
+  padding:0.1em 0.45em; color:var(--navy);
+}
+a{color:var(--navy);}
+.wrap{max-width:760px; margin:0 auto; padding:0 20px 80px;}
+.masthead{
+  background:linear-gradient(155deg,var(--navy),var(--navy-2));
+  color:#fff; padding:36px 20px 28px;
+}
+.masthead .inner{max-width:760px; margin:0 auto;}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:'JetBrains Mono',monospace; font-size:0.72rem; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--gold); background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.18); padding:4px 10px; border-radius:100px;
+  margin-bottom:14px;
+}
+.masthead h1{font-size:clamp(1.7rem,5vw,2.3rem); font-weight:800; color:#fff;}
+.masthead p{margin:10px 0 0; color:#c7cde6; max-width:52ch; font-size:1.02rem;}
+.masthead .back{display:inline-block; margin-bottom:16px; color:#c7cde6; font-size:0.9rem; text-decoration:none;}
+.masthead .back:hover{color:#fff;}
+.quicknav{
+  position:sticky; top:0; z-index:20; background:var(--surface);
+  border-bottom:1px solid var(--border); box-shadow:var(--shadow);
+}
+.quicknav .row{
+  max-width:760px; margin:0 auto; display:flex; gap:8px; overflow-x:auto;
+  padding:10px 20px; scrollbar-width:none;
+}
+.quicknav .row::-webkit-scrollbar{display:none;}
+.quicknav a{
+  flex:none; text-decoration:none; font-size:0.86rem; font-weight:600;
+  color:var(--text); background:var(--surface-2); border:1px solid var(--border);
+  padding:7px 13px; border-radius:100px; white-space:nowrap;
+}
+.quicknav a:hover{border-color:var(--gold); color:var(--navy);}
+section{padding-top:44px;}
+section:first-of-type{padding-top:36px;}
+.section-head{display:flex; align-items:baseline; gap:12px; margin-bottom:6px;}
+.section-num{font-family:'JetBrains Mono',monospace; color:var(--gold); font-weight:600; font-size:0.95rem;}
+.section-head h2{font-size:1.4rem;}
+.section-sub{color:var(--muted); margin:6px 0 20px; max-width:60ch;}
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:20px 22px; box-shadow:var(--shadow); margin-bottom:16px;
+}
+.card h3{font-size:1.02rem; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px;}
+.steps li{display:flex; gap:14px; align-items:flex-start;}
+.step-badge{
+  flex:none; width:28px; height:28px; border-radius:50%;
+  background:var(--navy); color:#fff; font-family:'JetBrains Mono',monospace;
+  font-weight:600; font-size:0.85rem; display:flex; align-items:center; justify-content:center;
+}
+.step-text b{color:var(--text);}
+.step-text{color:var(--text); padding-top:3px;}
+.step-text .muted{color:var(--muted); display:block; font-size:0.92rem; margin-top:2px;}
+ul.ref{margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:10px;}
+ul.ref li{padding-left:18px; position:relative;}
+ul.ref li::before{content:"›"; position:absolute; left:0; color:var(--gold); font-weight:700;}
+.callout{
+  border-radius:12px; padding:14px 16px; margin:16px 0; font-size:0.94rem;
+  display:flex; gap:10px; align-items:flex-start; border:1px solid transparent;
+}
+.callout .tag{font-weight:700; flex:none;}
+.callout.tip{background:var(--surface-2); border-color:var(--border);}
+.callout.tip .tag{color:var(--navy);}
+.callout.watch{background:var(--warn-bg);}
+.callout.watch .tag{color:var(--warn);}
+.chiprow{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 4px;}
+.chip{
+  display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600;
+  padding:5px 12px; border-radius:100px; border:1px solid var(--border);
+}
+.chip .dot{width:8px; height:8px; border-radius:50%;}
+.chip.good{background:var(--good-bg); color:var(--good);} .chip.good .dot{background:var(--good);}
+.chip.warn{background:var(--warn-bg); color:var(--warn);} .chip.warn .dot{background:var(--warn);}
+.chip.bad{background:var(--bad-bg); color:var(--bad);} .chip.bad .dot{background:var(--bad);}
+.tabpills{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 24px;}
+.tabpill{
+  font-family:'JetBrains Mono',monospace; font-size:0.8rem; font-weight:500;
+  padding:7px 14px; border-radius:9px; border:1px solid var(--border); color:var(--muted);
+  background:var(--surface);
+}
+.tabpill.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+details{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:14px 18px; margin-bottom:10px;
+}
+details summary{font-weight:700; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+"; font-size:1.3rem; color:var(--gold); font-weight:400;}
+details[open] summary::after{content:"–";}
+details p{margin:10px 0 0; color:var(--muted);}
+footer{border-top:1px solid var(--border); margin-top:50px; padding-top:24px; color:var(--muted); font-size:0.88rem; text-align:center;}
+.divider{height:1px; background:var(--border); margin:44px 0 0;}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="inner">
+    <a class="back" href="/training/">← All guides</a>
+    <span class="eyebrow">Training Guide</span>
+    <h1>My Numbers — the DFL rep app</h1>
+    <p>Everything you need to run your territory from your phone: your numbers, your accounts, your weekly plan, and current specials.</p>
+  </div>
+</div>
+
+<nav class="quicknav">
+  <div class="row">
+    <a href="#start">Getting started</a>
+    <a href="#numbers">My Numbers</a>
+    <a href="#customers">Customers</a>
+    <a href="#precall">Pre-call brief</a>
+    <a href="#plan">Weekly Plan</a>
+    <a href="#more">More</a>
+    <a href="#admin">Admin</a>
+    <a href="#faq">FAQ</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<section id="start">
+  <div class="section-head"><span class="section-num">00</span><h2>Getting started</h2></div>
+  <p class="section-sub">One app, one login, works on your phone browser — no app store needed.</p>
+  <div class="card">
+    <ol class="steps">
+      <li><span class="step-badge">1</span><span class="step-text">Go to <code>dflhq.com</code> on your phone or computer.</span></li>
+      <li><span class="step-badge">2</span><span class="step-text">Sign in one of two ways: <b>Microsoft sign-in</b> if you have a DFL email, or <b>phone number + text code</b> for everyone else.<span class="muted">Enter your number → you'll get an SMS code → type it in → you're in.</span></span></li>
+      <li><span class="step-badge">3</span><span class="step-text">You'll land on <b>My Numbers</b>, your home screen, with five tabs along the bottom.</span></li>
+    </ol>
+    <div class="tabpills">
+      <span class="tabpill active">My Numbers</span>
+      <span class="tabpill">Customers</span>
+      <span class="tabpill">Weekly Plan</span>
+      <span class="tabpill">More</span>
+      <span class="tabpill">Admin — managers only</span>
+    </div>
+    <div class="callout tip"><span class="tag">Tip</span><span>Open the profile circle top-right → <b>Install app</b> to add a proper icon to your home screen — it then opens full-screen like any other app.</span></div>
+  </div>
+</section>
+
+<section id="numbers">
+  <div class="section-head"><span class="section-num">01</span><h2>My Numbers</h2></div>
+  <p class="section-sub">Your home tab — how you're tracking against target this month, at a glance.</p>
+
+  <div class="card">
+    <h3>The top card: are you on pace?</h3>
+    <p>Shows your month-to-date sales against your target, with a percentage and a progress bar. A small tick mark on the bar shows <b>where you should be</b> based on how many selling days have passed — the text next to it says something like "Should be at 62%".</p>
+    <div class="chiprow">
+      <span class="chip good"><span class="dot"></span>On or ahead of pace</span>
+      <span class="chip warn"><span class="dot"></span>A little behind</span>
+      <span class="chip bad"><span class="dot"></span>Well behind — needs attention</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>My Orders</h3>
+    <p>Total orders and value for the month, then five tiles: <b>Open, Shipping, On Hold, Back Order, Credit Notes</b>. Tap any tile with a number on it to see that list — toggle between biggest-value-first and oldest-first.</p>
+  </div>
+
+  <div class="card">
+    <h3>Biggest gaps to close</h3>
+    <p>Your three most-behind customers, ready to tap straight into their pre-call brief. Tap <b>View all →</b> to see everyone in the Customers tab.</p>
+    <div class="callout tip"><span class="tag">Tip</span><span>Check the "Updated" line at the bottom of the screen to see how fresh the numbers are, and pull down on the page to refresh.</span></div>
+  </div>
+</section>
+
+<section id="customers">
+  <div class="section-head"><span class="section-num">02</span><h2>Customers</h2></div>
+  <p class="section-sub">Search any account, or work down a prioritized list.</p>
+  <div class="card">
+    <h3>Three ways to sort</h3>
+    <ul class="ref">
+      <li><b>Biggest gap</b> — furthest below their monthly budget first.</li>
+      <li><b>Top sales</b> — your best accounts this month.</li>
+      <li><b>No order yet</b> — budgeted accounts with $0 in sales so far — treat this as your call list.</li>
+    </ul>
+    <div class="callout watch"><span class="tag">Watch out</span><span>An account with no budget set won't show a gap — it just says <code>no budget</code> instead of a dollar figure. That's not a bug.</span></div>
+  </div>
+</section>
+
+<section id="precall">
+  <div class="section-head"><span class="section-num">03</span><h2>Customer detail — your pre-call brief</h2></div>
+  <p class="section-sub">Tap any customer to open this before or during a visit — everything you need to sell in one screen.</p>
+
+  <div class="card">
+    <h3>When are they due?</h3>
+    <p>Last order date, their average days between orders, and a calculated "next due" date.</p>
+    <div class="chiprow">
+      <span class="chip warn"><span class="dot"></span>Due within 3 days</span>
+      <span class="chip bad"><span class="dot"></span>Overdue</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Merch activity</h3>
+    <p>Last merchandiser visit and outcome, plus the last stock count — tap it to open a full sheet of every SKU counted, with quantities and suggested reorders. If anything was flagged out-of-stock, you'll see a red warning line listing it.</p>
+    <div class="chiprow">
+      <span class="chip good"><span class="dot"></span>✓ Good</span>
+      <span class="chip warn"><span class="dot"></span>⚠ Issue</span>
+      <span class="chip bad"><span class="dot"></span>↩ Follow-up</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Budget, gaps, and opportunities</h3>
+    <ul class="ref">
+      <li>Toggle <b>YTD / MTD</b> to switch the whole card between year-to-date and this month.</li>
+      <li><b>Category gaps</b> — categories they haven't bought from in the longest.</li>
+      <li><b>Replenishment due</b> and <b>Key SKU opportunities</b> — items overdue or never bought. This is your talking list for the visit.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="plan">
+  <div class="section-head"><span class="section-num">04</span><h2>Weekly Plan</h2></div>
+  <p class="section-sub">Submit every Friday for the coming week — 4 short steps.</p>
+  <div class="card">
+    <ol class="steps">
+      <li><span class="step-badge">1</span><span class="step-text"><b>Who Are You?</b> — pick your name and which week (This week / Next week / Week after).</span></li>
+      <li><span class="step-badge">2</span><span class="step-text"><b>This Week's Commitment</b> — type your $ sales goal.</span></li>
+      <li><span class="step-badge">3</span><span class="step-text"><b>Day-by-Day Coverage</b> — for each day, pick your zones and key stores from a searchable list. Can't find one? Use <b>+ Add a zone/store not on the list</b>.</span></li>
+      <li><span class="step-badge">4</span><span class="step-text"><b>Anything to Flag</b> — optional notes on pricing issues, competitor activity, etc.</span></li>
+    </ol>
+    <div class="callout watch"><span class="tag">Watch out</span><span><b>Submit</b> stays disabled until your name is picked and every day has at least one zone — missing fields outline in red.</span></div>
+    <p>Submitting again for the same week just updates your plan — it won't create a duplicate.</p>
+  </div>
+  <div class="card">
+    <h3>After you submit</h3>
+    <ul class="ref">
+      <li><b>Generate Store Briefs</b> — makes downloadable PDF pre-call briefs per day/store.</li>
+      <li><b>Share on WhatsApp</b> and <b>Download</b> (image of your summary).</li>
+      <li><b>Submit Another</b> to log a different week.</li>
+    </ul>
+    <div class="callout watch"><span class="tag">Watch out</span><span>No signal when you hit submit? The button turns red and says <code>Failed — tap to retry</code>. Just tap it again once you're back online.</span></div>
+  </div>
+</section>
+
+<section id="more">
+  <div class="section-head"><span class="section-num">05</span><h2>More</h2></div>
+  <p class="section-sub">Currently just one card — more will land here over time.</p>
+  <div class="card">
+    <h3>Specials &amp; Flyers</h3>
+    <p>Filter by All / Specials / Flyers and by category. Tap any card for a full-size view with <b>Share</b> and <b>Download</b> buttons. Expired specials disappear on their own; flyers stay up.</p>
+    <p class="section-sub" style="margin:8px 0 0;">Managers additionally see an <b>Upload Specials</b> card here.</p>
+  </div>
+</section>
+
+<section id="admin">
+  <div class="section-head"><span class="section-num">06</span><h2>Admin <span style="color:var(--muted); font-weight:400; font-size:0.9rem;">— managers only</span></h2></div>
+  <div class="card">
+    <p>Team leaderboard with MTD revenue vs target per rep, sortable by attainment, biggest gap, or top sales. Tap a rep's row to <b>view as</b> them and see their exact My Numbers / Weekly Plan — an <b>Exit</b> banner takes you back to your own view.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<section id="faq">
+  <div class="section-head"><span class="section-num">FAQ</span><h2>Common questions</h2></div>
+  <details>
+    <summary>My numbers look stale — is something broken?</summary>
+    <p>Check the "Updated" timestamp at the bottom of My Numbers, then pull down on the page to refresh. Data only updates when the page loads.</p>
+  </details>
+  <details>
+    <summary>I can't find a customer</summary>
+    <p>Double-check the spelling or try their customer ID. If it's still not there, that account likely isn't assigned to you — check with your sales manager.</p>
+  </details>
+  <details>
+    <summary>Why won't Submit light up on the Weekly Plan?</summary>
+    <p>You're missing your name, or a day with no zone selected — look for anything outlined in red.</p>
+  </details>
+  <details>
+    <summary>I never got my SMS code</summary>
+    <p>Double-check the number you entered and wait a minute — delivery can lag. If it still doesn't arrive, let your manager or the DFL admin team know; it's usually a carrier issue, not something wrong with your device.</p>
+  </details>
+  <details>
+    <summary>Where's the sign-out button?</summary>
+    <p>Tap your initials in the top-right circle, then <b>Sign out</b>. It logs you out immediately with no confirmation, so make sure that's what you meant to do.</p>
+  </details>
+</section>
+
+<footer>
+  Need help beyond this guide? Ask your sales manager, or the DFL admin team for login and account issues.
+</footer>
+
+</div>
+</body>
+</html>
