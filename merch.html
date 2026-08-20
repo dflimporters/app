@@ -339,7 +339,7 @@ body.dfl-readonly .readonly-note{display:block}
 .spc-pct{font-size:13px;font-weight:800;min-width:42px;text-align:right}
 .spc-amounts{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
 .spc-amounts strong{color:var(--text);font-weight:700}
-.spc-visit{border-top:1px solid var(--border);padding-top:8px;display:flex;align-items:center;justify-content:flex-end}
+.spc-visit{border-top:1px solid var(--border);padding-top:8px;display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .spc-timebox{background:var(--bg);border-radius:var(--rad-sm);padding:10px 12px;margin-top:2px;border:1px solid var(--border)}
 .spc-timebox-live{border-color:var(--amber);background:var(--amber-lt)}
 .spc-timebox-past{opacity:0.8}
@@ -1198,16 +1198,38 @@ async function searchAllCustomers(q,dropId,prefix,excludeIds){
   _storeSearchTimer=setTimeout(async function(){
     try{
       const drop=document.getElementById(dropId);
-      const eq=encodeURIComponent(q);
-      const rows=await rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit=20');
+      // Match each typed word independently rather than requiring the whole
+      // phrase verbatim — a merchandiser's informal name for a store ("Sheldon
+      // Brown Supermarket") rarely matches its exact Acumatica name ("SHELDON
+      // BROWN") word-for-word, and one extra/missing/reordered word used to
+      // sink the entire search. Results are ranked by how many words hit.
+      const words=q.toLowerCase().split(/\s+/).filter(function(w){return w.length>=2;});
+      const terms=words.length?words:[q];
+      // One request per word, each with its own limit — a common word (a
+      // parish/town name, "supermarket", etc.) can return hundreds of rows
+      // and must not crowd a rarer, more specific word out of a single shared
+      // limit before its own matches ever get fetched.
+      const perTermLimit=terms.length>1?25:100;
+      const results=await Promise.all(terms.map(function(w){
+        const eq=encodeURIComponent(w);
+        return rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit='+perTermLimit).catch(function(){return [];});
+      }));
+      const rows=results.flat();
       const seen={};const unique=[];
       (rows||[]).forEach(function(r){if(!seen[r.customer_id]&&!excluded.has(r.customer_id)){seen[r.customer_id]=true;unique.push(r);}});
+      unique.forEach(function(r){
+        const name=(r.customer_name||'').toLowerCase();
+        const city=(r.city||'').toLowerCase();
+        r._score=terms.reduce(function(n,w){return n+((name.indexOf(w)>-1||city.indexOf(w)>-1)?1:0);},0);
+      });
+      unique.sort(function(a,b){return b._score-a._score || (a.customer_name||'').localeCompare(b.customer_name||'');});
+      const top=unique.slice(0,20);
       // Append below whatever's already there (e.g. a "Your stores" section
       // from the caller) rather than replacing it — both stay reachable at
       // once. Only clear an existing placeholder ("Searching…"/"No match"),
       // never an already-rendered list of real store options.
       if(drop.querySelector('.store-none')) drop.innerHTML='';
-      if(!unique.length){
+      if(!top.length){
         if(!drop.querySelector('.store-opt')) drop.innerHTML='<div class="store-none">No other stores found</div>';
         return;
       }
@@ -1215,7 +1237,7 @@ async function searchAllCustomers(q,dropId,prefix,excludeIds){
       hdr.style.cssText='padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)';
       hdr.textContent='All stores';
       drop.appendChild(hdr);
-      unique.forEach(function(r){
+      top.forEach(function(r){
         const div=document.createElement('div');
         div.className='store-opt';
         div.innerHTML='<div class="so-name">'+r.customer_name+'</div>'+(r.city?'<div class="so-city">'+r.city+'</div>':'');
@@ -2648,6 +2670,15 @@ function closeStockHistory(){
   if(m)m.remove();
 }
 
+function shareHistoryOrder(date){
+  const entry = _historyOrderCache[date];
+  if(!entry || !entry.items.length){ alert('No flagged reorder items for that day.'); return; }
+  const text = buildOrderText(entry.storeName, entry.items, entry.dateLabel);
+  shareTextWhatsApp(text);
+}
+
+let _historyOrderCache = {}; // date -> {storeName, dateLabel, items} for shareHistoryOrder()
+
 async function viewStockHistory(custId,custName){
   try{
     // customer_id only, not filtered to my own name — the latest count at a
@@ -2667,10 +2698,21 @@ async function viewStockHistory(custId,custName){
     html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+custName+'</div></div>';
     html+='<button onclick="closeStockHistory()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
     html+='<div style="flex:1;overflow-y:auto">';
+    _historyOrderCache = {};
     Object.keys(byDate).sort().reverse().forEach(date=>{
       const skus=byDate[date];
       const label=new Date(date).toLocaleDateString('en-JM',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-      html+='<div style="padding:10px 16px;background:#F9FAFB;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">'+label+' · '+skus.length+' SKUs</div>';
+      const flagged=skus.filter(s=>s.suggested_reorder>0);
+      if(flagged.length){
+        _historyOrderCache[date]={storeName:custName, dateLabel:label,
+          items:flagged.map(s=>({description:s.description, item_class:s.item_class, qty:s.suggested_reorder}))};
+      }
+      html+='<div style="padding:10px 16px;background:#F9FAFB;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">';
+      html+='<span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">'+label+' · '+skus.length+' SKUs</span>';
+      if(flagged.length){
+        html+='<button onclick="shareHistoryOrder(\''+date+'\')" style="flex-shrink:0;padding:4px 10px;background:#25D366;border:none;border-radius:6px;font-size:10px;font-weight:700;color:#fff;cursor:pointer">📲 Share order ('+flagged.length+')</button>';
+      }
+      html+='</div>';
       skus.forEach(r=>{
         const reorder=r.suggested_reorder>0?'<span style="background:var(--amber-lt);color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Reorder: '+r.suggested_reorder+'cs</span>':'';
         html+='<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
@@ -2833,6 +2875,7 @@ function renderStores(){
       </div>`:'<div style="font-size:12px;color:var(--muted);padding:4px 0">No target set for this period</div>'}
       ${visitBlock}
       <div class="spc-visit">
+        <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="openSalesInfo(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="background:var(--blue-lt);color:var(--navy);border:1.5px solid var(--navy)">📊 Sales info</button>
         <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="prefillStore(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="${todayVisit&&todayVisit.clock_out?'background:var(--navy)':''}">Log visit</button>
       </div>
     </div>`;
@@ -3547,30 +3590,43 @@ function closeEvaluationTool(){
 // STOCK COUNT FEATURE
 // ══════════════════════════════════════════════
 let skuHistory     = [];   // raw from RPC
+let skuGaps        = [];   // key SKUs never/rarely bought here (raw from RPC, filtered to actual gaps)
 let skuCounts      = {};   // {description: {stock_on_hand, suggested_reorder, notes}}
 let skuActiveCat   = 'ALL';
 let stockCustId    = '';
 let stockCustName  = '';
 let skuSaved       = false;
 
+const GAP_DAYS_THRESHOLD = 45; // key SKU counted as a "gap" if never bought or not bought in this many days
+
 const CAT_LABELS = {
   HOUSEHOLD:'Household', GARBAGEBAG:'Garbagebag', FOIL:'Foil',
   PROCESSING:'Processing', PLSWRAP:'PLSwrap', WIPES:'Wipes',
   PAPER:'Paper', PLASTIC:'Plastic', CLEARPACK:'Clearpack',
   BEVERAGES:'Beverages', FOODSUP:'Food Supp', ECOBOX:'Ecobox',
-  ECOCUP:'Ecocup', ECOSTRAW:'Ecostraw', ALL:'All Categories'
+  ECOCUP:'Ecocup', ECOSTRAW:'Ecostraw', ALL:'All Categories',
+  GAPS:'⚠️ Not Buying'
 };
 
+// Opened either from an in-progress visit (storeSelected already set) or
+// directly from a store card via openSalesInfo() — either way it reads
+// storeSelected, so both entry points share this one loader.
 async function openStockCount(){
   // Get the currently selected store from the visit form
   const cid  = storeSelected && storeSelected.id  ? storeSelected.id  : '';
   const cnm  = storeSelected && storeSelected.name ? storeSelected.name : '';
   if(!cid){ alert('Please select a store first.'); return; }
 
+  // Switching to a different store than whatever was last open — any
+  // unsaved counts/flags belong to that other store, not this one, so they
+  // must not silently ride along into this store's save.
+  if(stockCustId && stockCustId !== cid) skuCounts = {};
+
   stockCustId   = cid;
   stockCustName = cnm;
   skuActiveCat  = 'ALL';
   skuHistory    = [];
+  skuGaps       = [];
   skuSaved      = false;
 
   document.getElementById('stock-store-name').textContent = cnm + ' · loading purchase history…';
@@ -3579,30 +3635,45 @@ async function openStockCount(){
   document.getElementById('stock-modal').style.display = 'flex';
 
   try{
-    skuHistory = await restRpc('get_customer_sku_history', {p_customer_id: cid});
-    if(!skuHistory || !skuHistory.length){
+    const [hist, gaps] = await Promise.all([
+      restRpc('get_customer_sku_history', {p_customer_id: cid}),
+      restRpc('get_customer_key_sku_gaps', {p_customer_id: cid}).catch(function(e){ console.warn('key sku gaps:',e); return []; })
+    ]);
+    skuHistory = hist || [];
+    skuGaps = (gaps||[]).filter(function(g){
+      return g.last_purchased===null || parseInt(g.days_since_last||0,10) > GAP_DAYS_THRESHOLD;
+    });
+
+    if(!skuHistory.length && !skuGaps.length){
       document.getElementById('stock-sku-list').innerHTML =
         '<div style="padding:32px;text-align:center;color:var(--muted)">No purchase history found for this store in the last 12 months.</div>';
       document.getElementById('stock-store-name').textContent = cnm + ' · no history';
       return;
     }
-    // Build category tabs
-    const cats = ['ALL', ...new Set(skuHistory.map(s=>s.item_class).filter(Boolean).sort())];
+    // Build category tabs — a pinned GAPS tab first (if any), then ALL, then per-class tabs
+    const cats = [].concat(
+      skuGaps.length ? ['GAPS'] : [],
+      ['ALL'],
+      Array.from(new Set(skuHistory.map(s=>s.item_class).filter(Boolean))).sort()
+    );
     var tabBar = document.getElementById('stock-cat-tabs');
     tabBar.innerHTML = '';
     cats.forEach(function(cat){
       var btn = document.createElement('button');
       btn.id = 'scat-'+cat;
       btn.dataset.cat = cat;
-      btn.style.cssText = 'flex-shrink:0;padding:8px 14px;font-size:11px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid '+(cat==='ALL'?'var(--red)':'transparent')+';color:'+(cat==='ALL'?'var(--navy)':'var(--muted)');
-      var count = cat==='ALL' ? skuHistory.length : skuHistory.filter(s=>s.item_class===cat).length;
+      var isGaps = cat==='GAPS';
+      var initialActive = cat==='ALL';
+      btn.style.cssText = 'flex-shrink:0;padding:8px 14px;font-size:11px;font-weight:700;border:none;background:none;cursor:pointer;border-bottom:3px solid '+(initialActive?'var(--red)':'transparent')+';color:'+(isGaps?'var(--red)':initialActive?'var(--navy)':'var(--muted)');
+      var count = cat==='ALL' ? skuHistory.length : cat==='GAPS' ? skuGaps.length : skuHistory.filter(s=>s.item_class===cat).length;
       btn.innerHTML = (CAT_LABELS[cat]||cat)+' <span style="font-size:10px;opacity:.6">('+count+')</span>';
       btn.onclick = function(){ setStockCat(this.dataset.cat); };
       tabBar.appendChild(btn);
     });
 
-    document.getElementById('stock-store-name').textContent = cnm + ' · ' + skuHistory.length + ' SKUs · last 12 months';
+    document.getElementById('stock-store-name').textContent = cnm + ' · ' + skuHistory.length + ' SKUs bought' + (skuGaps.length?' · '+skuGaps.length+' key SKUs not bought':'') + ' · last 12 months';
     renderStockSheet();
+    updateStockSaveBtn();
   }catch(e){
     console.error('stock history:', e);
     document.getElementById('stock-sku-list').innerHTML =
@@ -3610,18 +3681,29 @@ async function openStockCount(){
   }
 }
 
+// Entry point from a store card in the My Stores tab — lets a merchandiser
+// look up a store's purchase history/reorder gaps any time, not just while
+// an in-progress visit has the store selected.
+function openSalesInfo(custId, custName){
+  storeSelected = {id: custId, name: custName};
+  openStockCount();
+}
+
 function setStockCat(cat){
   skuActiveCat = cat;
-  // Update tab styles
+  // Update tab styles — the GAPS tab stays red-tinted whether active or not,
+  // so the "not currently buying" warning keeps standing out.
   document.querySelectorAll('[id^="scat-"]').forEach(btn=>{
     const isCat = btn.id === 'scat-'+cat;
+    const isGaps = btn.dataset.cat === 'GAPS';
     btn.style.borderBottomColor = isCat ? 'var(--red)' : 'transparent';
-    btn.style.color = isCat ? 'var(--navy)' : 'var(--muted)';
+    btn.style.color = isGaps ? 'var(--red)' : isCat ? 'var(--navy)' : 'var(--muted)';
   });
   renderStockSheet();
 }
 
 function renderStockSheet(){
+  if(skuActiveCat === 'GAPS'){ renderGapsSheet(); return; }
   const q = (document.getElementById('stock-search').value||'').toLowerCase();
   let list = skuHistory;
   if(skuActiveCat !== 'ALL') list = list.filter(s=>s.item_class === skuActiveCat);
@@ -3710,6 +3792,67 @@ function renderStockSheet(){
   document.getElementById('stock-sku-list').innerHTML = html;
 }
 
+function renderGapsSheet(){
+  const q = (document.getElementById('stock-search').value||'').toLowerCase();
+  let list = skuGaps;
+  if(q) list = list.filter(s=>s.description && s.description.toLowerCase().includes(q));
+
+  if(!list.length){
+    document.getElementById('stock-sku-list').innerHTML =
+      '<div style="padding:32px;text-align:center;color:var(--muted)">No gaps match.</div>';
+    return;
+  }
+
+  let html = '<div style="padding:10px 16px;background:#FEF2F2;border-bottom:1px solid var(--red)">' +
+    '<span style="font-size:11px;color:var(--red);font-weight:700">Key SKUs this store isn\'t currently buying — flag a qty to recommend on the next order.</span></div>';
+
+  list.forEach(function(sku){
+    const cnt = skuCounts[sku.description] || {};
+    const flagged = cnt.suggested_reorder > 0;
+    const lastTxt = sku.last_purchased
+      ? ('Last: '+new Date(sku.last_purchased).toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'})+' ('+sku.days_since_last+'d ago)')
+      : 'NEVER PURCHASED';
+
+    html += '<div style="padding:12px 16px;border-bottom:1px solid var(--border);'+(flagged?'background:#FFFBEB':'')+'">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:13px;font-weight:700;line-height:1.3">'+sku.description+'</div>'+
+          '<div style="display:flex;gap:10px;margin-top:3px;font-size:11px;color:var(--muted)">'+
+            '<span style="color:var(--red);font-weight:700">'+lastTxt+'</span>'+
+            (sku.posting_class?'<span>'+(CAT_LABELS[sku.posting_class]||sku.posting_class)+'</span>':'')+
+          '</div>'+
+        '</div>'+
+        (flagged ? '<div style="background:var(--amber);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:12px;flex-shrink:0">🛒 Flagged</div>' : '')+
+      '</div>'+
+      '<div style="max-width:180px">'+
+        '<label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:3px">Qty to order (cs)</label>'+
+        '<input type="number" min="0" inputmode="numeric" placeholder="0"'+
+          ' data-desc="'+encodeURIComponent(sku.description)+'"'+
+          ' data-cat="'+encodeURIComponent(sku.posting_class||'')+'"'+
+          ' data-inv="'+(sku.inventory_id||'')+'"'+
+          ' class="gap-input-reorder"'+
+          ' value="'+(cnt.suggested_reorder>0?cnt.suggested_reorder:'')+'"'+
+          ' oninput="onGapInput(this)"'+
+          ' style="width:100%;padding:9px 12px;border:1.5px solid var(--amber-lt);border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;background:var(--amber-lt)">'+
+      '</div>'+
+    '</div>';
+  });
+
+  document.getElementById('stock-sku-list').innerHTML = html;
+}
+
+function onGapInput(inp){
+  const desc = decodeURIComponent(inp.dataset.desc);
+  const cat  = decodeURIComponent(inp.dataset.cat||'');
+  const inv  = inp.dataset.inv || '';
+  const val  = inp.value !== '' ? parseFloat(inp.value) : null;
+  if(!skuCounts[desc]) skuCounts[desc] = {};
+  skuCounts[desc].item_class = cat || null;
+  skuCounts[desc].inventory_id = inv || null;
+  skuCounts[desc].suggested_reorder = (val && val>0) ? val : null;
+  updateStockSaveBtn();
+}
+
 function onStockInput(inp){
   const desc = decodeURIComponent(inp.dataset.desc);
   const cat  = decodeURIComponent(inp.dataset.cat||'');
@@ -3741,15 +3884,24 @@ function onReorderInput(inp){
   skuCounts[desc].suggested_reorder = inp.value !== '' ? parseFloat(inp.value) : null;
 }
 
+// A row counts as "actioned" once it has either a storeroom count or a
+// flagged gap-reorder qty — gap rows have no stock_on_hand (nothing on hand
+// to count), so stock_on_hand alone would miss them.
+function isActionedEntry(v){
+  return (v.stock_on_hand !== null && v.stock_on_hand !== undefined) ||
+         (v.suggested_reorder !== null && v.suggested_reorder !== undefined && v.suggested_reorder > 0);
+}
+
 function updateStockSaveBtn(){
-  const counted = Object.values(skuCounts).filter(v=>v.stock_on_hand !== null && v.stock_on_hand !== undefined).length;
+  const counted = Object.values(skuCounts).filter(isActionedEntry).length;
   const btn = document.getElementById('stock-save-btn');
   if(btn) btn.textContent = counted > 0 ? 'Save stock count ('+counted+' SKUs) →' : 'Save stock count →';
+  updateOrderBar();
 }
 
 async function saveStockCount(){
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
-  const counted = Object.entries(skuCounts).filter(([,v])=>v.stock_on_hand !== null && v.stock_on_hand !== undefined);
+  const counted = Object.entries(skuCounts).filter(([,v])=>isActionedEntry(v));
   if(!counted.length){
     closeStockCount();
     return;
@@ -3796,12 +3948,120 @@ function closeStockCount(){
 // Reset stock count state when form is cleared
 const _origResetPhotos = typeof resetPhotos === 'function' ? resetPhotos : null;
 function resetStockCount(){
-  skuHistory=[]; skuCounts={}; skuActiveCat='ALL';
+  skuHistory=[]; skuGaps=[]; skuCounts={}; skuActiveCat='ALL';
   stockCustId=''; stockCustName=''; skuSaved=false;
   const status = document.getElementById('stock-count-status');
   if(status) status.textContent = 'Record storeroom stock after shelves are restocked';
   const row = document.getElementById('stock-count-row');
   if(row){ row.style.borderColor='var(--navy)'; row.style.background='var(--blue-lt)'; }
+}
+
+// ══════════════════════════════════════════════
+// SUGGESTED ORDER — view, download, share via WhatsApp
+// Pulls straight from skuCounts, so it always matches whatever's about to be
+// saved (regular reorder suggestions and flagged "not buying" gaps alike).
+// ══════════════════════════════════════════════
+function getFlaggedOrderItems(){
+  return Object.entries(skuCounts)
+    .filter(function(e){ var v=e[1]; return v.suggested_reorder!==null && v.suggested_reorder!==undefined && v.suggested_reorder>0; })
+    .map(function(e){ return {description:e[0], item_class:e[1].item_class||'', qty:e[1].suggested_reorder}; })
+    .sort(function(a,b){ return (a.item_class||'').localeCompare(b.item_class||'') || a.description.localeCompare(b.description); });
+}
+
+function updateOrderBar(){
+  const bar = document.getElementById('stock-order-bar');
+  const txt = document.getElementById('stock-order-bar-text');
+  if(!bar || !txt) return;
+  const items = getFlaggedOrderItems();
+  if(!items.length){ bar.style.display = 'none'; return; }
+  const totalQty = items.reduce(function(s,it){ return s+it.qty; }, 0);
+  txt.textContent = '📋 '+items.length+' SKU'+(items.length===1?'':'s')+' flagged · '+totalQty+' cs';
+  bar.style.display = 'flex';
+}
+
+function buildOrderText(storeName, items, dateLabel){
+  const lines = items.map(function(it){ return '• '+it.description+' — '+it.qty+' cs'; });
+  const totalQty = items.reduce(function(s,it){ return s+it.qty; }, 0);
+  return '📦 Suggested order — '+storeName+
+    (dateLabel ? '\n'+dateLabel : '') +
+    '\n\n'+lines.join('\n')+
+    '\n\nTotal: '+items.length+' SKU'+(items.length===1?'':'s')+', '+totalQty+' cases';
+}
+
+function shareTextWhatsApp(text){
+  window.open('https://wa.me/?text='+encodeURIComponent(text), '_blank');
+}
+
+function downloadOrderText(storeName, text){
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safe = (storeName||'store').replace(/[^a-z0-9]+/gi,'-').toLowerCase();
+  a.href = url;
+  a.download = 'order-'+safe+'-'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+
+// Current (in-progress, unsaved) order for whichever store's stock-count
+// modal is open — read live from skuCounts, not a snapshot.
+function currentOrderText(){
+  const items = getFlaggedOrderItems();
+  return items.length ? buildOrderText(stockCustName, items) : '';
+}
+function shareCurrentOrderWhatsApp(){
+  const text = currentOrderText();
+  if(!text){ alert('No items flagged for order yet.'); return; }
+  shareTextWhatsApp(text);
+}
+function downloadCurrentOrder(){
+  const text = currentOrderText();
+  if(!text){ alert('No items flagged for order yet.'); return; }
+  downloadOrderText(stockCustName, text);
+}
+// navigator.share puts WhatsApp (if installed) alongside every other share
+// target on the device — offered first since it needs no popup/new tab.
+async function shareCurrentOrderNative(){
+  const text = currentOrderText();
+  if(!text){ alert('No items flagged for order yet.'); return; }
+  if(navigator.share){
+    try{ await navigator.share({text:text}); return; }catch(e){ if(e.name==='AbortError') return; }
+  }
+  shareTextWhatsApp(text);
+}
+
+function closeOrderSummary(){
+  const m = document.getElementById('order-summary-modal');
+  if(m) m.remove();
+}
+
+function openOrderSummary(){
+  const items = getFlaggedOrderItems();
+  if(!items.length){ alert('No items flagged for order yet — enter a suggested reorder qty first.'); return; }
+  const totalQty = items.reduce(function(s,it){ return s+it.qty; }, 0);
+  let html = '<div id="order-summary-modal" style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end">';
+  html += '<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column">';
+  html += '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">';
+  html += '<div><div style="font-size:15px;font-weight:800;color:#fff">📋 Suggested order</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+stockCustName+' · '+items.length+' SKUs · '+totalQty+' cs</div></div>';
+  html += '<button onclick="closeOrderSummary()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  html += '<div style="flex:1;overflow-y:auto">';
+  items.forEach(function(it){
+    html += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">';
+    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+it.description+'</div>';
+    html += '<div style="font-size:10px;color:var(--muted)">'+(CAT_LABELS[it.item_class]||it.item_class||'')+'</div></div>';
+    html += '<div style="font-size:14px;font-weight:800;color:var(--amber);flex-shrink:0">'+it.qty+' cs</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">';
+  html += '<button onclick="downloadCurrentOrder()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)">⬇ Download</button>';
+  html += '<button onclick="shareCurrentOrderWhatsApp()" style="flex:1;padding:12px;background:#25D366;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">📲 WhatsApp</button>';
+  html += '<button onclick="shareCurrentOrderNative()" style="flex:1;padding:12px;background:var(--navy);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">↗ Share</button>';
+  html += '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 </script>
 
@@ -3827,6 +4087,11 @@ function resetStockCount(){
     <!-- SKU list -->
     <div style="flex:1;overflow-y:auto" id="stock-sku-list">
       <div style="padding:32px;text-align:center"><div class="spinner"></div></div>
+    </div>
+    <!-- Suggested order summary — shown once at least one SKU has a reorder qty -->
+    <div id="stock-order-bar" onclick="openOrderSummary()" style="display:none;flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:#FFFBEB;cursor:pointer;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--amber)" id="stock-order-bar-text">📋 0 SKUs flagged</div>
+      <div style="font-size:11px;font-weight:700;color:var(--navy)">View &amp; share →</div>
     </div>
     <!-- Footer actions -->
     <div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:var(--card)">
