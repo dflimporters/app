@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Key Accounts Dashboard — DFL Importers</title>
-<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
-     style rule so there's no flash of restricted data. Reveals immediately when
-     framed, so the management/index.html tab panels still work. -->
-<style>body { visibility: hidden; }</style>
-
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -22,6 +17,9 @@
   --chain-col:#326BD3; --chain-bg:#EEF4FF;
   --key-col:#6D28D9;   --key-bg:#F5F0FF;
   --hosp-col:#0E7490;  --hosp-bg:#E8F7FB;
+  --hostnw-col:#059669;  --hostnw-bg:#ECFDF5;
+  --hostse-col:#B45309;  --hostse-bg:#FEF3C7;
+  --hostusd-col:#6D28D9; --hostusd-bg:#F5F3FF;
   --radius:10px; --shadow:0 1px 4px rgba(26,35,64,0.08);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -29,7 +27,7 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 
 .topbar{background:var(--navy);height:58px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
 .topbar-left{display:flex;align-items:center;gap:14px;}
-.topbar-logo{width:34px;height:34px;border-radius:8px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;color:#fff;font-size:14px;}
+.topbar-logo{width:34px;height:34px;border-radius:8px;background:transparent;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;color:#fff;font-size:14px;}
 .topbar-titles h1{font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;color:#fff;letter-spacing:-0.3px;}
 .topbar-titles p{font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px;}
 .topbar-right{display:flex;align-items:center;gap:16px;}
@@ -59,6 +57,9 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .main-tab.active[data-p="chain"]{background:var(--surface);color:var(--chain-col);border-color:var(--border);border-bottom-color:var(--surface);}
 .main-tab.active[data-p="key"]{background:var(--surface);color:var(--key-col);border-color:var(--border);border-bottom-color:var(--surface);}
 .main-tab.active[data-p="hosp"]{background:var(--surface);color:var(--hosp-col);border-color:var(--border);border-bottom-color:var(--surface);}
+.main-tab.active[data-p="hostnw"]{background:var(--surface);color:var(--hostnw-col);border-color:var(--border);border-bottom-color:var(--surface);}
+.main-tab.active[data-p="hostse"]{background:var(--surface);color:var(--hostse-col);border-color:var(--border);border-bottom-color:var(--surface);}
+.main-tab.active[data-p="hostusd"]{background:var(--surface);color:var(--hostusd-col);border-color:var(--border);border-bottom-color:var(--surface);}
 .tab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 
 .portfolio-panel{display:none;}
@@ -67,7 +68,10 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .kam-card{border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;border:none;box-shadow:var(--shadow-md);}
 .kam-card[data-p="chain"]{background:var(--chain-col);}
 .kam-card[data-p="key"]  {background:var(--key-col);}
-.kam-card[data-p="hosp"] {background:var(--hosp-col);}
+.kam-card[data-p="hosp"]   {background:var(--hosp-col);}
+.kam-card[data-p="hostnw"] {background:var(--hostnw-col);}
+.kam-card[data-p="hostse"] {background:var(--hostse-col);}
+.kam-card[data-p="hostusd"]{background:var(--hostusd-col);}
 .kam-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;flex-shrink:0;background:rgba(255,255,255,0.2);color:#fff;border:2px solid rgba(255,255,255,0.4);}
 .kam-info{flex-shrink:0;min-width:160px;}
 .kam-name{font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:#fff;}
@@ -140,7 +144,27 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .exp-stat:last-child { border-right:none; }
 .exp-stat-lbl { font-size:9px; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; font-family:'Montserrat',sans-serif; white-space:nowrap; }
 .exp-stat-val { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; color:var(--text); margin-top:2px; white-space:nowrap; }
-.footer{text-align:center;padding:16px 24px;font-size:11px;color:var(--text-soft);}
+.pt-stat-clickable { cursor:pointer; border-radius:6px; transition:background 0.15s; }
+.pt-stat-clickable:hover { background:var(--border); }
+
+/* ── STATUS POPUP ── */
+.status-popup-overlay { display:none; position:fixed; inset:0; z-index:3000; background:rgba(13,27,62,0.5); backdrop-filter:blur(3px); align-items:center; justify-content:center; padding:20px; }
+.status-popup-overlay.open { display:flex; }
+.status-popup { background:#fff; border-radius:12px; width:100%; max-width:680px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+.status-popup-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.status-popup-title { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:800; color:var(--text); flex:1; }
+.status-popup-sub { font-size:11px; color:var(--text-soft); margin-top:2px; }
+.status-popup-close { background:var(--border); border:none; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px; color:var(--text-mid); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.status-popup-close:hover { background:var(--border2); }
+.status-popup-body { overflow-y:auto; flex:1; }
+.status-popup-table { width:100%; border-collapse:collapse; }
+.status-popup-table thead th { padding:9px 14px; font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-soft); text-align:left; border-bottom:2px solid var(--border); background:var(--surface-alt); position:sticky; top:0; }
+.status-popup-table thead th.r { text-align:right; }
+.status-popup-table tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; }
+.status-popup-table tbody tr:hover { background:var(--surface-alt); }
+.status-popup-table tbody td { padding:9px 14px; font-size:12px; color:var(--text); }
+.status-popup-table tbody td.r { text-align:right; font-family:'Montserrat',sans-serif; font-weight:700; }
+.status-popup-table tbody td.soft { color:var(--text-soft); font-size:11px; }
 
 
 /* ── Store list & card layout ─────────────────────────────── */
@@ -167,9 +191,20 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .sc-stat-value { font-family:'Montserrat',sans-serif; font-size:14px; font-weight:800; color:var(--text); margin-top:3px; white-space:nowrap; }
 .sc-stat-value.green { color:var(--green); } .sc-stat-value.red { color:var(--red); } .sc-stat-value.amber { color:var(--amber); }
 .sc-chevron { width:20px; height:20px; border-radius:4px; background:var(--border); color:var(--text-mid); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; transition:all 0.2s; flex-shrink:0; margin-left:12px; }
+.store-share-btn {
+  flex-shrink:0; margin-left:8px;
+  background:#326BD3; border:none; border-radius:6px; color:#fff;
+  font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700;
+  padding:4px 10px; cursor:pointer; letter-spacing:0.03em;
+  transition:background 0.15s; white-space:nowrap;
+}
+.store-share-btn:hover { background:#2558b8; }
 .store-card.expanded .sc-chevron { background:var(--blue); color:#fff; transform:rotate(90deg); }
 [data-p="key"]  .store-card.expanded .sc-chevron { background:var(--key-col); }
-[data-p="hosp"] .store-card.expanded .sc-chevron { background:var(--hosp-col); }
+[data-p="hosp"]   .store-card.expanded .sc-chevron { background:var(--hosp-col); }
+[data-p="hostnw"] .store-card.expanded .sc-chevron { background:var(--hostnw-col); }
+[data-p="hostse"] .store-card.expanded .sc-chevron { background:var(--hostse-col); }
+[data-p="hostusd"].store-card.expanded .sc-chevron { background:var(--hostusd-col); }
 .portfolio-total { display:flex; align-items:center; gap:0; background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius); padding:12px 20px; margin-bottom:16px; box-shadow:var(--shadow); flex-wrap:wrap; }
 .pt-label { font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-mid); min-width:160px; flex-shrink:0; padding-right:20px; border-right:1px solid var(--border); margin-right:20px; }
 .pt-stats { display:flex; gap:0; flex:1; flex-wrap:wrap; align-items:center; }
@@ -203,7 +238,10 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .sc-exp-tab.active { color:#fff; border-color:transparent; }
 [data-p="chain"] .sc-exp-tab.active { background:var(--chain-col); }
 [data-p="key"]   .sc-exp-tab.active { background:var(--key-col); }
-[data-p="hosp"]  .sc-exp-tab.active { background:var(--hosp-col); }
+[data-p="hosp"]   .sc-exp-tab.active { background:var(--hosp-col); }
+[data-p="hostnw"] .sc-exp-tab.active { background:var(--hostnw-col); }
+[data-p="hostse"] .sc-exp-tab.active { background:var(--hostse-col); }
+[data-p="hostusd"].sc-exp-tab.active { background:var(--hostusd-col); }
 /* Expand panels */
 .sc-exp-panel { display:none; padding:0; }
 .sc-exp-panel.active { display:block; }
@@ -213,9 +251,15 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 .sc-panel-header { padding:7px 14px; font-family:'Montserrat',sans-serif; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.9px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:1; }
 .sc-panel-header[data-tab="cat"] { color:var(--chain-col); background:#E8F0FD; border-color:#c7dbf8; }
 .sc-panel-header[data-tab="rep"] { color:var(--key-col);   background:#EDE8FA; border-color:#d4c5f9; }
-.sc-panel-header[data-tab="sku"] { color:#92400E;           background:#FEF3C7; border-color:#fde68a; }
-[data-p="hosp"] .sc-panel-header[data-tab="cat"] { color:var(--hosp-col); background:#E0F4F8; border-color:#b3e4f0; }
-[data-p="hosp"] .sc-panel-header[data-tab="rep"] { color:var(--hosp-col); background:#E0F4F8; border-color:#b3e4f0; }
+.sc-panel-header[data-tab="sku"] { color:#1e3a5f;           background:#EEF2FF; border-color:#c7d2fe; }
+[data-p="hosp"]   .sc-panel-header[data-tab="cat"] { color:var(--hosp-col);   background:#E0F4F8; border-color:#b3e4f0; }
+[data-p="hosp"]   .sc-panel-header[data-tab="rep"] { color:var(--hosp-col);   background:#E0F4F8; border-color:#b3e4f0; }
+[data-p="hostnw"] .sc-panel-header[data-tab="cat"] { color:var(--hostnw-col); background:#ECFDF5; border-color:#a7f3d0; }
+[data-p="hostnw"] .sc-panel-header[data-tab="rep"] { color:var(--hostnw-col); background:#ECFDF5; border-color:#a7f3d0; }
+[data-p="hostse"] .sc-panel-header[data-tab="cat"] { color:var(--hostse-col); background:#FFFBEB; border-color:#fde68a; }
+[data-p="hostse"] .sc-panel-header[data-tab="rep"] { color:var(--hostse-col); background:#FFFBEB; border-color:#fde68a; }
+[data-p="hostusd"].sc-panel-header[data-tab="cat"] { color:var(--hostusd-col);background:#F5F3FF; border-color:#ddd6fe; }
+[data-p="hostusd"].sc-panel-header[data-tab="rep"] { color:var(--hostusd-col);background:#F5F3FF; border-color:#ddd6fe; }
 .sc-exp-panel .mini-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.65); }
 .sc-exp-panel .mini-table tbody tr:nth-child(odd)  { background:rgba(255,255,255,0.3); }
 .sc-exp-panel .mini-table tbody tr:hover            { background:rgba(255,255,255,0.9) !important; }
@@ -504,6 +548,9 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
   <div class="main-tab active" data-p="chain" onclick="switchPortfolio('chain')"><span class="tab-dot" style="background:var(--chain-col)"></span>Chain Stores</div>
   <div class="main-tab" data-p="key" onclick="switchPortfolio('key')"><span class="tab-dot" style="background:var(--key-col)"></span>Key Stores</div>
   <div class="main-tab" data-p="hosp" onclick="switchPortfolio('hosp')"><span class="tab-dot" style="background:var(--hosp-col)"></span>Hospitality</div>
+  <div class="main-tab" data-p="hostnw" onclick="switchPortfolio('hostnw')"><span class="tab-dot" style="background:var(--hostnw-col)"></span>Hospitality NW</div>
+  <div class="main-tab" data-p="hostse" onclick="switchPortfolio('hostse')"><span class="tab-dot" style="background:var(--hostse-col)"></span>Hospitality SE</div>
+  <div class="main-tab" data-p="hostusd" onclick="switchPortfolio('hostusd')"><span class="tab-dot" style="background:var(--hostusd-col)"></span>Hospitality USD</div>
 </div>
 
 <!-- CHAIN -->
@@ -540,9 +587,74 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
   </div>
   <div class="section-label">Account Performance</div>
   <div id="hosp-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
+
+</div>
+
+<!-- HOSP NW -->
+<div class="portfolio-panel" id="panel-hostnw">
+  <div class="kam-card" data-p="hostnw">
+    <div class="kam-avatar" style="background:rgba(255,255,255,0.25)">PT</div>
+    <div class="kam-info"><div class="kam-name">Phobea / Tashelle</div><div class="kam-role">Hospitality NW · Key Account Manager</div><div class="kam-count" id="hostnw-count">Loading...</div></div>
+    <div class="kam-stats" id="hostnw-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('hostnw')">✦ Share Brief</button>
+  </div>
+  <div class="section-label">Account Performance</div>
+  <div id="hostnw-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
+</div>
+
+<!-- HOSP SE -->
+<div class="portfolio-panel" id="panel-hostse">
+  <div class="kam-card" data-p="hostse">
+    <div class="kam-avatar" style="background:rgba(255,255,255,0.25)">SB</div>
+    <div class="kam-info"><div class="kam-name">Stacy-Ann Bennett</div><div class="kam-role">Hospitality SE · Key Account Manager</div><div class="kam-count" id="hostse-count">Loading...</div></div>
+    <div class="kam-stats" id="hostse-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('hostse')">✦ Share Brief</button>
+  </div>
+  <div class="section-label">Account Performance</div>
+  <div id="hostse-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
+</div>
+
+<!-- HOSP USD -->
+<div class="portfolio-panel" id="panel-hostusd">
+  <div class="kam-card" data-p="hostusd">
+    <div class="kam-avatar" style="background:rgba(255,255,255,0.25)">RG</div>
+    <div class="kam-info"><div class="kam-name">Richard Gordon</div><div class="kam-role">Hospitality USD · Key Account Manager</div><div class="kam-count" id="hostusd-count">Loading...</div></div>
+    <div class="kam-stats" id="hostusd-kam-stats"><div class="loading-dots"><span></span><span></span><span></span></div></div>
+    <button class="brief-btn" onclick="openBrief('hostusd')">✦ Share Brief</button>
+  </div>
+  <div class="section-label">Account Performance</div>
+  <div id="hostusd-store-table"><div class="state-box"><div class="loading-dots"><span></span><span></span><span></span></div><div class="state-title">Loading...</div></div></div>
 </div>
 
 <div class="footer">DFL Importers · Key Accounts Dashboard · Live data from Supabase</div>
+
+<!-- Status Popup -->
+<div class="status-popup-overlay" id="statusPopupOverlay" onclick="if(event.target===this)closeStatusPopup()">
+  <div class="status-popup">
+    <div class="status-popup-header">
+      <div>
+        <div class="status-popup-title" id="statusPopupTitle">Stores</div>
+        <div class="status-popup-sub" id="statusPopupSub"></div>
+      </div>
+      <button class="status-popup-close" onclick="closeStatusPopup()">✕</button>
+    </div>
+    <div class="status-popup-body">
+      <table class="status-popup-table">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th class="soft">Rep</th>
+            <th class="r">Achieved</th>
+            <th class="r">MTD Revenue</th>
+            <th class="r">Budget</th>
+            <th class="r">Gap vs Pace</th>
+          </tr>
+        </thead>
+        <tbody id="statusPopupBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <!-- Brief Modal -->
 <div class="brief-overlay" id="briefOverlay">
@@ -564,22 +676,27 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 <script>
 const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
-const PAGE = 2000;
+const PAGE = 5000;
 
 // ── HARDCODED CUSTOMER ID LISTS (sourced directly from Supabase) ──────────
 // This avoids any browser-side pagination issues with the customers table
-const CHAIN_IDS = ['C000001907','C000001908','C000001909','C000001911','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004159','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004361','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005650','C000005651','C000005652','C000005653','C000005654','C000006029','C000006110','C000006386','C000007077','C000009109','C000009381','C000009487','C000003041','C000003042','C000003043','C000003044','C000005818','C000003778','C000004658'];
+const CHAIN_IDS = ['C000001907','C000001908','C000001909','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005651','C000005652','C000005653','C000006029','C000006110','C000007077','C000003041','C000003042','C000003043','C000004658','C000003778'];
 
-const KEY_IDS = [
-  'C000000081','C000009549','C000005934','C000000554','C000000556','C000000757','C000001490','C000001627','C000001656','C000001689','C000005724','C000001703','C000001704','C000001972','C000005725','C000002523','C000002679','C000002680','C000002731','C000002794','C000002795','C000002896','C000005579','C000009557','C000002974','C000002976','C000003331','C000003774','C000003934','C000004462','C000004565','C000004990','C000005049','C000005697','C000005228','C000008342'
-];
+const KEY_IDS = ['C000000081','C000009549','C000005934','C000000554','C000000556','C000000757','C000001490','C000001627','C000001656','C000001689','C000005724','C000001703','C000001704','C000001972','C000005725','C000002523','C000002679','C000002680','C000002731','C000002794','C000002795','C000002896','C000005579','C000009557','C000002974','C000002976','C000003331','C000003774','C000003934','C000004462','C000004565','C000004990','C000005049','C000005697','C000005228'];
 
-const HOSP_IDS = ['C000000692','C000001454','C000001550','C000001766','C000001869','C000002006','C000002218','C000002561','C000003234','C000003500','C000003598','C000004068','C000004069','C000004167','C000005505','C000005577','C000006457','C000006680','C000006839','C000007967'];
+const HOSP_IDS = ['C000007968','C000000692','C000005748','C000000981','C000000982','C000000983','C000000984','C000001925','C000001454','C000001550','C000001766','C000004061','C000005505','C000001817','C000001869','C000004060','C000007742','C000005524','C000002006','C000006839','C000006680','C000002218','C000002561','C000005577','C000003177','C000003234','C000003500','C000003598','C000003930','C000005630','C000003976','C000003977','C000003978','C000003979','C000007407','C000003980','C000003981','C000004068','C000004069','C000009840','C000004165','C000006457','C000004167','C000007967','C000004168','C000008042','C000004238'];
+
+const HOSP_NW_IDS  = ['C000000314','C000007368','C000007493','C000007492','C000007494','C000000415','C000000573','C000000659','C000000727','C000000815','C000000824','C000000869','C000000913','C000006187','C000000933','C000000965','C000001081','C000005750','C000001249','C000009188','C000006071','C000001480','C000001481','C000001482','C000001503','C000006831','C000001584','C000001596','C000001613','C000001631','C000009217','C000009784','C000001740','C000001850','C000001859','C000001935','C000008549','C000001998','C000009772','C000006721','C000001978','C000007461','C000006049','C000009847','C000006772','C000009157','C000002472','C000002586','C000007401','C000002751','C000002943','C000003060','C000006170','C000003152','C000007106','C000008950','C000003345','C000005603','C000003519','C000008987','C000003672','C000003678','C000003711','C000006409','C000003960','C000004030','C000004042','C000004053','C000004120','C000004146','C000006785','C000004176','C000004204','C000006793','C000004215','C000004216','C000004223','C000009283','C000004236','C000009856','C000005657','C000007479','C000004496','C000004500','C000004503','C000004524','C000004533','C000007429','C000004616','C000008900','C000004746','C000004768','C000006997','C000004795','C000005804','C000004844','C000004891','C000004950','C000004955','C000004993','C000004994','C000005127','C000005208','C000005271','C000006211','C000006208'];
+const HOSP_SE_IDS  = ['C000000124','C000009859','C000000195','C000007490','C000009835','C000006064','C000009359','C000009360','C000000351','C000000416','C000005413','C000009783','C000009615','C000007383','C000002550','C000000690','C000005427','C000000735','C000000761','C000000762','C000000814','C000000834','C000009789','C000009004','C000009003','C000009002','C000006317','C000006186','C000006190','C000000940','C000005719','C000006984','C000005452','C000008881','C000001210','C000008946','C000005475','C000001173','C000001660','C000001684','C000007703','C000005499','C000007458','C000006619','C000001861','C000001863','C000007176','C000001975','C000005530','C000002124','C000002132','C000006697','C000005552','C000009364','C000008526','C000008952','C000007418','C000006112','C000002414','C000009190','C000006366','C000009596','C000006275','C000009837','C000009752','C000002691','C000002716','C000009737','C000005578','C000009652','C000003034','C000009787','C000005776','C000003120','C000009673','C000003332','C000009599','C000003496','C000003531','C000003573','C000003645','C000009617','C000003834','C000003856','C000009812','C000003939','C000005935','C000005865','C000004025','C000009305','C000009243','C000006711','C000004099','C000004465','C000006760','C000004213','C000007754','C000004247','C000004366','C000004404','C000006682','C000007404','C000005674','C000004726','C000009631','C000006172','C000004761','C000004769','C000004770','C000004771','C000004799','C000006104','C000004820','C000004825','C000004840','C000008865','C000006429','C000004942','C000006055','C000004967','C000009711','C000009785','C000005029','C000009788','C000007733','C000005099','C000009493','C000008608','C000009708','C000005718','C000009870','C000009877','C000009879','C000009884','C000009887','C000009891','C000009893','C000009899','C000009902','C000009908'];
+const HOSP_USD_IDS = ['C000009045','C000000581','C000006483','C000009653','C000006790','C000009811','C000006775','C000007762','C000009622','C000007248','C000004166','C000007259','C000009763','C000006045','C000006046','C000006044','C000009037','C000009702'];
 
 const PORTFOLIOS = {
-  chain: { ids: CHAIN_IDS, label: 'Chain Stores' },
-  key:   { ids: KEY_IDS,   label: 'Key Stores' },
-  hosp:  { ids: HOSP_IDS,  label: 'Hospitality' }
+  chain:   { ids: CHAIN_IDS,    label: 'Chain Stores' },
+  key:     { ids: KEY_IDS,      label: 'Key Stores' },
+  hosp:    { ids: HOSP_IDS,     label: 'Hospitality' },
+  hostnw:  { ids: HOSP_NW_IDS,  label: 'Hospitality NW' },
+  hostse:  { ids: HOSP_SE_IDS,  label: 'Hospitality SE' },
+  hostusd: { ids: HOSP_USD_IDS, label: 'Hospitality USD' }
 };
 
 let dashData = {}, isLoading = false;
@@ -630,6 +747,7 @@ async function loadAll() {
     const periods = getRevPeriods();
     const pIn   = periods.join(',');
     const mIn   = getBudgetMonths().join(',');
+    console.log(`%cDEBUG — period: ${getPeriod()} isYTD: ${isYTD()} mIn: [${mIn}] pIn: [${pIn}]`, 'color:lime;font-weight:bold');
 
     // 1. Working days pace from working_days_calendar (anon-readable)
     //    Matches exactly how the category dashboard computes pace
@@ -654,52 +772,96 @@ async function loadAll() {
     const paceElapsed      = totalWD > 0 ? elapsedWD / totalWD : 0; // 0.0 – 1.0
     const pctElapsedActual = paceElapsed * 100; // e.g. 45.0 for May 14
 
-    // 2. Budgets direct from budget_2026 — filtered per portfolio to avoid pagination cutoff
-    // (5,190+ rows in budget for a single month, but only ~50 per portfolio)
-    const [chainBudget, keyBudget, hospBudget] = await Promise.all([
-      sbAll('budget_2026', `select=customer_id,customer_name,salesperson,item_class,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
-      sbAll('budget_2026', `select=customer_id,customer_name,salesperson,item_class,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
-      sbAll('budget_2026', `select=customer_id,customer_name,salesperson,item_class,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`)
+    // 2. Budgets — two fetches:
+    //    a) customer totals from budget_2026_by_customer (for KAM card + store totals)
+    //    b) category breakdown from budget_2026_by_cat for current month only (for store expand)
+    const [chainBudget, keyBudget, hospBudget, chainCatBgt, keyCatBgt, hospCatBgt,
+           hostnwBudget, hostseBudget, hostusdBudget, hostnwCatBgt, hostseCatBgt, hostusdCatBgt] = await Promise.all([
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('budget_2026_by_customer', `select=customer_id,customer_name,salesperson,month_number,budget&month_number=in.(${mIn})&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('budget_2026_by_cat', `select=customer_id,item_class,month_number,budget&month_number=eq.${mNum}&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`)
     ]);
-    const budgetByPortfolio = { chain: chainBudget, key: keyBudget, hosp: hospBudget };
+    // Merge cat budgets into budget arrays for category breakdown in process()
+    const mergeCatBgt = (bgt, catBgt) => {
+      const catRows = catBgt.map(r => ({...r, salesperson: null, customer_name: null}));
+      return [...bgt, ...catRows];
+    };
+    const budgetByPortfolio = {
+      chain:   mergeCatBgt(chainBudget,   chainCatBgt),
+      key:     mergeCatBgt(keyBudget,     keyCatBgt),
+      hosp:    mergeCatBgt(hospBudget,    hospCatBgt),
+      hostnw:  mergeCatBgt(hostnwBudget,  hostnwCatBgt),
+      hostse:  mergeCatBgt(hostseBudget,  hostseCatBgt),
+      hostusd: mergeCatBgt(hostusdBudget, hostusdCatBgt)
+    };
+    console.log(`%cBUDGET ROWS — chain:${chainBudget.length} key:${keyBudget.length} hosp:${hospBudget.length}`, 'color:orange;font-weight:bold');
+    console.log(`%cBUDGET TOTALS — chain:${chainBudget.reduce((s,r)=>s+(+r.budget||0),0).toFixed(0)} key:${keyBudget.reduce((s,r)=>s+(+r.budget||0),0).toFixed(0)}`, 'color:orange;font-weight:bold');
 
     // 3. Revenue + GP from kam_cust_cache — filtered per portfolio (current year + last year)
     const lyIn = getLYPeriods().join(',');
-    const [chainKam, keyKam, hospKam, chainLY, keyLY, hospLY] = await Promise.all([
+    const [chainKam, keyKam, hospKam, chainLY, keyLY, hospLY,
+           hostnwKam, hostseKam, hostusdKam, hostnwLY, hostseLY, hostusdLY] = await Promise.all([
       sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
       sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
       sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
       sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
       sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
-      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`)
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,customer_name,salesperson,financial_period,actual_mtd,gross_profit,gp_pct&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('kam_cust_cache', `select=customer_id,actual_mtd&financial_period=in.(${lyIn})&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`)
     ]);
-    const kamByPortfolio = { chain: chainKam, key: keyKam, hosp: hospKam };
-    const lyByPortfolio  = { chain: chainLY, key: keyLY, hosp: hospLY };
-    ['chain','key','hosp'].forEach(p => {
-      const lyTotal = (lyByPortfolio[p]||[]).reduce((s,r) => s + (+r.ext_amount||0), 0);
+    const kamByPortfolio = { chain: chainKam, key: keyKam, hosp: hospKam, hostnw: hostnwKam, hostse: hostseKam, hostusd: hostusdKam };
+    const lyByPortfolio  = { chain: chainLY,  key: keyLY,  hosp: hospLY,  hostnw: hostnwLY,  hostse: hostseLY,  hostusd: hostusdLY  };
+    ['chain','key','hosp','hostnw','hostse','hostusd'].forEach(p => {
+      const lyTotal = (lyByPortfolio[p]||[]).reduce((s,r) => s + (+r.actual_mtd||0), 0);
       console.log(`LY ${p}: ${lyByPortfolio[p].length} rows, total=${lyTotal}`);
     });
 
     // 4. Per-customer category revenue from cat_cust_cache — filtered per portfolio
-    const [chainCatCust, keyCatCust, hospCatCust] = await Promise.all([
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`)
+    const [chainCatCust, keyCatCust, hospCatCust, hostnwCatCust, hostseCatCust, hostusdCatCust] = await Promise.all([
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`)
     ]);
-    const catCustByPortfolio = { chain: chainCatCust, key: keyCatCust, hosp: hospCatCust };
+    const catCustByPortfolio = { chain: chainCatCust, key: keyCatCust, hosp: hospCatCust, hostnw: hostnwCatCust, hostse: hostseCatCust, hostusd: hostusdCatCust };
 
-    // 5. Missing key SKUs from cat_cust_sku_cache (has missing_skus_json per customer per category)
-    //    This is the same source the category dashboard uses — pre-computed per-SKU last purchase
+    // 5. Missing key SKUs from cat_cust_sku_cache — filtered per portfolio to avoid 1000-row cap
     const curPeriod = getPeriod();
-    const allMissingSku = await sbAll('cat_cust_sku_cache',
-      `select=customer_id,salesperson,item_class,financial_period,last_purchase_date,missing_skus_json&financial_period=eq.${curPeriod}`);
+    const [chainMissingSku, keyMissingSku, hospMissingSku, hostnwMissingSku, hostseMissingSku, hostusdMissingSku] = await Promise.all([
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.hosp.ids.join(',')})`),
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.hostnw.ids.join(',')})`),
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.hostse.ids.join(',')})`),
+      sbAll('cat_cust_sku_cache', `select=customer_id,item_class,missing_skus_json&financial_period=eq.${curPeriod}&customer_id=in.(${PORTFOLIOS.hostusd.ids.join(',')})`)
+    ]);
+    const allMissingSku = [...chainMissingSku, ...keyMissingSku, ...hospMissingSku, ...hostnwMissingSku, ...hostseMissingSku, ...hostusdMissingSku];
 
     // Build per-customer missing SKU list from JSON
     // missing_skus_json: [{desc, avg_rev, avg_cases, last_purchase}, ...]
     const missSkuByPortfolio = {
-      chain: allMissingSku.filter(r => new Set(PORTFOLIOS.chain.ids).has(r.customer_id)),
-      key:   allMissingSku.filter(r => new Set(PORTFOLIOS.key.ids).has(r.customer_id)),
-      hosp:  allMissingSku.filter(r => new Set(PORTFOLIOS.hosp.ids).has(r.customer_id))
+      chain:   allMissingSku.filter(r => new Set(PORTFOLIOS.chain.ids).has(r.customer_id)),
+      key:     allMissingSku.filter(r => new Set(PORTFOLIOS.key.ids).has(r.customer_id)),
+      hosp:    allMissingSku.filter(r => new Set(PORTFOLIOS.hosp.ids).has(r.customer_id)),
+      hostnw:  allMissingSku.filter(r => new Set(PORTFOLIOS.hostnw.ids).has(r.customer_id)),
+      hostse:  allMissingSku.filter(r => new Set(PORTFOLIOS.hostse.ids).has(r.customer_id)),
+      hostusd: allMissingSku.filter(r => new Set(PORTFOLIOS.hostusd.ids).has(r.customer_id))
     };
 
     // Build lastDateMap: customer_id -> salesperson -> last date (for By Rep tab)
@@ -722,17 +884,24 @@ async function loadAll() {
     const catRepData = await sbAll('cat_rep_cache',
       `select=salesperson,area,financial_period,actual_mtd,budget_full,gross_profit,gp_pct&financial_period=in.(${pIn})`);
 
+    // Fetch customer names for ALL portfolio IDs so stores always show correctly
+    const allPortfolioIds = [...new Set([...CHAIN_IDS, ...KEY_IDS, ...HOSP_IDS, ...HOSP_NW_IDS, ...HOSP_SE_IDS, ...HOSP_USD_IDS])];
+    const custNameRows = await sbAll('customers', `select=customer_id,customer_name&customer_id=in.(${allPortfolioIds.join(',')})`);
+    const custNameMap = {};
+    custNameRows.forEach(c => { custNameMap[c.customer_id] = c.customer_name; });
+
     // Process each portfolio
-    ['chain','key','hosp'].forEach(p => {
+    ['chain','key','hosp','hostnw','hostse','hostusd'].forEach(p => {
       dashData[p] = process(
         budgetByPortfolio[p], kamByPortfolio[p], catCustByPortfolio[p],
         missSkuByPortfolio[p], catRepData, keySkuSet, keySkuDesc, keySkuList,
         lastDateMap, paceElapsed, pctElapsedActual, elapsedWD, totalWD,
-        lyByPortfolio[p]
+        lyByPortfolio[p], PORTFOLIOS[p].ids, custNameMap
       );
     });
 
     renderPortfolio('chain'); renderPortfolio('key'); renderPortfolio('hosp');
+    renderPortfolio('hostnw'); renderPortfolio('hostse'); renderPortfolio('hostusd');
     renderHeader();
     document.getElementById('lastUpdated').textContent =
       'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
@@ -743,19 +912,33 @@ async function loadAll() {
 }
 
 // ── PROCESS ───────────────────────────────────────────────────────────────
-function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySkuDesc, keySkuList, lastDateMap, paceElapsed, pctElapsedActual, elapsedWD, totalWD, lyRows) {
+function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySkuDesc, keySkuList, lastDateMap, paceElapsed, pctElapsedActual, elapsedWD, totalWD, lyRows, portfolioIds, custNameMap) {
 
-  // Budget: aggregate from budget_2026 by customer
+  // Build a name/rep lookup from kam cache (covers stores with revenue but no budget)
+  const kamNameMap = {};
+  kam.forEach(k => {
+    if (!kamNameMap[k.customer_id]) {
+      kamNameMap[k.customer_id] = { name: k.customer_name || k.customer_id, salesperson: k.salesperson || '' };
+    }
+  });
+
+  // Budget: aggregate from budget_2026_by_customer + budget_2026_by_cat
   const budgetByCust = {}, custBudgetCats = {}, budgetByRep = {};
   budget.forEach(b => {
     const cid = b.customer_id, amt = +b.budget || 0;
-    if (!budgetByCust[cid]) budgetByCust[cid] = { budget:0, name:b.customer_name||cid, salesperson:b.salesperson };
-    budgetByCust[cid].budget += amt;
-    if (b.salesperson && b.salesperson !== 'None') {
-      budgetByRep[b.salesperson] = (budgetByRep[b.salesperson]||0) + amt;
+    // Customer-level total rows (no item_class) → feed budgetByCust
+    if (!b.item_class) {
+      if (!budgetByCust[cid]) budgetByCust[cid] = { budget:0, name:b.customer_name||cid, salesperson:b.salesperson };
+      budgetByCust[cid].budget += amt;
+      if (b.salesperson && b.salesperson !== 'None') {
+        budgetByRep[b.salesperson] = (budgetByRep[b.salesperson]||0) + amt;
+      }
     }
-    if (!custBudgetCats[cid]) custBudgetCats[cid] = {};
-    custBudgetCats[cid][b.item_class] = (custBudgetCats[cid][b.item_class]||0) + amt;
+    // Category rows (has item_class) → feed custBudgetCats
+    if (b.item_class) {
+      if (!custBudgetCats[cid]) custBudgetCats[cid] = {};
+      custBudgetCats[cid][b.item_class] = (custBudgetCats[cid][b.item_class]||0) + amt;
+    }
   });
 
   // Revenue + GP: from kam_cust_cache (correct net revenue using INV/CRM tran_type logic)
@@ -780,9 +963,9 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
     custCatRev[cid][r.item_class] = (custCatRev[cid][r.item_class]||0) + (+r.actual_mtd||0);
   });
 
-  // Per-customer category last purchase date (from missSkuRows which has last_purchase_date per item_class)
+  // Per-customer category last purchase date — from cat_cust_cache which has last_purchase_date per item_class
   const custCatLastDate = {};
-  missSkuRows.filter(r => r.last_purchase_date && r.item_class).forEach(r => {
+  catCust.filter(r => r.last_purchase_date && r.item_class).forEach(r => {
     const cid = r.customer_id;
     if (!custCatLastDate[cid]) custCatLastDate[cid] = {};
     const prev = custCatLastDate[cid][r.item_class];
@@ -790,16 +973,16 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
       custCatLastDate[cid][r.item_class] = r.last_purchase_date;
   });
 
-  // Build store rows — union of all customer IDs with budget or revenue
-  const allCustIds = new Set([...Object.keys(budgetByCust), ...Object.keys(revByCust)]);
+  // Build store rows — always include ALL portfolio IDs regardless of budget/revenue
+  const allCustIds = new Set([...(portfolioIds || []), ...Object.keys(budgetByCust), ...Object.keys(revByCust)]);
   const stores = [];
 
   allCustIds.forEach(cid => {
     const bgt   = budgetByCust[cid]?.budget   || 0;
     const rev   = revByCust[cid]?.revenue      || 0;
     const gp    = revByCust[cid]?.gp           || 0;
-    const name  = budgetByCust[cid]?.name  || revByCust[cid]?.name  || cid;
-    const rep   = budgetByCust[cid]?.salesperson || revByCust[cid]?.salesperson || '';
+    const name  = (custNameMap && custNameMap[cid]) || budgetByCust[cid]?.name || revByCust[cid]?.name || kamNameMap[cid]?.name || cid;
+    const rep   = budgetByCust[cid]?.salesperson || revByCust[cid]?.salesperson || kamNameMap[cid]?.salesperson || '';
     const ach   = bgt > 0 ? rev/bgt*100 : null;
     const gpPct = rev > 0 ? gp/rev*100  : null;
     const actualPacePct   = bgt > 0 ? rev/bgt*100 : null;   // % of full budget achieved so far
@@ -866,24 +1049,24 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
         });
       } catch(e) { /* skip bad JSON */ }
     });
-    // 2. Add ALL key SKUs with no history and not already in the list
-    keySkuList.forEach(sku => {
-      if (!missingDescSet.has(sku.description)) {
-        custMissingSkus.push({
-          desc:         sku.description,
-          ytdAvg:       0,
-          ytdCases:     0,
-          lastPurchase: null,
-          hasHistory:   false
-        });
-      }
-    });
-    // Sort: items with history first (by avg_rev desc), then no-history items alphabetically
-    custMissingSkus.sort((a,b) => {
-      if (a.hasHistory && !b.hasHistory) return -1;
-      if (!a.hasHistory && b.hasHistory) return 1;
-      return b.ytdAvg - a.ytdAvg;
-    });
+    // 2. Only fall back to keySkuList if cat_cust_sku_cache had NO rows for this customer
+    //    (cache rows exist = we have accurate purchased/not-purchased data, don't supplement)
+    const hasCacheRows = missSkuRows.some(r => r.customer_id === cid);
+    if (!hasCacheRows) {
+      keySkuList.forEach(sku => {
+        if (!missingDescSet.has(sku.description)) {
+          custMissingSkus.push({
+            desc:         sku.description,
+            ytdAvg:       0,
+            ytdCases:     0,
+            lastPurchase: null,
+            hasHistory:   false
+          });
+        }
+      });
+    }
+    // Sort A-Z — sections handle their own alphabetical sort
+    custMissingSkus.sort((a,b) => a.desc.localeCompare(b.desc));
     const skusArr = custMissingSkus;
 
     stores.push({ key:cid, name, salesperson:rep, budget:bgt, revenue:rev, gp, ach, gpPct, paceAch, status,
@@ -1053,50 +1236,83 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
         </div>`;
       }
 
-      const rows = det.skus.map(s => {
-        const d = s.lastPurchase;
-        const daysSince = d ? Math.floor((new Date() - new Date(d)) / (1000*60*60*24)) : null;
-        const lastTxt = d
-          ? `Last: ${daysSince}d ago (${new Date(d).toLocaleDateString('en-US',{day:'2-digit',month:'short'})})`
-          : s.hasHistory === false ? 'Never purchased' : 'No history';
-        const dateColor = d===null ? 'var(--text-soft)'
-          : daysSince > 60 ? 'var(--red)' : 'var(--amber)';
+      // Split into two groups
+      // Filter out Price Smart-specific SKUs for non-Price Smart customers
+      const PRICESMART_SKUS = new Set(['Pricesmart - Covebay 6\" Clamshell','Covebay 7x7 2 Compartment Bagasse - Pricesmart','Covebay Burger Box Bagasse - Pricesmart','Covebay Curry Goat Bagasse  - Pricesmart','Pricesmart Covebay 8oz Hot Cup - 5X200','Pricesmart Covebay 12oz Smoothie Cup']);
+      const isPriceSmart = r.key === 'C000003778';
+      const filteredSkus = isPriceSmart ? det.skus : det.skus.filter(s => !PRICESMART_SKUS.has(s.desc));
 
-        return `<tr style="background:#FAFBFF;">
+      const lapsed      = filteredSkus.filter(s => s.lastPurchase !== null).sort((a,b) => a.desc.localeCompare(b.desc));
+      const neverBought = filteredSkus.filter(s => s.lastPurchase === null).sort((a,b) => a.desc.localeCompare(b.desc));
+
+      const tableHeader = `<tr>
+        <th style="text-align:left;padding:7px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);font-family:Montserrat,sans-serif;">SKU</th>
+        <th class="r" style="padding:7px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);font-family:Montserrat,sans-serif;">Avg Monthly Rev</th>
+        <th class="r" style="padding:7px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);font-family:Montserrat,sans-serif;">Avg Cases/Mo</th>
+        <th class="r" style="padding:7px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-soft);font-family:Montserrat,sans-serif;">Last Purchased</th>
+      </tr>`;
+
+      const buildRows = (skus, dotColor) => skus.map(s => {
+        const d = s.lastPurchase;
+        const daysSince = d ? Math.floor((new Date() - new Date(d + 'T12:00:00')) / (1000*60*60*24)) : null;
+        const lastTxt = d
+          ? `Last: ${daysSince}d ago (${new Date(d + 'T12:00:00').toLocaleDateString('en-US',{day:'2-digit',month:'short'})})`
+          : '—';
+        const dateColor = d === null ? 'var(--text-soft)'
+          : daysSince > 60 ? 'var(--red)' : 'var(--amber)';
+        return `<tr>
           <td style="padding:7px 10px;">
             <div style="display:flex;align-items:flex-start;gap:8px;">
-              <span style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0;margin-top:3px;display:inline-block;"></span>
+              <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:3px;display:inline-block;"></span>
               <div style="font-weight:600;font-size:12px;color:var(--text);">${s.desc}</div>
             </div>
           </td>
-          <td class="r">${fmtK(s.ytdAvg)}</td>
-          <td class="r">${s.ytdCases > 0 ? Math.round(s.ytdCases)+' cs' : '—'}</td>
-          <td class="r" style="font-size:11px;color:${dateColor};font-family:'Montserrat',sans-serif;font-weight:600;">${lastTxt}</td>
+          <td class="r" style="padding:7px 10px;font-size:12px;color:var(--text);">${fmtK(s.ytdAvg)}</td>
+          <td class="r" style="padding:7px 10px;font-size:12px;color:var(--text-mid);">${s.ytdCases > 0 ? s.ytdCases + ' cs' : '—'}</td>
+          <td class="r" style="padding:7px 10px;font-size:12px;font-weight:600;color:${dateColor};">${lastTxt}</td>
         </tr>`;
       }).join('');
 
-      return `
-        <div style="padding:8px 14px;background:rgba(255,255,255,0.4);border-bottom:1px solid rgba(253,230,138,0.6);">
-          <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-mid);">
-            Key SKUs Not Yet Purchased This Month
-          </span>
+      let html = '';
+
+      // Section 1 — lapsed (purchased before but not this month)
+      if (lapsed.length) {
+        const sid1 = eid + '_lapsed';
+        html += `
+        <div onclick="toggleSkuSection('${sid1}',event)" style="padding:8px 10px 4px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--amber);border-bottom:1px solid #fde68a;background:#FFFBEB;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <span>△ Purchased Before — Not This Month (${lapsed.length})</span>
+          <span id="${sid1}_icon" style="font-size:10px;">▲</span>
         </div>
-        <table class="mini-table">
-          <thead><tr>
-            <th>SKU</th>
-            <th class="r">Avg Monthly Rev</th>
-            <th class="r">Avg Cases/Mo</th>
-            <th class="r">Last Purchased</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+        <div id="${sid1}">
+          <table class="mini-table" style="width:100%;"><thead>${tableHeader}</thead>
+            <tbody>${buildRows(lapsed, 'var(--amber)')}</tbody>
+          </table>
+        </div>`;
+      }
+
+      // Section 2 — never purchased
+      if (neverBought.length) {
+        const sid2 = eid + '_never';
+        html += `
+        <div onclick="toggleSkuSection('${sid2}',event)" style="padding:8px 10px 4px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);border-bottom:1px solid var(--border);border-top:2px solid var(--border);background:var(--surface-alt);cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <span>— Never Purchased (${neverBought.length})</span>
+          <span id="${sid2}_icon" style="font-size:10px;">▲</span>
+        </div>
+        <div id="${sid2}">
+          <table class="mini-table" style="width:100%;"><thead>${tableHeader}</thead>
+            <tbody>${buildRows(neverBought, 'var(--text-soft)')}</tbody>
+          </table>
+        </div>`;
+      }
+
+      return html;
     })();
 
     const storeGap = r.revenue - (r.budget * paceElapsed);
 
     return `
-    <div class="store-card status-${r.status}" data-p="${portfolio}" onclick="toggleCard(this,'${eid}')">
-      <div class="sc-main">
+    <div class="store-card status-${r.status}" data-p="${portfolio}">
+      <div class="sc-main" onclick="toggleCard(this.closest('.store-card'),'${eid}')" style="cursor:pointer;">
         <!-- Identity -->
         <div class="sc-identity">
           <div class="sc-name" title="${r.name}">${r.name}</div>
@@ -1107,8 +1323,8 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
         <!-- Pace bar -->
         <div class="sc-pace">
           <div class="sc-pace-top">
-            <span class="sc-pace-pct">${fmtP(pacePct)}</span>
-            <span class="sc-pace-vs">expected pace</span>
+            <span class="sc-pace-pct" style="color:${r.ach===null?'var(--text-soft)':r.ach>=pacePct?'var(--green)':r.ach>=pacePct-10?'var(--amber)':'var(--red)'}">${r.ach !== null ? fmtP(r.ach) : '—'}</span>
+            <span class="sc-pace-vs">achieved</span>
             <span class="sc-pace-gap-amt" style="color:${storeGap>=0?'var(--green)':'var(--red)'}">
               ${storeGap >= 0 ? '+' : ''}${fmtK(storeGap)} vs pace
             </span>
@@ -1152,6 +1368,7 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
           </div>
         </div>
 
+        <button class="store-share-btn" onclick="event.stopPropagation();shareStoreBrief('${r.key}','${portfolio}')" title="Share store brief">⬆ Share</button>
         <div class="sc-chevron">▶</div>
       </div>
 
@@ -1172,7 +1389,7 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
           ${repTbl}
         </div>
         <div class="sc-exp-panel" data-tab="sku">
-          <div class="sc-panel-header" data-tab="sku">⭐ By Key SKU — key items not yet purchased this month</div>
+          <div class="sc-panel-header" data-tab="sku">⭐ By Key SKU</div>
           ${skuTbl}
         </div>
         </div><!-- end indent wrapper -->
@@ -1191,28 +1408,28 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
   <div class="portfolio-total">
     <div class="pt-label">${rows.length} Accounts · ${getPeriodLabel()}</div>
     <div class="pt-stats">
-      <div class="pt-stat">
+      <div class="pt-stat pt-stat-clickable" onclick="showStatusPopup('on-pace','${portfolio}')" title="Click to view stores">
         <span class="pt-stat-icon">✓</span>
         <div class="pt-stat-info">
           <span class="pt-stat-label">On Pace</span>
           <span class="pt-stat-value s-green">${onPace} stores</span>
         </div>
       </div>
-      <div class="pt-stat">
+      <div class="pt-stat pt-stat-clickable" onclick="showStatusPopup('watch','${portfolio}')" title="Click to view stores">
         <span class="pt-stat-icon">⚠</span>
         <div class="pt-stat-info">
           <span class="pt-stat-label">Watch</span>
           <span class="pt-stat-value s-amber">${watch} stores</span>
         </div>
       </div>
-      <div class="pt-stat">
+      <div class="pt-stat pt-stat-clickable" onclick="showStatusPopup('follow-up','${portfolio}')" title="Click to view stores">
         <span class="pt-stat-icon">↓</span>
         <div class="pt-stat-info">
           <span class="pt-stat-label">Follow Up</span>
           <span class="pt-stat-value s-red">${followUp} stores</span>
         </div>
       </div>
-      ${noBudget > 0 ? `<div class="pt-stat">
+      ${noBudget > 0 ? `<div class="pt-stat pt-stat-clickable" onclick="showStatusPopup('no-budget','${portfolio}')" title="Click to view stores">
         <span class="pt-stat-icon">—</span>
         <div class="pt-stat-info">
           <span class="pt-stat-label">No Budget</span>
@@ -1250,7 +1467,7 @@ function switchCardTab(event, eid, idx) {
 
 function renderHeader() {
   let tB=0,tR=0,tG=0;
-  ['chain','key','hosp'].forEach(p=>{const d=dashData[p]||{};tB+=d.totBgt||0;tR+=d.totRev||0;tG+=d.totGP||0;});
+  ['chain','key','hosp','hostnw','hostse','hostusd'].forEach(p=>{const d=dashData[p]||{};tB+=d.totBgt||0;tR+=d.totRev||0;tG+=d.totGP||0;});
   const ach=tB>0?tR/tB*100:null, gpP=tR>0?tG/tR*100:null, gap=tR-tB;
 
   // Use working days from dashData — sourced from working_days_calendar
@@ -1289,21 +1506,208 @@ function switchPortfolio(p) {
 }
 
 
-// ── SHARE BRIEF — client-side only, no API needed ─────────────────────
+function toggleSkuSection(id, event) {
+  event.stopPropagation();
+  const el   = document.getElementById(id);
+  const icon = document.getElementById(id + '_icon');
+  if (!el) return;
+  const collapsed = el.style.display === 'none';
+  el.style.display   = collapsed ? '' : 'none';
+  if (icon) icon.textContent = collapsed ? '▲' : '▼';
+}
+
+// ── STATUS POPUP ─────────────────────────────────────────────────────────
+function showStatusPopup(status, portfolio) {
+  const d = dashData[portfolio];
+  if (!d) return;
+  const statusLabels = {
+    'on-pace':   { label: '✓ On Pace',   col: 'var(--green)' },
+    'watch':     { label: '△ Watch',     col: 'var(--amber)' },
+    'follow-up': { label: '↓ Follow Up', col: 'var(--red)'   },
+    'no-budget': { label: '— No Budget', col: 'var(--text-soft)' }
+  };
+  const info     = statusLabels[status] || { label: status, col: 'var(--text)' };
+  const filtered = d.stores.filter(s => s.status === status)
+    .sort((a,b) => (a.revenue - a.budget*(d.pctElapsed||0)/100) - (b.revenue - b.budget*(d.pctElapsed||0)/100));
+
+  const titleEl = document.getElementById('statusPopupTitle');
+  titleEl.textContent = info.label + ' — ' + filtered.length + ' store' + (filtered.length!==1?'s':'');
+  titleEl.style.color = info.col;
+  document.getElementById('statusPopupSub').textContent = PORTFOLIO_NAMES[portfolio] + ' · ' + getPeriodLabel();
+
+  const tbody = document.getElementById('statusPopupBody');
+  tbody.innerHTML = filtered.map(s => {
+    const gap    = s.revenue - (s.budget * (d.pctElapsed||0) / 100);
+    const achCol = s.ach==null ? 'var(--text-soft)' : s.ach>=(d.pctElapsed||0) ? 'var(--green)' : s.ach>=(d.pctElapsed||0)-10 ? 'var(--amber)' : 'var(--red)';
+    const gapCol = gap >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr>
+      <td><strong>${s.name}</strong></td>
+      <td class="soft">${s.salesperson||'—'}</td>
+      <td class="r" style="color:${achCol}">${s.ach!=null?Math.round(s.ach)+'%':'—'}</td>
+      <td class="r">${fmtK(s.revenue)}</td>
+      <td class="r" style="color:var(--text-soft)">${s.budget>0?fmtK(s.budget):'—'}</td>
+      <td class="r" style="color:${gapCol}">${s.budget>0?(gap>=0?'+':'')+fmtK(gap):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('statusPopupOverlay').classList.add('open');
+}
+
+function closeStatusPopup() {
+  document.getElementById('statusPopupOverlay').classList.remove('open');
+}
+
+// ── STORE SHARE BRIEF ────────────────────────────────────────────────────
+function shareStoreBrief(storeKey, portfolio) {
+  const d = dashData[portfolio];
+  if (!d) return;
+  const store = d.stores.find(s => s.key === storeKey);
+  if (!store) return;
+
+  const col     = PORTFOLIO_COLORS[portfolio];
+  const period  = getPeriodLabel();
+  const pct     = d.pctElapsed || 0;
+  const ach     = store.ach != null ? Math.round(store.ach) : '—';
+  const achCol  = store.ach != null ? (store.ach >= pct ? '#166534' : store.ach >= pct-10 ? '#854D0E' : '#991B1B') : '#666';
+  const gap     = store.revenue - store.budget;
+  const skus    = (store.custDetail && store.custDetail.skus) ? store.custDetail.skus : [];
+  const inlineCSS = document.querySelector('style').innerHTML;
+
+  // Split SKUs into two sections - same as dashboard
+  const PRICESMART_SKUS_BRIEF = new Set(['Pricesmart - Covebay 6" Clamshell','Covebay 7x7 2 Compartment Bagasse - Pricesmart','Covebay Burger Box Bagasse - Pricesmart','Covebay Curry Goat Bagasse  - Pricesmart','Pricesmart Covebay 8oz Hot Cup - 5X200','Pricesmart Covebay 12oz Smoothie Cup']);
+  const isPriceSmartStore = store.key === 'C000003778';
+  const filteredSkus = isPriceSmartStore ? skus : skus.filter(s => !PRICESMART_SKUS_BRIEF.has(s.desc));
+
+  const lapsedSkus  = filteredSkus.filter(s => s.lastPurchase !== null).sort((a,b) => a.desc.localeCompare(b.desc));
+  const neverSkus   = filteredSkus.filter(s => s.lastPurchase === null).sort((a,b) => a.desc.localeCompare(b.desc));
+
+  const skuTableHeader = `<tr style="background:#F8FAFC;">
+    <th style="padding:8px 12px;text-align:left;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7280;border-bottom:2px solid #E5E7EB;">SKU</th>
+    <th style="padding:8px 12px;text-align:right;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7280;border-bottom:2px solid #E5E7EB;">Avg Monthly Rev</th>
+    <th style="padding:8px 12px;text-align:right;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7280;border-bottom:2px solid #E5E7EB;">Avg Cases/Mo</th>
+    <th style="padding:8px 12px;text-align:right;font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7280;border-bottom:2px solid #E5E7EB;">Last Purchased</th>
+  </tr>`;
+
+  const buildBriefSkuRows = (skuList, dotColor) => skuList.map((sku, i) => {
+    const bg = i % 2 === 0 ? '#fff' : '#F8FAFC';
+    const lp = sku.lastPurchase
+      ? `<span style="color:#991B1B;font-weight:600;">Last: ${new Date(sku.lastPurchase + 'T12:00:00').toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric'})}</span>`
+      : `<span style="color:#6B7280;">Never purchased</span>`;
+    const avgRev   = sku.ytdAvg   > 0 ? 'J$' + (sku.ytdAvg >= 1000000 ? (sku.ytdAvg/1000000).toFixed(1)+'M' : sku.ytdAvg >= 1000 ? Math.round(sku.ytdAvg/1000)+'K' : sku.ytdAvg) : '$0';
+    const avgCases = sku.ytdCases > 0 ? sku.ytdCases + ' cs' : '—';
+    return `<tr style="background:${bg};">
+      <td style="padding:7px 12px;font-size:12px;border-bottom:1px solid #E5E7EB;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};margin-right:8px;vertical-align:middle;"></span>${sku.desc}
+      </td>
+      <td style="padding:7px 12px;font-size:12px;text-align:right;border-bottom:1px solid #E5E7EB;">${avgRev}</td>
+      <td style="padding:7px 12px;font-size:12px;text-align:right;border-bottom:1px solid #E5E7EB;">${avgCases}</td>
+      <td style="padding:7px 12px;font-size:12px;text-align:right;border-bottom:1px solid #E5E7EB;">${lp}</td>
+    </tr>`;
+  }).join('');
+
+  // Build two-section SKU content
+  let skuContent = '';
+  if (filteredSkus.length === 0) {
+    skuContent = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#166534;font-weight:700;">✓ All key SKUs purchased this month</td></tr>`;
+  }
+
+const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; box-sizing:border-box; }
+    body { font-family:'Open Sans',sans-serif; background:#F5F7FA; margin:0; padding:20px; }
+    @media print { @page { margin:12mm; } body { padding:0; background:#fff; } }
+  </style></head><body>
+
+  <!-- Header -->
+  <div style="background:${col};padding:20px 24px;border-radius:10px 10px 0 0;">
+    <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Store Brief · ${period}</div>
+    <div style="font-family:Montserrat,sans-serif;font-size:22px;font-weight:800;color:#fff;">${store.name}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px;">${store.salesperson || ''} · DFL Importers</div>
+  </div>
+
+  <!-- Summary stats -->
+  <div style="background:#fff;border-bottom:1px solid #E5E7EB;padding:16px 24px;display:flex;gap:0;">
+    ${[
+      ['Status',       store.status === 'follow-up' ? '↓ Follow Up' : store.status === 'watch' ? '△ Watch' : '✓ On Pace',
+                       store.status === 'follow-up' ? '#991B1B' : store.status === 'watch' ? '#854D0E' : '#166534'],
+      ['Achieved',     ach + '%', achCol],
+      ['MTD Revenue',  'J$' + fmtK(store.revenue).replace('J$',''), '#111827'],
+      ['Full Mo Budget','J$' + fmtK(store.budget).replace('J$',''), '#111827'],
+      ['Gap vs Budget', (gap >= 0 ? '+' : '') + 'J$' + fmtK(gap).replace('J$','').replace('-',''), gap >= 0 ? '#166534' : '#991B1B'],
+      ['Gross Profit %', Math.round(store.gpPct || 0) + '%', '#111827'],
+    ].map(([lbl, val, col]) => `
+      <div style="flex:1;padding:10px 16px;border-right:1px solid #E5E7EB;text-align:center;">
+        <div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6B7280;">${lbl}</div>
+        <div style="font-family:Montserrat,sans-serif;font-size:16px;font-weight:800;color:${col};margin-top:3px;">${val}</div>
+      </div>`).join('')}
+  </div>
+
+  <!-- Key SKUs table -->
+  <div style="background:#fff;border-radius:0 0 10px 10px;padding:20px 24px;">
+    <div style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#326BD3;border-bottom:2px solid #EFF6FF;padding-bottom:6px;margin-bottom:12px;">
+      ★ Key SKUs Not Yet Purchased This Month
+    </div>
+
+    ${filteredSkus.length === 0 ? `
+      <div style="padding:16px;text-align:center;color:#166534;font-weight:700;font-family:Montserrat,sans-serif;">✓ All key SKUs purchased this month</div>
+    ` : ''}
+
+    ${lapsedSkus.length > 0 ? `
+      <div style="padding:7px 10px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#854D0E;background:#FFFBEB;border-bottom:1px solid #fde68a;margin-bottom:0;">
+        △ Purchased Before — Not This Month (${lapsedSkus.length})
+      </div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead>${skuTableHeader}</thead>
+        <tbody>${buildBriefSkuRows(lapsedSkus, '#D97706')}</tbody>
+      </table>
+    ` : ''}
+
+    ${neverSkus.length > 0 ? `
+      <div style="padding:7px 10px;font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#6B7280;background:#F9FAFB;border-bottom:1px solid #E5E7EB;border-top:2px solid #E5E7EB;margin-bottom:0;">
+        — Never Purchased (${neverSkus.length})
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>${skuTableHeader}</thead>
+        <tbody>${buildBriefSkuRows(neverSkus, '#9CA3AF')}</tbody>
+      </table>
+    ` : ''}
+  </div>
+
+  <div style="text-align:center;font-size:10px;color:#9CA3AF;margin-top:12px;padding-top:8px;">
+    Generated ${new Date().toLocaleString('en-JM')} · Key Accounts Dashboard · DFL Importers
+  </div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { setTimeout(() => { win.print(); }, 600); };
+}
+
 const PORTFOLIO_COLORS = {
-  chain: '#3B6FD4',
-  key:   '#7C3AED',
-  hosp:  '#0891B2'
+  chain:   '#3B6FD4',
+  key:     '#7C3AED',
+  hosp:    '#0E7490',
+  hostnw:  '#059669',
+  hostse:  '#B45309',
+  hostusd: '#6D28D9'
 };
 const PORTFOLIO_NAMES = {
-  chain: 'Chain Stores',
-  key:   'Key Stores',
-  hosp:  'Hospitality'
+  chain:   'Chain Stores',
+  key:     'Key Stores',
+  hosp:    'Hospitality',
+  hostnw:  'Hospitality NW',
+  hostse:  'Hospitality SE',
+  hostusd: 'Hospitality USD'
 };
 const KAM_NAMES = {
-  chain: 'Andrea Skelton',
-  key:   'Shallet Marsh',
-  hosp:  'Phobea Whorms'
+  chain:   'Andrea Skelton',
+  key:     'Shallet Marsh',
+  hosp:    'Phobea Whorms',
+  hostnw:  'Phobea / Tashelle',
+  hostse:  'Stacy-Ann Bennett',
+  hostusd: 'Richard Gordon'
 };
 
 function openBrief(portfolio) {
@@ -1552,14 +1956,6 @@ document.getElementById('viewToggle').addEventListener('change', loadAll);
 loadAll();
 </script>
 
-
-<!-- Auth. This page used to have NONE: it was reachable by direct URL by
-     anyone, and only the management shell had a (plaintext) password. The guard
-     no-ops when framed, so embedding in management/index.html is unaffected. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/shared/supabase-client.js"></script>
-<script src="/shared/routes.js"></script>
-<script src="/shared/auth-guard.js"></script>
 </body>
 </html></html
 </html>

@@ -6,11 +6,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Category Intelligence — DFL Importers</title>
-<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
-     style rule so there's no flash of restricted data. Reveals immediately when
-     framed, so the management/index.html tab panels still work. -->
-<style>body { visibility: hidden; }</style>
-
 <style>
 :root{
   --blue:#326BD3;--navy:#0D1B3E;--navy2:#152444;--bg:#F5F7FA;--surface:#FFFFFF;--surface-alt:#F9FAFC;
@@ -22,6 +17,7 @@
   --trebor:#0E7490;--trebor-bg:#E8F7FB;
   --travis:#B45309;--travis-bg:#FEF3C7;
   --richard:#C0392B;--richard-bg:#FEF2F2;
+  --matthew:#16A34A;--matthew-bg:#F0FDF4;
   --radius:10px;--sh:0 1px 4px rgba(26,35,64,.08);--sh-md:0 4px 16px rgba(26,35,64,.12);
   --f:'Segoe UI',system-ui,-apple-system,sans-serif;
 }
@@ -61,7 +57,7 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
 .fetch-ts{font-size:11px;color:var(--text-soft);margin-left:auto;}
 
 /* SCORECARDS */
-.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.sc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px;}
 .sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0;overflow:hidden;box-shadow:var(--sh);position:relative;transition:box-shadow .2s;display:flex;flex-direction:column;}
 .sc-hdr{height:92px;padding:14px 18px 12px;display:flex;flex-direction:column;justify-content:flex-start;border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;flex-shrink:0;overflow:hidden;}
 .sc-body{padding:16px 18px 16px;flex:1;position:relative;}
@@ -95,6 +91,7 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
 .mgr-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:5px;white-space:nowrap;}
 .mt-rejene{background:var(--rejene-bg);color:var(--rejene);}.mt-trebor{background:var(--trebor-bg);color:var(--trebor);}.mt-travis{background:var(--travis-bg);color:var(--travis);}
 .mt-richard{background:var(--richard-bg);color:var(--richard);}
+.mt-matthew{background:var(--matthew-bg);color:var(--matthew);}
 .cat-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:5px 12px;border-radius:20px;white-space:nowrap;}
 .cb-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bdr);}
 .cb-a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bdr);}
@@ -131,7 +128,7 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
 .dtab{padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text-soft);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;display:flex;align-items:center;gap:6px;}
 .dtab.active{color:var(--blue);border-bottom-color:var(--blue);}
 .tab-cnt{font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;}
-.tc-r{background:var(--red-bg);color:var(--red);}.tc-a{background:var(--amber-bg);color:var(--amber);}.tc-g{background:var(--green-bg);color:var(--green);}
+.tc-r{background:var(--red-bg);color:var(--red);}.tc-a{background:var(--amber-bg);color:var(--amber);}.tc-g{background:var(--green-bg);color:var(--green);}.tc-b{background:#EEF4FF;color:var(--blue);}
 .dp{display:none;padding:12px 16px 16px;background:#EEF4FF;border-top:1px solid #DBEAFE;}
 .dp.active{display:block;}
 
@@ -489,7 +486,7 @@ select.ctrl{background:var(--surface);border:1px solid var(--border);padding:6px
           <div style="width:1px;background:rgba(255,255,255,.2);margin:0 16px;align-self:stretch;"></div>
           <div style="flex:1;">
             <div class="hs-val hv-g" id="hsTotalRev">—</div>
-            <div class="hs-lbl">MTD Revenue</div>
+            <div class="hs-lbl">Full Mo Target</div>
           </div>
         </div>
       </div>
@@ -533,8 +530,8 @@ const H={apikey:KEY,Authorization:`Bearer ${KEY}`};
 
 const MM={
   PAPER:{mgr:'Rejene',mc:'rejene'},PLASTIC:{mgr:'Rejene',mc:'rejene'},CLEARPACK:{mgr:'Rejene',mc:'rejene'},
-  FOODSUP:{mgr:'Trebor',mc:'trebor'},BEVERAGES:{mgr:'Trebor',mc:'trebor'},ECOBOX:{mgr:'Trebor',mc:'trebor'},
-  ECOCUP:{mgr:'Trebor',mc:'trebor'},ECOSTRAW:{mgr:'Trebor',mc:'trebor'},ECOBAG:{mgr:'Trebor',mc:'trebor'},
+  FOODSUP:{mgr:'Trebor',mc:'trebor'},BEVERAGES:{mgr:'Trebor',mc:'trebor'},
+  ECOBOX:{mgr:'Matthew',mc:'matthew'},ECOCUP:{mgr:'Matthew',mc:'matthew'},ECOSTRAW:{mgr:'Matthew',mc:'matthew'},ECOBAG:{mgr:'Matthew',mc:'matthew'},
   GARBAGEBAG:{mgr:'Travis',mc:'travis'},FOIL:{mgr:'Travis',mc:'travis'},
   PROCESSING:{mgr:'Travis',mc:'travis'},HOUSEHOLD:{mgr:'Travis',mc:'travis'},
   MEZAMENITY:{mgr:'Richard',mc:'richard'},MEZSMALLWA:{mgr:'Richard',mc:'richard'},
@@ -543,9 +540,10 @@ const MM={
   MEZLINEN:{mgr:'Richard',mc:'richard'},MEZPOLYCAR:{mgr:'Richard',mc:'richard'},
   MEZMELAMIN:{mgr:'Richard',mc:'richard'},MEZEQUIPME:{mgr:'Richard',mc:'richard'}
 };
-const MC={Rejene:'#6D28D9',Trebor:'#0E7490',Travis:'#B45309',Richard:'#C0392B'};
+const MC={Rejene:'#6D28D9',Trebor:'#0E7490',Travis:'#B45309',Richard:'#C0392B',Matthew:'#16A34A'};
+const CHAIN_IDS=new Set(['C000001907','C000001908','C000001909','C000001911','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004159','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004361','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005650','C000005651','C000005652','C000005653','C000005654','C000006029','C000006110','C000006386','C000007077','C000009109','C000009140','C000009381','C000009487']);
 
-let D={sum:[],rep:[],cust:[],sku:[],skuCust:[],skuArea:[],skuNotYet:[],workingDays:null};
+let D={sum:[],rep:[],cust:[],custAll:[],sku:[],skuCust:[],skuArea:[],skuNotYet:[],keyAccts:[],workingDays:null};
 let snapMgr=null;
 
 async function get(tbl,params){
@@ -580,14 +578,18 @@ async function loadAll(){
     D.cust=mode==='cur'
       ? await getAll('cat_cust_sku_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date,missing_skus_json',order:'gap_mtd.asc',financial_period:fp})
       : await getAll('cat_cust_cache',{select:'item_class,customer_name,salesperson,area,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,last_purchase_date',financial_period:fp,pct_to_budget:'lt.100'});
+    // All customers for Top 10 tab (cat_cust_cache has all, not just Tier 1-3)
+    D.custAll=await getAll('cat_cust_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd',financial_period:fp,order:'actual_mtd.desc'});
     setLdr('Fetching key SKU data…');
     D.sku=await getAll('cat_sku_cache',{select:'item_class,inventory_id,description,actual_mtd,cases_mtd,gp_pct,prev_month_actual,ytd_avg_monthly_rev,ytd_avg_monthly_cases,pace_vs_prev,pace_vs_same_period,pct_of_prev_full,prev_period_rev',financial_period:fp});
     setLdr('Fetching SKU customer detail…');
-    D.skuCust=mode==='cur'?await getAll('cat_sku_cust_cache',{select:'inventory_id,customer_name,area,tier,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,cumulative_pct,is_new_customer,first_purchase_date',financial_period:fp}):[];
+    D.skuCust=mode==='cur'?await getAll('cat_sku_cust_cache',{select:'inventory_id,customer_id,customer_name,salesperson,area,tier,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,cumulative_pct,is_new_customer,first_purchase_date',financial_period:fp}):[];
     setLdr('Fetching SKU area data…');
     D.skuArea=mode==='cur'?await getAll('cat_sku_area_cache',{select:'inventory_id,area,actual_mtd,cases_mtd,ytd_avg_monthly_rev,ytd_avg_monthly_cases,pct_of_avg',financial_period:fp}):[];
     setLdr('Fetching not yet purchased…');
     D.skuNotYet=mode==='cur'?await getAll('cat_sku_not_yet_cache',{select:'inventory_id,item_class,customer_id,customer_name,area,tier,ytd_avg_rev,ytd_avg_cases,last_purchase_date',financial_period:fp}):[];
+    setLdr('Fetching key accounts…');
+    D.keyAccts=await getAll('cat_key_accounts_cache',{select:'id,item_class,customer_id,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date',financial_period:fp,order:'id.asc'},2000);
     const mo=new Date(parseInt(per.slice(0,4)),parseInt(per.slice(4,6))-1,1).toLocaleString('default',{month:'long',year:'numeric'});
     document.getElementById('periodPill').textContent=mode==='cur'?`${mo} MTD (Day ${now.getDate()})`:mo;
     if(D.sum[0]){const ra=new Date(D.sum[0].refreshed_at);document.getElementById('cacheLbl').textContent=`Cache: ${ra.toLocaleDateString()} ${ra.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;}
@@ -654,7 +656,7 @@ function renderHeaderStrip(){
   paceEl.innerHTML=`<span style="font-weight:900">${actualPace}%</span><span style="font-size:13px;font-weight:500;color:rgba(255,255,255,.6);margin-left:6px">vs ${Math.round(expectedPace)}% expected</span>`;
   paceEl.style.color=paceGap>=0?'#6EE7B7':paceGap>=-10?'#FCD34D':'#F87171';
   const revEl=document.getElementById('hsTotalRev');
-  if(revEl) revEl.textContent=fmt(totalRev);
+  if(revEl) revEl.textContent=fmt(totalBudgetFull);
   const wdInfo=D.workingDays
     ?`${D.workingDays.working_days_elapsed} of ${D.workingDays.total_working_days} working days · ${D.workingDays.pct_elapsed}% of month`
     :`${elapsed.toFixed(0)}% of month elapsed`;
@@ -671,7 +673,8 @@ function renderSC(){
     Rejene:{fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0},
     Trebor: {fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0},
     Travis: {fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0},
-    Richard:{fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0}
+    Richard:{fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0},
+    Matthew:{fu:0,w:0,ok:0,c:[],budgetFull:0,actualMtd:0,budgetMtd:0}
   };
   D.sum.forEach(r=>{
     const x=MM[r.item_class];if(!x)return;
@@ -692,22 +695,22 @@ function renderSC(){
     const paceCls=paceGap>=0?'sv-g':paceGap>=-10?'sv-a':'sv-r';
     return`<div class="sc"><div class="sc-hdr" style="background:${MC[n]}"><div style="font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em">${n}</div><div style="font-size:11px;color:rgba(255,255,255,.72);margin-top:4px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${d.c.join(' · ')}</div></div>
     <div class="sc-body">
-    <div style="display:flex;gap:0;margin-bottom:14px">
-      <div style="flex:1;text-align:center;border-right:1px solid var(--border);">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">Target</div>
-        <div style="font-weight:800;font-size:15px;line-height:1;color:var(--text)">${fmt(d.budgetFull)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+      <div style="text-align:center;padding:8px 4px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">Tgt</div>
+        <div style="font-weight:800;font-size:13px;line-height:1;color:var(--text)">${fmt(d.budgetFull)}</div>
       </div>
-      <div style="flex:1;text-align:center;border-right:1px solid var(--border);">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">MTD Rev</div>
-        <div style="font-weight:800;font-size:15px;line-height:1;color:var(--text)">${fmt(d.actualMtd)}</div>
+      <div style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">Rev</div>
+        <div style="font-weight:800;font-size:13px;line-height:1;color:var(--text)">${fmt(d.actualMtd)}</div>
       </div>
-      <div style="flex:1;text-align:center;border-right:1px solid var(--border);">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">Achieved</div>
-        <div style="font-weight:800;font-size:15px;line-height:1;color:var(--${paceCls==='sv-g'?'green':paceCls==='sv-a'?'amber':'red'})">${pctAchieved}%</div>
+      <div style="text-align:center;padding:8px 4px;border-right:1px solid var(--border);">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">Ach</div>
+        <div style="font-weight:800;font-size:13px;line-height:1;color:var(--${paceCls==='sv-g'?'green':paceCls==='sv-a'?'amber':'red'})">${pctAchieved}%</div>
       </div>
-      <div style="flex:1;text-align:center;">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">VAR</div>
-        <div style="font-weight:800;font-size:15px;line-height:1;color:var(--${gap>=0?'green':'red'})">${gap>=0?'+':''}${fmt(gap)}</div>
+      <div style="text-align:center;padding:8px 4px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:3px">VAR</div>
+        <div style="font-weight:800;font-size:13px;line-height:1;color:var(--${gap>=0?'green':'red'})">${gap>=0?'+':''}${fmt(gap)}</div>
       </div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:12px;">
@@ -724,7 +727,8 @@ function renderSC(){
 // ── CATEGORY PANELS (grouped by manager) ─────────────────────────────────────
 const MGR_ORDER=[
   {mgr:'Rejene',cats:['PAPER','PLASTIC','CLEARPACK']},
-  {mgr:'Trebor',cats:['FOODSUP','BEVERAGES','ECOBOX','ECOCUP','ECOSTRAW','ECOBAG']},
+  {mgr:'Trebor',cats:['FOODSUP','BEVERAGES']},
+  {mgr:'Matthew',cats:['ECOBOX','ECOCUP','ECOSTRAW','ECOBAG']},
   {mgr:'Travis',cats:['GARBAGEBAG','FOIL','PROCESSING','HOUSEHOLD']},
   {mgr:'Richard',cats:['MEZAMENITY','MEZSMALLWA','MEZ','MEZGLASSWA','MEZPORCELA','MEZCUTLERY','MEZLINEN','MEZPOLYCAR','MEZMELAMIN','MEZEQUIPME']}
 ];
@@ -794,14 +798,254 @@ function renderCats(){
           <div class="dtab active" onclick="stab(event,'${row.item_class}','r')">By Rep <span class="tab-cnt ${repRows.filter(r=>(parseFloat(r.pct_to_budget)-elapsed)<0).length?'tc-r':'tc-g'}">${repRows.length} reps</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','c')">High Impact Accounts <span class="tab-cnt tc-a">${custRows.length}</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','s')">Key SKUs <span class="tab-cnt tc-a">${skuRows.length}</span></div>
+          <div class="dtab" onclick="stab(event,'${row.item_class}','ka')">Key Accounts <span class="tab-cnt tc-b">${D.keyAccts.filter(r=>r.item_class===row.item_class).length}</span></div>
+          <div class="dtab" onclick="stab(event,'${row.item_class}','t10')">Top 10 Revenue</div>
+          <div class="dtab" onclick="stab(event,'${row.item_class}','skup')">SKU Penetration</div>
         </div>
         <div class="dp active" id="dp_${row.item_class}_r">${buildRepRows(repRows,elapsed)}</div>
         <div class="dp" id="dp_${row.item_class}_c">${buildCustRows(custRows,elapsed,row.item_class)}</div>
         <div class="dp" id="dp_${row.item_class}_s">${buildSkuRows(skuRows,row.item_class)}</div>
+        <div class="dp" id="dp_${row.item_class}_ka">${buildKeyAccountsRows(row.item_class,elapsed)}</div>
+        <div class="dp" id="dp_${row.item_class}_t10">${buildTop10Rows(row.item_class,elapsed)}</div>
+        <div class="dp" id="dp_${row.item_class}_skup">${buildSkuPenetrationTab(row.item_class)}</div>
       </div></div>`;
     }).join('');
   });
   document.getElementById('catList').innerHTML=html||'<div class="empty-row">No data loaded.</div>';
+}
+
+// ── SKU PENETRATION TAB ──────────────────────────────────────────────────────
+function buildSkuPenetrationTab(cat){
+  const skus=D.sku.filter(r=>r.item_class===cat).sort((a,b)=>a.description.localeCompare(b.description));
+  if(!skus.length) return'<div class="empty-row">No Key SKUs defined for this category</div>';
+  const uid='skup_'+cat;
+  const opts=skus.map(s=>'<option value="'+s.inventory_id+'">'+s.description+'</option>').join('');
+  const ss='font-size:13px;font-weight:600;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;width:100%';
+  const html=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:14px">'+
+      '<div>'+
+        '<label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);display:block;margin-bottom:6px">SKU 1</label>'+
+        '<select id="'+uid+'_sel1" data-cat="'+cat+'" class="skup-sel" style="'+ss+'">'+
+          '<option value="">— Choose a SKU —</option>'+opts+
+        '</select>'+
+      '</div>'+
+      '<div>'+
+        '<label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);display:block;margin-bottom:6px">SKU 2 <span style="font-weight:400;font-style:italic">(optional)</span></label>'+
+        '<select id="'+uid+'_sel2" data-cat="'+cat+'" class="skup-sel" style="'+ss+'">'+
+          '<option value="">— None —</option>'+opts+
+        '</select>'+
+      '</div>'+
+    '</div>'+
+    '<div id="'+uid+'_result" style="min-height:60px">'+
+      '<div style="font-size:12px;color:var(--text-soft);font-style:italic">Select a SKU above to see penetration data</div>'+
+    '</div>';
+  return html;
+}
+
+// Global delegated event handler for SKU penetration dropdowns
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.classList.contains('skup-sel')){
+    renderSkuPenetration(e.target.getAttribute('data-cat'));
+  }
+});
+
+function renderSkuPenetration(cat){
+  const uid='skup_'+cat;
+  const sel1=document.getElementById(uid+'_sel1');
+  const sel2=document.getElementById(uid+'_sel2');
+  const result=document.getElementById(uid+'_result');
+  const invId1=sel1?sel1.value:'';
+  const invId2=sel2?sel2.value:'';
+
+  if(!invId1){
+    result.innerHTML='<div style="font-size:12px;color:var(--text-soft);font-style:italic">Select a SKU above to see penetration data</div>';
+    return;
+  }
+
+  const buildPanel=function(invId){
+    if(!invId) return null;
+    // Deduplicate by customer_id
+    const raw=D.skuCust.filter(r=>r.inventory_id===invId);
+    const custMap={};
+    raw.forEach(r=>{
+      if(!custMap[r.customer_id]||parseFloat(r.actual_mtd)>parseFloat(custMap[r.customer_id].actual_mtd)){
+        custMap[r.customer_id]=r;
+      }
+    });
+    const custs=Object.values(custMap).sort((a,b)=>parseFloat(b.actual_mtd)-parseFloat(a.actual_mtd));
+    if(!custs.length) return '<div class="empty-row">No customers purchased this SKU this month</div>';
+
+    const keyIds=new Set(D.keyAccts.map(r=>r.customer_id));
+    const getSegment=r=>{
+      if(keyIds.has(r.customer_id)) return 'Key';
+      if(CHAIN_IDS.has(r.customer_id)) return 'Chain';
+      return 'General';
+    };
+
+    const totalCusts=custs.length;
+    const totalCases=custs.reduce((s,r)=>s+parseFloat(r.cases_mtd||0),0);
+    const totalRev=custs.reduce((s,r)=>s+parseFloat(r.actual_mtd||0),0);
+    const keyCusts=custs.filter(r=>getSegment(r)==='Key').length;
+    const chainCusts=custs.filter(r=>getSegment(r)==='Chain').length;
+
+    // Rep map
+    const repMap={};
+    custs.forEach(r=>{
+      const rep=r.salesperson||'Unknown';
+      if(!repMap[rep]) repMap[rep]={salesperson:rep,cases:0,revenue:0,custs:0};
+      repMap[rep].cases+=parseFloat(r.cases_mtd||0);
+      repMap[rep].revenue+=parseFloat(r.actual_mtd||0);
+      repMap[rep].custs++;
+    });
+    const repRows=Object.values(repMap).sort((a,b)=>b.revenue-a.revenue);
+
+    const custRowsHtml=custs.map(r=>{
+      const seg=getSegment(r);
+      const segCls=seg==='Key'?'tc-b':seg==='Chain'?'tc-a':'';
+      return '<tr><td style="font-weight:600">'+r.customer_name+'</td>'+
+        '<td><span class="tab-cnt '+segCls+'" style="font-size:9px;padding:1px 6px">'+seg+'</span></td>'+
+        '<td style="text-align:right">'+fmtN(r.cases_mtd)+' cs</td>'+
+        '<td style="text-align:right;font-weight:600">'+fmt(r.actual_mtd)+'</td></tr>';
+    }).join('');
+
+    const repRowsHtml=repRows.map(r=>{
+      return '<tr><td style="font-weight:600">'+r.salesperson+'</td>'+
+        '<td style="text-align:right">'+r.custs+'</td>'+
+        '<td style="text-align:right">'+fmtN(r.cases)+' cs</td>'+
+        '<td style="text-align:right;font-weight:600">'+fmt(r.revenue)+'</td></tr>';
+    }).join('');
+
+    // Summary strip
+    const summary=
+      '<div style="display:flex;gap:0;margin-bottom:14px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border);overflow:hidden">'+
+        '<div style="text-align:center;flex:1;padding:8px 4px"><div style="font-weight:800;font-size:16px;color:var(--blue)">'+totalCusts+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-top:2px">Custs</div></div>'+
+        '<div style="text-align:center;flex:1;padding:8px 4px;border-left:1px solid var(--border)"><div style="font-weight:800;font-size:16px;color:var(--text)">'+fmtN(totalCases)+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-top:2px">Cases</div></div>'+
+        '<div style="text-align:center;flex:1;padding:8px 4px;border-left:1px solid var(--border)"><div style="font-weight:800;font-size:16px;color:var(--text)">'+fmt(totalRev)+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-top:2px">Revenue</div></div>'+
+        '<div style="text-align:center;flex:1;padding:8px 4px;border-left:1px solid var(--border)"><div style="font-weight:800;font-size:16px;color:var(--blue)">'+keyCusts+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-top:2px">Key</div></div>'+
+        '<div style="text-align:center;flex:1;padding:8px 4px;border-left:1px solid var(--border)"><div style="font-weight:800;font-size:16px;color:var(--amber)">'+chainCusts+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-top:2px">Chain</div></div>'+
+      '</div>';
+
+    // Customer section — scrollable
+    const custSection=
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">'+
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">'+
+          'Customers ('+totalCusts+')'+
+        '</div>'+
+        '<div style="max-height:320px;overflow-y:auto">'+
+          '<table class="exp-table" style="font-size:11px">'+
+            '<tr><th>Customer</th><th>Seg</th><th style="text-align:right">Cases</th><th style="text-align:right">Value</th></tr>'+
+            custRowsHtml+
+          '</table>'+
+        '</div>'+
+      '</div>';
+
+    // Rep section — scrollable
+    const repSection=
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">'+
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft);margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">'+
+          'By Rep ('+repRows.length+')'+
+        '</div>'+
+        '<div style="max-height:220px;overflow-y:auto">'+
+          '<table class="exp-table" style="font-size:11px">'+
+            '<tr><th>Rep</th><th style="text-align:right">Custs</th><th style="text-align:right">Cases</th><th style="text-align:right">Value</th></tr>'+
+            repRowsHtml+
+          '</table>'+
+        '</div>'+
+      '</div>';
+
+    return summary+custSection+repSection;
+  };
+
+  const panel1=buildPanel(invId1);
+  const panel2=invId2?buildPanel(invId2):null;
+
+  if(!panel2){
+    // Single view — full width
+    result.innerHTML='<div>'+panel1+'</div>';
+  } else {
+    // Side by side comparison
+    const skuDesc1=sel1.options[sel1.selectedIndex].text;
+    const skuDesc2=sel2.options[sel2.selectedIndex].text;
+    result.innerHTML=
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">'+
+        '<div>'+
+          '<div style="font-size:11px;font-weight:700;color:var(--blue);padding:6px 10px;background:#EEF4FF;border-radius:6px;margin-bottom:12px;text-align:center">'+skuDesc1+'</div>'+
+          panel1+
+        '</div>'+
+        '<div>'+
+          '<div style="font-size:11px;font-weight:700;color:var(--green);padding:6px 10px;background:#F0FDF4;border-radius:6px;margin-bottom:12px;text-align:center">'+skuDesc2+'</div>'+
+          panel2+
+        '</div>'+
+      '</div>';
+  }
+}
+
+function buildKeyAccountsRows(cat, elapsed){
+  const rows=D.keyAccts.filter(r=>r.item_class===cat)
+    .sort((a,b)=>{
+      // Nulls (no budget) go to bottom
+      const aHas=a.pct_to_budget!=null, bHas=b.pct_to_budget!=null;
+      if(!aHas&&!bHas) return 0;
+      if(!aHas) return 1;
+      if(!bHas) return -1;
+      return parseFloat(a.pct_to_budget)-parseFloat(b.pct_to_budget);
+    });
+  if(!rows.length) return'<div class="empty-row">No Key Accounts with budgets in this category</div>';
+  const behind=rows.filter(r=>parseFloat(r.pace_gap||0)<0).length;
+  return`
+    <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <strong>${rows.length}</strong> Key Accounts in this category · <span style="color:var(--red);font-weight:600">${behind} behind pace</span>
+    </div>
+    <table class="exp-table">
+      <tr><th>Account</th><th>Area</th><th>Tier</th><th>Rep</th><th>MTD Actual</th><th>Month Target</th><th>Ach %</th><th>Gap</th><th>Last Purchase</th></tr>
+      ${rows.map(r=>{
+        const pct=parseFloat(r.pct_to_budget||0);
+        const achCls=pct>=100?'sv-g':pct>=65?'sv-a':'sv-r';
+        const lp=r.last_purchase_date?lastPurchaseInfo(r.last_purchase_date):{cls:'old',txt:'—'};
+        return`<tr>
+          <td style="font-weight:700">${r.customer_name}</td>
+          <td>${r.area||'—'}</td>
+          <td style="font-size:11px">${r.tier||'—'}</td>
+          <td style="font-size:11px;color:var(--text-soft)">${r.salesperson||'—'}</td>
+          <td style="font-weight:600">${fmt(r.actual_mtd)}</td>
+          <td>${r.budget_full>0?fmt(r.budget_full):'—'}</td>
+          <td style="font-weight:700" class="${r.budget_full>0?achCls:''}">${r.budget_full>0?pct.toFixed(0)+'%':'—'}</td>
+          <td style="font-weight:700;color:${r.gap_mtd!=null&&parseFloat(r.gap_mtd)<0?'var(--red)':r.gap_mtd!=null?'var(--green)':'var(--text-soft)'}">${r.gap_mtd!=null?fmt(r.gap_mtd):'—'}</td>
+          <td class="cr-date ${lp.cls}" style="font-size:11px">${lp.txt}</td>
+        </tr>`;
+      }).join('')}
+    </table>`;
+}
+
+// ── TOP 10 REVENUE TAB ────────────────────────────────────────────────────────
+function buildTop10Rows(cat, elapsed){
+  // Use cat_cust_cache (all customers) sorted by actual_mtd desc
+  const rows=(D.custAll||D.cust).filter(r=>r.item_class===cat)
+    .sort((a,b)=>parseFloat(b.actual_mtd||0)-parseFloat(a.actual_mtd||0))
+    .slice(0,10);
+  if(!rows.length) return'<div class="empty-row">No customer revenue data available</div>';
+  const totalRev=rows.reduce((s,r)=>s+parseFloat(r.actual_mtd||0),0);
+  return`
+    <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      Top 10 accounts · Combined MTD revenue: <strong>${fmt(totalRev)}</strong>
+    </div>
+    <table class="exp-table">
+      <tr><th>Account</th><th>Area</th><th>Tier</th><th>MTD Revenue</th><th>Month Target</th><th>Ach %</th><th>Gap</th></tr>
+      ${rows.map((r,i)=>{
+        const pct=parseFloat(r.pct_to_budget||0);
+        const achCls=pct>=100?'sv-g':pct>=65?'sv-a':'sv-r';
+        const share=totalRev>0?((parseFloat(r.actual_mtd)/totalRev)*100).toFixed(0):0;
+        return`<tr style="${i<3?'background:rgba(50,107,211,.03)':''}">
+          <td style="font-weight:700">${i+1}. ${r.customer_name}</td>
+          <td>${r.area||'—'}</td>
+          <td style="font-size:11px">${r.tier||'—'}</td>
+          <td style="font-weight:700">${fmt(r.actual_mtd)} <span style="font-size:10px;color:var(--text-soft)">(${share}%)</span></td>
+          <td>${r.budget_full?fmt(r.budget_full):'—'}</td>
+          <td style="font-weight:700" class="${r.budget_full>0?achCls:''}">${r.budget_full>0?pct.toFixed(0)+'%':'—'}</td>
+          <td style="font-weight:700;color:${parseFloat(r.gap_mtd||0)<0?'var(--red)':'var(--green)'}">${r.budget_full>0?fmt(r.gap_mtd):'—'}</td>
+        </tr>`;
+      }).join('')}
+    </table>`;
 }
 
 // ── BY REP (all reps, sorted worst pace first) ───────────────────────────────
@@ -1421,13 +1665,5 @@ function hideLdr(){document.getElementById('ldr').style.display='none';}
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closeModal();});
 loadAll();
 </script>
-
-<!-- Auth. This page used to have NONE: it was reachable by direct URL by
-     anyone, and only the management shell had a (plaintext) password. The guard
-     no-ops when framed, so embedding in management/index.html is unaffected. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/shared/supabase-client.js"></script>
-<script src="/shared/routes.js"></script>
-<script src="/shared/auth-guard.js"></script>
 </body>
 </html>

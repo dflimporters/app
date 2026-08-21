@@ -4,11 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL — Sales Manager Dashboard</title>
-<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
-     style rule so there's no flash of restricted data. Reveals immediately when
-     framed, so the management/index.html tab panels still work. -->
-<style>body { visibility: hidden; }</style>
-
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,6 +62,9 @@
   .filter-btn { background:var(--surface); border:1.5px solid var(--border2); color:var(--text2); font-family:'Montserrat',sans-serif; font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:8px 16px; cursor:pointer; border-radius:6px; transition:all 0.15s; box-shadow:var(--shadow-sm); }
   .filter-btn:hover { border-color:var(--blue); color:var(--blue); }
   .filter-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; box-shadow:0 3px 10px rgba(50,107,211,0.28); }
+  .refresh-btn { background:transparent; border:1.5px solid var(--blue); color:var(--blue); font-family:'Montserrat',sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:6px 14px; cursor:pointer; border-radius:6px; transition:all 0.15s; margin-left:4px; }
+  .refresh-btn:hover { background:var(--blue); color:#fff; }
+  .refresh-btn:disabled { opacity:0.4; cursor:not-allowed; }
 
   /* ── Summary Cards ───────────────── */
   .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; animation:fadeUp 0.4s 0.07s ease both; }
@@ -99,10 +97,10 @@
   .table-head-bar { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; border-bottom:1.5px solid var(--border); background:linear-gradient(135deg,var(--navy) 0%,#1a3166 100%); }
   .table-title { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; color:#fff; }
   .table-meta  { font-size:11px; color:rgba(255,255,255,0.45); font-weight:600; }
-  .col-header-row { display:grid; grid-template-columns:220px 108px 1fr 120px 120px 110px 80px; padding:10px 28px; background:var(--blue-light); border-bottom:1.5px solid var(--blue-mid); }
+  .col-header-row { display:grid; grid-template-columns:1.8fr 110px 110px 120px 80px 100px 100px 100px 80px 60px; padding:10px 28px; background:var(--blue-light); border-bottom:1.5px solid var(--blue-mid); }
   .col-h { font-family:'Montserrat',sans-serif; font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:var(--blue); }
 
-  .rep-row { display:grid; grid-template-columns:220px 108px 1fr 120px 120px 110px 80px; padding:0 28px; align-items:center; min-height:68px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
+  .rep-row { display:grid; grid-template-columns:1.8fr 110px 110px 120px 80px 100px 100px 100px 80px 60px; padding:14px 28px; align-items:center; min-height:60px; border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.12s; }
   .rep-row:last-of-type { border-bottom:none; }
   .rep-row:hover, .rep-row.open { background:var(--surface2); }
   .rep-name { font-family:'Montserrat',sans-serif; font-size:13px; font-weight:700; color:var(--navy); }
@@ -219,6 +217,17 @@
   .act-btn:hover { background:var(--blue-dark); transform:translateY(-1px); box-shadow:0 4px 12px rgba(50,107,211,0.32); }
   .act-btn.ghost { background:transparent; border:1.5px solid var(--border2); color:var(--text2); box-shadow:none; }
   .act-btn.ghost:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-light); transform:translateY(-1px); }
+  .report-btn {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--navy); border:none; color:#fff;
+    font-family:'Montserrat',sans-serif; font-size:10px; font-weight:800;
+    letter-spacing:1px; text-transform:uppercase;
+    padding:10px 20px; cursor:pointer; border-radius:7px;
+    transition:all 0.15s; box-shadow:0 2px 8px rgba(13,27,62,0.22);
+  }
+  .report-btn:hover { background:var(--blue); transform:translateY(-1px); box-shadow:0 4px 12px rgba(50,107,211,0.32); }
+  .report-btn:active { transform:translateY(0); }
+  .report-btn:disabled { background:var(--border2); color:var(--muted); cursor:not-allowed; box-shadow:none; transform:none; }
 
   #page-loading { text-align:center; padding:60px; color:var(--muted); font-size:12px; font-weight:600; }
   .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 18px; }
@@ -466,22 +475,83 @@
     background: var(--red-bg);
     color: var(--red);
   }
+
+  /* ── Rep Report Modal ──────────────────── */
+  .rep-modal-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(13,27,62,0.6);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .rep-modal {
+    background: #fff; border-radius: 14px;
+    width: 100%; max-width: 800px;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(13,27,62,0.3);
+  }
+  .rep-modal-header {
+    background: var(--navy); color: #fff;
+    padding: 16px 20px; border-radius: 14px 14px 0 0;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    position: sticky; top: 0; z-index: 1;
+  }
+  .rep-modal-close {
+    background: rgba(255,255,255,0.12); border: none; color: #fff;
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    font-size: 14px; line-height: 1; flex-shrink: 0;
+  }
+  .rep-modal-close:hover { background: rgba(255,255,255,0.25); }
+  .rep-modal-body { padding: 16px 20px; }
+  .rep-modal-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+  .rep-modal-kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .rep-modal-kpi-label { font-size: 8px; font-family: 'Montserrat',sans-serif; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+  .rep-modal-kpi-value { font-size: 18px; font-family: 'Montserrat',sans-serif; font-weight: 900; }
+  .rep-modal-section { margin-bottom: 12px; }
+  .rep-modal-section-hdr { font-size: 10px; font-family: 'Montserrat',sans-serif; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 7px 12px; border-radius: 7px 7px 0 0; color: #fff; }
+  .rep-modal-section-body { border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 7px 7px; background: #fff; overflow: hidden; }
+  .rep-modal-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+  .rep-modal-row:last-child { border-bottom: none; }
+  .rep-modal-row-name { color: var(--navy); font-weight: 600; flex: 1; }
+  .rep-modal-row-sub { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+  .rep-modal-row-val { font-family: 'Montserrat',sans-serif; font-weight: 800; font-size: 12px; white-space: nowrap; margin-left: 12px; }
+  .rep-modal-empty { padding: 12px; font-size: 11px; color: #94a3b8; font-style: italic; text-align: center; }
+
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <div class="wrap">
 
   <div class="topbar">
     <div>
-      <div class="brand-pill"><span class="brand-dot"></span>DFL Importers · Sales</div>
+      <div class="brand-pill"><span class="brand-dot"></span>DFL Importers · Sales · v1741</div>
       <h1>Rep <span>Performance</span><br>Dashboard</h1>
-      <div class="topbar-meta" id="dash-meta">Loading live data…</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div class="topbar-meta" id="dash-meta">Loading live data…</div>
+        <span style="background:#16a34a;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:5px;font-family:Montserrat,sans-serif">v2.1</span>
+        <select id="month-select" onchange="onMonthChange()" style="
+          background:#fff;border:2px solid var(--blue);
+          color:var(--navy);font-family:Montserrat,sans-serif;font-size:11px;font-weight:800;
+          letter-spacing:0.5px;padding:7px 12px;border-radius:8px;
+          cursor:pointer;outline:none;box-shadow:0 2px 8px rgba(50,107,211,0.15);">
+          <option value="202601">January 2026</option>
+          <option value="202602">February 2026</option>
+          <option value="202603">March 2026</option>
+          <option value="202604">April 2026</option>
+          <option value="202605">May 2026</option>
+          <option value="202606">June 2026</option>
+          <option value="202607">July 2026</option>
+        </select>
+      </div>
     </div>
     <div class="filter-bar">
       <button class="filter-btn active" onclick="setFilter('all',this)">All Reps</button>
       <button class="filter-btn" onclick="setFilter('critical',this)">Critical <span id="cnt-critical">—</span></button>
       <button class="filter-btn" onclick="setFilter('behind',this)">Behind <span id="cnt-behind">—</span></button>
       <button class="filter-btn" onclick="setFilter('on-track',this)">On Track <span id="cnt-ontrack">—</span></button>
+      <button class="refresh-btn" id="refresh-btn" onclick="forceRefresh()" title="Refresh cache with latest data">↻ Refresh</button>
+      <button class="refresh-btn" id="export-btn" onclick="exportToCSV()" title="Download as CSV for commission" style="background:var(--blue);color:#fff;border-color:var(--blue)">⬇ Export</button>
     </div>
   </div>
 
@@ -521,11 +591,14 @@
     <div class="col-header-row">
       <div class="col-h">Rep / Area</div>
       <div class="col-h">Status</div>
-      <div class="col-h">Revenue vs Target</div>
-      <div class="col-h">Active Customers</div>
-      <div class="col-h">New Accounts</div>
+      <div class="col-h" style="text-align:right">Target</div>
+      <div class="col-h" style="text-align:right">Actual MTD</div>
+      <div class="col-h" style="text-align:right">Ach %</div>
+      <div class="col-h" style="text-align:center">Active<br>Customers</div>
+      <div class="col-h" style="text-align:center">New<br>Accounts</div>
       <div class="col-h">Last Active</div>
-      <div class="col-h">Days Active</div>
+      <div class="col-h" style="text-align:center">Days<br>Active</div>
+      <div class="col-h" style="text-align:center">Plan</div>
     </div>
     <div id="rep-list">
       <div id="page-loading"><div class="spinner"></div>Pulling live data from Supabase…</div>
@@ -567,7 +640,66 @@
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const REPPERF_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+// ── Month selector state ─────────────────────────────────────────────────────
+const CURRENT_PERIOD = (() => {
+  const n = new Date();
+  return n.getFullYear() + String(n.getMonth() + 1).padStart(2, '0');
+})();
+
+let SELECTED_PERIOD = CURRENT_PERIOD;
+
+function onMonthChange() {
+  const sel = document.getElementById('month-select');
+  SELECTED_PERIOD = sel.value;
+  const monthName = new Date(parseInt(SELECTED_PERIOD.slice(0,4)), parseInt(SELECTED_PERIOD.slice(4,6))-1, 1)
+    .toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+  document.getElementById('dash-meta').textContent = 'Loading ' + monthName + '…';
+  document.getElementById('rep-list').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">Loading ' + monthName + '…</div>';
+  // Recalculate pace — wrapped so a failure here never blocks the data load
+  try {
+    LIVE_PACE_PCT = calcPaceForPeriod(SELECTED_PERIOD);
+  } catch(err) {
+    console.warn('Pace calc failed, using 100:', err);
+    LIVE_PACE_PCT = 100;
+  }
+  if (SELECTED_PERIOD === CURRENT_PERIOD) {
+    init();
+  } else {
+    loadHistoricalMonth(SELECTED_PERIOD).catch(e => {
+      document.getElementById('dash-meta').textContent = 'Error: ' + e.message;
+      document.getElementById('rep-list').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">Error: ' + e.message + '</div>';
+    });
+  }
+}
+
+const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+
+// ─── CALC PACE FOR ANY PERIOD ────────────────────────────────────────────────
+function calcPaceForPeriod(period) {
+  const year  = parseInt(period.slice(0,4));
+  const month = parseInt(period.slice(4,6)) - 1; // 0-indexed
+  const now   = new Date();
+  // Past month = fully elapsed
+  const periodEnd = new Date(year, month + 1, 0);
+  if (periodEnd < now) return 100;
+  // Current/future month — count working days elapsed
+  const holidays = ['2026-0-1','2026-0-2','2026-1-18','2026-3-3','2026-3-6','2026-4-25','2026-7-1','2026-7-3','2026-9-19','2026-11-25','2026-11-26'];
+  const isHol = (y,m,d) => holidays.includes(y+'-'+m+'-'+d);
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = now.getDate();
+  let total = 0, elapsed = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dw = new Date(year, month, d).getDay();
+    if (dw !== 0 && dw !== 6 && !isHol(year, month, d)) {
+      total++;
+      if (d <= today) elapsed++;
+    }
+  }
+  return total > 0 ? Math.round((elapsed/total)*100) : 0;
+}
+
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -585,7 +717,7 @@ async function sbGet(path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   try {
-    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/${path}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       signal: controller.signal,
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -607,7 +739,7 @@ async function sbGet(path) {
 }
 
 async function sbRpc(fn, params) {
-  const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rpc/${fn}`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
       'apikey':        SUPABASE_KEY,
@@ -627,39 +759,47 @@ async function sbRpc(fn, params) {
 // ─── CALCULATE LIVE PACE % (client-side, Jamaica time) ───────────────────────
 function calcPaceElapsed() {
   const now   = new Date();
-  const year  = now.getFullYear();
-  const month = now.getMonth(); // 0-indexed
-  const yesterday = now.getDate() - 1;
+  const dow   = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+
+  // On Sunday — reset pace to 0% ready for the new week ahead
+  if (dow === 0) return 0;
 
   // Jamaica public holidays (YYYY, MM-1, DD) — exclude from working days
-  // Month is 0-indexed (JS Date convention): Jan=0, May=4, etc.
   const holidays = [
-    '2026-0-1',              // New Year's Day
-    '2026-1-18',             // Ash Wednesday
-    '2026-3-3','2026-3-6',   // Good Friday, Easter Monday
-    '2026-4-25',             // Labour Day (observed — May 23 falls on Saturday)
-    '2026-7-6',              // Independence Day (Emancipation Day Aug 1 falls on Saturday, no weekday impact)
-    '2026-9-19',             // National Heroes Day
-    '2026-11-25',            // Christmas Day (Boxing Day Dec 26 falls on Saturday, no weekday impact)
+    '2026-0-1','2026-0-2',
+    '2026-1-18',
+    '2026-3-3','2026-3-6',
+    '2026-4-25',
+    '2026-7-1','2026-7-3',
+    '2026-9-19',
+    '2026-11-25','2026-11-26',
   ];
   const isHoliday = (y, m, d) => holidays.includes(y+'-'+m+'-'+d);
+
+  const year      = now.getFullYear();
+  const month     = now.getMonth();
+  const today = now.getDate(); // include today
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let total = 0, elapsed = 0;
   for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, month, d).getDay();
-    if (dow !== 0 && dow !== 6 && !isHoliday(year, month, d)) {
+    const dw = new Date(year, month, d).getDay();
+    if (dw !== 0 && dw !== 6 && !isHoliday(year, month, d)) {
       total++;
-      if (d <= yesterday) elapsed++;
+      if (d <= today) elapsed++;
     }
   }
   return total > 0 ? Math.round((elapsed / total) * 100) : 0;
 }
 
-const LIVE_PACE_PCT = calcPaceElapsed();
+let LIVE_PACE_PCT = 0; // will be set from cache data
 
 // ─── RENDER SUMMARY ───────────────────────────────────────────────────────────
 function renderSummary(reps) {
+  // Use pace from cache — it's the authoritative figure
+  if (reps.length > 0 && reps[0].pct_month_elapsed) {
+    LIVE_PACE_PCT = Number(reps[0].pct_month_elapsed);
+  }
   const tot = reps.reduce((s, r) => s + Number(r.monthly_actual), 0);
   const tgt = reps.reduce((s, r) => s + Number(r.monthly_target), 0);
   const ot  = reps.filter(r => r.status === 'on-track').length;
@@ -667,7 +807,7 @@ function renderSummary(reps) {
   const cr  = reps.filter(r => r.status === 'critical').length;
 
   const teamPct = pct(tot, tgt);
-  const pacePct = reps.length > 0 ? LIVE_PACE_PCT : 0;
+  const pacePct = reps.length > 0 ? Math.round(LIVE_PACE_PCT) : 0;
   document.getElementById('sc-pct').innerHTML =
     `${teamPct}%<small> &nbsp;/ ${pacePct}%</small>`;
   document.getElementById('sc-rev-sub').textContent = `${fmtM(tot)} of ${fmtM(tgt)}`;
@@ -715,14 +855,14 @@ function renderRow(rep) {
   // Bar colour driven by pace gap — green if on/ahead of pace, amber if watching, red if critical
   const paceGap = Math.round((LIVE_PACE_PCT - Number(rep.pct_to_target)) * 10) / 10;
   const bc = paceGap <= 0
-    ? '#16a34a'   // green — at or ahead of pace
-    : paceGap <= 8
-    ? '#d97706'   // amber — slightly behind
-    : '#dc2626';  // red   — critical
+    ? '#16a34a'   // green  — on pace or ahead
+    : paceGap <= 15
+    ? '#d97706'   // amber  — behind
+    : '#dc2626';  // red    — critical
   const pctDisplay = Number(rep.pct_to_target).toFixed(1);
   const sc = paceGap <= 0
     ? { label:'On Track', color:'#16a34a', bg:'#dcfce7' }
-    : paceGap <= 8
+    : paceGap <= 15
     ? { label:'Behind',   color:'#d97706', bg:'#fef3c7' }
     : { label:'Critical', color:'#dc2626', bg:'#fee2e2' };
 
@@ -739,42 +879,30 @@ function renderRow(rep) {
         <div class="rep-area">${rep.area || 'Unassigned'}</div>
       </div>
       <div><span class="badge" style="background:${sc.bg};color:${sc.color}">${sc.label}</span></div>
-      <div class="bar-wrap">
-        <div class="bar-meta">
-          <span>
-            <strong style="color:${bc}">${pctDisplay}%</strong>
-            <span style="color:var(--dim);font-size:9px;margin-left:5px">vs <strong style="color:var(--blue)">${LIVE_PACE_PCT.toFixed(0)}% pace</strong></span>
-          </span>
-          <span style="text-align:right;line-height:1.4">
-            <span style="display:block;font-size:11px;font-weight:700;color:${bc}">${fmtM(actual)}</span>
-            <span style="display:block;font-size:9px;color:var(--muted)">of ${fmtM(target)}</span>
-          </span>
-        </div>
-        <div class="bar-track">
-          <div class="bar-fill" style="width:${p}%;background:${bc};border-radius:3px"></div>
-          <div style="position:absolute;top:-3px;bottom:-3px;left:${Math.min(LIVE_PACE_PCT,100)}%;width:2px;background:var(--blue);border-radius:1px;opacity:0.8;transform:translateX(-1px)" title="Pace marker: ${LIVE_PACE_PCT.toFixed(0)}% of month elapsed"></div>
-        </div>
-        <div style="font-size:9px;margin-top:4px;font-weight:600">
-          ${paceGap > 0
-            ? `<span style="color:${bc}">▼ ${Math.abs(paceGap).toFixed(0)} pts behind pace</span>`
-            : `<span style="color:var(--green)">▲ ${Math.abs(paceGap).toFixed(0)} pts ahead of pace</span>`}
-        </div>
+      <div style="text-align:right">
+        <div style="font-size:15px;font-weight:900;color:var(--navy);font-family:'Montserrat',sans-serif">${fmtM(target)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:15px;font-weight:900;color:${bc};font-family:'Montserrat',sans-serif">${fmtM(actual)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:14px;font-weight:800;color:${bc}">${pctDisplay}%</div>
+      </div>
+      <div style="text-align:center">
+        <div class="metric-main" style="color:var(--navy);font-size:13px">${rep.active_customers_mtd}</div>
+      </div>
+      <div style="text-align:center">
+        <div class="metric-main" style="color:${rep.new_accounts_mtd > 0 ? '#16a34a' : 'var(--navy)'};font-size:13px">${rep.new_accounts_mtd}</div>
       </div>
       <div>
-        <div class="metric-main" style="color:var(--navy)">${rep.active_customers_mtd}</div>
-        <div class="metric-sub">customers this month</div>
+        <div class="metric-main" style="font-size:12px">${lastDate}</div>
       </div>
-      <div>
-        <div class="metric-main" style="color:${rep.new_accounts_mtd > 0 ? '#16a34a' : 'var(--navy)'}">${rep.new_accounts_mtd}</div>
-        <div class="metric-sub">new accounts</div>
+      <div style="text-align:center">
+        <div class="metric-main" style="font-size:13px">${rep.days_active_mtd}</div>
       </div>
-      <div>
-        <div class="metric-main">${lastDate}</div>
-        <div class="metric-sub">last invoice</div>
-      </div>
-      <div>
-        <div class="metric-main">${rep.days_active_mtd}</div>
-        <div class="metric-sub">days invoiced</div>
+      <div style="display:flex;align-items:center;justify-content:center">
+        <div id="plan-dot-${rowId}" title="Checking plan..."
+          style="width:11px;height:11px;border-radius:50%;background:#d1d5db;flex-shrink:0"></div>
       </div>
     </div>
 
@@ -791,7 +919,7 @@ function renderRow(rep) {
           </div>
           <div class="expand-line"><span>% to Target</span><strong>${pctDisplay}%</strong></div>
           <div class="expand-line"><span>Expected by now</span>
-            <strong>${LIVE_PACE_PCT}%</strong>
+            <strong>${Math.round(LIVE_PACE_PCT)}%</strong>
           </div>
           <div class="expand-line"><span>Pace gap</span>
             <strong style="color:${
@@ -799,6 +927,10 @@ function renderRow(rep) {
               rep.pace_status === 'watch'     ? '#d97706' : '#16a34a'}">
               ${paceGap > 0 ? '▼' : '▲'}${Math.abs(paceGap).toFixed(0)} pts
             </strong>
+          </div>
+          <div id="trend-${rowId}" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:9px;font-family:'Montserrat',sans-serif;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Weekly Trend (6 wks)</div>
+            <div style="font-size:10px;color:var(--dim);font-style:italic">Loading…</div>
           </div>
         </div>
         <div class="expand-stat-block">
@@ -822,20 +954,13 @@ function renderRow(rep) {
         </div>
       </div>
 
-      <div class="intel-section">
-        <div class="intel-header">
-          <div class="intel-title">Account Intelligence</div>
-          <div class="intel-legend">
-            <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>Gone Quiet (60+ days)</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Below Trend (vs 90-day avg)</div>
-            <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div>White Space (&lt;50% of 119 key SKUs)</div>
-          </div>
-        </div>
-        <div class="insight-list" id="intel-${rowId}">
-          <div class="intel-loading"><span class="mini-spinner"></span>Loading account intelligence…</div>
-        </div>
+      <div style="margin:4px 0 18px">
+        <button class="report-btn" id="report-btn-${rowId}"
+          onclick="downloadRepReport(event,this.dataset.rep,this.dataset.rowid,this)"
+          data-rep="${rep.salesperson}" data-rowid="${rowId}">
+          📊 Performance Report
+        </button>
       </div>
-
       <div class="action-row">
         <button class="act-btn" data-rep="${rep.salesperson}" onclick="event.stopPropagation();logFollowup(this.dataset.rep)">📞 Log Follow-up</button>
         <button class="act-btn ghost" data-rowid="${rowId}" data-rep="${rep.salesperson}" onclick="event.stopPropagation();toggleHistory(this.dataset.rowid,this.dataset.rep)">View History</button>
@@ -906,6 +1031,61 @@ async function loadIntelligence(salesperson, rowId) {
 }
 
 // ─── LOAD WEEKLY PLAN ────────────────────────────────────────────────────────
+async function loadWeeklyTrend(salesperson, rowId) {
+  const el = document.getElementById('trend-' + rowId);
+  if (!el) return;
+  try {
+    const weeks = await sbRpc('get_rep_weekly_trend', { p_salesperson: salesperson });
+    if (!weeks || !weeks.length) {
+      el.innerHTML = '<div style="font-size:10px;color:var(--dim)">No trend data</div>';
+      return;
+    }
+
+    const fmtK = v => {
+      const n = Math.abs(Number(v));
+      if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000)    return '$' + Math.round(n/1000) + 'K';
+      return '$' + Math.round(n);
+    };
+
+    const maxRev = Math.max(...weeks.map(w => Number(w.revenue)), 1);
+
+    let html = '<div style="font-size:9px;font-family:Montserrat,sans-serif;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Weekly Trend (6 wks)</div>';
+    html += '<div style="display:flex;align-items:flex-end;gap:6px">';
+    weeks.forEach(w => {
+      const rev = Number(w.revenue);
+      // Fixed 60px track — scale bar height in pixels so values are visually proportional
+      const barPx = Math.max(Math.round((rev / maxRev) * 60), 4);
+      const barColor = w.is_current ? 'var(--blue)' : '#93b4e8';
+      html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
+        <div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:3px">${fmtK(rev)}</div>
+        <div style="width:100%;height:60px;display:flex;align-items:flex-end">
+          <div style="width:100%;background:${barColor};height:${barPx}px;border-radius:3px 3px 0 0" title="${w.week_start}: ${fmtK(rev)}"></div>
+        </div>
+        <div style="font-size:8px;color:var(--dim);margin-top:3px">${w.week_start}${w.is_current?' •':''}</div>
+      </div>`;
+    });
+    html += '</div>';
+
+    // Trend direction: compare last completed week to prior
+    if (weeks.length >= 3) {
+      const completed = weeks.filter(w => !w.is_current);
+      if (completed.length >= 2) {
+        const last = Number(completed[completed.length-1].revenue);
+        const prev = Number(completed[completed.length-2].revenue);
+        const dir  = last >= prev;
+        const pctChg = prev > 0 ? Math.round(((last-prev)/prev)*100) : 0;
+        html += `<div style="margin-top:8px;font-size:10px;color:${dir?'#16a34a':'#dc2626'};font-weight:600">
+          ${dir?'▲':'▼'} ${Math.abs(pctChg)}% vs prior week</div>`;
+      }
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:10px;color:var(--dim)">Could not load trend</div>';
+  }
+}
+
 async function loadWeeklyPlan(salesperson, rowId) {
   const el = document.getElementById('plan-' + rowId);
   if (!el) return;
@@ -948,9 +1128,16 @@ async function loadWeeklyPlan(salesperson, rowId) {
       });
     }
 
-    if (plan.flags) {
-      html += '<div style="margin-top:8px;background:var(--amber-bg);border-left:3px solid var(--amber);'
-        + 'padding:6px 10px;border-radius:4px;color:#92400e;font-size:11px">⚠️ ' + plan.flags + '</div>';
+    if (plan.flags && plan.flags.trim()) {
+      html += '<div style="margin-top:12px;background:#fef3c7;border:1.5px solid #f59e0b;'
+        + 'padding:10px 12px;border-radius:8px">'
+        + '<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;letter-spacing:1px;'
+        + 'text-transform:uppercase;color:#92400e;margin-bottom:4px">⚠️ Blockers / Flags Raised</div>'
+        + '<div style="color:#78350f;font-size:12px;line-height:1.5">' + plan.flags + '</div></div>';
+    } else {
+      html += '<div style="margin-top:12px;background:#f0fdf4;border:1px solid #bbf7d0;'
+        + 'padding:8px 12px;border-radius:8px;color:#166534;font-size:11px">'
+        + '✓ No blockers raised this week</div>';
     }
 
     const submittedAt = new Date(plan.submitted_at).toLocaleDateString('en-GB',
@@ -1110,9 +1297,9 @@ function toggleExpand(salesperson) {
   if (!open) {
     pan.classList.add('open');
     row.classList.add('open');
-    loadIntelligence(salesperson, rowId);
     loadWeeklyPlan(salesperson, rowId);
     loadTierMix(salesperson, rowId);
+    loadWeeklyTrend(salesperson, rowId);
   }
 }
 
@@ -1120,11 +1307,14 @@ function toggleExpand(salesperson) {
 let allReps = [], currentFilter = 'all';
 
 function renderTable(reps) {
+  window._lastReps = reps; // store for CSV export
   const filtered = currentFilter === 'all' ? reps : reps.filter(r => r.status === currentFilter);
   document.getElementById('table-meta').textContent = `${filtered.length} rep${filtered.length !== 1 ? 's' : ''} shown`;
   document.getElementById('rep-list').innerHTML = filtered.length
     ? filtered.map(renderRow).join('')
     : `<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">No reps match this filter.</div>`;
+  // Check weekly plan submissions after render
+  setTimeout(() => checkWeeklyPlans(reps), 400);
 }
 
 function setFilter(f, btn) {
@@ -1177,7 +1367,7 @@ async function saveFollowup() {
   btn.textContent = 'Saving…';
 
   try {
-    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_followups`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups`, {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1224,7 +1414,7 @@ async function deleteFollowup(id, rowId, salesperson) {
   item.style.pointerEvents = 'none';
 
   try {
-    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_followups?id=eq.${id}`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups?id=eq.${id}`, {
       method: 'DELETE',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1284,6 +1474,327 @@ async function loadFollowupHistory(salesperson, rowId) {
   }
 }
 
+// ─── LOAD HISTORICAL MONTH ───────────────────────────────────────────────────
+async function loadHistoricalMonth(period) {
+  const metaEl = document.getElementById('dash-meta');
+  try {
+    metaEl.textContent = 'Fetching ' + period + ' from server…';
+    // Single fast server-side aggregation instead of fetching thousands of rows
+    const rows = await sbRpc('get_historical_month', { p_period: period });
+
+    metaEl.textContent = 'Got ' + (rows ? rows.length : 0) + ' rows for ' + period;
+
+    if (!rows || !rows.length) {
+      document.getElementById('rep-list').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">No data found for this month.</div>';
+      return;
+    }
+
+    const reps = rows.map(r => {
+      const pctV     = Number(r.pct_to_target) || 0;
+      const paceGapV = LIVE_PACE_PCT - pctV;
+      const statusV  = paceGapV <= 0 ? 'on-track' : paceGapV <= 15 ? 'behind' : 'critical';
+      return {
+        salesperson:          r.salesperson,
+        salesperson_id:       r.salesperson_id || '',
+        area:                 r.area || 'Unassigned',
+        monthly_target:       Number(r.monthly_target) || 0,
+        monthly_actual:       Number(r.monthly_actual) || 0,
+        _period:              period,
+        pct_to_target:        pctV,
+        active_customers_mtd: Number(r.active_customers_mtd) || 0,
+        new_accounts_mtd:     0,
+        days_active_mtd:      Number(r.days_active_mtd) || 0,
+        last_invoice_date:    r.last_invoice_date || null,
+        pct_month_elapsed:    LIVE_PACE_PCT,
+        pace_gap_pct:         Math.round(paceGapV * 10) / 10,
+        status:               statusV,
+        pace_status:          paceGapV > 15 ? 'follow-up' : paceGapV > 8 ? 'watch' : 'on-pace',
+        refreshed_at:         new Date().toISOString(),
+      };
+    });
+
+    const monthName = new Date(parseInt(period.slice(0,4)), parseInt(period.slice(4,6))-1, 1)
+      .toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+
+    document.getElementById('dash-meta').textContent = `${monthName} · Historical view`;
+    window._lastReps = reps;
+    renderSummary(reps);
+    renderTable(reps);
+
+  } catch(e) {
+    console.error('Historical load error:', e);
+    document.getElementById('rep-list').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">
+        Could not load historical data: ${e.message}
+      </div>`;
+  }
+}
+
+async function loadHistoricalMonth_OLD(period) {
+  console.log('loadHistoricalMonth called with period:', period);
+  try {
+    const monthNum = parseInt(period.slice(4, 6));
+    console.log('monthNum:', monthNum);
+
+    // Fetch actuals from invoiced_items for this period
+    const [actuals, budgets, repMeta] = await Promise.all([
+      (async () => {
+        let all = [], offset = 0;
+        while (true) {
+          const page = await sbGet(`invoiced_items?select=salesperson,customer_id,ext_amount,doc_type,invoice_date&financial_period=eq.${period}&salesperson=neq.0&salesperson=neq.House&salesperson=neq.SHALLET%20ROUTE%20SALES&limit=1000&offset=${offset}`);
+          all = all.concat(page);
+          if (page.length < 1000) break;
+          offset += 1000;
+          if (offset > 20000) break;
+        }
+        return all;
+      })(),
+      sbGet(`budget_2026?select=salesperson,budget&month_number=eq.${monthNum}&limit=2000`),
+      sbGet(`reps?select=name,salesperson_id,area&role=eq.rep&active=eq.true&limit=50`),
+    ]);
+
+    console.log('Data fetched — actuals:', actuals.length, 'budgets:', budgets.length, 'reps:', repMeta.length);
+
+    // Build budget map
+    const budgetMap = {};
+    budgets.forEach(b => {
+      budgetMap[b.salesperson] = (budgetMap[b.salesperson] || 0) + Number(b.budget);
+    });
+
+    // Build actuals map
+    const actualsMap = {};
+    const custMap    = {};
+    const lastInvMap = {};
+    const daysMap    = {};
+
+    actuals.forEach(r => {
+      const sp  = r.salesperson;
+      if (!sp || sp === '0' || sp === 'House') return;
+      const val = r.doc_type === 'Credit Memo' ? -Math.abs(Number(r.ext_amount)) : Number(r.ext_amount);
+      actualsMap[sp] = (actualsMap[sp] || 0) + val;
+      custMap[sp]    = custMap[sp] || new Set();
+      custMap[sp].add(r.customer_id);
+      const d = r.invoice_date?.slice(0, 10);
+      if (d) {
+        if (!lastInvMap[sp] || d > lastInvMap[sp]) lastInvMap[sp] = d;
+        daysMap[sp] = daysMap[sp] || new Set();
+        daysMap[sp].add(d.slice(0, 10));
+      }
+    });
+
+    // Build rep rows — iterate over ALL salespeople found in actuals+budget, not just reps table
+    const allNames = new Set([...Object.keys(actualsMap), ...Object.keys(budgetMap)]);
+    const metaByName = {};
+    repMeta.forEach(r => { metaByName[r.name] = r; });
+
+    const reps = [...allNames]
+      .filter(name => name && name !== '0' && name !== 'House' && name !== 'SHALLET ROUTE SALES')
+      .map(name => {
+        const meta   = metaByName[name] || {};
+        const actual = actualsMap[name] || 0;
+        const target = budgetMap[name] || 0;
+        const pctV   = target > 0 ? Math.round((actual / target) * 100 * 10) / 10 : 0;
+        const paceGapV = LIVE_PACE_PCT - pctV;
+        const statusV  = paceGapV <= 0 ? 'on-track' : paceGapV <= 15 ? 'behind' : 'critical';
+        return {
+          salesperson:          name,
+          salesperson_id:       meta.salesperson_id || '',
+          area:                 meta.area || 'Unassigned',
+          monthly_target:       target,
+          monthly_actual:       actual,
+          _period:              period,
+          pct_to_target:        pctV,
+          active_customers_mtd: custMap[name]?.size || 0,
+          new_accounts_mtd:     0,
+          days_active_mtd:      daysMap[name]?.size || 0,
+          last_invoice_date:    lastInvMap[name] || null,
+          pct_month_elapsed:    LIVE_PACE_PCT,
+          pace_gap_pct:         Math.round(paceGapV * 10) / 10,
+          status:               statusV,
+          pace_status:          paceGapV > 15 ? 'follow-up' : paceGapV > 8 ? 'watch' : 'on-pace',
+          refreshed_at:         new Date().toISOString(),
+        };
+      })
+      .filter(r => r.monthly_target > 0 || r.monthly_actual > 0)
+      .sort((a, b) => b.pct_to_target - a.pct_to_target);
+
+    console.log('Reps built:', reps.length, 'sample:', reps[0]);
+    const monthName = new Date(parseInt(period.slice(0,4)), parseInt(period.slice(4,6))-1, 1)
+      .toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+
+    document.getElementById('dash-meta').textContent = `${monthName} · Historical view`;
+    renderSummary(reps);
+    renderTable(reps);
+    console.log('renderTable called successfully');
+
+  } catch(e) {
+    console.error('Historical load error:', e);
+    document.getElementById('rep-list').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">
+        Could not load historical data: ${e.message}
+      </div>`;
+  }
+}
+
+// ─── EXPORT TO CSV ───────────────────────────────────────────────────────────
+function exportToCSV() {
+  if (!window._lastReps || !window._lastReps.length) {
+    alert('No data to export. Please wait for the dashboard to load.');
+    return;
+  }
+  const period = document.getElementById('month-select').value || CURRENT_PERIOD;
+  const monthName = new Date(
+    parseInt(period.slice(0,4)),
+    parseInt(period.slice(4,6)) - 1, 1
+  ).toLocaleDateString('en-GB', {month:'long', year:'numeric'});
+
+  const headers = ['Rep','Area','Status','Target (J$)','Actual MTD (J$)','Ach %','Pace Gap (pts)','Active Customers','New Accounts','Days Active','Last Invoice'];
+  const rows = window._lastReps.map(r => {
+    const paceGap = Math.round((LIVE_PACE_PCT - Number(r.pct_to_target)) * 10) / 10;
+    const status  = paceGap <= 0 ? 'On Track' : paceGap <= 15 ? 'Behind' : 'Critical';
+    return [
+      r.salesperson,
+      r.area || '',
+      status,
+      Math.round(Number(r.monthly_target)),
+      Math.round(Number(r.monthly_actual)),
+      Number(r.pct_to_target).toFixed(1) + '%',
+      (paceGap > 0 ? '-' : '+') + Math.abs(paceGap).toFixed(1),
+      r.active_customers_mtd,
+      r.new_accounts_mtd,
+      r.days_active_mtd,
+      r.last_invoice_date ? new Date(r.last_invoice_date).toLocaleDateString('en-GB') : '',
+    ];
+  });
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `DFL-RepPerformance-${monthName.replace(/\s/g,'-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ─── CHECK WEEKLY PLANS ───────────────────────────────────────────────────────
+async function checkWeeklyPlans(reps) {
+  const now = new Date();
+  const dow = now.getDay();
+
+  // This week's Monday
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((dow + 6) % 7));
+  monday.setHours(0,0,0,0);
+
+  // Last Friday (reps can submit Friday for the coming week)
+  const lastFriday = new Date(monday);
+  lastFriday.setDate(monday.getDate() - 3);
+
+  // Build all possible week_commencing strings this week might be stored as
+  // The weekly plan form stores dates like "21 Jul – 25 Jul"
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtWeekStr(mon) {
+    const fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
+    const fmtD = d => d.getDate() + ' ' + MONTHS[d.getMonth()];
+    return fmtD(mon) + ' – ' + fmtD(fri);
+  }
+
+  const thisWeekStr = fmtWeekStr(monday);
+
+  try {
+    // Fetch plans submitted since last Thursday (to catch Friday submissions for this week)
+    const since = new Date(lastFriday);
+    since.setDate(since.getDate() - 1);
+    const sinceStr = since.toISOString().split('T')[0];
+
+    const plans = await sbGet(
+      `weekly_plans?select=salesperson,week_commencing,submitted_at&submitted_at=gte.${sinceStr}&limit=500`
+    );
+
+    console.log('Plan check — thisWeekStr:', thisWeekStr, '| plans found:', plans.length);
+    if (plans.length > 0) console.log('Sample week_commencing:', plans[0].week_commencing);
+
+    // Build map: salesperson → plan details
+    const planMap = {};
+    plans.forEach(p => {
+      if (p.week_commencing === thisWeekStr) {
+        planMap[p.salesperson] = {
+          submitted: new Date(p.submitted_at).toLocaleDateString('en-GB', {
+            day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
+          })
+        };
+      }
+    });
+
+    // Update dots
+    reps.forEach(rep => {
+      const rowId = 'rep-' + rep.salesperson.replace(/\s+/g, '-');
+      const dot   = document.getElementById('plan-dot-' + rowId);
+      if (!dot) return;
+      const plan = planMap[rep.salesperson];
+      dot.style.background = plan ? '#16a34a' : '#dc2626';
+      dot.style.boxShadow   = plan ? '0 0 0 2px #dcfce7' : '0 0 0 2px #fee2e2';
+      dot.title = plan
+        ? '✓ Plan submitted — ' + plan.submitted
+        : '✗ No plan submitted for week of ' + thisWeekStr;
+    });
+
+  } catch(e) {
+    console.warn('Plan check failed:', e);
+  }
+}
+
+// ─── FORCE REFRESH ───────────────────────────────────────────────────────────
+async function forceRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Refreshing…'; }
+  document.getElementById('dash-meta').textContent = 'Refreshing data…';
+
+  try {
+    // Rebuild cache server-side (30s timeout)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/refresh_rep_dashboard`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'application/json',
+      },
+      body: '{}',
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+
+    document.getElementById('dash-meta').textContent = 'Refreshed — reloading…';
+    setTimeout(() => {
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+      init();
+    }, 800);
+
+  } catch(e) {
+    console.error('Refresh error:', e);
+    // Fallback — reload data directly from invoiced_items without cache rebuild
+    document.getElementById('dash-meta').textContent = 'Cache refresh timed out — loading live data…';
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+    // Just reload from existing cache — it may have updated partially
+    init();
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   try {
@@ -1304,13 +1815,12 @@ async function init() {
     renderSummary(allReps);
     renderTable(allReps);
 
-    // Show last refresh time and month
+    // Show rep count and refresh time only (month already shown in dropdown)
     const refreshedAt = new Date(allReps[0].refreshed_at);
-    const monthLabel  = refreshedAt.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
     const timeLabel   = refreshedAt.toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
 
     document.getElementById('dash-meta').innerHTML =
-      `${monthLabel} · ${allReps.length} reps · <span class="refresh-badge">✓ Refreshed ${timeLabel}</span>`;
+      `${allReps.length} reps · <span class="refresh-badge">✓ Data as of ${timeLabel}</span>`;
 
   } catch (err) {
     console.error('Dashboard load error:', err);
@@ -1333,7 +1843,7 @@ async function init() {
 // Quick connection test before full init
 async function testConnection() {
   try {
-    const res = await fetch(`${REPPERF_SB_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     if (res.ok) {
@@ -1368,15 +1878,259 @@ async function testConnection() {
   }
 }
 
+// Set dropdown to current month
+const monthSel = document.getElementById('month-select');
+if (monthSel) {
+  monthSel.value = CURRENT_PERIOD;
+  monthSel.addEventListener('change', onMonthChange);
+}
+
+
+
+// ─── REP CHALLENGE MODAL ─────────────────────────────────────────────────────
+function closeRepModal() {
+  const root = document.getElementById('rep-modal-root');
+  if (root) root.innerHTML = '';
+}
+
+async function downloadRepReport(evt, salesperson, rowId, btn) {
+  evt.stopPropagation();
+  evt.preventDefault();
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading…';
+  console.log('downloadRepReport called for:', salesperson);
+  try {
+    const rep    = (window._lastReps||[]).find(r => r.salesperson === salesperson);
+    if (!rep) throw new Error('Rep data not found — try refreshing the page');
+    // Use the rep's stored period (set for historical months) or the dropdown value
+    const effectivePeriod = rep._period || document.getElementById('month-select').value || CURRENT_PERIOD;
+
+    const data = await sbRpc('get_rep_report', {
+      p_salesperson: salesperson,
+      p_period:      effectivePeriod,
+    });
+
+    showRepModal(salesperson, effectivePeriod, rep, data);
+
+  } catch(e) {
+    console.error('Modal error:', e);
+    btn.disabled = false;
+    btn.style.background = '#dc2626';
+    const msg = (e.message||String(e)||'Unknown error').slice(0,80);
+    btn.textContent = '✗ ' + msg;
+    // Show error in modal root so it's visible on screen
+    document.getElementById('rep-modal-root').innerHTML =
+      '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()">' +
+      '<div style="background:#fff;padding:24px 28px;border-radius:12px;max-width:500px;text-align:center">' +
+      '<div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:8px">Report Error</div>' +
+      '<div style="font-size:13px;color:#374151;word-break:break-word">' + msg + '</div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:8px">Click anywhere to dismiss</div>' +
+      '</div></div>';
+    setTimeout(() => { btn.style.background=''; btn.innerHTML='📊 Performance Report'; }, 8000);
+    return;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '📊 Performance Report';
+}
+
+function showRepModal(salesperson, period, rep, data) {
+  console.log('showRepModal called', salesperson, 'data keys:', data ? Object.keys(data) : 'null');
+  const monthName = new Date(parseInt(period.slice(0,4)), parseInt(period.slice(4,6))-1, 1)
+    .toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const actual   = Number(rep.monthly_actual||0);
+  const target   = Number(rep.monthly_target||0);
+  const pct      = target>0 ? Math.round((actual/target)*100) : 0;
+  const paceGap  = Math.round(LIVE_PACE_PCT - Number(rep.pct_to_target));
+  const bc       = paceGap<=0 ? '#16a34a' : paceGap<=15 ? '#d97706' : '#dc2626';
+  const statusTxt= paceGap<=0 ? 'On Track' : paceGap<=15 ? 'Behind' : 'Critical';
+
+  const fmt = v => {
+    const n=Math.abs(Number(v)||0);
+    if(n>=1000000) return 'J$'+(n/1000000).toFixed(1)+'M';
+    if(n>=1000)    return 'J$'+Math.round(n/1000)+'K';
+    return 'J$'+Math.round(n).toLocaleString();
+  };
+  const pctFmt = (a,b) => b>0 ? Math.round((a/b)*100)+'%' : '—';
+  const tierSym = t => t==='Tier 1'?'★':t==='Tier 2'?'●':'○';
+
+  // Gap accounts
+  const gapCusts  = (data.gap_customers || []).filter(c => Number(c.lm_rev) > 0);
+  const gapTotal  = gapCusts.reduce((s,c) => s+Number(c.lm_rev||0), 0);
+
+  // Struggling categories (behind budget AND below last month)
+  const EXCL = ['MEZSMALLWA','PLSWRAP','0','Z-NONSTOCK'];
+  const cats = (data.categories||[]).filter(c => !EXCL.includes(c.item_class) && Number(c.budget)>50000);
+  const struggling = cats
+    .filter(c => Number(c.budget) > 0 && Math.round((Number(c.mtd_rev)/Number(c.budget))*100) < 60)
+    .sort((a,b) => {
+      // Sort by revenue gap descending
+      const gapA = Number(a.budget) - Number(a.mtd_rev);
+      const gapB = Number(b.budget) - Number(b.mtd_rev);
+      return gapB - gapA;
+    })
+    .slice(0,6);
+
+  // Visit priorities — top overdue by days
+  const visits = (data.visit_plan||[]).slice(0,8);
+  // Total revenue gap across visit priorities (budget minus MTD achieved, only where budget exists)
+  const visitGapTotal = visits.reduce((s,v) => {
+    const bud = Number(v.cust_budget||0);
+    const mtd = Number(v.cust_mtd_rev||0);
+    return s + (bud > mtd ? bud - mtd : 0);
+  }, 0);
+
+  const html = `
+  <div class="rep-modal-overlay" onclick="if(event.target===this)closeRepModal()">
+    <div class="rep-modal">
+
+      <!-- Header -->
+      <div class="rep-modal-header">
+        <div>
+          <div style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:900">${salesperson}</div>
+          <div style="font-size:11px;color:#8fa8d0;margin-top:2px;letter-spacing:1px">${rep.area||''} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Key Challenges</div>
+        </div>
+        <button class="rep-modal-close" onclick="closeRepModal()">✕</button>
+      </div>
+
+      <div class="rep-modal-body">
+
+        <!-- KPIs -->
+        <div class="rep-modal-kpis">
+          <div class="rep-modal-kpi">
+            <div class="rep-modal-kpi-label">Target</div>
+            <div class="rep-modal-kpi-value" style="color:var(--navy)">${fmt(target)}</div>
+          </div>
+          <div class="rep-modal-kpi">
+            <div class="rep-modal-kpi-label">Actual MTD</div>
+            <div class="rep-modal-kpi-value" style="color:${bc}">${fmt(actual)}</div>
+          </div>
+          <div class="rep-modal-kpi">
+            <div class="rep-modal-kpi-label">Achievement</div>
+            <div class="rep-modal-kpi-value" style="color:${bc}">${pct}%</div>
+          </div>
+          <div class="rep-modal-kpi" style="border-color:${bc}40;background:${bc}08">
+            <div class="rep-modal-kpi-label">Status</div>
+            <div class="rep-modal-kpi-value" style="color:${bc};font-size:14px">${statusTxt}</div>
+            <div style="font-size:10px;color:${bc};font-weight:600;margin-top:2px">${paceGap>0?'▼ '+Math.abs(paceGap)+'pts behind':'▲ '+Math.abs(paceGap)+'pts ahead'}</div>
+          </div>
+        </div>
+
+        <!-- Gap accounts -->
+        <div class="rep-modal-section">
+          <div class="rep-modal-section-hdr" style="background:#dc2626">
+            ⚠ Gap Accounts — Active Last Month, Not Yet Ordered This Month
+            ${gapCusts.length>0 ? ' · <strong>'+fmt(gapTotal)+' spent last month</strong>' : ''}
+          </div>
+          <div class="rep-modal-section-body">
+            ${gapCusts.length===0
+              ? '<div class="rep-modal-empty">✓ All active accounts from last month have already ordered this month.</div>'
+              : gapCusts.map((c,i) => {
+                const lastD = c.last_order_date
+                  ? new Date(c.last_order_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+                  : '—';
+                const daysSince = c.last_order_date
+                  ? Math.round((new Date() - new Date(c.last_order_date)) / 86400000)
+                  : null;
+                const avgSpend   = Number(c.avg_monthly_spend||0);
+                const julyBudget = Number(c.july_budget||0);
+                return `
+                <div class="rep-modal-row" style="background:${i%2===0?'#fff':'#fff5f5'}">
+                  <div style="flex:1">
+                    <div class="rep-modal-row-name">${tierSym(c.tier)} ${c.customer_name}</div>
+                    <div class="rep-modal-row-sub">
+                      Last ordered: <strong>${lastD}</strong>${daysSince !== null ? ' · '+daysSince+'d ago' : ''}
+                    </div>
+                  </div>
+                  <div style="text-align:right;margin-left:12px;flex-shrink:0">
+                    ${julyBudget > 0 ? `
+                    <div class="rep-modal-row-val" style="color:#326BD3">${fmt(julyBudget)}</div>
+                    <div style="font-size:9px;color:#94a3b8">July budget</div>` : `
+                    <div class="rep-modal-row-val" style="color:#dc2626">${fmt(c.lm_rev)}</div>
+                    <div style="font-size:9px;color:#94a3b8">spent last month</div>`}
+                    ${avgSpend > 0 ? `<div style="font-size:9px;color:#64748b;margin-top:2px">avg ${fmt(avgSpend)}/mo</div>` : ''}
+                  </div>
+                </div>`;}).join('')}
+          </div>
+        </div>
+
+        <!-- Struggling categories -->
+        <div class="rep-modal-section">
+          <div class="rep-modal-section-hdr" style="background:#d97706">
+            📦 Categories Behind Budget &amp; Below Last Month
+          </div>
+          <div class="rep-modal-section-body">
+            ${struggling.length===0
+              ? '<div class="rep-modal-empty">✓ No categories significantly behind budget.</div>'
+              : `<div style="display:grid;grid-template-columns:repeat(3,1fr)">
+                ${struggling.map((c,i) => {
+                  const p = Math.round((Number(c.mtd_rev)/Number(c.budget))*100);
+                  const gap = Number(c.budget) - Number(c.mtd_rev);
+                  return `<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;${i%3!==2?'border-right:1px solid #f1f5f9;':''}background:${i%2===0?'#fff':'#fffbeb'}">
+                    <div style="font-size:11px;font-weight:800;color:var(--navy)">${c.item_class}</div>
+                    <div style="font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;color:#d97706;margin-top:2px">${p}%</div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:2px">${fmt(c.mtd_rev)} of ${fmt(c.budget)}</div>
+                    <div style="font-size:10px;color:#dc2626;font-weight:600">↓ ${fmt(gap)} gap</div>
+                  </div>`;}).join('')}
+              </div>`}
+          </div>
+        </div>
+
+        <!-- Visit priorities -->
+        <div class="rep-modal-section">
+          <div class="rep-modal-section-hdr" style="background:#326BD3">
+            📍 Visit Priorities — Due or Overdue Based on Purchase Cycle
+            ${visitGapTotal > 0 ? ' · <strong>' + fmt(visitGapTotal) + ' budget gap to close</strong>' : ''}
+          </div>
+          <div class="rep-modal-section-body">
+            ${visits.length===0
+              ? '<div class="rep-modal-empty">No accounts currently overdue for a visit.</div>'
+              : visits.map((v,i) => {
+                  const over = v.days_since - v.avg_cycle;
+                  const uc   = over > v.avg_cycle ? '#dc2626' : over > 0 ? '#d97706' : '#16a34a';
+                  const ul   = over > v.avg_cycle ? 'Critical' : over > 0 ? 'Overdue' : 'Due';
+                  const cats = v.top_cats ? v.top_cats.split(', ').slice(0,3) : [];
+                  const cBud = Number(v.cust_budget||0);
+                  const cMtd = Number(v.cust_mtd_rev||0);
+                  const bPct = cBud > 0 ? Math.round((cMtd/cBud)*100) : null;
+                  const bCol = bPct === null ? '#94a3b8' : bPct >= 70 ? '#16a34a' : bPct >= 40 ? '#d97706' : '#dc2626';
+                  return `<div class="rep-modal-row" style="background:${i%2===0?'#fff':'#f8fafc'}">
+                    <div style="flex:1">
+                      <div class="rep-modal-row-name">${tierSym(v.tier)} ${v.customer_name}
+                        <span style="background:${uc}15;color:${uc};font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">${ul}</span>
+                      </div>
+                      <div class="rep-modal-row-sub">${v.shipping_zone||''} · ${v.days_since}d since last order · avg ${v.avg_cycle}d cycle</div>
+                      <div style="margin-top:5px">
+                        ${cBud > 0
+                          ? `<span style="font-size:11px;color:#0D1B3E"><strong style="color:${bCol}">${fmt(cMtd)}</strong> of <strong>${fmt(cBud)}</strong> budget <span style="color:${bCol};font-weight:700">(${bPct}%)</span></span>`
+                          : `<span style="font-size:11px;color:#64748b">${fmt(cMtd)} this month · no budget set</span>`}
+                      </div>
+                    </div>
+                    <div style="text-align:right;margin-left:12px;flex-shrink:0">
+                      ${cats.map(c=>`<span style="background:#eef2fa;color:#326BD3;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:4px;display:inline-block;margin-bottom:3px">${c}</span>`).join('')}
+                    </div>
+                  </div>`;}).join('')}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>`;
+
+  try {
+    const root = document.getElementById('rep-modal-root');
+    if (!root) throw new Error('rep-modal-root element not found in DOM');
+    console.log('Setting modal HTML, length:', html.length);
+    root.innerHTML = html;
+    console.log('Modal injected successfully');
+  } catch(injErr) {
+    console.error('Modal inject error:', injErr);
+    alert('Modal error: ' + injErr.message);
+  }
+}
+
 testConnection();
 </script>
-
-<!-- Auth. This page used to have NONE: it was reachable by direct URL by
-     anyone, and only the management shell had a (plaintext) password. The guard
-     no-ops when framed, so embedding in management/index.html is unaffected. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/shared/supabase-client.js"></script>
-<script src="/shared/routes.js"></script>
-<script src="/shared/auth-guard.js"></script>
+<div id="rep-modal-root"></div>
+<div id="report-render-container" style="position:fixed;left:-9999px;top:0;width:900px;background:#fff;font-family:'Open Sans',sans-serif;z-index:-1;display:none;"></div>
 </body>
 </html>
