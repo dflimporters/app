@@ -3123,17 +3123,60 @@ function openCamera(){
   inp.click();
 }
 
+// Raw phone-camera photos run 3-8MB each; holding several of those as decoded
+// bitmaps/blobs at once is what was tipping cheap Android devices into "low
+// memory" while merchandisers were mid-visit, and made every upload slow on
+// field connections. Re-encoding to a capped resolution before it ever sits
+// in pendingPhotos keeps memory and upload size down (typically <400KB).
+const PHOTO_MAX_DIM = 1600;
+const PHOTO_JPEG_QUALITY = 0.75;
+
+function compressImage(file){
+  return new Promise(function(resolve){
+    const objUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function(){
+      URL.revokeObjectURL(objUrl);
+      const w = img.naturalWidth||img.width, h = img.naturalHeight||img.height;
+      const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(w||PHOTO_MAX_DIM, h||PHOTO_MAX_DIM));
+      const cw = Math.max(1, Math.round(w*scale)), ch = Math.max(1, Math.round(h*scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      if(canvas.toBlob){
+        canvas.toBlob(function(blob){ resolve(blob||file); }, 'image/jpeg', PHOTO_JPEG_QUALITY);
+      } else {
+        resolve(file);
+      }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src = objUrl;
+  });
+}
+
 function handlePhotoSelect(files){
   if(!files||!files.length) return;
   const remaining = MAX_PHOTOS - pendingPhotos.length;
   Array.from(files).slice(0, remaining).forEach(function(file){
-    pendingPhotos.push({file:file, previewUrl:URL.createObjectURL(file), uploadedUrl:null, uploading:false});
+    const entry = {file:null, previewUrl:null, uploadedUrl:null, uploading:false, compressing:true};
+    pendingPhotos.push(entry);
+    compressImage(file).then(function(blob){
+      // Object identity, not the index at push time — a photo removed while
+      // this one was still compressing would otherwise land on the wrong slot.
+      const i = pendingPhotos.indexOf(entry);
+      if(i === -1) return;
+      entry.file = blob;
+      entry.previewUrl = URL.createObjectURL(blob);
+      entry.compressing = false;
+      renderPhotoThumbs();
+      updatePhotoGating();
+      saveVisitDraft();
+      if(!entry.uploadedUrl && !entry.uploading) uploadPhoto(i);
+    });
   });
   renderPhotoThumbs();
   updatePhotoGating();
-  saveVisitDraft();
-  // Upload in background immediately
-  pendingPhotos.forEach(function(_,i){ if(!pendingPhotos[i].uploadedUrl && !pendingPhotos[i].uploading) uploadPhoto(i); });
 }
 
 function renderPhotoThumbs(){
@@ -3143,10 +3186,17 @@ function renderPhotoThumbs(){
   pendingPhotos.forEach(function(p, i){
     var div = document.createElement('div');
     div.className = 'photo-thumb';
-    var img = document.createElement('img');
-    img.src = p.previewUrl;
-    img.alt = 'shelf photo';
-    div.appendChild(img);
+    if(p.previewUrl){
+      var img = document.createElement('img');
+      img.src = p.previewUrl;
+      img.alt = 'shelf photo';
+      div.appendChild(img);
+    } else if(p.compressing){
+      var ph = document.createElement('div');
+      ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:11px;color:var(--muted)';
+      ph.textContent = 'Processing…';
+      div.appendChild(ph);
+    }
     if(p.uploading){
       var ov = document.createElement('div');
       ov.className = 'photo-uploading';
@@ -3244,7 +3294,10 @@ async function uploadPhoto(i){
   if(!p||p.uploadedUrl||p.uploading) return;
   p.uploading = true; renderPhotoThumbs();
   try{
-    var ext = p.file.name.split('.').pop().toLowerCase()||'jpg';
+    // p.file is a compressed Blob (no .name) once compressImage() succeeds —
+    // only the rare fallback-to-original-File case still carries a filename.
+    var ext = p.file.name ? p.file.name.split('.').pop().toLowerCase() : (p.file.type==='image/jpeg' ? 'jpg' : (p.file.type||'').split('/').pop());
+    if(!ext) ext='jpg';
     var uname = (cu&&cu.full_name) ? cu.full_name.replace(/\s+/g,'_') : 'merch';
     var cid = storeSelected&&storeSelected.id ? storeSelected.id : 'unknown';
     var path = uname+'/'+cid+'/'+Date.now()+'_'+i+'.'+ext;
