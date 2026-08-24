@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Key Accounts Dashboard — DFL Importers</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. This page had no guard
+     at all until 2026-08-24 — it was directly reachable by URL with zero
+     auth check, despite being listed as manager/admin-only in routes.js. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -672,6 +679,15 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
     <div class="brief-body" id="briefBody"></div>
   </div>
 </div>
+
+<script>
+window.DFL_PAGE_TITLE = 'Key Account Dashboard';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
 
 <script>
 const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
