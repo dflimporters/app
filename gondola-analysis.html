@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Gondola Analysis 2026</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin/management user.
+     Must be the FIRST style rule so there's no flash of restricted data. -->
+<style>body { visibility: hidden; }</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0f4f8; --surface:#fff; --surface2:#f8fafc;
+  --border:#e2e8f0; --border2:#edf2f7;
+  --navy:#0f2044; --navy2:#1a3260;
+  --text:#1e293b; --muted:#64748b; --dim:#94a3b8;
+  --accent:#2563eb;
+  --green:#16a34a; --green-bg:#f0fdf4; --green-bd:#86efac;
+  --amber:#b45309; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --red:#dc2626;   --red-bg:#fef2f2;   --red-bd:#fecaca;
+  --grey-bg:#f1f5f9; --grey-bd:#e2e8f0;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.5}
+
+/* ── HEADER ── */
+.hdr{background:var(--navy);height:56px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.hl{display:flex;align-items:center;gap:14px}
+.logo{height:26px;filter:brightness(0) invert(1)}
+.hdiv{width:1px;height:22px;background:rgba(255,255,255,.2)}
+.htitle{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.2px}
+.hbadge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.4px}
+.hr2{display:flex;align-items:center;gap:12px}
+.hts{font-size:11px;color:rgba(255,255,255,.4)}
+.rbtn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:5px 12px;border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:500}
+.rbtn:hover{background:rgba(255,255,255,.2)}
+
+/* PAGE TOGGLE — Rentals ↔ Analysis */
+.ptog{display:flex;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:2px;gap:2px}
+.ptog a,.ptog span{display:inline-flex;align-items:center;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;font-family:'Inter',sans-serif;white-space:nowrap}
+.ptog a{color:rgba(255,255,255,.55)}
+.ptog a:hover{color:#fff}
+.ptog span{background:var(--accent);color:#fff}
+
+/* ── KPI BAR ── */
+.kbar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 28px;box-shadow:0 1px 3px rgba(0,0,0,.05);flex-wrap:wrap}
+.kpi{padding:14px 32px 14px 0;display:flex;flex-direction:column;gap:3px;border-right:1px solid var(--border2);margin-right:32px}
+.kpi:last-child{border-right:none;margin-right:0}
+.klbl{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.7px}
+.kval{font-size:21px;font-weight:700;color:var(--navy);letter-spacing:-.5px;line-height:1.1}
+.kval.g{color:var(--green)}.kval.b{color:var(--accent)}.kval.a{color:var(--amber)}.kval.r{color:var(--red)}
+.ksub{font-size:10px;color:var(--dim)}
+
+/* ── HEALTH SUMMARY STRIP ── */
+.hstrip{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:20px}
+.hstrip-lbl{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+.hchip{display:flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;border:1px solid;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.hchip.green{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.hchip.amber{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.hchip.red{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.hchip.grey{background:var(--grey-bg);border-color:var(--grey-bd);color:var(--dim)}
+.hchip.active-green{background:var(--green);border-color:var(--green);color:#fff}
+.hchip.active-amber{background:var(--amber);border-color:var(--amber);color:#fff}
+.hchip.active-red{background:var(--red);border-color:var(--red);color:#fff}
+.hchip.active-grey{background:var(--dim);border-color:var(--dim);color:#fff}
+.hchip-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+
+/* ── CONTROLS ── */
+.ctrl{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw{position:relative;min-width:220px}
+.sw svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}
+.si{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px 6px 30px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;outline:none}
+.si:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.si::placeholder{color:var(--dim)}
+.cd{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.fg{display:flex;gap:4px;flex-wrap:wrap}
+.fb{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:5px 11px;border-radius:6px;font-size:11px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap}
+.fb:hover{border-color:var(--navy2);color:var(--navy)}
+.fb.fa{background:#eff6ff;border-color:#2563eb;color:#1d4ed8}
+.sort-wrap{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sort-lbl{font-size:11px;color:var(--dim);font-weight:500}
+.sort-sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;outline:none;cursor:pointer}
+.cnt{font-size:11px;color:var(--dim);font-weight:500;white-space:nowrap}
+
+/* ── MAIN ── */
+.main{padding:20px 28px 60px}
+
+/* ── TABLE CARD ── */
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead th{background:var(--surface2);padding:10px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:var(--navy)}
+thead th.sorted{color:var(--accent)}
+thead th.thr{text-align:right}
+thead th .sort-arrow{margin-left:4px;opacity:.4}
+thead th.sorted .sort-arrow{opacity:1}
+tbody tr{border-bottom:1px solid var(--border2);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#fafbff}
+tbody tr.rh{display:none}
+td{padding:10px 12px;vertical-align:middle}
+
+/* STORE CELL */
+.sn{font-weight:600;color:var(--navy);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.smeta{font-size:10px;color:var(--dim);margin-top:2px;display:flex;gap:8px}
+.smeta-region{color:var(--muted)}
+
+/* NUMBER CELLS */
+.num{text-align:right;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap}
+.num-sub{text-align:right;font-size:10px;color:var(--dim);margin-top:1px}
+.num.muted{font-weight:500;color:var(--muted)}
+.num.green{color:var(--green)}
+.num.amber{color:var(--amber)}
+.num.red{color:var(--red)}
+
+/* HEALTH BADGE */
+.hbdg{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap}
+.hbdg.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.hbdg.amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.hbdg.red{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.hbdg.grey{background:var(--grey-bg);color:var(--dim);border-color:var(--grey-bd)}
+.hdot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* STATUS BADGE */
+.sbdg{display:inline-flex;padding:2px 7px;border-radius:8px;font-size:10px;font-weight:600;border:1px solid}
+.sbdg.keep{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.sbdg.remove{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.sbdg.pending{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.sbdg.other{background:var(--grey-bg);color:var(--dim);border-color:var(--grey-bd)}
+
+/* PROGRESS BAR — for cost % of sales */
+.pbar-wrap{display:flex;align-items:center;gap:8px}
+.pbar{height:6px;border-radius:3px;background:var(--border);flex:1;min-width:60px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .3s}
+.pbar-lbl{font-size:11px;font-weight:600;white-space:nowrap;min-width:36px;text-align:right}
+
+/* BREAKEVEN */
+.beven{font-size:11px;color:var(--muted);white-space:nowrap}
+.beven.met{color:var(--green);font-weight:600}
+.beven.unmet{color:var(--red);font-weight:600}
+
+/* LOADING */
+.lst{padding:80px;text-align:center;color:var(--dim)}
+.spin{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SCROLL TOP */
+.stb{position:fixed;bottom:22px;right:22px;width:38px;height:38px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 6px -1px rgba(0,0,0,.15);opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;z-index:100}
+.stb.show{opacity:1;transform:translateY(0)}
+.stb:hover{background:var(--navy2)}
+
+/* TOOLTIP */
+[title]{cursor:help}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hl">
+    <img class="logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL" onerror="this.style.display='none'">
+    <div class="hdiv"></div>
+    <span class="htitle">Gondola Analysis 2026</span>
+    <span class="hbadge">LIVE</span>
+  </div>
+  <div class="hr2">
+    <div class="ptog">
+      <a href="/gondola-rentals.html">Rentals</a>
+      <span>Analysis</span>
+    </div>
+    <span class="hts" id="ts">—</span>
+    <button class="rbtn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- KPI BAR -->
+<div class="kbar">
+  <div class="kpi"><div class="klbl">Customers Analysed</div><div class="kval b" id="kCust">—</div><div class="ksub">With sales data</div></div>
+  <div class="kpi"><div class="klbl">Total Sales (2026)</div><div class="kval" id="kSales">—</div><div class="ksub">Gondola customers</div></div>
+  <div class="kpi"><div class="klbl">Total Gondola Cost</div><div class="kval a" id="kGond">—</div><div class="ksub">Annual (all gondolas)</div></div>
+  <div class="kpi"><div class="klbl">Avg GP%</div><div class="kval g" id="kGP">—</div><div class="ksub">Weighted average</div></div>
+  <div class="kpi"><div class="klbl">Avg Final Margin%</div><div class="kval" id="kFM">—</div><div class="ksub">After gondola + haulage</div></div>
+  <div class="kpi"><div class="klbl">Gondola % of Sales</div><div class="kval" id="kPct">—</div><div class="ksub">Portfolio average</div></div>
+</div>
+
+<!-- HEALTH STRIP -->
+<div class="hstrip">
+  <div class="hstrip-lbl">Filter by Health</div>
+  <div class="hchip green" id="chip-green" onclick="toggleHealth('green')">
+    <div class="hchip-dot"></div>
+    <span id="cnt-green">—</span> Profitable
+  </div>
+  <div class="hchip amber" id="chip-amber" onclick="toggleHealth('amber')">
+    <div class="hchip-dot"></div>
+    <span id="cnt-amber">—</span> Marginal
+  </div>
+  <div class="hchip red" id="chip-red" onclick="toggleHealth('red')">
+    <div class="hchip-dot"></div>
+    <span id="cnt-red">—</span> Loss
+  </div>
+  <div class="hchip grey" id="chip-grey" onclick="toggleHealth('grey')">
+    <div class="hchip-dot"></div>
+    <span id="cnt-grey">—</span> No Sales Data
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="ctrl">
+  <div class="sw">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input class="si" id="si" type="text" placeholder="Search store or region…" oninput="applyF()">
+  </div>
+  <div class="cd"></div>
+  <div class="fg" id="rfg">
+    <button class="fb fa" data-r="all"           onclick="setR('all',this)">All Regions</button>
+    <button class="fb"    data-r="South East"    onclick="setR('South East',this)">South East</button>
+    <button class="fb"    data-r="North East"    onclick="setR('North East',this)">North East</button>
+    <button class="fb"    data-r="South West"    onclick="setR('South West',this)">South West</button>
+    <button class="fb"    data-r="South Central" onclick="setR('South Central',this)">South Central</button>
+    <button class="fb"    data-r="North West"    onclick="setR('North West',this)">North West</button>
+  </div>
+  <div class="sort-wrap">
+    <span class="sort-lbl">Sort by</span>
+    <select class="sort-sel" id="sortSel" onchange="applyF()">
+      <option value="sales-desc">Sales ↓</option>
+      <option value="fm-asc">Final Margin % ↑ (worst first)</option>
+      <option value="fm-desc">Final Margin % ↓ (best first)</option>
+      <option value="pct-desc">Gondola % of Sales ↓</option>
+      <option value="gondola-desc">Gondola Cost ↓</option>
+      <option value="name-asc">Name A–Z</option>
+    </select>
+    <div class="cd"></div>
+    <div class="cnt" id="cnt">—</div>
+  </div>
+</div>
+
+<!-- MAIN TABLE -->
+<div class="main">
+  <div class="tcard">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th style="min-width:230px">Store</th>
+          <th class="thr">2026 Sales</th>
+          <th class="thr">GP%</th>
+          <th class="thr">Gross Profit</th>
+          <th class="thr">Gondola / yr</th>
+          <th style="min-width:130px">Cost % of Sales</th>
+          <th class="thr" title="Gross Profit minus Gondola Cost minus 6% Commission/Haulage, as % of Sales">Final Margin %</th>
+          <th class="thr" title="Annual sales needed for gondola to be worthwhile (gondola cost = 4% of COGS threshold)">Breakeven Sales</th>
+          <th>Health</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="10"><div class="lst"><div class="spin"></div><div>Loading data…</div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<button class="stb" id="stb" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+window.DFL_PAGE_TITLE = 'Gondola Analysis';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+
+<script>
+const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+
+// ── GONDOLA ANNUAL RATES (consolidated per customer) ──────────────
+const GONDOLA_RATES = {
+  'C000000045': {annual:600000,  region:'North West',    status:'Keep',            gondolas:3},
+  'C000000081': {annual:180000,  region:'North East',    status:'',                gondolas:1},
+  'C000000136': {annual:120000,  region:'North East',    status:'Pending',         gondolas:1},
+  'C000000186': {annual:216000,  region:'North West',    status:'',                gondolas:1},
+  'C000000190': {annual:288000,  region:'South West',    status:'Keep',            gondolas:2},
+  'C000000246': {annual:180000,  region:'South Central', status:'Pending',         gondolas:1},
+  'C000000438': {annual:300000,  region:'North West',    status:'Keep',            gondolas:1},
+  'C000000440': {annual:180000,  region:'North West',    status:'Remove',          gondolas:1},
+  'C000000441': {annual:732000,  region:'North West',    status:'Keep',            gondolas:3},
+  'C000000446': {annual:600000,  region:'South West',    status:'Keep',            gondolas:3},
+  'C000000456': {annual:378000,  region:'South West',    status:'Keep',            gondolas:2},
+  'C000000465': {annual:360000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000000540': {annual:180000,  region:'North East',    status:'Keep',            gondolas:1},
+  'C000000554': {annual:1380000, region:'South East',    status:'Keep',            gondolas:3},
+  'C000000560': {annual:144000,  region:'South Central', status:'Already Removed', gondolas:1},
+  'C000000757': {annual:600000,  region:'North East',    status:'Keep',            gondolas:2},
+  'C000000758': {annual:720000,  region:'North West',    status:'Keep',            gondolas:2},
+  'C000000803': {annual:540000,  region:'North West',    status:'Keep',            gondolas:2},
+  'C000000836': {annual:504000,  region:'North West',    status:'Keep',            gondolas:2},
+  'C000001536': {annual:120000,  region:'South East',    status:'Remove',          gondolas:1},
+  'C000001703': {annual:480000,  region:'North East',    status:'Keep',            gondolas:2},
+  'C000001888': {annual:288000,  region:'North West',    status:'Pending',         gondolas:1},
+  'C000001953': {annual:144000,  region:'South West',    status:'Remove',          gondolas:1},
+  'C000001972': {annual:600000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000002000': {annual:180000,  region:'North West',    status:'Keep',            gondolas:1},
+  'C000002034': {annual:360000,  region:'South West',    status:'Remove',          gondolas:1},
+  'C000002230': {annual:240000,  region:'North East',    status:'',                gondolas:1},
+  'C000002232': {annual:180000,  region:'South Central', status:'Remove',          gondolas:1},
+  'C000002327': {annual:180000,  region:'South Central', status:'Keep',            gondolas:1},
+  'C000002491': {annual:39996,   region:'South Central', status:'Remove',          gondolas:1},
+  'C000002523': {annual:960000,  region:'South Central', status:'Keep',            gondolas:4},
+  'C000002661': {annual:456000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000002706': {annual:300000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000002896': {annual:600000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000002976': {annual:480000,  region:'South East',    status:'Keep',            gondolas:1},
+  'C000003011': {annual:180000,  region:'North East',    status:'',                gondolas:1},
+  'C000003171': {annual:180000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000003331': {annual:300000,  region:'South Central', status:'Keep',            gondolas:1},
+  'C000003374': {annual:480000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000003535': {annual:600000,  region:'North West',    status:'Keep',            gondolas:2},
+  'C000003686': {annual:180000,  region:'North East',    status:'',                gondolas:1},
+  'C000003774': {annual:360000,  region:'South Central', status:'Keep',            gondolas:1},
+  'C000003786': {annual:240000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000003819': {annual:180000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000003934': {annual:1260000, region:'North East',    status:'Keep',            gondolas:2},
+  'C000004073': {annual:216000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000004140': {annual:180000,  region:'North East',    status:'Keep',            gondolas:1},
+  'C000004401': {annual:540000,  region:'North West',    status:'Keep',            gondolas:3},
+  'C000004438': {annual:219996,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000004635': {annual:288000,  region:'South West',    status:'Keep',            gondolas:2},
+  'C000004664': {annual:480000,  region:'North West',    status:'Keep',            gondolas:1},
+  'C000004703': {annual:120000,  region:'South East',    status:'Keep',            gondolas:1},
+  'C000004794': {annual:360000,  region:'South Central', status:'Remove',          gondolas:1},
+  'C000004883': {annual:240000,  region:'North East',    status:'Keep',            gondolas:1},
+  'C000004990': {annual:720000,  region:'North East',    status:'Keep',            gondolas:3},
+  'C000005049': {annual:180000,  region:'South Central', status:'Pending',         gondolas:1},
+  'C000005238': {annual:240000,  region:'South Central', status:'Keep',            gondolas:2},
+  'C000005442': {annual:499992,  region:'South West',    status:'Keep',            gondolas:2},
+  'C000005455': {annual:414000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000005480': {annual:144000,  region:'North West',    status:'Remove',          gondolas:1},
+  'C000005490': {annual:180000,  region:'South Central', status:'Keep',            gondolas:1},
+  'C000005518': {annual:540000,  region:'South Central', status:'Pending',         gondolas:2},
+  'C000005536': {annual:180000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000005579': {annual:483000,  region:'South East',    status:'Keep',            gondolas:1},
+  'C000005671': {annual:468000,  region:'South West',    status:'Keep',            gondolas:3},
+  'C000005672': {annual:300000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000005696': {annual:180000,  region:'South Central', status:'Already Removed', gondolas:1},
+  'C000005714': {annual:180000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000005745': {annual:240000,  region:'North East',    status:'',                gondolas:1},
+  'C000006110': {annual:600000,  region:'South Central', status:'Remove',          gondolas:1},
+  'C000007120': {annual:240000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000007129': {annual:483000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000007394': {annual:600000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000007491': {annual:276000,  region:'South West',    status:'Keep',            gondolas:1},
+  'C000008829': {annual:180000,  region:'South Central', status:'Keep',            gondolas:1},
+};
+
+// ── HEALTH THRESHOLDS ────────────────────────────────────────
+// Final Margin % (after gondola cost + 6% haulage) relative to sales
+// green = final margin > 20%
+// amber = final margin 5–20%
+// red   = final margin < 5% (includes negative)
+function health(finalMarginPct) {
+  if (finalMarginPct === null) return 'grey';
+  if (finalMarginPct > 20)    return 'green';
+  if (finalMarginPct >= 5)    return 'amber';
+  return 'red';
+}
+
+// ── STATE ────────────────────────────────────────────────────
+let ROWS = [];
+let activeRegion = 'all';
+let activeHealth = null; // null = all
+
+// ── HELPERS ──────────────────────────────────────────────────
+function jmd(n, decimals) {
+  if (n == null) return '—';
+  const d = decimals !== undefined ? decimals : 0;
+  return 'J$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function pct(n) {
+  if (n == null) return '—';
+  return Number(n).toFixed(1) + '%';
+}
+function jmdM(n) {
+  // Show in millions if >= 1M
+  if (n == null) return '—';
+  if (Math.abs(n) >= 1000000) return 'J$' + (n/1000000).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1000)    return 'J$' + (n/1000).toFixed(0) + 'K';
+  return jmd(n);
+}
+
+// ── FETCH ────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('ts').textContent = 'Refreshing…';
+  try {
+    const res = await fetch(
+      SB_URL + '/rest/v1/rpc/gondola_analysis_2026',
+      { method:'POST', headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY, 'Content-Type':'application/json' }, body:'{}' }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) throw new Error('Empty response');
+    buildRows(data);
+    document.getElementById('ts').textContent = 'Live — updated ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('ts').textContent = '2026 YTD actuals (cached)';
+  }
+}
+
+// ── BUILD ROWS ───────────────────────────────────────────────
+function buildRows(salesData) {
+  // Index sales by customer_id
+  const salesMap = {};
+  salesData.forEach(function(s) { salesMap[s.customer_id] = s; });
+
+  ROWS = [];
+
+  Object.keys(GONDOLA_RATES).forEach(function(cid) {
+    const g = GONDOLA_RATES[cid];
+    const s = salesMap[cid];
+
+    const gondolaAnnual = g.annual;
+    let row = {
+      cid: cid,
+      name: s ? s.customer_name : cid,
+      region: g.region,
+      status: g.status,
+      gondolas: g.gondolas,
+      gondolaAnnual: gondolaAnnual,
+      netSales: null,
+      cost: null,
+      grossMargin: null,
+      gpPct: null,
+      haulage: null,
+      finalMargin: null,
+      finalMarginPct: null,
+      costPctSales: null,
+      costPctCogs: null,
+      breakevenSales: null,
+      health: 'grey',
+    };
+
+    if (s && parseFloat(s.net_sales) > 0) {
+      const sales  = parseFloat(s.net_sales);
+      const cogs   = parseFloat(s.cost);
+      const gp     = parseFloat(s.gross_margin);
+      const gpPct  = gp / sales * 100;
+      const haulage = sales * 0.06;
+      const finalMargin = gp - gondolaAnnual - haulage;
+      const finalMarginPct = finalMargin / sales * 100;
+      const costPctSales = gondolaAnnual / sales * 100;
+      const costPctCogs  = cogs > 0 ? gondolaAnnual / cogs * 100 : null;
+      // Breakeven: gondola should be ≤4% of COGS → min COGS = gondola/0.04
+      // min COGS = gondola/0.04, and COGS ≈ (1-gpPct/100)*Sales
+      // So: (1-gpPct/100)*breakevenSales = gondola/0.04
+      // breakevenSales = gondola / (0.04 * (1 - gpPct/100))
+      const gpRate = gpPct / 100;
+      const breakevenSales = gpRate < 1 ? gondolaAnnual / (0.04 * (1 - gpRate)) : null;
+
+      row.netSales        = sales;
+      row.cost            = cogs;
+      row.grossMargin     = gp;
+      row.gpPct           = gpPct;
+      row.haulage         = haulage;
+      row.finalMargin     = finalMargin;
+      row.finalMarginPct  = finalMarginPct;
+      row.costPctSales    = costPctSales;
+      row.costPctCogs     = costPctCogs;
+      row.breakevenSales  = breakevenSales;
+      row.health          = health(finalMarginPct);
+    }
+
+    ROWS.push(row);
+  });
+
+  updateKPIs();
+  renderTable();
+}
+
+// ── KPIs ─────────────────────────────────────────────────────
+function updateKPIs() {
+  const withSales = ROWS.filter(function(r) { return r.netSales !== null; });
+  const totalSales = withSales.reduce(function(s,r){return s+r.netSales;},0);
+  const totalGP    = withSales.reduce(function(s,r){return s+r.grossMargin;},0);
+  const totalGond  = ROWS.reduce(function(s,r){return s+r.gondolaAnnual;},0);
+  const totalHaul  = withSales.reduce(function(s,r){return s+r.haulage;},0);
+  const totalFM    = withSales.reduce(function(s,r){return s+r.finalMargin;},0);
+
+  document.getElementById('kCust').textContent  = withSales.length;
+  document.getElementById('kSales').textContent = jmdM(totalSales);
+  document.getElementById('kGond').textContent  = jmdM(totalGond);
+  document.getElementById('kGP').textContent    = totalSales > 0 ? pct(totalGP/totalSales*100) : '—';
+  const fmPct = totalSales > 0 ? totalFM/totalSales*100 : null;
+  const fmEl  = document.getElementById('kFM');
+  fmEl.textContent = fmPct !== null ? pct(fmPct) : '—';
+  fmEl.className   = 'kval ' + (fmPct === null ? '' : fmPct > 20 ? 'g' : fmPct >= 5 ? 'a' : 'r');
+  document.getElementById('kPct').textContent = totalSales > 0 ? pct(totalGond/totalSales*100) : '—';
+
+  // Health counts
+  const counts = {green:0, amber:0, red:0, grey:0};
+  ROWS.forEach(function(r){ counts[r.health]++; });
+  document.getElementById('cnt-green').textContent = counts.green;
+  document.getElementById('cnt-amber').textContent = counts.amber;
+  document.getElementById('cnt-red').textContent   = counts.red;
+  document.getElementById('cnt-grey').textContent  = counts.grey;
+}
+
+// ── RENDER TABLE ─────────────────────────────────────────────
+function renderTable() {
+  applyF();
+}
+
+function applyF() {
+  const q      = document.getElementById('si').value.toLowerCase().trim();
+  const sortV  = document.getElementById('sortSel').value;
+  const tbody  = document.getElementById('tbody');
+
+  // Filter
+  let filtered = ROWS.filter(function(r) {
+    const regionOk = activeRegion === 'all' || r.region === activeRegion;
+    const healthOk = activeHealth === null || r.health === activeHealth;
+    const qOk      = !q || r.name.toLowerCase().includes(q) || r.region.toLowerCase().includes(q);
+    return regionOk && healthOk && qOk;
+  });
+
+  // Sort
+  filtered.sort(function(a, b) {
+    switch(sortV) {
+      case 'sales-desc':   return (b.netSales||0)        - (a.netSales||0);
+      case 'fm-asc':       return (a.finalMarginPct||0)  - (b.finalMarginPct||0);
+      case 'fm-desc':      return (b.finalMarginPct||0)  - (a.finalMarginPct||0);
+      case 'pct-desc':     return (b.costPctSales||0)    - (a.costPctSales||0);
+      case 'gondola-desc': return b.gondolaAnnual        - a.gondolaAnnual;
+      case 'name-asc':     return a.name.localeCompare(b.name);
+      default: return 0;
+    }
+  });
+
+  document.getElementById('cnt').textContent = filtered.length + ' of ' + ROWS.length + ' customers';
+
+  // Build HTML
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--dim)">No results match your filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(r) {
+    // Status badge
+    const stMap = {Keep:'keep', Remove:'remove', Pending:'pending'};
+    const stCls = stMap[r.status] || 'other';
+    const stLbl = r.status || '—';
+
+    // Health badge
+    const hLabels = {green:'Profitable', amber:'Marginal', red:'Loss Making', grey:'No Data'};
+    const hbdg = '<span class="hbdg '+r.health+'"><span class="hdot"></span>'+hLabels[r.health]+'</span>';
+
+    // Cost % of Sales bar
+    let barHtml = '—';
+    if (r.costPctSales !== null) {
+      const barPct  = Math.min(r.costPctSales, 20); // cap bar at 20%
+      const barClr  = r.costPctSales <= 5 ? '#16a34a' : r.costPctSales <= 10 ? '#b45309' : '#dc2626';
+      barHtml =
+        '<div class="pbar-wrap">' +
+          '<div class="pbar"><div class="pbar-fill" style="width:'+barPct+'%;background:'+barClr+'"></div></div>' +
+          '<span class="pbar-lbl" style="color:'+barClr+'">' + r.costPctSales.toFixed(1) + '%</span>' +
+        '</div>';
+    }
+
+    // Final margin color
+    let fmCls = '';
+    if (r.finalMarginPct !== null) {
+      fmCls = r.finalMarginPct > 20 ? 'green' : r.finalMarginPct >= 5 ? 'amber' : 'red';
+    }
+
+    // Breakeven
+    let beHtml = '—';
+    if (r.breakevenSales !== null && r.netSales !== null) {
+      const met = r.netSales >= r.breakevenSales;
+      beHtml =
+        '<div class="beven '+(met?'met':'unmet')+'" title="Sales needed for gondola cost to be ≤4% of COGS">' +
+          jmdM(r.breakevenSales) + (met ? ' ✓' : '') +
+        '</div>' +
+        (r.netSales < r.breakevenSales
+          ? '<div style="font-size:10px;color:var(--red);margin-top:2px">Gap: '+jmdM(r.breakevenSales-r.netSales)+'</div>'
+          : '');
+    }
+
+    return '<tr data-cid="'+r.cid+'" data-health="'+r.health+'">' +
+      '<td>' +
+        '<span class="sn" title="'+r.name+'">'+r.name+'</span>' +
+        '<div class="smeta">' +
+          '<span class="smeta-region">'+r.region+'</span>' +
+          '<span style="color:var(--dim)">'+r.gondolas+' gondola'+(r.gondolas!==1?'s':'')+'</span>' +
+        '</div>' +
+      '</td>' +
+      '<td class="num">' + (r.netSales !== null ? jmdM(r.netSales) : '<span style="color:var(--dim)">No data</span>') + '</td>' +
+      '<td class="num '+(r.gpPct!==null?(r.gpPct>35?'green':r.gpPct>25?'':' muted'):'')+'">'+  (r.gpPct !== null ? pct(r.gpPct) : '—') + '</td>' +
+      '<td class="num">' + (r.grossMargin !== null ? jmdM(r.grossMargin) : '—') + '</td>' +
+      '<td class="num">' + jmdM(r.gondolaAnnual) + '</td>' +
+      '<td>' + barHtml + '</td>' +
+      '<td class="num '+fmCls+'">' +
+        (r.finalMarginPct !== null ? pct(r.finalMarginPct) : '—') +
+        (r.finalMargin !== null ? '<div class="num-sub">'+jmdM(r.finalMargin)+'</div>' : '') +
+      '</td>' +
+      '<td>' + beHtml + '</td>' +
+      '<td>' + hbdg + '</td>' +
+      '<td><span class="sbdg '+stCls+'">'+stLbl+'</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+function setR(r, btn) {
+  activeRegion = r;
+  document.querySelectorAll('#rfg .fb').forEach(function(b){ b.className='fb'; });
+  btn.classList.add('fa');
+  applyF();
+}
+
+function toggleHealth(h) {
+  activeHealth = (activeHealth === h) ? null : h;
+  // Update chip styles
+  ['green','amber','red','grey'].forEach(function(c) {
+    const chip = document.getElementById('chip-'+c);
+    chip.className = 'hchip ' + c + (activeHealth === c ? ' active-'+c : '');
+  });
+  applyF();
+}
+
+window.addEventListener('scroll', function() {
+  document.getElementById('stb').classList.toggle('show', window.scrollY > 280);
+});
+
+// ── SEED SALES DATA (pre-fetched 2026 actuals) ───────────────
+const SEED_SALES = [
+  {customer_id:'C000003331',customer_name:'NATIONAL SELF SERVE BROOKS AVENUE',net_sales:'44495358.59',cost:'27844415.76',gross_margin:'16650939.55'},
+  {customer_id:'C000002896',customer_name:'MAP WHOLESALE LIONEL TOWN',net_sales:'13444476.21',cost:'8983556.82',gross_margin:'4460916.23'},
+  {customer_id:'C000005049',customer_name:'URVILLS SUPERMARKET',net_sales:'12293220.57',cost:'7047000.60',gross_margin:'5246221.44'},
+  {customer_id:'C000000465',customer_name:'BEYOND SUPERMARKET',net_sales:'10968476.26',cost:'8160476.28',gross_margin:'2807997.29'},
+  {customer_id:'C000000554',customer_name:'BROOKLYN CLOCK TOWER',net_sales:'10318055.40',cost:'5163033.47',gross_margin:'5155016.00'},
+  {customer_id:'C000000446',customer_name:'BESTCO SUPERMARKET-SAV',net_sales:'9228400.38',cost:'6118955.52',gross_margin:'3109443.96'},
+  {customer_id:'C000000803',customer_name:"CHERRIE'S SUPERMARKET",net_sales:'8948495.65',cost:'5709707.92',gross_margin:'3238787.10'},
+  {customer_id:'C000002706',customer_name:"LI'S WHOLESALE",net_sales:'7837260.48',cost:'5221532.02',gross_margin:'2615726.65'},
+  {customer_id:'C000000045',customer_name:'348 SUPERMARKET LTD',net_sales:'7181091.43',cost:'4817987.03',gross_margin:'2363104.09'},
+  {customer_id:'C000005671',customer_name:'SUN ISLAND FORMERLY GRANGE HILL SUPERMARK',net_sales:'6497508.51',cost:'4017527.28',gross_margin:'2479983.96'},
+  {customer_id:'C000003774',customer_name:'PRICE GEL SUPERMARKET',net_sales:'6250104.99',cost:'3384652.88',gross_margin:'2865450.67'},
+  {customer_id:'C000004664',customer_name:'SUPERMARKET MANELLI LIMITED',net_sales:'5896951.30',cost:'3427155.34',gross_margin:'2469796.34'},
+  {customer_id:'C000004794',customer_name:'TENGDA SUPERMARKET LTD',net_sales:'5856136.50',cost:'3265817.47',gross_margin:'2590317.67'},
+  {customer_id:'C000006110',customer_name:'SELECT GROCERS SUPERMARKET',net_sales:'5507144.02',cost:'2848138.05',gross_margin:'2659010.26'},
+  {customer_id:'C000004073',customer_name:'RT MART LIMITED',net_sales:'5492202.71',cost:'3183092.67',gross_margin:'2309115.09'},
+  {customer_id:'C000005579',customer_name:'MASTER MAC FOOD STORE',net_sales:'5461856.03',cost:'3176007.25',gross_margin:'2285849.46'},
+  {customer_id:'C000000758',customer_name:'CHAMPION SUPERMARKET -FALMOUTH',net_sales:'5320352.46',cost:'3047954.90',gross_margin:'2272400.31'},
+  {customer_id:'C000002034',customer_name:'INTOWN SUPER SAVE B RIVER',net_sales:'5257224.93',cost:'2733243.55',gross_margin:'2523969.85'},
+  {customer_id:'C000001972',customer_name:'HOSKIN SUPERMARKET',net_sales:'5249954.75',cost:'2825184.03',gross_margin:'2424770.36'},
+  {customer_id:'C000000441',customer_name:'BEST VALUE SUPERMARKET',net_sales:'5068857.35',cost:'3164568.98',gross_margin:'1904292.34'},
+  {customer_id:'C000004635',customer_name:'SUPER LIFE SUPERMARKET',net_sales:'5062746.10',cost:'3491206.78',gross_margin:'1571541.82'},
+  {customer_id:'C000000757',customer_name:'CHAMPION SUPERMARKET',net_sales:'5046319.59',cost:'3197668.01',gross_margin:'1848650.11'},
+  {customer_id:'C000007120',customer_name:'CHENMART SUPERMARKET & HABERDASHERY',net_sales:'4969607.23',cost:'3450848.44',gross_margin:'1518760.49'},
+  {customer_id:'C000005518',customer_name:"HO'S HUI MING TRADING SUPERMARKET",net_sales:'4838827.87',cost:'2873473.79',gross_margin:'1965351.60'},
+  {customer_id:'C000004401',customer_name:'SIUS SUPERMARKET MOBAY',net_sales:'4806761.02',cost:'3221455.41',gross_margin:'1585304.03'},
+  {customer_id:'C000005238',customer_name:'WINNER 88 FORMERL Y & W SUPERMARKET',net_sales:'4628489.76',cost:'2877000.55',gross_margin:'1751485.01'},
+  {customer_id:'C000000190',customer_name:'ALLIGATOR POND WHOLESALE',net_sales:'4626188.86',cost:'2683762.36',gross_margin:'1942426.79'},
+  {customer_id:'C000005714',customer_name:'Z & W FORMERLY L&D WHOLESALE GRANGE HILL',net_sales:'4534159.73',cost:'2652435.80',gross_margin:'1881728.54'},
+  {customer_id:'C000000836',customer_name:"CHLOE'S WHOLESALE & SUPERMARKET",net_sales:'4477126.93',cost:'2738639.07',gross_margin:'1738485.62'},
+  {customer_id:'C000002523',customer_name:'KIND SUPERMARKET LTD',net_sales:'4411857.12',cost:'2533831.64',gross_margin:'1878018.29'},
+  {customer_id:'C000003934',customer_name:'REXO SUPERMARKET',net_sales:'4392440.74',cost:'2466811.23',gross_margin:'1925628.55'},
+  {customer_id:'C000005455',customer_name:'D & Y SUPERMARKET WHOLESALE',net_sales:'4203604.96',cost:'2095268.52',gross_margin:'2108344.38'},
+  {customer_id:'C000002232',customer_name:'JIN XI AN YE SUPERMARKET',net_sales:'4154455.00',cost:'2842887.93',gross_margin:'1311572.69'},
+  {customer_id:'C000000438',customer_name:'BEST STAR /Formerly R & L STOP & SHOP',net_sales:'3915955.86',cost:'2359582.92',gross_margin:'1556377.51'},
+  {customer_id:'C000003374',customer_name:'NEW CENTURY WHOLESALE CHAPELTON',net_sales:'3892754.21',cost:'2670279.73',gross_margin:'1222477.81'},
+  {customer_id:'C000005490',customer_name:"FLLOYD'S FAMILY SUPERMARKET & WSALE",net_sales:'3820722.59',cost:'2365759.31',gross_margin:'1454962.87'},
+  {customer_id:'C000001703',customer_name:'GIANT FAMILY MART LTD',net_sales:'3512542.62',cost:'1924537.84',gross_margin:'1588003.79'},
+  {customer_id:'C000002661',customer_name:'LAVENDA SUPERMARKET',net_sales:'3338837.60',cost:'2401323.28',gross_margin:'937518.69'},
+  {customer_id:'C000000081',customer_name:'A & J RAMTULLA ENTERPRISE LIMITED',net_sales:'3313792.39',cost:'1723628.87',gross_margin:'1590168.53'},
+  {customer_id:'C000003786',customer_name:'PRIME WHOLESALE',net_sales:'3306388.76',cost:'1894217.60',gross_margin:'1412167.61'},
+  {customer_id:'C000000246',customer_name:'C & H SUPERMARKET & WHOLESALE',net_sales:'3131941.47',cost:'2062223.89',gross_margin:'1069727.20'},
+  {customer_id:'C000005745',customer_name:'CHUNG PHAT',net_sales:'3125706.21',cost:'1692873.60',gross_margin:'1432839.69'},
+  {customer_id:'C000007394',customer_name:'THE ONE SUPERCENTRE',net_sales:'3103881.49',cost:'1853765.93',gross_margin:'1250116.69'},
+  {customer_id:'C000004990',customer_name:'TRUE FLAVA GROCERIES/FOR EVER GREEN #2',net_sales:'2994108.26',cost:'1780797.00',gross_margin:'1213313.38'},
+  {customer_id:'C000005442',customer_name:'CHOICE FRESH FOODS SUPERMARKET & WHOLSALE',net_sales:'2927439.09',cost:'1920661.07',gross_margin:'1006779.32'},
+  {customer_id:'C000007129',customer_name:'SANTA CENTRE SUPERMARKET LTD',net_sales:'2818983.46',cost:'1701925.00',gross_margin:'1117056.77'},
+  {customer_id:'C000005672',customer_name:'SUPER MAX FORMERLY MAXX MART',net_sales:'2542407.48',cost:'1627774.42',gross_margin:'914634.52'},
+  {customer_id:'C000003535',customer_name:'ONE DEPOT TOO HOT TRADING',net_sales:'2533928.67',cost:'1635466.15',gross_margin:'898467.23'},
+  {customer_id:'C000005536',customer_name:'JACKY YANG WHOLESALE FORMERLY TOP HILL',net_sales:'2450572.25',cost:'1568004.70',gross_margin:'882565.96'},
+  {customer_id:'C000002976',customer_name:'MASTER MAC STONY HILL',net_sales:'2374973.09',cost:'1213136.23',gross_margin:'1161831.02'},
+  {customer_id:'C000000456',customer_name:'BETTER LIFE WHOLESALE',net_sales:'2323528.85',cost:'1422722.64',gross_margin:'900806.66'},
+  {customer_id:'C000000540',customer_name:'BRAVO SUPERMARKET',net_sales:'2299329.83',cost:'1457504.02',gross_margin:'841826.22'},
+  {customer_id:'C000003819',customer_name:'QUALITY TRADERS',net_sales:'2266726.71',cost:'1259632.40',gross_margin:'1007098.92'},
+  {customer_id:'C000002000',customer_name:'I & C SUPERMARKET',net_sales:'1979945.57',cost:'1030837.28',gross_margin:'949108.63'},
+  {customer_id:'C000003171',customer_name:'MORGANS VARIETY STORE',net_sales:'1625011.54',cost:'982878.79',gross_margin:'642135.62'},
+  {customer_id:'C000008829',customer_name:'SAMUEL SUPERMARKET',net_sales:'1621661.67',cost:'908943.11',gross_margin:'712717.21'},
+  {customer_id:'C000002327',customer_name:'JUN SUPERMARKET',net_sales:'1573480.61',cost:'950356.82',gross_margin:'623125.64'},
+  {customer_id:'C000004703',customer_name:'SYDENHAM WHOLESALE',net_sales:'1528228.68',cost:'872980.87',gross_margin:'655255.84'},
+  {customer_id:'C000003686',customer_name:'PETAL VARIETY STORE- WEST STREET',net_sales:'1469926.63',cost:'771492.23',gross_margin:'698439.06'},
+  {customer_id:'C000000186',customer_name:'ALLEN WHOLESALE',net_sales:'1406670.22',cost:'824649.96',gross_margin:'582022.14'},
+  {customer_id:'C000001888',customer_name:'HEWING WHOLESALE SUPERMARKET',net_sales:'1406558.87',cost:'804564.94',gross_margin:'601994.34'},
+  {customer_id:'C000000136',customer_name:'AEON SUPERMARKET C/O BETTER & BETTER',net_sales:'1310429.76',cost:'659191.73',gross_margin:'651239.49'},
+  {customer_id:'C000005696',customer_name:'WAVE SUPERMARKET FORMERLY QUICK SAVE',net_sales:'1208531.48',cost:'844626.27',gross_margin:'363903.79'},
+  {customer_id:'C000007491',customer_name:'BETTER LIFE-UPTOWN',net_sales:'1191959.28',cost:'774978.39',gross_margin:'416983.29'},
+  {customer_id:'C000004883',customer_name:'TIADONG SUPERMARKET',net_sales:'1140143.52',cost:'644114.18',gross_margin:'496028.13'},
+  {customer_id:'C000002230',customer_name:'JIN LONG WHOLESALE',net_sales:'1129683.07',cost:'565449.31',gross_margin:'564236.70'},
+  {customer_id:'C000001953',customer_name:'HONG XIN SANTA',net_sales:'1086669.12',cost:'640244.76',gross_margin:'446423.03'},
+  {customer_id:'C000004438',customer_name:'SONG HUI SUPERMARKET',net_sales:'1077836.49',cost:'579250.12',gross_margin:'498590.27'},
+  {customer_id:'C000000440',customer_name:'YUNFENG WHOLESALE SUPERMARKET',net_sales:'1019895.64',cost:'601307.32',gross_margin:'418589.79'},
+  {customer_id:'C000000560',customer_name:"BROWN'S TOWN SUPERMARKET",net_sales:'978754.33',cost:'511931.03',gross_margin:'466829.55'},
+  {customer_id:'C000004140',customer_name:'SALEM FRESHCO SUPERMARKET',net_sales:'929771.79',cost:'515890.07',gross_margin:'413879.97'},
+  {customer_id:'C000003011',customer_name:"MCDONALD'S SUPERSALE",net_sales:'730900.00',cost:'434096.00',gross_margin:'296803.50'},
+  {customer_id:'C000005480',customer_name:'EXPRESS SUPERMARKET & CONVENIENCE STORE',net_sales:'649584.00',cost:'329843.71',gross_margin:'319745.13'},
+  {customer_id:'C000001536',customer_name:'FIRST CHOICE FOOD',net_sales:'353663.26',cost:'176374.86',gross_margin:'177287.76'},
+  {customer_id:'C000002491',customer_name:"KES' SUPERMARKET (formerly Best Choice)",net_sales:'284762.72',cost:'171180.67',gross_margin:'113579.99'},
+];
+
+// ── INIT ─────────────────────────────────────────────────────
+// Start with seed data immediately, then try live fetch
+buildRows(SEED_SALES);
+document.getElementById('ts').textContent = 'Cached data';
+loadData();
+</script>
+</body>
+</html>
