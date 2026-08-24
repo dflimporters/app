@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL — Sales Manager Dashboard</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. This page had no guard
+     at all until 2026-08-24 — it was directly reachable by URL with zero
+     auth check, despite being listed as manager/admin-only in routes.js. -->
+<style>body { visibility: hidden; }</style>
+
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -639,6 +646,15 @@
 </div>
 
 <script>
+window.DFL_PAGE_TITLE = 'Rep Performance';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+
+<script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // ── Month selector state ─────────────────────────────────────────────────────
 const CURRENT_PERIOD = (() => {
@@ -674,7 +690,10 @@ function onMonthChange() {
   }
 }
 
-const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+// Renamed from SUPABASE_URL — that name collides with the const of the same
+// name in /shared/supabase-client.js (now loaded on this page for the auth
+// guard), which is a SyntaxError that blanks the whole script block.
+const RP_SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 
 // ─── CALC PACE FOR ANY PERIOD ────────────────────────────────────────────────
 function calcPaceForPeriod(period) {
@@ -717,7 +736,7 @@ async function sbGet(path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/${path}`, {
       signal: controller.signal,
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -739,7 +758,7 @@ async function sbGet(path) {
 }
 
 async function sbRpc(fn, params) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+  const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
     headers: {
       'apikey':        SUPABASE_KEY,
@@ -1367,7 +1386,7 @@ async function saveFollowup() {
   btn.textContent = 'Saving…';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups`, {
+    const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rep_followups`, {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1414,7 +1433,7 @@ async function deleteFollowup(id, rowId, salesperson) {
   item.style.pointerEvents = 'none';
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_followups?id=eq.${id}`, {
+    const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rep_followups?id=eq.${id}`, {
       method: 'DELETE',
       headers: {
         'apikey':        SUPABASE_KEY,
@@ -1762,7 +1781,7 @@ async function forceRefresh() {
     // Rebuild cache server-side (30s timeout)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/refresh_rep_dashboard`, {
+    const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rpc/refresh_rep_dashboard`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -1843,7 +1862,7 @@ async function init() {
 // Quick connection test before full init
 async function testConnection() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
+    const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     if (res.ok) {

@@ -191,7 +191,12 @@ async function query(sql) {
   throw new Error('Use direct queries');
 }
 
-async function sb(table, params = '') {
+// Renamed from sb() — that name collides with the const `sb` client from
+// /shared/supabase-client.js (now loaded on this page for the auth guard).
+// Same declaration always existed here; it only ever ran unnoticed because
+// this page was previously reached through the management/index.html iframe,
+// where the guard no-ops and never touches `sb`.
+async function sbFetch(table, params = '') {
   const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${params}`, {
     headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
   });
@@ -250,7 +255,7 @@ function getMonthShort(period) {
 
 // ── Load available periods from stock_snapshots ────────────────────────────
 async function loadPeriods() {
-  const rows = await sb('stock_snapshots', 'select=snapshot_date&order=snapshot_date.desc&limit=1000');
+  const rows = await sbFetch('stock_snapshots', 'select=snapshot_date&order=snapshot_date.desc&limit=1000');
   const periods = [...new Set(rows.map(r => r.snapshot_date.slice(0, 7)))];
   return periods;
 }
@@ -677,9 +682,13 @@ init();
 <!-- Auth. This page used to have NONE: it was reachable by direct URL by
      anyone, and only the management shell had a (plaintext) password. The guard
      no-ops when framed, so embedding in management/index.html is unaffected. -->
+<script>
+window.DFL_PAGE_TITLE = 'Stock Outage Tracker';
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
 </body>
 </html>
