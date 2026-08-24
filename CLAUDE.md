@@ -83,14 +83,15 @@ It no-ops when framed, on the assumption the parent already passed. Prefer simpl
 
 ### Roles and routing
 
-Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `warehouse`, `pending`. One role per person. `admin` and `manager` see the same things for now, except `/admin/**`, which is admin-only.
+Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `relief_merchandiser`, `warehouse`, `management`, `pending`. One role per person. `admin` and `manager` see the same things for now, except `/admin/**`, which is admin-only. `management` is a read-only executive role (Mark Decasseres, Heather Walker-Boyd, Kyle Decasseres) that only lands on the Morning Brief — it's not a superset or subset of `manager`.
 
 | Role | Lands on | Sees Sales/Merch switcher |
 |---|---|---|
 | `rep` | `/index.html` | No |
-| `merchandiser`, `team_leader` | `/merch.html` | No |
+| `merchandiser`, `team_leader`, `tl_merch`, `relief_merchandiser` | `/merch.html` | No |
 | `manager`, `admin` | `/hub.html` | Yes |
-| `warehouse` | `/index.html` (no app yet) | No |
+| `warehouse` | `/warehouse.html` | No |
+| `management` | `/morning-brief.html` | No |
 | `pending` | `/pending.html` | No |
 
 `login.html` honours `?redirect=` (set by the guard when it bounces someone) over role-based landing, and shows messages for `?reason=not-provisioned|inactive`.
@@ -106,7 +107,8 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `warehouse`, `p
 | `/pending.html` | pending | Holding page; lets them set their own name via `set_pending_name()` |
 | `/admin/index.html` | admin | Admin landing |
 | `/admin/approvals.html` | admin | Approve pending sign-ups |
-| `/management/**` | manager, admin | Shell + 8 embedded dashboards, all individually guarded |
+| `/management/**` | manager, admin | Shell + 5 embedded dashboards, all individually guarded |
+| `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
 | `/specials.html`, `/specials-upload.html`, `/rep-weekly-plan.html`, `/field-intel.html` | varies | `rep-weekly-plan.html` is iframe-embedded and has no guard |
 
 ## Two parallel Supabase access patterns — check which one a page uses before editing

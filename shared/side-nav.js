@@ -103,7 +103,9 @@
         // Derived like everything else now — /management/** lost its plaintext
         // password gate and is in DFL_PAGE_ROLES as manager/admin.
         { label: 'Dashboards', href: '/management/', icon: '📊' },
-        { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' }
+        { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
+        { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },
+        { label: 'Morning Brief', href: '/morning-brief.html', icon: '☀️' }
       ]
     },
     {

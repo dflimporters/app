@@ -40,7 +40,7 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser'
+  'relief_merchandiser', 'management'
 ];
 
 // ------------------------------------------------------------
@@ -61,7 +61,8 @@ const DFL_HOME_BY_ROLE = {
   admin:        '/hub.html',
   warehouse:    '/warehouse.html',
   pending:      '/pending.html',
-  relief_merchandiser: '/merch.html'
+  relief_merchandiser: '/merch.html',
+  management:   '/morning-brief.html'
 };
 
 // ------------------------------------------------------------
@@ -80,7 +81,10 @@ const DFL_PAGE_ROLES = {
   '/specials-upload.html': ['admin', 'manager'],
   '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser'],
   '/pending.html':         ['pending'],
-  '/budget-explorer.html': ['manager', 'admin'],
+  '/budget-explorer.html': ['manager', 'admin', 'management'],
+  '/morning-brief.html':   ['management', 'manager', 'admin'],
+  '/gondola-rentals.html':  ['manager', 'admin', 'management'],
+  '/gondola-analysis.html': ['manager', 'admin', 'management'],
 
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in
@@ -94,9 +98,7 @@ const DFL_PAGE_ROLES = {
   '/management/key-account-management.html':['manager', 'admin'],
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
-  '/management/stock-outage-tracker.html':  ['manager', 'admin'],
-  '/management/report-upload.html':         ['manager', 'admin'],
-  '/management/report-viewer.html':         ['manager', 'admin']
+  '/management/stock-outage-tracker.html':  ['manager', 'admin']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and

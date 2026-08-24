@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Gondola Rentals 2026</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin/management user.
+     Must be the FIRST style rule so there's no flash of restricted data. -->
+<style>body { visibility: hidden; }</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0f4f8; --surface:#fff; --surface2:#f8fafc;
+  --border:#e2e8f0; --border2:#edf2f7;
+  --navy:#0f2044; --navy2:#1a3260;
+  --text:#1e293b; --muted:#64748b; --dim:#94a3b8;
+  --accent:#2563eb;
+  --green:#16a34a; --green-bg:#f0fdf4; --green-bd:#86efac;
+  --amber:#b45309; --amber-bg:#fffbeb; --amber-bd:#fde68a;
+  --red:#dc2626;   --red-bg:#fef2f2;   --red-bd:#fecaca;
+  --grey-bg:#f1f5f9; --grey-bd:#e2e8f0;
+  --on-bg:#dcfce7; --on-bd:#16a34a; --on-tx:#15803d;
+  --off-bg:#f8fafc; --off-bd:#e2e8f0; --off-tx:#cbd5e1;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;line-height:1.5}
+
+/* HEADER */
+.hdr{background:var(--navy);height:56px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.hl{display:flex;align-items:center;gap:14px}
+.logo{height:26px;filter:brightness(0) invert(1)}
+.hdiv{width:1px;height:22px;background:rgba(255,255,255,.2)}
+.htitle{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.2px}
+.hbadge{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.4px}
+.hr{display:flex;align-items:center;gap:12px}
+.hts{font-size:11px;color:rgba(255,255,255,.4)}
+.rbtn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.85);padding:5px 12px;border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;font-weight:500}
+.rbtn:hover{background:rgba(255,255,255,.2)}
+
+/* PAGE TOGGLE — Rentals ↔ Analysis */
+.ptog{display:flex;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:2px;gap:2px}
+.ptog a,.ptog span{display:inline-flex;align-items:center;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;text-decoration:none;font-family:'Inter',sans-serif;white-space:nowrap}
+.ptog a{color:rgba(255,255,255,.55)}
+.ptog a:hover{color:#fff}
+.ptog span{background:var(--accent);color:#fff}
+
+/* KPI */
+.kbar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 28px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.kpi{padding:14px 32px 14px 0;display:flex;flex-direction:column;gap:3px;border-right:1px solid var(--border2);margin-right:32px}
+.kpi:last-child{border-right:none;margin-right:0}
+.klbl{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.7px}
+.kval{font-size:21px;font-weight:700;color:var(--navy);letter-spacing:-.5px;line-height:1.1}
+.kval.g{color:var(--green)}.kval.b{color:var(--accent)}.kval.a{color:var(--amber)}
+.ksub{font-size:10px;color:var(--dim)}
+
+/* CONTROLS */
+.ctrl{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw{position:relative;min-width:220px}
+.sw svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--dim);pointer-events:none}
+.si{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 10px 6px 30px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;outline:none}
+.si:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.si::placeholder{color:var(--dim)}
+.cd{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.fg{display:flex;gap:4px;flex-wrap:wrap}
+.fb{background:var(--bg);border:1px solid var(--border);color:var(--muted);padding:5px 11px;border-radius:6px;font-size:11px;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap}
+.fb:hover{border-color:var(--navy2);color:var(--navy)}
+.fb.fa{background:#eff6ff;border-color:#2563eb;color:#1d4ed8}
+.fb.fk{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.fb.fr{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.fb.fp{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+.leg{margin-left:auto;display:flex;align-items:center;gap:14px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);font-weight:500}
+.ls{width:14px;height:14px;border-radius:3px}
+.cnt{font-size:11px;color:var(--dim);font-weight:500;white-space:nowrap}
+
+/* MAIN */
+.main{padding:20px 28px 60px}
+
+/* REGION */
+.rs{margin-bottom:24px}
+.rh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.rp{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.p1{background:#2563eb}.p2{background:#16a34a}.p3{background:#b45309}.p4{background:#7c3aed}.p5{background:#dc2626}
+.rn{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.6px}
+.rpill{background:var(--grey-bg);border:1px solid var(--grey-bd);color:var(--dim);font-size:10px;font-weight:600;padding:1px 8px;border-radius:10px}
+.rv{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted)}
+
+/* TABLE CARD */
+.tc{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:960px}
+thead th{background:var(--surface2);padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th.thm{text-align:center;padding:8px 0;font-size:9px;width:30px;min-width:30px}
+thead th.thr{text-align:right}
+tbody tr{border-bottom:1px solid var(--border2)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#fafbff}
+tbody tr.rh{display:none}
+td{padding:8px 10px;vertical-align:middle}
+
+/* STORE CELL */
+.sn{font-weight:600;color:var(--navy);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.sid{font-size:10px;color:var(--dim);margin-top:1px}
+.tar{color:var(--muted);font-size:11px;white-space:nowrap}
+.tty{color:var(--muted);font-size:11px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.trt{font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap}
+.tan{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+
+/* BADGES */
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap;border:1px solid}
+.bk{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.brm{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+.bp{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd)}
+.bar,.bn{background:var(--grey-bg);color:var(--dim);border-color:var(--grey-bd)}
+.tbr{font-size:10px;color:var(--dim);font-style:italic;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* MONTH CELL */
+td.tm{padding:7px 1px;text-align:center}
+.mc{width:26px;height:26px;border-radius:4px;border:1px solid var(--off-bd);background:var(--off-bg);color:var(--off-tx);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;position:relative;cursor:default}
+.mc.on{background:var(--on-bg);border-color:var(--on-bd);color:var(--on-tx);font-size:11px;font-weight:700}
+.mc[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:9px;padding:3px 7px;border-radius:4px;white-space:nowrap;z-index:99;pointer-events:none}
+
+/* COLLECTED */
+td.tco{text-align:right;white-space:nowrap}
+.ca{font-size:12px;font-weight:700;color:var(--green)}
+.cs{font-size:10px;color:var(--dim);margin-top:1px}
+.cn{color:var(--dim);font-size:11px}
+
+/* LOADING */
+.lst{padding:60px;text-align:center;color:var(--dim)}
+.spin{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* DEBUG BAR */
+.dbg{background:#fef9c3;border-bottom:1px solid #fde047;padding:6px 28px;font-size:11px;color:#713f12;display:none}
+.dbg.show{display:block}
+
+/* SCROLL TOP */
+.stb{position:fixed;bottom:22px;right:22px;width:38px;height:38px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 6px -1px rgba(0,0,0,.15);opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;z-index:100}
+.stb.show{opacity:1;transform:translateY(0)}
+.stb:hover{background:var(--navy2)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hl">
+    <img class="logo" src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL" onerror="this.style.display='none'">
+    <div class="hdiv"></div>
+    <span class="htitle">Gondola Rentals 2026</span>
+    <span class="hbadge">LIVE</span>
+  </div>
+  <div class="hr">
+    <div class="ptog">
+      <span>Rentals</span>
+      <a href="/gondola-analysis.html">Analysis</a>
+    </div>
+    <span class="hts" id="ts">—</span>
+    <button class="rbtn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<div id="dbg" class="dbg"></div>
+
+<div class="kbar">
+  <div class="kpi"><div class="klbl">Total Gondolas</div><div class="kval" id="kT">—</div><div class="ksub">All regions</div></div>
+  <div class="kpi"><div class="klbl">Active (Keep)</div><div class="kval g" id="kK">—</div><div class="ksub">Current period</div></div>
+  <div class="kpi"><div class="klbl">Annual Value</div><div class="kval b" id="kA">—</div><div class="ksub">Keep gondolas only</div></div>
+  <div class="kpi"><div class="klbl">Invoices Logged</div><div class="kval g" id="kI">—</div><div class="ksub">All time in system</div></div>
+  <div class="kpi"><div class="klbl">Amount Collected</div><div class="kval a" id="kC">—</div><div class="ksub">All invoices in system</div></div>
+</div>
+
+<div class="ctrl">
+  <div class="sw">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input class="si" id="si" type="text" placeholder="Search store or area…" oninput="applyF()">
+  </div>
+  <div class="cd"></div>
+  <div class="fg" id="rfg">
+    <button class="fb fa" data-r="all"           onclick="setR('all',this)">All Regions</button>
+    <button class="fb"    data-r="South East"    onclick="setR('South East',this)">South East</button>
+    <button class="fb"    data-r="North East"    onclick="setR('North East',this)">North East</button>
+    <button class="fb"    data-r="South West"    onclick="setR('South West',this)">South West</button>
+    <button class="fb"    data-r="South Central" onclick="setR('South Central',this)">South Central</button>
+    <button class="fb"    data-r="North West"    onclick="setR('North West',this)">North West</button>
+  </div>
+  <div class="cd"></div>
+  <div class="fg" id="sfg">
+    <button class="fb fa" data-s="all"     onclick="setS('all',this)">All</button>
+    <button class="fb"    data-s="Keep"    onclick="setS('Keep',this)">Keep</button>
+    <button class="fb"    data-s="Remove"  onclick="setS('Remove',this)">Remove</button>
+    <button class="fb"    data-s="Pending" onclick="setS('Pending',this)">Pending</button>
+  </div>
+  <div class="leg">
+    <div class="li"><div class="ls" style="background:var(--on-bg);border:1px solid var(--on-bd)"></div>Invoice received</div>
+    <div class="li"><div class="ls" style="background:var(--off-bg);border:1px solid var(--off-bd)"></div>Not received</div>
+    <div class="cd"></div>
+    <div class="cnt" id="cnt">—</div>
+  </div>
+</div>
+
+<div class="main" id="main">
+  <div class="lst"><div class="spin"></div><div>Loading gondola data…</div></div>
+</div>
+
+<button class="stb" id="stb" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+window.DFL_PAGE_TITLE = 'Gondola Rentals';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+
+const MS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ─── GONDOLA MASTER LIST ───────────────────────────────────
+// c = customer_id (exact match to gondola_invoices.customer_id)
+const G = [
+  // ── South East
+  {c:'C000002976',r:'South East',s:'MASTER MAC STONY HILL',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:40000,b:'Domino'},
+  {c:'C000005579',r:'South East',s:'MASTER MAC FOOD STORE',a:'Portmore',t:'Gondola only',st:'Keep',m:40250,b:'McCallums/El Rey'},
+  {c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER (Floor)',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:57500,b:'El Leon'},
+  {c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER (Domino)',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:57500,b:'Domino'},
+  {c:'C000000554',r:'South East',s:"BROOKLYN CLOCK TOWER (Ol'Timez)",a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:0,b:"Ol'Timez"},
+  {c:'C000004703',r:'South East',s:'SYDENHAM WHOLESALE',a:'Old Harbour',t:'Gondola + Shelf',st:'Keep',m:10000,b:'Domino'},
+  {c:'C000001536',r:'South East',s:'FIRST CHOICE FOOD',a:'Kingston',t:'Shelf Only',st:'Remove',m:10000,b:''},
+  // ── North East
+  {c:'C000004140',r:'North East',s:'SALEM FRESHCO SUPERMARKET',a:'Runaway Bay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000000540',r:'North East',s:'BRAVO SUPERMARKET',a:"St Ann's Bay",t:'Gondola + Shelf',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000004883',r:'North East',s:'TIADONG SUPERMARKET',a:"St Ann's Bay",t:'Gondola only',st:'Keep',m:20000,b:'Domino'},
+  {c:'C000003934',r:'North East',s:'REXO SUPERMARKET (Shelf)',a:'Ochi',t:'Gondola + Shelf',st:'Keep',m:20000,b:'Clean & White'},
+  {c:'C000003934',r:'North East',s:'REXO SUPERMARKET (Island)',a:'Ochi',t:'Gondola + Shelf',st:'Keep',m:85000,b:'Ol Timez'},
+  {c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET (Back)',a:'Ochi',t:'Gondola only',st:'Keep',m:25000,b:'Amigo/Ol Timez'},
+  {c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET (Middle)',a:'Ochi',t:'Gondola',st:'Keep',m:25000,b:'Corneez/Frosteez'},
+  {c:'C000001703',r:'North East',s:'GIANT FAMILY MART G1',a:'Pt. Maria',t:'Gondola + Shelf',st:'Keep',m:20000,b:'Bingo'},
+  {c:'C000001703',r:'North East',s:'GIANT FAMILY MART G2',a:'Pt. Maria',t:'Gondola + Shelf',st:'Remove',m:20000,b:'Domino'},
+  {c:'C000000136',r:'North East',s:'AEON SUPERMARKET',a:'Annotto Bay',t:'Gondola only',st:'Pending',m:10000,b:'Covebay'},
+  {c:'C000002230',r:'North East',s:'JIN LONG WHOLESALE',a:'Annotto Bay',t:'Gondola only',st:'',m:20000,b:'Domino'},
+  {c:'C000000081',r:'North East',s:'A & J RAMTULLA SUPERCENTRE',a:'Pt Antonio',t:'Gondola only',st:'',m:15000,b:'Azukitas/Frooteez'},
+  {c:'C000004990',r:'North East',s:'TRUE FLAVA Domino',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Domino'},
+  {c:'C000004990',r:'North East',s:'TRUE FLAVA Clean & White',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Clean & White'},
+  {c:'C000004990',r:'North East',s:'TRUE FLAVA Cereal',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Azukitas/El Rey'},
+  {c:'C000003686',r:'North East',s:'PETAL VARIETY STORE',a:'St Mary',t:'Gondola only',st:'',m:15000,b:'Domino'},
+  {c:'C000005745',r:'North East',s:'CHUNG PHAT',a:'Old Harbour',t:'Gondola only',st:'',m:20000,b:'El Rey/Froot/Corneez'},
+  {c:'C000003011',r:'North East',s:"MCDONALD'S SUPERSALE",a:'Claremont',t:'Gondola only',st:'',m:15000,b:''},
+  // ── South West
+  {c:'C000002034',r:'South West',s:'INTOWN SUPER SAVE BLACK RIVER',a:'Black River',t:'',st:'Remove',m:30000,b:'Domino'},
+  {c:'C000005536',r:'South West',s:'JACKY YANG WHOLESALE',a:'Junction',t:'',st:'Keep',m:15000,b:''},
+  {c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE G1',a:'Alligator Pond',t:'',st:'Keep',m:12000,b:'Domino'},
+  {c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE G2',a:'Alligator Pond',t:'',st:'Remove',m:12000,b:'Soft&Lovely'},
+  {c:'C000003171',r:'South West',s:'MORGANS VARIETY STORE',a:'Santa Cruz',t:'',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000004073',r:'South West',s:'RT MART LIMITED',a:'Santa Cruz',t:'',st:'Keep',m:18000,b:'Domino'},
+  {c:'C000005672',r:'South West',s:'SUPER MAX FORMERLY MAXX MART',a:'Santa Cruz',t:'',st:'Keep',m:25000,b:'Domino'},
+  {c:'C000001953',r:'South West',s:'HONG XIN SANTA',a:'Santa Cruz',t:'',st:'Remove',m:12000,b:'Mixed Cereal'},
+  {c:'C000003786',r:'South West',s:'PRIME WHOLESALE',a:'Santa Cruz',t:'',st:'Keep',m:20000,b:'Ol Timez'},
+  {c:'C000005671',r:'South West',s:'SUN ISLAND G1 (Middle)',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Mixed Cereal'},
+  {c:'C000005671',r:'South West',s:'SUN ISLAND G2 (Middle)',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Domino'},
+  {c:'C000005671',r:'South West',s:'SUN ISLAND G3 (Back)',a:'Grangehill',t:'',st:'Remove',m:13000,b:'Covebay'},
+  {c:'C000003819',r:'South West',s:'QUALITY TRADERS',a:'Negril',t:'',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000005455',r:'South West',s:'D & Y SUPERMARKET WHOLESALE',a:'Sav',t:'',st:'Keep',m:34500,b:'Domino'},
+  {c:'C000002706',r:'South West',s:"LI'S WHOLESALE",a:'Sav',t:'',st:'Keep',m:25000,b:'Domino'},
+  {c:'C000007491',r:'South West',s:'BETTER LIFE-UPTOWN',a:'Sav',t:'',st:'Keep',m:23000,b:'Covebay/Amigo/Rhino'},
+  {c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE (Front)',a:'Sav',t:'',st:'Keep',m:16500,b:'Covebay'},
+  {c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE (Back)',a:'Sav',t:'',st:'Remove',m:15000,b:'Domino'},
+  {c:'C000005714',r:'South West',s:'Z & W FORMERLY L&D WHOLESALE',a:'Sav',t:'',st:'Keep',m:15000,b:'Covebay'},
+  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET Cereals',a:'Sav',t:'',st:'Keep',m:10000,b:'Clean & White'},
+  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET CW',a:'Sav',t:'',st:'Keep',m:20000,b:'Domino'},
+  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET Domino',a:'Sav',t:'',st:'Keep',m:20000,b:''},
+  {c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS G1',a:'Sav',t:'',st:'Keep',m:20833,b:'El Rey/Golden Foods'},
+  {c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS G2',a:'Sav',t:'',st:'Remove',m:20833,b:'Domino'},
+  {c:'C000004635',r:'South West',s:'SUPER LIFE Bleach',a:'Sav',t:'Shelf Only',st:'Keep',m:12000,b:'Clean & White'},
+  {c:'C000004635',r:'South West',s:'SUPER LIFE Tissue',a:'Sav',t:'Gondola only',st:'Keep',m:12000,b:'Domino'},
+  {c:'C000007120',r:'South West',s:'CHENMART SUPERMARKET',a:'Darliston',t:'',st:'Keep',m:20000,b:'Ol Timez'},
+  {c:'C000007129',r:'South West',s:'SANTA CENTRE SUPERMARKET',a:'Santa Cruz',t:'Gondola only',st:'Keep',m:40250,b:''},
+  {c:'C000007394',r:'South West',s:'THE ONE SUPERCENTRE',a:'Santa Cruz',t:'',st:'Keep',m:50000,b:''},
+  // ── South Central
+  {c:'C000005490',r:'South Central',s:"FLLOYD'S FAMILY SUPERMARKET",a:'MayPen',t:'Shelf Only',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000003331',r:'South Central',s:'NATIONAL SELF SERVE BROOKS AVE',a:'MayPen',t:'Shelf Only',st:'Keep',m:25000,b:'Ol Timez'},
+  {c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET G1',a:'MayPen',t:'Gondola only',st:'Remove',m:25000,b:'Domino'},
+  {c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET G2',a:'MayPen',t:'Gondola only',st:'Keep',m:25000,b:'Covebay'},
+  {c:'C000002491',r:'South Central',s:"KES' SUPERMARKET",a:'MayPen',t:'Gondola only',st:'Remove',m:3333,b:'El Rey'},
+  {c:'C000004438',r:'South Central',s:'SONG HUI (Shelf)',a:'MayPen',t:'Shelf Only',st:'Keep',m:3333,b:'El Rey/Golden Foods'},
+  {c:'C000004438',r:'South Central',s:'SONG HUI (Gondola)',a:'MayPen',t:'Gondola Only',st:'Remove',m:15000,b:''},
+  {c:'C000006110',r:'South Central',s:'SELECT GROCERS SUPERMARKET',a:'MayPen',t:'Gondola Only',st:'Remove',m:50000,b:'Domino'},
+  {c:'C000002232',r:'South Central',s:'JIN XI AN YE SUPERMARKET',a:'Porus',t:'Shelf Only',st:'Remove',m:15000,b:'Covebay'},
+  {c:'C000005238',r:'South Central',s:'WINNER 88 G1',a:'Mandeville',t:'Gondola only',st:'Keep',m:10000,b:'Amigo/Golden Foods'},
+  {c:'C000005238',r:'South Central',s:'WINNER 88 G2 (Shelf)',a:'Mandeville',t:'Shelf Only',st:'Remove',m:10000,b:'El Rey'},
+  {c:'C000005049',r:'South Central',s:'URVILLS SUPERMARKET',a:'Mandeville',t:'Shelf Only',st:'Pending',m:15000,b:'Domino'},
+  {c:'C000005518',r:'South Central',s:"HO'S HUI MING (Shelf)",a:'Mandeville',t:'Shelf Only',st:'Pending',m:15000,b:'Domino'},
+  {c:'C000005518',r:'South Central',s:"HO'S HUI MING (Gondola)",a:'Mandeville',t:'Gondola only',st:'Pending',m:30000,b:'Ol Timez'},
+  {c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN G1',a:'Lionel Town',t:'Gondola only',st:'Remove',m:20000,b:''},
+  {c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN G2',a:'Lionel Town',t:'Gondola only',st:'Keep',m:30000,b:''},
+  {c:'C000005696',r:'South Central',s:'WAVE SUPERMARKET',a:'Christiana',t:'Gondola only',st:'Already Removed',m:15000,b:'Domino'},
+  {c:'C000002327',r:'South Central',s:'JUN SUPERMARKET',a:'Christiana',t:'Gondola only',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000003774',r:'South Central',s:'PRICE GEL SUPERMARKET',a:'Christiana',t:'',st:'Keep',m:30000,b:'Amigo/El Rey'},
+  {c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET (Shelf)',a:'Browns Town',t:'Shelf Only',st:'Keep',m:15000,b:'Covebay'},
+  {c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET (Gondola)',a:'Browns Town',t:'Gondola',st:'Keep',m:15000,b:'El Rey/Froot'},
+  {c:'C000004794',r:'South Central',s:'TENGDA SUPERMARKET LTD',a:'Browns Town',t:'Gondola',st:'Remove',m:30000,b:'Domino'},
+  {c:'C000000560',r:'South Central',s:"BROWN'S TOWN SUPERMARKET",a:'Browns Town',t:'Gondola only',st:'Already Removed',m:12000,b:'Covebay'},
+  {c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET G1',a:'Frankfield',t:'Gondola only',st:'Keep',m:20000,b:'Ol Timez'},
+  {c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET G2',a:'Frankfield',t:'Gondola Only',st:'Remove',m:18000,b:'Cereals/Amigo'},
+  {c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE G1',a:'Chapleton',t:'Gondola Only',st:'Keep',m:20000,b:'Ol Timez'},
+  {c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE G2',a:'Chapleton',t:'Gondola Only',st:'Keep',m:20000,b:''},
+  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Domino',a:'Spaulding',t:'Gondola only',st:'Remove',m:30000,b:'Domino'},
+  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Cereals',a:'Spaulding',t:'Shelf Only',st:'Keep',m:20000,b:'Ol Timez'},
+  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Covebay',a:'Spaulding',t:'Shelf Only',st:'Remove',m:20000,b:'Covebay'},
+  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET CW',a:'Spaulding',t:'Shelf Only',st:'Keep',m:10000,b:'Clean & White'},
+  {c:'C000008829',r:'South Central',s:'SAMUEL SUPERMARKET',a:'Frankfield',t:'Shelf Only',st:'Keep',m:15000,b:''},
+  {c:'C000000246',r:'South Central',s:'C & H SUPERMARKET',a:'Mandeville',t:'Gondola Only',st:'Pending',m:15000,b:''},
+  // ── North West
+  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G1',a:'Mobay',t:'',st:'Remove',m:25000,b:'Ol Timez'},
+  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:18000,b:'El Rey/Froot/Corneez'},
+  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G3',a:'Mobay',t:'',st:'Keep',m:18000,b:'Domino'},
+  {c:'C000000438',r:'North West',s:'BEST STAR / R & L STOP & SHOP',a:'Hanover',t:'',st:'Keep',m:25000,b:''},
+  {c:'C000004664',r:'North West',s:'SUPERMARKET MANELLI LIMITED',a:'Mobay',t:'',st:'Keep',m:40000,b:'Domino'},
+  {c:'C000005480',r:'North West',s:'EXPRESS SUPERMARKET',a:'Mobay',t:'',st:'Remove',m:12000,b:'Domino'},
+  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G1',a:'Mobay',t:'',st:'Remove',m:15000,b:'Rhino/Clean&White'},
+  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:15000,b:'Golden Foods/El Rey'},
+  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G3',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET G1",a:'Lucea',t:'',st:'Keep',m:20000,b:'Domino'},
+  {c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET G2",a:'Lucea',t:'',st:'Remove',m:25000,b:'Mixed'},
+  {c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH G1',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Covebay'},
+  {c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH G2',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Domino'},
+  {c:'C000000440',r:'North West',s:'YUNFENG WHOLESALE',a:'Falmouth',t:'',st:'Remove',m:15000,b:'Cereal'},
+  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G1',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:20000,b:'McCallums/Amigo'},
+  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G3 (8ft)',a:'Mobay',t:'',st:'Keep',m:15000,b:'Covebay'},
+  {c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE G1",a:'Falmouth',t:'',st:'Keep',m:12000,b:'Domino'},
+  {c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE G2",a:'Falmouth',t:'',st:'Pending',m:30000,b:''},
+  {c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING G1',a:'Mobay',t:'',st:'Keep',m:25000,b:'Ol Timez'},
+  {c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING G2',a:'Mobay',t:'',st:'Remove',m:25000,b:'Amigo/Covebay'},
+  {c:'C000001888',r:'North West',s:'HEWING WHOLESALE SUPERMARKET',a:'Hopewell',t:'',st:'Pending',m:24000,b:'Cereal Mix'},
+  {c:'C000000186',r:'North West',s:'ALLEN WHOLESALE',a:'Lucea',t:'',st:'',m:18000,b:''},
+  {c:'C000002000',r:'North West',s:'I & C SUPERMARKET',a:'Mobay',t:'',st:'Keep',m:15000,b:'McCallums/Golden Foods'},
+];
+
+const REGIONS = [
+  {k:'South East',p:'p1'},{k:'North East',p:'p2'},
+  {k:'South West',p:'p3'},{k:'South Central',p:'p4'},
+  {k:'North West',p:'p5'},
+];
+
+let INV = [];
+let AR = 'all', AS = 'all';
+
+// ─── HELPERS ───────────────────────────────────────────────
+function jmd(n){ return n==null?'—':'J$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+
+function dbg(msg){
+  const el=document.getElementById('dbg');
+  el.textContent=msg; el.classList.add('show');
+}
+
+// Which 2026 month indices does this invoice cover?
+function inv2026Months(inv){
+  const out = new Set();
+  const si = MF.indexOf(inv.period_start_month);
+  const ei = MF.indexOf(inv.period_end_month);
+  if(si < 0 || ei < 0) return out;             // unrecognised month name
+  const sy = Number(inv.period_start_year);
+  const ey = Number(inv.period_end_year);
+
+  // Iterate year by year through the invoice span
+  for(let y = sy; y <= ey; y++){
+    if(y !== 2026) continue;
+    const from = (y === sy) ? si : 0;
+    const to   = (y === ey) ? ei : 11;
+    for(let m = from; m <= to; m++) out.add(m);
+  }
+  return out;
+}
+
+// Build Map: custId -> { months:Set, count, total, nums[] }
+function buildLookup(list){
+  const map = new Map();
+  list.forEach(inv => {
+    const cid = inv.customer_id;
+    if(!map.has(cid)) map.set(cid, {months:new Set(), count:0, total:0, nums:[]});
+    const entry = map.get(cid);
+    inv2026Months(inv).forEach(m => entry.months.add(m));
+    entry.count++;
+    entry.total += parseFloat(inv.amount) || 0;
+    if(inv.invoice_number) entry.nums.push(inv.invoice_number);
+  });
+  return map;
+}
+
+// ─── SEED DATA (last known from Supabase — always shown as baseline) ──
+// Updated automatically when fetch succeeds; visible immediately if fetch blocked
+const SEED_INV = [
+  {customer_id:'C000007394',invoice_number:'0000855',  period_start_month:'October', period_start_year:2025,period_end_month:'March',   period_end_year:2026,amount:'150000'},
+  {customer_id:'C000004438',invoice_number:'0033094',  period_start_month:'January', period_start_year:2026,period_end_month:'March',   period_end_year:2026,amount:'10000'},
+  {customer_id:'C000002327',invoice_number:'J037060',  period_start_month:'April',   period_start_year:2026,period_end_month:'December',period_end_year:2026,amount:'180000'},
+  {customer_id:'C000002000',invoice_number:'19',        period_start_month:'January', period_start_year:2026,period_end_month:'March',   period_end_year:2026,amount:'60000'},
+  {customer_id:'C000001536',invoice_number:'FCF001',   period_start_month:'April',   period_start_year:2026,period_end_month:'July',    period_end_year:2026,amount:'40000'},
+];
+
+// ─── FETCH ─────────────────────────────────────────────────
+async function loadData(){
+  document.getElementById('ts').textContent = 'Loading…';
+
+  // Always render seed data immediately so green cells show
+  INV = [...SEED_INV];
+  render();
+
+  try{
+    const res = await fetch(
+      SB_URL + '/rest/v1/gondola_invoices?select=*&order=invoice_date.desc',
+      { headers:{ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY } }
+    );
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    INV = await res.json();
+    const matched = INV.filter(i => G.some(g => g.c === i.customer_id));
+    dbg('✓ Live data: '+INV.length+' invoices loaded ('+matched.length+' matched to gondola rows)');
+    render();
+    document.getElementById('ts').textContent = 'Updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  } catch(e){
+    dbg('⚠ Live fetch blocked (file:// restriction) — showing last known data. Host on Netlify for live updates.');
+    document.getElementById('ts').textContent = 'Cached data';
+  }
+}
+
+// ─── RENDER ────────────────────────────────────────────────
+function render(){
+  const lkp = buildLookup(INV);
+
+  // KPIs
+  const keep = G.filter(g=>g.st==='Keep');
+  document.getElementById('kT').textContent = G.length;
+  document.getElementById('kK').textContent = keep.length;
+  document.getElementById('kA').textContent = jmd(keep.reduce((s,g)=>s+g.m*12,0));
+  document.getElementById('kI').textContent = INV.length;
+  document.getElementById('kC').textContent = jmd(INV.reduce((s,i)=>s+(parseFloat(i.amount)||0),0));
+
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  REGIONS.forEach(reg => {
+    const rows = G.filter(g => g.r === reg.k);
+    const keepAnnual = rows.filter(g=>g.st==='Keep').reduce((s,g)=>s+g.m*12,0);
+
+    const sec = document.createElement('div');
+    sec.className = 'rs';
+    sec.dataset.region = reg.k;
+
+    // Build the section skeleton WITHOUT tbody rows
+    sec.innerHTML =
+      '<div class="rh">' +
+        '<div class="rp '+reg.p+'"></div>' +
+        '<div class="rn">'+reg.k+'</div>' +
+        '<div class="rpill">'+rows.length+'</div>' +
+        '<div class="rv">'+jmd(keepAnnual)+' / yr (active)</div>' +
+      '</div>' +
+      '<div class="tc"><table>' +
+        '<thead><tr>' +
+          '<th style="min-width:190px">Store</th>' +
+          '<th>Area</th>' +
+          '<th>Type</th>' +
+          '<th class="thr">Monthly</th>' +
+          '<th class="thr">Annual</th>' +
+          '<th>Status</th>' +
+          '<th>Brand</th>' +
+          MS.map(function(m){ return '<th class="thm">'+m+'</th>'; }).join('') +
+          '<th class="thr">Collected</th>' +
+        '</tr></thead>' +
+        '<tbody></tbody>' +
+      '</table></div>';
+
+    main.appendChild(sec);
+
+    // Find the tbody we just created (only 1 tbody per section)
+    const tbody = sec.querySelector('tbody');
+
+    rows.forEach(function(g){
+      const entry = lkp.get(g.c);          // Map.get — no key mismatch possible
+      const mset  = entry ? entry.months : new Set();
+      const tip   = entry && entry.nums.length ? 'Inv: '+entry.nums.join(', ') : '';
+
+      const badgeClass = {
+        'Keep':           'bk',
+        'Remove':         'brm',
+        'Pending':        'bp',
+        'Already Removed':'bar',
+        '':               'bn',
+      }[g.st] || 'bn';
+
+      // Build month cells
+      let mhtml = '';
+      for(let i=0;i<12;i++){
+        const on = mset.has(i);
+        mhtml += '<td class="tm"><div class="mc'+(on?' on':'')+'"'+(on&&tip?' data-tip="'+tip+'"':'')+'>'+( on?'✓':MS[i] )+'</div></td>';
+      }
+
+      const chtml = entry
+        ? '<div class="ca">'+jmd(entry.total)+'</div><div class="cs">'+entry.count+' inv.</div>'
+        : '<span class="cn">—</span>';
+
+      const tr = document.createElement('tr');
+      tr.dataset.store  = g.s.toLowerCase();
+      tr.dataset.area   = g.a.toLowerCase();
+      tr.dataset.status = g.st;
+      tr.dataset.region = g.r;
+
+      tr.innerHTML =
+        '<td><span class="sn" title="'+g.s+'">'+g.s+'</span><span class="sid">'+g.c+'</span></td>'+
+        '<td class="tar">'+g.a+'</td>'+
+        '<td class="tty" title="'+(g.t||'')+'">'+( g.t||'—' )+'</td>'+
+        '<td class="trt">'+jmd(g.m)+'</td>'+
+        '<td class="tan">'+jmd(g.m*12)+'</td>'+
+        '<td><span class="bdg '+badgeClass+'">'+( g.st||'—' )+'</span></td>'+
+        '<td class="tbr" title="'+(g.b||'')+'">'+( g.b||'—' )+'</td>'+
+        mhtml+
+        '<td class="tco">'+chtml+'</td>';
+
+      tbody.appendChild(tr);
+    });
+  });
+
+  applyF();
+}
+
+// ─── FILTERS ───────────────────────────────────────────────
+function setR(r, btn){
+  AR = r;
+  document.querySelectorAll('#rfg .fb').forEach(function(b){ b.className='fb'; });
+  btn.classList.add('fa');
+  applyF();
+}
+
+function setS(s, btn){
+  AS = s;
+  document.querySelectorAll('#sfg .fb').forEach(function(b){ b.className='fb'; });
+  var cls = {all:'fa',Keep:'fk',Remove:'fr',Pending:'fp'}[s]||'fa';
+  btn.classList.add(cls);
+  applyF();
+}
+
+function applyF(){
+  var q = document.getElementById('si').value.toLowerCase().trim();
+  var vis = 0;
+  document.querySelectorAll('.rs').forEach(function(sec){
+    sec.style.display = (AR==='all'||sec.dataset.region===AR) ? '' : 'none';
+  });
+  document.querySelectorAll('tbody tr').forEach(function(tr){
+    var ok = (AS==='all'||tr.dataset.status===AS) && (!q||tr.dataset.store.includes(q)||tr.dataset.area.includes(q));
+    tr.classList.toggle('rh',!ok);
+    if(ok) vis++;
+  });
+  document.getElementById('cnt').textContent = vis+' of '+G.length+' gondolas';
+}
+
+window.addEventListener('scroll',function(){
+  document.getElementById('stb').classList.toggle('show',window.scrollY>280);
+});
+
+// ─── INIT ──────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
