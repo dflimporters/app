@@ -544,11 +544,13 @@ async function loadStaticRefs(){
 // as whoever they themselves report to, not their own distinct sub-team).
 function buildTeamLeaderRoster(repsRows){
   const byId = {}; repsRows.forEach(r => byId[r.id]=r);
-  const merchByLeaderId = {}; // team_lead_id -> [merchandiser names reporting directly]
+  const merchByLeaderId = {}; // team_lead_id -> [merchandiser/relief names reporting directly]
   const dualsByLeaderId = {}; // team_lead_id -> [tl_merch reps reporting to this formal TL]
   repsRows.forEach(r => {
     if(!r.team_lead_id) return;
-    if(r.role==='merchandiser') (merchByLeaderId[r.team_lead_id] = merchByLeaderId[r.team_lead_id]||[]).push(r.name);
+    // relief_merchandiser included: a relief route counts toward its team
+    // lead's per-store TL bonus the same as any other merchandiser's route.
+    if(r.role==='merchandiser'||r.role==='relief_merchandiser') (merchByLeaderId[r.team_lead_id] = merchByLeaderId[r.team_lead_id]||[]).push(r.name);
     if(r.role==='tl_merch') (dualsByLeaderId[r.team_lead_id] = dualsByLeaderId[r.team_lead_id]||[]).push(r);
   });
 

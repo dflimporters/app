@@ -997,7 +997,23 @@ function renderSkuPenetration(cat){
 }
 
 function buildKeyAccountsRows(cat, elapsed){
-  const rows=D.keyAccts.filter(r=>r.item_class===cat)
+  const allRows=D.keyAccts.filter(r=>r.item_class===cat);
+  if(!allRows.length) return'<div class="empty-row">No Key Accounts with budgets in this category</div>';
+  const reps=[...new Set(allRows.map(r=>r.salesperson).filter(Boolean))].sort();
+  const uid='ka_'+cat;
+  const repOpts=reps.map(rp=>'<option value="'+rp+'">'+rp+'</option>').join('');
+  const filterBar=reps.length?
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'+
+      '<label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-soft)">Filter by Rep</label>'+
+      '<select id="'+uid+'_repsel" data-cat="'+cat+'" class="ka-rep-sel" style="font-size:12px;font-weight:600;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer">'+
+        '<option value="">All Reps</option>'+repOpts+
+      '</select>'+
+    '</div>':'';
+  return filterBar+'<div id="'+uid+'_body">'+renderKeyAccountsTable(cat,'')+'</div>';
+}
+
+function renderKeyAccountsTable(cat, repFilter){
+  const rows=D.keyAccts.filter(r=>r.item_class===cat&&(!repFilter||r.salesperson===repFilter))
     .sort((a,b)=>{
       // Nulls (no budget) go to bottom
       const aHas=a.pct_to_budget!=null, bHas=b.pct_to_budget!=null;
@@ -1006,7 +1022,7 @@ function buildKeyAccountsRows(cat, elapsed){
       if(!bHas) return -1;
       return parseFloat(a.pct_to_budget)-parseFloat(b.pct_to_budget);
     });
-  if(!rows.length) return'<div class="empty-row">No Key Accounts with budgets in this category</div>';
+  if(!rows.length) return'<div class="empty-row">No Key Accounts'+(repFilter?' for '+repFilter:'')+' in this category</div>';
   const behind=rows.filter(r=>parseFloat(r.pace_gap||0)<0).length;
   return`
     <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
@@ -1032,6 +1048,15 @@ function buildKeyAccountsRows(cat, elapsed){
       }).join('')}
     </table>`;
 }
+
+// Global delegated event handler for Key Accounts rep filter dropdowns
+document.addEventListener('change',function(e){
+  if(e.target&&e.target.classList.contains('ka-rep-sel')){
+    const cat=e.target.getAttribute('data-cat');
+    const body=document.getElementById('ka_'+cat+'_body');
+    if(body) body.innerHTML=renderKeyAccountsTable(cat,e.target.value);
+  }
+});
 
 // ── TOP 10 REVENUE TAB ────────────────────────────────────────────────────────
 function buildTop10Rows(cat, elapsed){

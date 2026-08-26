@@ -677,6 +677,15 @@ body.dfl-readonly .readonly-note{display:block}
       </button>
 
       <div id="stores-summary-banner"></div>
+
+      <div class="hide-when-readonly">
+        <div class="store-search-wrap" id="add-store-wrap" style="margin-bottom:10px">
+          <input type="text" id="add-store-input" placeholder="🔍 Search all stores to add to your route…" autocomplete="off" oninput="searchAddStore(this.value)" style="width:100%;padding:10px 34px 10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
+          <div class="store-dropdown" id="add-store-drop"></div>
+        </div>
+        <div id="my-route-requests" style="margin-bottom:4px"></div>
+      </div>
+
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
         <div class="sec-hdr" id="stores-period-lbl"><span id="stores-month-lbl">My stores</span></div>
         <select id="stores-sort" onchange="renderStores()" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)">
@@ -746,7 +755,7 @@ body.dfl-readonly .readonly-note{display:block}
     <button class="nav-btn" id="n-stock" onclick="goTab('tab-stock');setNav('n-stock')">
       <svg viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3H20.5a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Stock</span>
     </button>
-    <button class="nav-btn" id="n-stores" onclick="goTab('tab-stores');setNav('n-stores');ensureStoresLoaded()">
+    <button class="nav-btn" id="n-stores" onclick="goTab('tab-stores');setNav('n-stores');ensureStoresLoaded();loadMyRouteRequests()">
       <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>My Stores</span>
     </button>
     <button class="nav-btn" id="n-week" onclick="goTab('tab-week');setNav('n-week');loadMyWeek()">
@@ -776,6 +785,22 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr" style="color:var(--amber)">›</div>
     </div>
     <div class="readonly-note">👁️ Read-only — you are viewing another user's app. Logging is disabled so nothing is recorded under their name.</div>
+
+    <div id="tl-route-requests-wrap" class="hide-when-readonly" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">Route change requests</div>
+      <div id="tl-route-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
+
+    <div class="hide-when-readonly">
+      <div class="sec-hdr" style="margin-top:6px">Reassign a store</div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 8px">Search any store and move it straight onto one of your merchandisers' routes — no request needed.</div>
+      <div class="store-search-wrap" id="tl-reassign-wrap" style="margin-bottom:8px">
+        <input type="text" id="tl-reassign-input" placeholder="🔍 Search stores…" autocomplete="off" oninput="tlSearchReassign(this.value)" style="width:100%;padding:10px 34px 10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
+        <div class="store-dropdown" id="tl-reassign-drop"></div>
+      </div>
+      <div id="tl-reassign-panel" style="display:none;margin-bottom:16px"></div>
+    </div>
+
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <span>Today's activity</span>
@@ -1186,66 +1211,55 @@ function filterStores(q){
 }
 
 // Fallback when a merchandiser's assigned stores don't have the store being
-// looked for (e.g. covering someone else's route) — searches every customer
-// in invoiced_items by name. Name/city only, no target or performance data,
-// since this bypasses merchandiser_map entirely.
+// looked for (e.g. covering someone else's route) — searches every active
+// store via merch_search_stores, which ranks by how many typed words hit
+// (name or city) against the small deduplicated `customers` table. This used
+// to query `invoiced_items` directly (a multi-million-row line-item table)
+// with ORDER BY + LIMIT before dedup, which silently dropped real matches
+// behind whichever customer happened to sort first alphabetically among a
+// common word's hits — e.g. "Santa Centre Supermarket" never surfacing at
+// all for the word "centre" because some other, unrelated customer's many
+// invoice line-items ate the whole limit first.
 let _storeSearchTimer=null;
+let _storeSearchGen=0;
 async function searchAllCustomers(q,dropId,prefix,excludeIds){
   dropId=dropId||'store-drop';
   prefix=prefix||'vf';
   const excluded=new Set(excludeIds||[]);
   clearTimeout(_storeSearchTimer);
+  const myGen=++_storeSearchGen; // invalidates any still-in-flight older search
   _storeSearchTimer=setTimeout(async function(){
     try{
+      const rows=await restRpc('merch_search_stores',{p_query:q}).catch(function(){return [];});
+      if(myGen!==_storeSearchGen) return; // a newer keystroke already superseded this
       const drop=document.getElementById(dropId);
-      // Match each typed word independently rather than requiring the whole
-      // phrase verbatim — a merchandiser's informal name for a store ("Sheldon
-      // Brown Supermarket") rarely matches its exact Acumatica name ("SHELDON
-      // BROWN") word-for-word, and one extra/missing/reordered word used to
-      // sink the entire search. Results are ranked by how many words hit.
-      const words=q.toLowerCase().split(/\s+/).filter(function(w){return w.length>=2;});
-      const terms=words.length?words:[q];
-      // One request per word, each with its own limit — a common word (a
-      // parish/town name, "supermarket", etc.) can return hundreds of rows
-      // and must not crowd a rarer, more specific word out of a single shared
-      // limit before its own matches ever get fetched.
-      const perTermLimit=terms.length>1?25:100;
-      const results=await Promise.all(terms.map(function(w){
-        const eq=encodeURIComponent(w);
-        return rest('invoiced_items?or=(customer_name.ilike.*'+eq+'*,city.ilike.*'+eq+'*)&select=customer_id,customer_name,city&order=customer_name&limit='+perTermLimit).catch(function(){return [];});
-      }));
-      const rows=results.flat();
-      const seen={};const unique=[];
-      (rows||[]).forEach(function(r){if(!seen[r.customer_id]&&!excluded.has(r.customer_id)){seen[r.customer_id]=true;unique.push(r);}});
-      unique.forEach(function(r){
-        const name=(r.customer_name||'').toLowerCase();
-        const city=(r.city||'').toLowerCase();
-        r._score=terms.reduce(function(n,w){return n+((name.indexOf(w)>-1||city.indexOf(w)>-1)?1:0);},0);
-      });
-      unique.sort(function(a,b){return b._score-a._score || (a.customer_name||'').localeCompare(b.customer_name||'');});
-      const top=unique.slice(0,20);
-      // Append below whatever's already there (e.g. a "Your stores" section
-      // from the caller) rather than replacing it — both stay reachable at
-      // once. Only clear an existing placeholder ("Searching…"/"No match"),
-      // never an already-rendered list of real store options.
+      if(!drop) return;
+      const top=(rows||[]).filter(function(r){return !excluded.has(r.customer_id);}).slice(0,20);
+      // Clear only a previous "All stores" render (marked below), never the
+      // "Your stores" section the caller may have already drawn.
+      const prevHdr=drop.querySelector('.store-all-hdr');
+      if(prevHdr) prevHdr.remove();
+      Array.prototype.forEach.call(drop.querySelectorAll('.store-opt-all'),function(el){el.remove();});
       if(drop.querySelector('.store-none')) drop.innerHTML='';
       if(!top.length){
         if(!drop.querySelector('.store-opt')) drop.innerHTML='<div class="store-none">No other stores found</div>';
         return;
       }
       const hdr=document.createElement('div');
+      hdr.className='store-all-hdr';
       hdr.style.cssText='padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)';
       hdr.textContent='All stores';
       drop.appendChild(hdr);
       top.forEach(function(r){
         const div=document.createElement('div');
-        div.className='store-opt';
-        div.innerHTML='<div class="so-name">'+r.customer_name+'</div>'+(r.city?'<div class="so-city">'+r.city+'</div>':'');
+        div.className='store-opt store-opt-all';
+        div.innerHTML='<div class="so-name">'+escapeHtmlM(r.customer_name)+'</div>'+(r.city?'<div class="so-city">'+escapeHtmlM(r.city)+'</div>':'');
         div.onclick=function(){selectStore(prefix,r.customer_id,r.customer_name||'',r.city||'');};
         drop.appendChild(div);
       });
       if(prefix==='sf')openDropdownSF();else openDropdown();
     }catch(e){
+      if(myGen!==_storeSearchGen) return;
       const drop=document.getElementById(dropId);
       if(drop&&!drop.querySelector('.store-opt'))drop.innerHTML='<div class="store-none">Search error — check connection</div>';
     }
@@ -1648,6 +1662,10 @@ function renderFeed(){
 }
 
 // ── TEAM LEADER ──
+let tlMyMerch=[];          // {id,name,area} — this TL's roster, for the reassign target picker
+let tlReassignSelected=null;
+let tlReassignDebounce=null;
+
 async function launchTL(u){
   showScreen('s-tl');
   // Name now comes from the header greeting (updateGreeting(), set in
@@ -1684,8 +1702,10 @@ async function loadTLData(u){
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&role=eq.merchandiser&active=eq.true&select=name,area&order=name`);
+    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&role=eq.merchandiser&active=eq.true&select=id,name,area&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
+    tlMyMerch=myMerch||[];
+    loadTeamRouteRequests();
 
     if(!myNames.length){
       document.getElementById('tl-tot').textContent='0';
@@ -1760,6 +1780,114 @@ async function loadTLData(u){
   }catch(e){
     console.error(e);
     document.getElementById('tl-list').innerHTML='<div class="empty-feed">Failed to load team data.</div>';
+  }
+}
+
+// ── TEAM LEAD: route requests + direct reassign ──
+async function loadTeamRouteRequests(){
+  const wrap=document.getElementById('tl-route-requests-wrap');
+  const list=document.getElementById('tl-route-requests-list');
+  if(!wrap||!list||!cu||cu.viewingAs) return;
+  try{
+    const rows=await restRpc('merch_team_route_requests',{})||[];
+    if(!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+    wrap.style.display='block';
+    list.innerHTML=rows.map(r=>`<div class="merch-card">
+      <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.customer_name)}</div>
+      <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${escapeHtmlM(r.requester_name)} wants to take this over from ${escapeHtmlM(r.current_holder_name||'—')}</div>
+      <div style="display:flex;gap:8px">
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" data-id="${r.id}" onclick="tlDecideRequest(this,true)">Approve</button>
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" data-id="${r.id}" onclick="tlDecideRequest(this,false)">Deny</button>
+      </div>
+    </div>`).join('');
+  }catch(e){ console.warn('team route requests load failed',e); }
+}
+
+async function tlDecideRequest(btn,approve){
+  if(approve && !confirm('Approve this reassignment?')) return;
+  if(!approve && !confirm('Deny this request?')) return;
+  btn.disabled=true;
+  try{
+    await restRpc('merch_decide_route_request',{p_request_id:Number(btn.dataset.id),p_approve:approve});
+    loadTeamRouteRequests();
+  }catch(e){
+    alert('Could not process: '+(e.message||e));
+    btn.disabled=false;
+  }
+}
+
+function tlSearchReassign(q){
+  clearTimeout(tlReassignDebounce);
+  const drop=document.getElementById('tl-reassign-drop');
+  if(!drop) return;
+  if(!q||q.trim().length<2){ drop.innerHTML=''; drop.classList.remove('open'); return; }
+  tlReassignDebounce=setTimeout(async()=>{
+    try{
+      const rows=await restRpc('merch_search_stores',{p_query:q.trim()});
+      renderTlReassignResults(rows||[]);
+    }catch(e){
+      drop.innerHTML='<div class="store-none">Search failed — check connection</div>';
+      drop.classList.add('open');
+    }
+  },300);
+}
+
+function renderTlReassignResults(rows){
+  const drop=document.getElementById('tl-reassign-drop');
+  if(!rows.length){ drop.innerHTML='<div class="store-none">No matching stores</div>'; drop.classList.add('open'); return; }
+  drop.innerHTML=rows.map(r=>`<div class="store-opt" data-cid="${encodeURIComponent(r.customer_id)}" data-cnm="${encodeURIComponent(r.customer_name)}" data-holder="${encodeURIComponent(r.current_holder||'Unassigned')}" onclick="tlPickReassignStore(this)">
+    <div class="so-name">${escapeHtmlM(r.customer_name)}</div>
+    <div class="so-city">${r.city?escapeHtmlM(r.city)+' · ':''}${r.current_holder?('Currently: '+escapeHtmlM(r.current_holder)):'Unassigned'}</div>
+  </div>`).join('');
+  drop.classList.add('open');
+}
+
+function tlPickReassignStore(el){
+  const cid=decodeURIComponent(el.dataset.cid), cnm=decodeURIComponent(el.dataset.cnm), holder=decodeURIComponent(el.dataset.holder);
+  tlReassignSelected={cid,cnm,holder};
+  document.getElementById('tl-reassign-input').value=cnm;
+  const drop=document.getElementById('tl-reassign-drop');
+  drop.innerHTML=''; drop.classList.remove('open');
+
+  if(!tlMyMerch.length){
+    document.getElementById('tl-reassign-panel').style.display='block';
+    document.getElementById('tl-reassign-panel').innerHTML='<div style="font-size:12px;color:var(--muted)">No merchandisers on your team yet.</div>';
+    return;
+  }
+  const opts=tlMyMerch.map(m=>`<option value="${m.id}">${escapeHtmlM(m.name)}</option>`).join('');
+  const panel=document.getElementById('tl-reassign-panel');
+  panel.style.display='block';
+  panel.innerHTML=`
+    <div class="store-perf-card">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Currently: ${escapeHtmlM(holder||'Unassigned')}</div>
+      <select id="tl-reassign-target" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:10px;background:var(--card);color:var(--text)">${opts}</select>
+      <div style="display:flex;gap:8px">
+        <button class="submit-btn" style="flex:1;padding:9px;font-size:13px" onclick="tlConfirmReassign()">Assign →</button>
+        <button class="submit-btn" style="flex:1;padding:9px;font-size:13px;background:#fff;color:var(--muted);border:1.5px solid var(--border)" onclick="tlCancelReassign()">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function tlCancelReassign(){
+  tlReassignSelected=null;
+  const input=document.getElementById('tl-reassign-input');
+  if(input) input.value='';
+  const panel=document.getElementById('tl-reassign-panel');
+  panel.style.display='none'; panel.innerHTML='';
+}
+
+async function tlConfirmReassign(){
+  if(!tlReassignSelected) return;
+  const targetId=document.getElementById('tl-reassign-target').value;
+  const target=tlMyMerch.find(m=>String(m.id)===String(targetId));
+  if(!confirm(`Assign "${tlReassignSelected.cnm}" to ${target?target.name:'this merchandiser'}?`)) return;
+  try{
+    await restRpc('merch_reassign_store',{p_customer_id:tlReassignSelected.cid,p_target_rep_id:targetId});
+    alert('Store reassigned.');
+    tlCancelReassign();
+    loadTeamRouteRequests();
+  }catch(e){
+    alert('Could not reassign: '+(e.message||e));
   }
 }
 
@@ -2878,8 +3006,119 @@ function renderStores(){
         <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="openSalesInfo(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="background:var(--blue-lt);color:var(--navy);border:1.5px solid var(--navy)">📊 Sales info</button>
         <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="prefillStore(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="${todayVisit&&todayVisit.clock_out?'background:var(--navy)':''}">Log visit</button>
       </div>
+      <div class="spc-visit hide-when-readonly" style="margin-top:6px">
+        <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="removeStoreFromRoute(this)" style="background:#fff;color:var(--red);border:1.5px solid var(--red)">🗑 Remove from my route</button>
+      </div>
     </div>`;
   }).join('');
+}
+
+// ── SELF-SERVICE ROUTING — search/add/remove stores from My Stores ──
+let addStoreDebounce=null;
+function searchAddStore(q){
+  clearTimeout(addStoreDebounce);
+  const drop=document.getElementById('add-store-drop');
+  if(!drop) return;
+  if(!q||q.trim().length<2){ drop.innerHTML=''; drop.classList.remove('open'); return; }
+  addStoreDebounce=setTimeout(async()=>{
+    try{
+      const rows=await restRpc('merch_search_stores',{p_query:q.trim()});
+      renderAddStoreResults(rows||[]);
+    }catch(e){
+      console.error('store search failed',e);
+      drop.innerHTML='<div class="store-none">Search failed — check connection</div>';
+      drop.classList.add('open');
+    }
+  },300);
+}
+
+function renderAddStoreResults(rows){
+  const drop=document.getElementById('add-store-drop');
+  if(!rows.length){ drop.innerHTML='<div class="store-none">No matching stores</div>'; drop.classList.add('open'); return; }
+  drop.innerHTML=rows.map(r=>{
+    const mine=r.current_holder===cu.full_name;
+    const held=!!(r.current_holder&&r.current_holder!=='Unassigned'&&!mine);
+    const label=mine?'Already yours':held?('Held by '+escapeHtmlM(r.current_holder)):'Unassigned';
+    return `<div class="store-opt" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:default">
+      <div>
+        <div class="so-name">${escapeHtmlM(r.customer_name)}</div>
+        <div class="so-city">${r.city?escapeHtmlM(r.city)+' · ':''}${label}</div>
+      </div>
+      ${mine?'':`<button class="log-btn" style="flex:none;padding:6px 10px;font-size:11px" data-cid="${encodeURIComponent(r.customer_id)}" data-cnm="${encodeURIComponent(r.customer_name)}" data-held="${held?'1':'0'}" onclick="addStoreToRoute(this)">${held?'Request':'Add'}</button>`}
+    </div>`;
+  }).join('');
+  drop.classList.add('open');
+}
+
+async function addStoreToRoute(btn){
+  const cid=decodeURIComponent(btn.dataset.cid), cnm=decodeURIComponent(btn.dataset.cnm), held=btn.dataset.held==='1';
+  if(held && !confirm(`"${cnm}" is currently on someone else's route. This sends a request to your team leader to approve the switch — continue?`)) return;
+  const origLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='…';
+  try{
+    const res=await restRpc('merch_add_store',{p_customer_id:cid});
+    const status=res&&res.status;
+    const input=document.getElementById('add-store-input');
+    const drop=document.getElementById('add-store-drop');
+    if(status==='added'){
+      if(input) input.value='';
+      if(drop){ drop.innerHTML=''; drop.classList.remove('open'); }
+      await Promise.all([loadStorePerf(), loadMyStores(cu)]);
+      renderStores();
+    } else if(status==='requested'){
+      alert(`Request sent to your team leader to take over "${cnm}" from ${res.holder}.`);
+      if(input) input.value='';
+      if(drop){ drop.innerHTML=''; drop.classList.remove('open'); }
+      loadMyRouteRequests();
+    } else if(status==='already_requested'){
+      alert('You already have a pending request for this store.');
+    } else if(status==='already_yours'){
+      alert('This store is already on your route.');
+    }
+  }catch(e){
+    alert('Could not add store: '+(e.message||e));
+  }finally{
+    btn.disabled=false; btn.textContent=origLabel;
+  }
+}
+
+async function removeStoreFromRoute(btn){
+  const cid=btn.dataset.cid, cnm=decodeURIComponent(btn.dataset.cnm);
+  if(!confirm(`Remove "${cnm}" from your route? It goes back to Unassigned.`)) return;
+  btn.disabled=true;
+  try{
+    await restRpc('merch_release_store',{p_customer_id:cid});
+    await Promise.all([loadStorePerf(), loadMyStores(cu)]);
+    renderStores();
+  }catch(e){
+    alert('Could not remove store: '+(e.message||e));
+    btn.disabled=false;
+  }
+}
+
+async function loadMyRouteRequests(){
+  const el=document.getElementById('my-route-requests');
+  if(!el||!cu||cu.viewingAs) return;
+  try{
+    const rows=(await restRpc('merch_my_route_requests',{})||[]).filter(r=>r.status==='pending');
+    if(!rows.length){ el.innerHTML=''; return; }
+    el.innerHTML=rows.map(r=>`<div class="store-perf-card" style="padding:10px 12px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--navy)">⏳ Pending: ${escapeHtmlM(r.customer_name)}</div>
+      <div style="font-size:11px;color:var(--muted);margin:2px 0 8px">Waiting on your team leader to approve taking this over from ${escapeHtmlM(r.current_holder_name||'—')}.</div>
+      <button class="log-btn" style="font-size:11px;padding:6px 10px" data-id="${r.id}" onclick="cancelMyRouteRequest(this)">Cancel request</button>
+    </div>`).join('');
+  }catch(e){ console.warn('route requests load failed',e); }
+}
+
+async function cancelMyRouteRequest(btn){
+  btn.disabled=true;
+  try{
+    await restRpc('merch_cancel_route_request',{p_request_id:Number(btn.dataset.id)});
+    loadMyRouteRequests();
+  }catch(e){
+    alert('Could not cancel: '+(e.message||e));
+    btn.disabled=false;
+  }
 }
 
 function prefillStore(custId, custName){
