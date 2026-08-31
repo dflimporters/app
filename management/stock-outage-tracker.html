@@ -254,10 +254,20 @@ function getMonthShort(period) {
 }
 
 // ── Load available periods from stock_snapshots ────────────────────────────
+// Paginated (PostgREST caps at 1000 rows/request) — a single unpaginated call
+// only reached back ~8 days at current row volume, silently hiding every
+// earlier month from the dropdown.
 async function loadPeriods() {
-  const rows = await sbFetch('stock_snapshots', 'select=snapshot_date&order=snapshot_date.desc&limit=1000');
-  const periods = [...new Set(rows.map(r => r.snapshot_date.slice(0, 7)))];
-  return periods;
+  const periods = new Set();
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const rows = await sbFetch('stock_snapshots', `select=snapshot_date&order=snapshot_date.desc&limit=${pageSize}&offset=${offset}`);
+    rows.forEach(r => periods.add(r.snapshot_date.slice(0, 7)));
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+  return [...periods];
 }
 
 // ── Load SKU data for period ───────────────────────────────────────────────
@@ -326,16 +336,19 @@ async function loadSkuData(period) {
   const salesBySkuDay = {};
   for (const row of salesRows) {
     salesBySkuDay[row.inventory_id] = {
-      total: parseFloat(row.total_sales),
-      days: { size: parseInt(row.sales_days) },
-      avg_daily: parseFloat(row.avg_daily)
+      total: parseFloat(row.total_sales)
     };
   }
 
   // Combine
+  // get_sales_by_sku's avg_daily is $/selling-day (total ÷ distinct days with a
+  // sale), not $/calendar-day — using it here overstated lost sales by ~20-30%
+  // since days_oos is a calendar-day count. Derive a calendar-day rate instead
+  // from the RPC's fixed 90-day lookback total.
+  const SALES_LOOKBACK_DAYS = 90;
   const result = Object.values(skuMap).map(s => {
     const sal = salesBySkuDay[s.inventory_id];
-    const avgDailySales = sal ? (sal.avg_daily || (sal.total / sal.days.size)) : 0;
+    const avgDailySales = sal ? (sal.total / SALES_LOOKBACK_DAYS) : 0;
     const estLostSales = avgDailySales * s.days_oos;
     return {
       ...s,
