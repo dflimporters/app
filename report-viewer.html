@@ -166,6 +166,24 @@
   }
   #report-frame { width: 100%; height: 70vh; min-height: 480px; border: none; display: block; }
 
+  /* Fullscreen — Chrome/Edge/Firefox use :fullscreen, Safari still wants the
+     -webkit- prefix. The wrap itself is what goes fullscreen (not the iframe),
+     so the empty-state message gets the same treatment as the iframe. */
+  .report-frame-wrap:fullscreen,
+  .report-frame-wrap:-webkit-full-screen {
+    border-radius: 0;
+    border: none;
+  }
+  .report-frame-wrap:fullscreen #report-frame,
+  .report-frame-wrap:-webkit-full-screen #report-frame { height: 100vh; }
+  .report-frame-wrap:fullscreen .dept-empty,
+  .report-frame-wrap:-webkit-full-screen .dept-empty {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .dept-empty { padding: 60px 32px; text-align: center; }
   .dept-empty p { color: var(--text-muted); font-size: 14px; }
 
@@ -251,6 +269,10 @@
         <span class="meta-badge amber" id="dept-late-badge" style="display:none">Late submission</span>
       </div>
       <div class="dept-panel-actions">
+        <button class="btn btn-outline" id="dept-fullscreen-btn" onclick="toggleFullscreen()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span id="dept-fullscreen-label">Fullscreen</span>
+        </button>
         <button class="btn btn-outline" id="dept-open-btn" onclick="openCurrent()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
           Open in new tab
@@ -451,11 +473,13 @@
       empty.style.display = 'block';
       empty.querySelector('p').textContent = 'No report submitted yet for this department.';
       document.getElementById('dept-late-badge').style.display = 'none';
+      document.getElementById('dept-fullscreen-btn').style.display = 'none';
       document.getElementById('dept-open-btn').style.display = 'none';
       document.getElementById('dept-download-btn').style.display = 'none';
       return;
     }
 
+    document.getElementById('dept-fullscreen-btn').style.display = 'inline-flex';
     document.getElementById('dept-open-btn').style.display = 'inline-flex';
     document.getElementById('dept-download-btn').style.display = 'inline-flex';
     document.getElementById('dept-late-badge').style.display = sub.is_late ? 'inline-flex' : 'none';
@@ -495,12 +519,57 @@
     return activeDept ? submissionsByDept[activeDept] : null;
   }
 
-  async function openCurrent() {
+  function openCurrent() {
     const sub = currentSub();
     if (!sub) return;
+    const ext = (sub.file_type || '').toLowerCase();
     const { data } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
-    window.open(data.publicUrl, '_blank');
+    const publicUrl = data.publicUrl;
+
+    if (ext !== 'pdf' && ext !== 'html' && ext !== 'htm') {
+      // Only reachable via old data — nothing new can produce this. No blob
+      // treatment needed/possible to verify, so best-effort raw link.
+      window.open(publicUrl, '_blank');
+      return;
+    }
+
+    // Storage forces text/plain for html (see fetchAsBlobUrl's note below),
+    // so the new tab needs the same blob treatment the inline preview gets,
+    // or it'd show raw markup instead of the rendered report. window.open
+    // has to run synchronously in this click handler or the popup blocker
+    // kills it — so open a blank tab now and fill it in once the blob's
+    // ready, rather than awaiting the fetch first and opening after.
+    const win = window.open('', '_blank');
+    fetchAsBlobUrl(publicUrl, ext === 'pdf' ? 'application/pdf' : 'text/html')
+      .then(blobUrl => { if (win) win.location.href = blobUrl; })
+      .catch(err => {
+        if (win) win.close();
+        alert('Could not open report: ' + err.message);
+      });
   }
+
+  function toggleFullscreen() {
+    const el = document.getElementById('report-frame-wrap');
+    const request = el.requestFullscreen || el.webkitRequestFullscreen;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      Promise.resolve(request.call(el)).catch(err => {
+        console.error('Fullscreen request failed:', err);
+        alert('This browser/window blocked fullscreen: ' + err.message);
+      });
+    } else {
+      exit.call(document);
+    }
+  }
+
+  // Syncs the button label whether fullscreen was toggled by our button or by
+  // the browser's own Escape-key handling.
+  function syncFullscreenLabel() {
+    const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.getElementById('dept-fullscreen-label').textContent = active ? 'Exit Fullscreen' : 'Fullscreen';
+  }
+  document.addEventListener('fullscreenchange', syncFullscreenLabel);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenLabel);
 
   async function downloadCurrent() {
     const sub = currentSub();

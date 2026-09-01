@@ -728,7 +728,7 @@
     <!-- INFO BANNER -->
     <div class="info-banner blue" id="info-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      <span>Select a week above, then upload each department's report as-is. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
+      <span>The week for the next Tuesday meeting is pre-selected above — change it only if you're adding a late report for an earlier week. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
     </div>
 
     <!-- DEPT GRID -->
@@ -1086,7 +1086,11 @@
       monday.setDate(thisMonday.getDate() - (7 * i));
       const friday = new Date(monday);
       friday.setDate(monday.getDate() + 4);
-      list.push({ monday, friday });
+      // The meeting reviewing this week's reports is the Tuesday of the
+      // FOLLOWING week — Monday + 7 (next Monday) + 1 (that Tuesday) = +8.
+      const meetingDate = new Date(monday);
+      meetingDate.setDate(monday.getDate() + 8);
+      list.push({ monday, friday, meetingDate });
     }
     return list;
   }
@@ -1100,26 +1104,52 @@
     return `${start} – ${end}, ${w.friday.getFullYear()}`;
   }
 
-  // A week is "late" once we're reporting on it after the following Monday
-  // (i.e. past the week it would normally be presented in the meeting).
-  function isLate(w) {
+  function formatMeetingLabel(w) {
+    return w.meetingDate.toLocaleDateString('en-JM', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  function startOfToday() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const nextMonday = new Date(w.friday);
-    nextMonday.setDate(w.friday.getDate() + 3);
-    return today > nextMonday;
+    return today;
+  }
+
+  // A week is "late" once its own Tuesday meeting has already happened —
+  // matches the actual weekly-meeting cadence instead of an arbitrary cutoff.
+  function isLate(w) {
+    return startOfToday() > w.meetingDate;
+  }
+
+  // The week most managers mean by default: the most recent one that's
+  // actually finished (Friday has passed), i.e. the one due at the next
+  // Tuesday meeting. Falls back to the in-progress current week only if even
+  // THAT hasn't started yet (shouldn't happen with a 12-week window).
+  function defaultWeekIndex() {
+    const today = startOfToday();
+    for (let i = 0; i < weeks.length; i++) {
+      if (weeks[i].friday <= today) return i;
+    }
+    return 0;
   }
 
   function populateWeekSelect() {
     weeks = getMondayWeeks(12);
+    const today = startOfToday();
+    const defaultIdx = defaultWeekIndex();
     const sel = document.getElementById('week-select');
     sel.innerHTML = '<option value="">— Select week —</option>';
     weeks.forEach((w, i) => {
       const opt = document.createElement('option');
       opt.value = i;
-      opt.textContent = formatWeekLabel(w) + (i === 0 ? ' (current)' : '');
+      let tag;
+      if (w.friday > today) tag = ` — in progress, due ${formatMeetingLabel(w)}`;
+      else if (i === defaultIdx) tag = ` — this week's meeting (${formatMeetingLabel(w)})`;
+      else tag = ` — meeting was ${formatMeetingLabel(w)}`;
+      opt.textContent = formatWeekLabel(w) + tag;
       sel.appendChild(opt);
     });
+    sel.value = defaultIdx;
+    onWeekChange();
   }
 
   function onWeekChange() {
@@ -1133,7 +1163,7 @@
       lateBadge.style.display = 'none';
     } else {
       const w = weeks[idx];
-      badge.textContent = formatWeekLabel(w);
+      badge.textContent = `Meeting: ${formatMeetingLabel(w)}`;
       badge.style.display = 'inline-flex';
       lateBadge.style.display = isLate(w) ? 'inline-flex' : 'none';
       document.getElementById('week-warning').style.display = 'none';
