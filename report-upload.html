@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Report Upload — DFL Management</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the weekly-reports.html tab panel still works. -->
+<style>body { visibility: hidden; }</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --navy: #0f2044;
+    --navy2: #1a3260;
+    --navy3: #243d75;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── styling now lives in /shared/side-nav.js. */
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 60%, var(--navy3) 100%);
+    padding: 40px 32px 36px;
+    color: white;
+  }
+
+  .page-header-inner { max-width: 900px; margin: 0 auto; }
+
+  .breadcrumb {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .breadcrumb a { color: rgba(255,255,255,0.5); text-decoration: none; }
+  .breadcrumb a:hover { color: rgba(255,255,255,0.8); }
+
+  .page-header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+
+  .page-header p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 400;
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main { max-width: 900px; margin: 0 auto; padding: 32px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--navy);
+    color: white;
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+  }
+
+  .btn-primary:hover { background: var(--navy2); }
+
+  .btn-accent {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-accent:hover { background: #1d4ed8; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-outline:hover { background: var(--bg); color: var(--text); }
+
+  .btn-success {
+    background: var(--success);
+    color: white;
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+
+  .btn-success:hover { background: #15803d; }
+
+  .btn-success:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  /* ── UPLOAD APP ── */
+  #upload-app { display: block; }
+
+  /* ── WEEK SELECTOR ── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .week-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .week-select-wrap { flex: 1; min-width: 220px; }
+
+  select, input[type="date"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+
+  select:focus, input[type="date"]:focus { border-color: var(--accent); }
+
+  .week-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid #bfdbfe;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ── LATE TAG ── */
+  .late-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--warning-bg);
+    color: var(--warning);
+    border: 1px solid #fde68a;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ── DEPT GRID ── */
+  .dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .dept-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .dept-card:hover { box-shadow: var(--shadow-md); border-color: #cbd5e1; }
+
+  .dept-card.has-file {
+    border-color: #86efac;
+    background: #f0fdf4;
+  }
+
+  .dept-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .dept-info { display: flex; align-items: center; gap: 10px; }
+
+  .dept-avatar {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .dept-avatar.hr     { background: #fce7f3; color: #be185d; }
+  .dept-avatar.sales  { background: #dbeafe; color: #1d4ed8; }
+  .dept-avatar.it     { background: #ede9fe; color: #7c3aed; }
+  .dept-avatar.finance{ background: #dcfce7; color: #15803d; }
+  .dept-avatar.ops    { background: #fff7ed; color: #c2410c; }
+  .dept-avatar.proc   { background: #f0f9ff; color: #0369a1; }
+
+  .dept-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.2;
+  }
+
+  .dept-person {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .dept-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 20px;
+  }
+
+  .dept-status.pending {
+    background: #f1f5f9;
+    color: var(--text-dim);
+  }
+
+  .dept-status.ready {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+
+  .dept-card.has-file .drop-zone {
+    border-color: #86efac;
+    background: var(--success-bg);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .drop-zone-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .drop-zone-text strong { display: block; font-size: 13px; color: var(--text); margin-bottom: 2px; }
+
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid #d1fae5;
+    border-radius: 6px;
+  }
+
+  .file-info.visible { display: flex; }
+
+  .file-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .file-icon svg { width: 14px; height: 14px; }
+
+  .file-details { flex: 1; min-width: 0; }
+
+  .file-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-size { font-size: 11px; color: var(--text-muted); }
+
+  .file-remove {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: var(--danger);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background 0.15s;
+  }
+
+  .file-remove:hover { background: #fecaca; }
+
+  /* ── COMPILE SECTION ── */
+  .compile-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+
+  .compile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .compile-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .compile-header p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .submission-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .count-num {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1;
+  }
+
+  .count-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .progress-bar-wrap {
+    margin-bottom: 20px;
+  }
+
+  .progress-bar-track {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--navy);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-bar-fill.complete { background: var(--success); }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .dept-checklist {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+
+  .checklist-item.done {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: #d1fae5;
+  }
+
+  .checklist-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+
+  .checklist-item.done .checklist-dot { background: var(--success); }
+
+  /* ── PROGRESS OVERLAY ── */
+  #compile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,32,68,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #compile-overlay.visible { display: flex; }
+
+  .overlay-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 48px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+  }
+
+  .overlay-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .overlay-card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .overlay-card p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .overlay-steps { text-align: left; }
+
+  .overlay-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--bg);
+  }
+
+  .overlay-step:last-child { border-bottom: none; }
+  .overlay-step.active { color: var(--text); font-weight: 500; }
+  .overlay-step.done { color: var(--success); }
+
+  .step-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    background: var(--bg);
+    color: var(--text-dim);
+  }
+
+  .overlay-step.active .step-icon {
+    background: var(--navy);
+    color: white;
+  }
+
+  .overlay-step.done .step-icon {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  /* ── SUCCESS STATE ── */
+  #success-state { display: none; }
+
+  .success-card {
+    background: var(--surface);
+    border: 1px solid #d1fae5;
+    border-radius: 16px;
+    padding: 48px;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+  }
+
+  .success-icon {
+    width: 64px; height: 64px;
+    background: var(--success-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+  }
+
+  .success-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .success-card p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .success-meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item { text-align: center; }
+
+  .meta-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1;
+  }
+
+  .meta-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 4px;
+  }
+
+  .success-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* ── INFO BANNER ── */
+  .info-banner {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .info-banner.blue {
+    background: var(--accent-bg);
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  .info-banner.amber {
+    background: var(--warning-bg);
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+
+  .info-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 24px 32px;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .page-header { padding: 28px 16px 24px; }
+    .main { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD APP -->
+<div id="upload-app">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="breadcrumb"><a href="/weekly-reports.html">Weekly Reports</a> / Upload</div>
+      <h1>Weekly Report Upload</h1>
+      <p>Upload department reports for weekly management meeting compilation</p>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- WEEK SELECTOR -->
+    <div class="section-label">Select report week</div>
+    <div class="week-row">
+      <div class="week-select-wrap">
+        <select id="week-select" onchange="onWeekChange()">
+          <option value="">— Select week —</option>
+        </select>
+      </div>
+      <div id="week-badge" style="display:none" class="week-badge"></div>
+      <div id="late-badge" style="display:none" class="late-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Late submission
+      </div>
+    </div>
+
+    <!-- INFO BANNER -->
+    <div class="info-banner blue" id="info-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span>Select a week above, then upload each department's report as-is. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
+    </div>
+
+    <!-- DEPT GRID -->
+    <div class="section-label">Department submissions</div>
+    <div class="dept-grid" id="dept-grid">
+
+      <!-- HR -->
+      <div class="dept-card" id="card-hr">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar hr">HR</div>
+            <div>
+              <div class="dept-name">Human Resources</div>
+              <div class="dept-person">Paula Tasama</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-hr">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-hr" ondragover="onDragOver(event,'hr')" ondragleave="onDragLeave('hr')" ondrop="onDrop(event,'hr')">
+          <input type="file" id="file-hr" accept=".pdf,.html,.htm" onchange="onFileSelect('hr', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-hr">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-hr">—</div>
+            <div class="file-size" id="fsize-hr">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('hr')" title="Remove">×</button>
+        </div>
+      </div>
+
+      <!-- SALES -->
+      <div class="dept-card" id="card-sales">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar sales">SL</div>
+            <div>
+              <div class="dept-name">Sales</div>
+              <div class="dept-person">Scott Chambers</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-sales">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-sales" ondragover="onDragOver(event,'sales')" ondragleave="onDragLeave('sales')" ondrop="onDrop(event,'sales')">
+          <input type="file" id="file-sales" accept=".pdf,.html,.htm" onchange="onFileSelect('sales', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-sales">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-sales">—</div>
+            <div class="file-size" id="fsize-sales">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('sales')" title="Remove">×</button>
+        </div>
+      </div>
+
+      <!-- IT -->
+      <div class="dept-card" id="card-it">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar it">IT</div>
+            <div>
+              <div class="dept-name">Information Technology</div>
+              <div class="dept-person">Joel Dallas</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-it">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-it" ondragover="onDragOver(event,'it')" ondragleave="onDragLeave('it')" ondrop="onDrop(event,'it')">
+          <input type="file" id="file-it" accept=".pdf,.html,.htm" onchange="onFileSelect('it', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-it">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-it">—</div>
+            <div class="file-size" id="fsize-it">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('it')" title="Remove">×</button>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div class="dept-card" id="card-finance">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar finance">FIN</div>
+            <div>
+              <div class="dept-name">Finance</div>
+              <div class="dept-person">Ronald Decasseres</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-finance">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-finance" ondragover="onDragOver(event,'finance')" ondragleave="onDragLeave('finance')" ondrop="onDrop(event,'finance')">
+          <input type="file" id="file-finance" accept=".pdf,.html,.htm" onchange="onFileSelect('finance', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-finance">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-finance">—</div>
+            <div class="file-size" id="fsize-finance">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('finance')" title="Remove">×</button>
+        </div>
+      </div>
+
+      <!-- OPERATIONS -->
+      <div class="dept-card" id="card-ops">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar ops">OPS</div>
+            <div>
+              <div class="dept-name">Operations</div>
+              <div class="dept-person">Kyle Decasseres</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-ops">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-ops" ondragover="onDragOver(event,'ops')" ondragleave="onDragLeave('ops')" ondrop="onDrop(event,'ops')">
+          <input type="file" id="file-ops" accept=".pdf,.html,.htm" onchange="onFileSelect('ops', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-ops">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-ops">—</div>
+            <div class="file-size" id="fsize-ops">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('ops')" title="Remove">×</button>
+        </div>
+      </div>
+
+      <!-- PROCUREMENT -->
+      <div class="dept-card" id="card-proc">
+        <div class="dept-card-header">
+          <div class="dept-info">
+            <div class="dept-avatar proc">PRO</div>
+            <div>
+              <div class="dept-name">Procurement</div>
+              <div class="dept-person">Brandon Decasseres</div>
+            </div>
+          </div>
+          <div class="dept-status pending" id="status-proc">
+            <div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div>
+            Pending
+          </div>
+        </div>
+        <div class="drop-zone" id="drop-proc" ondragover="onDragOver(event,'proc')" ondragleave="onDragLeave('proc')" ondrop="onDrop(event,'proc')">
+          <input type="file" id="file-proc" accept=".pdf,.html,.htm" onchange="onFileSelect('proc', this)">
+          <div class="drop-zone-text">
+            <strong>Click to upload or drag & drop</strong>
+            PDF · HTML
+          </div>
+        </div>
+        <div class="file-info" id="fileinfo-proc">
+          <div class="file-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div class="file-details">
+            <div class="file-name" id="fname-proc">—</div>
+            <div class="file-size" id="fsize-proc">—</div>
+          </div>
+          <button class="file-remove" onclick="removeFile('proc')" title="Remove">×</button>
+        </div>
+      </div>
+
+    </div><!-- /dept-grid -->
+
+    <!-- COMPILE SECTION -->
+    <div class="compile-section" id="compile-section">
+      <div class="compile-header">
+        <div>
+          <h3>Submit weekly reports</h3>
+          <p>Files are stored as uploaded and shown together in the viewer — nothing is reformatted or summarized.</p>
+        </div>
+        <div class="submission-count">
+          <div class="count-num" id="count-num">0</div>
+          <div class="count-label">of 6<br>submitted</div>
+        </div>
+      </div>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-labels">
+          <span id="progress-label">Waiting for uploads...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="dept-checklist" id="dept-checklist">
+        <div class="checklist-item" id="check-hr"><div class="checklist-dot"></div>HR</div>
+        <div class="checklist-item" id="check-sales"><div class="checklist-dot"></div>Sales</div>
+        <div class="checklist-item" id="check-it"><div class="checklist-dot"></div>IT</div>
+        <div class="checklist-item" id="check-finance"><div class="checklist-dot"></div>Finance</div>
+        <div class="checklist-item" id="check-ops"><div class="checklist-dot"></div>Operations</div>
+        <div class="checklist-item" id="check-proc"><div class="checklist-dot"></div>Procurement</div>
+      </div>
+
+      <div id="week-warning" style="display:none" class="info-banner amber">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <span>Please select a week before submitting.</span>
+      </div>
+
+      <button class="btn btn-success" id="compile-btn" onclick="startCompile()" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Submit Reports
+      </button>
+    </div>
+
+    <!-- SUCCESS STATE -->
+    <div id="success-state">
+      <div class="success-card">
+        <div class="success-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        </div>
+        <h2>Reports submitted</h2>
+        <p id="success-desc">This week's department reports have been saved and are ready to view.</p>
+        <div class="success-meta">
+          <div class="meta-item">
+            <div class="meta-value" id="success-week">—</div>
+            <div class="meta-label">Week</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-value" id="success-count">—</div>
+            <div class="meta-label">Departments</div>
+          </div>
+        </div>
+        <div class="success-actions">
+          <button class="btn btn-accent" onclick="viewReport()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            View Reports
+          </button>
+          <button class="btn btn-outline" onclick="resetForm()">Upload Another Week</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <footer>
+    DFL Importers — Management Portal · Weekly Report System · &copy; 2026
+  </footer>
+</div><!-- /upload-app -->
+
+<!-- SUBMIT OVERLAY -->
+<div id="compile-overlay">
+  <div class="overlay-card">
+    <div class="overlay-spinner" id="overlay-spinner"></div>
+    <h3>Submitting reports...</h3>
+    <p>Saving each department's file to the archive.</p>
+    <div class="overlay-steps" id="overlay-steps">
+      <div class="overlay-step active" id="step-1">
+        <div class="step-icon">1</div>
+        Uploading files to storage
+      </div>
+      <div class="overlay-step" id="step-2">
+        <div class="step-icon">2</div>
+        Recording submissions
+      </div>
+      <div class="overlay-step" id="step-3">
+        <div class="step-icon">3</div>
+        Saving to archive
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Nav, for when this page is opened directly rather than through the
+  // weekly-reports.html tab panel. side-nav.js no-ops when framed, so in the
+  // normal embedded case nothing below renders.
+  window.DFL_PAGE_TITLE = 'Report Upload';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+
+<script>
+  // ── CONFIG ──
+  const DEPARTMENTS = ['hr', 'sales', 'it', 'finance', 'ops', 'proc'];
+  const DEPT_PERSON = {
+    hr: 'Paula Tasama', sales: 'Scott Chambers', it: 'Joel Dallas',
+    finance: 'Ronald Decasseres', ops: 'Kyle Decasseres', proc: 'Brandon Decasseres',
+  };
+  const BUCKET = 'weekly-reports';
+  const files = {};
+  let weeks = [];
+  let currentProfile = null;
+
+  document.addEventListener('dfl-auth-ready', (e) => {
+    currentProfile = e.detail.profile;
+  });
+
+  // ── WEEK GENERATION ── current week + the previous N-1 (Mon–Fri), newest first
+  function getMondayWeeks(count) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - daysSinceMonday);
+
+    const list = [];
+    for (let i = 0; i < count; i++) {
+      const monday = new Date(thisMonday);
+      monday.setDate(thisMonday.getDate() - (7 * i));
+      const friday = new Date(monday);
+      friday.setDate(monday.getDate() + 4);
+      list.push({ monday, friday });
+    }
+    return list;
+  }
+
+  function formatWeekLabel(w) {
+    const opts = { month: 'short', day: 'numeric' };
+    const start = w.monday.toLocaleDateString('en-JM', opts);
+    const end = w.monday.getMonth() === w.friday.getMonth()
+      ? w.friday.toLocaleDateString('en-JM', { day: 'numeric' })
+      : w.friday.toLocaleDateString('en-JM', opts);
+    return `${start} – ${end}, ${w.friday.getFullYear()}`;
+  }
+
+  // A week is "late" once we're reporting on it after the following Monday
+  // (i.e. past the week it would normally be presented in the meeting).
+  function isLate(w) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextMonday = new Date(w.friday);
+    nextMonday.setDate(w.friday.getDate() + 3);
+    return today > nextMonday;
+  }
+
+  function populateWeekSelect() {
+    weeks = getMondayWeeks(12);
+    const sel = document.getElementById('week-select');
+    sel.innerHTML = '<option value="">— Select week —</option>';
+    weeks.forEach((w, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = formatWeekLabel(w) + (i === 0 ? ' (current)' : '');
+      sel.appendChild(opt);
+    });
+  }
+
+  function onWeekChange() {
+    const sel = document.getElementById('week-select');
+    const idx = parseInt(sel.value);
+    const badge = document.getElementById('week-badge');
+    const lateBadge = document.getElementById('late-badge');
+
+    if (isNaN(idx) || !weeks[idx]) {
+      badge.style.display = 'none';
+      lateBadge.style.display = 'none';
+    } else {
+      const w = weeks[idx];
+      badge.textContent = formatWeekLabel(w);
+      badge.style.display = 'inline-flex';
+      lateBadge.style.display = isLate(w) ? 'inline-flex' : 'none';
+      document.getElementById('week-warning').style.display = 'none';
+    }
+    updateCompileBtn();
+  }
+
+  // ── FILE HANDLING ──
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  }
+
+  const ACCEPTED_EXTS = ['pdf', 'html', 'htm'];
+  function isAcceptedFile(file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    return ACCEPTED_EXTS.includes(ext);
+  }
+
+  function onFileSelect(dept, input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (!isAcceptedFile(file)) {
+      alert(`Only PDF or HTML files are accepted (so reports can be viewed inline with no download). Please convert "${file.name}" to PDF and try again.`);
+      input.value = '';
+      return;
+    }
+    setFile(dept, file);
+  }
+
+  function setFile(dept, file) {
+    files[dept] = file;
+
+    document.getElementById('card-' + dept).classList.add('has-file');
+    document.getElementById('status-' + dept).className = 'dept-status ready';
+    document.getElementById('status-' + dept).innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor"></div> Ready';
+
+    document.getElementById('fname-' + dept).textContent = file.name;
+    document.getElementById('fsize-' + dept).textContent = formatSize(file.size);
+    document.getElementById('fileinfo-' + dept).classList.add('visible');
+
+    document.getElementById('check-' + dept).classList.add('done');
+    updateProgress();
+    updateCompileBtn();
+  }
+
+  function removeFile(dept) {
+    delete files[dept];
+    document.getElementById('card-' + dept).classList.remove('has-file');
+    document.getElementById('status-' + dept).className = 'dept-status pending';
+    document.getElementById('status-' + dept).innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div> Pending';
+    document.getElementById('fileinfo-' + dept).classList.remove('visible');
+    document.getElementById('file-' + dept).value = '';
+    document.getElementById('check-' + dept).classList.remove('done');
+    updateProgress();
+    updateCompileBtn();
+  }
+
+  function onDragOver(e, dept) {
+    e.preventDefault();
+    document.getElementById('drop-' + dept).classList.add('dragover');
+  }
+
+  function onDragLeave(dept) {
+    document.getElementById('drop-' + dept).classList.remove('dragover');
+  }
+
+  function onDrop(e, dept) {
+    e.preventDefault();
+    onDragLeave(dept);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (!isAcceptedFile(file)) {
+      alert(`Only PDF or HTML files are accepted (so reports can be viewed inline with no download). Please convert "${file.name}" to PDF and try again.`);
+      return;
+    }
+    setFile(dept, file);
+  }
+
+  // ── PROGRESS ──
+  function updateProgress() {
+    const count = Object.keys(files).length;
+    const pct = Math.round((count / 6) * 100);
+    document.getElementById('count-num').textContent = count;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-fill').className = 'progress-bar-fill' + (count === 6 ? ' complete' : '');
+
+    if (count === 0) document.getElementById('progress-label').textContent = 'Waiting for uploads...';
+    else if (count < 6) document.getElementById('progress-label').textContent = `${count} of 6 departments submitted`;
+    else document.getElementById('progress-label').textContent = 'All departments submitted!';
+  }
+
+  function updateCompileBtn() {
+    const count = Object.keys(files).length;
+    const weekSelected = document.getElementById('week-select').value !== '';
+    const btn = document.getElementById('compile-btn');
+    btn.disabled = !(count >= 1 && weekSelected);
+  }
+
+  function setStep(num) {
+    for (let i = 1; i <= 3; i++) {
+      const el = document.getElementById('step-' + i);
+      if (i < num) {
+        el.className = 'overlay-step done';
+        el.querySelector('.step-icon').textContent = '✓';
+      } else if (i === num) {
+        el.className = 'overlay-step active';
+        el.querySelector('.step-icon').textContent = i;
+      } else {
+        el.className = 'overlay-step';
+        el.querySelector('.step-icon').textContent = i;
+      }
+    }
+  }
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ── SUBMIT (direct to Supabase — no compile step, files kept as-is) ──
+  let lastWeekStart = null;
+
+  function startCompile() {
+    const weekSel = document.getElementById('week-select');
+    if (!weekSel.value) {
+      document.getElementById('week-warning').style.display = 'flex';
+      return;
+    }
+    document.getElementById('compile-overlay').classList.add('visible');
+    runSubmit();
+  }
+
+  async function runSubmit() {
+    const idx = parseInt(document.getElementById('week-select').value);
+    const w = weeks[idx];
+    const weekStart = w.monday.toISOString().slice(0, 10);
+    const weekEnd = w.friday.toISOString().slice(0, 10);
+    const weekLabel = formatWeekLabel(w);
+    const late = isLate(w);
+    const compiledBy = (currentProfile && currentProfile.full_name) || 'Management Portal';
+
+    try {
+      // Step 1 — upload each selected file to storage
+      setStep(1);
+      const uploaded = [];
+      for (const [dept, file] of Object.entries(files)) {
+        const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+        const storagePath = `${weekStart}/${dept}/${dept}_report.${ext}`;
+        const { error: uploadErr } = await sb.storage.from(BUCKET).upload(storagePath, file, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: true,
+        });
+        if (uploadErr) throw new Error(`Upload failed for ${dept}: ${uploadErr.message}`);
+        uploaded.push({ dept, file, ext, storagePath });
+      }
+
+      // Step 2 — upsert the report row, then the submission rows
+      setStep(2);
+      const { data: reportRow, error: reportErr } = await sb
+        .from('weekly_reports')
+        .upsert({
+          week_start: weekStart, week_end: weekEnd, week_label: weekLabel,
+          compiled_by: compiledBy, is_late_update: late, status: 'complete',
+        }, { onConflict: 'week_start' })
+        .select().single();
+      if (reportErr) throw new Error(`Report save failed: ${reportErr.message}`);
+
+      const submissionRows = uploaded.map(u => ({
+        report_id: reportRow.id, week_start: weekStart, department: u.dept,
+        submitted_by: DEPT_PERSON[u.dept], file_name: u.file.name, file_type: u.ext,
+        file_size_bytes: u.file.size, storage_path: u.storagePath, is_late: late,
+      }));
+      const { error: subErr } = await sb
+        .from('weekly_report_submissions')
+        .upsert(submissionRows, { onConflict: 'week_start,department' });
+      if (subErr) throw new Error(`Submission save failed: ${subErr.message}`);
+
+      // Step 3 — refresh dept_count from all submissions on record for this week
+      setStep(3);
+      const { count: deptCount } = await sb
+        .from('weekly_report_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('week_start', weekStart);
+      await sb.from('weekly_reports').update({ dept_count: deptCount || uploaded.length }).eq('id', reportRow.id);
+
+      await delay(400);
+
+      lastWeekStart = weekStart;
+      document.getElementById('compile-overlay').classList.remove('visible');
+
+      document.getElementById('compile-section').style.display = 'none';
+      document.getElementById('dept-grid').style.display = 'none';
+      document.getElementById('info-banner').style.display = 'none';
+      document.querySelector('.week-row').style.display = 'none';
+      document.querySelectorAll('.section-label').forEach(el => el.style.display = 'none');
+
+      document.getElementById('success-week').textContent = weekLabel;
+      document.getElementById('success-count').textContent = deptCount || uploaded.length;
+      document.getElementById('success-desc').textContent = late
+        ? 'Late submission saved alongside this week\'s existing reports.'
+        : 'This week\'s department reports have been saved and are ready to view.';
+      document.getElementById('success-state').style.display = 'block';
+
+    } catch (err) {
+      document.getElementById('compile-overlay').classList.remove('visible');
+      alert('Submit failed: ' + err.message);
+    }
+  }
+
+  function viewReport() {
+    if (!lastWeekStart) return;
+    // Framed inside weekly-reports.html — switch its tab instead of
+    // navigating this iframe away, which would lose the shell's tab bar.
+    // window.parent (not window.top) is the right target: it's whichever
+    // page actually embedded this iframe, regardless of nesting depth.
+    if (window.top !== window.self && typeof window.parent.dflShowViewerTab === 'function') {
+      window.parent.dflShowViewerTab(lastWeekStart);
+    } else {
+      window.location.href = 'report-viewer.html?week=' + lastWeekStart;
+    }
+  }
+
+  function resetForm() {
+    DEPARTMENTS.forEach(d => removeFile(d));
+    document.getElementById('week-select').value = '';
+    document.getElementById('week-badge').style.display = 'none';
+    document.getElementById('late-badge').style.display = 'none';
+    document.getElementById('success-state').style.display = 'none';
+    document.getElementById('compile-section').style.display = 'block';
+    document.getElementById('dept-grid').style.display = 'grid';
+    document.getElementById('info-banner').style.display = 'flex';
+    document.querySelector('.week-row').style.display = 'flex';
+    document.querySelectorAll('.section-label').forEach(el => el.style.display = 'block');
+    updateProgress();
+    updateCompileBtn();
+  }
+
+  populateWeekSelect();
+</script>
+</body>
+</html>
