@@ -14,6 +14,7 @@ exclude:
   # --- internal docs: in the repo, not on the website ---
   - CLAUDE.md
   - DFL_Portal_Claude_Code_Handoff.md
+  - discover_covebay/covebay-handoff-brief.md
 
   # --- Jekyll's own defaults, restated ---
   # Specifying `exclude` REPLACES the built-in list rather than adding to it,
