@@ -109,6 +109,13 @@
       ]
     },
     {
+      group: 'Weekly Reports',
+      tone: 'gold',
+      items: [
+        { label: 'Weekly Reports', href: '/weekly-reports.html', icon: '🗂️' }
+      ]
+    },
+    {
       group: 'Admin',
       tone: 'gold',
       items: [

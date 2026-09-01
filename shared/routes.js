@@ -98,7 +98,15 @@ const DFL_PAGE_ROLES = {
   '/management/key-account-management.html':['manager', 'admin'],
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
-  '/management/stock-outage-tracker.html':  ['manager', 'admin']
+  '/management/stock-outage-tracker.html':  ['manager', 'admin'],
+
+  // ---- Weekly Reports ----
+  // Shell + the two pages it embeds — each listed individually, same reason
+  // as the /management/** entries above: every child is a real page that can
+  // be opened directly, not just through the shell's iframe tabs.
+  '/weekly-reports.html': ['manager', 'admin'],
+  '/report-upload.html':  ['manager', 'admin'],
+  '/report-viewer.html':  ['manager', 'admin']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
