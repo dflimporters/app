@@ -98,7 +98,8 @@ const DFL_PAGE_ROLES = {
   '/management/key-account-management.html':['manager', 'admin'],
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
-  '/management/stock-outage-tracker.html':  ['manager', 'admin']
+  '/management/stock-outage-tracker.html':  ['manager', 'admin'],
+  '/management/fleet.html':                 ['manager', 'admin']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
