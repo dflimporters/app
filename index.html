@@ -439,6 +439,7 @@ async function initApp(profile){
   // one source of truth, instead of a separate role field on `reps`.
   const isAdmin = profile.role==="admin" || profile.role==="manager";
   IS_MANAGER = isAdmin;
+  IS_REP_MANAGEMENT = profile.role==="rep_management";
   document.getElementById("nav-admin").style.display=isAdmin?"":"none";
 
   // `profiles` doesn't carry the canonical `name`/`area` that the cache
@@ -597,19 +598,25 @@ function goCusts(){        // Customers nav button: always land on the account l
 }
 
 /* ---------- More / launcher ---------- */
-let IS_MANAGER = false, moreBuilt = false;
+let IS_MANAGER = false, IS_REP_MANAGEMENT = false, moreBuilt = false;
 
-// The page list. Add future pages here — set managerOnly:true to hide from reps.
+// The page list. Add future pages here — set managerOnly:true to hide from
+// reps, or repManagementOnly:true to show only to the rep_management role
+// (a rep who also needs the read-only management dashboards).
 const MORE_PAGES = [
   { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
   { key:'specials-upload', title:'Upload Specials', sub:'Add & manage deals and flyers', icon:'📤', src:'specials-upload.html', managerOnly:true, topLevel:true },
   // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
+  { key:'morning-brief', title:'Morning Brief', sub:'MTD sales dashboard', icon:'☀️', src:'morning-brief.html', repManagementOnly:true, topLevel:true },
+  { key:'budget-explorer', title:'Budget Explorer', sub:'Budget vs actuals', icon:'💰', src:'budget-explorer.html', repManagementOnly:true, topLevel:true },
+  { key:'gondola-tracker', title:'Gondola Tracker', sub:'Gondola rentals & analysis', icon:'🏬', src:'gondola-rentals.html', repManagementOnly:true, topLevel:true },
 ];
 
 function goMore(){ switchTab('more'); showMoreLauncher(); }
 
 function buildMoreLauncher(){
-  const pages = MORE_PAGES.filter(p => !p.managerOnly || IS_MANAGER);
+  const pages = MORE_PAGES.filter(p =>
+    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT));
   document.getElementById('launchGrid').innerHTML = pages.map(p => `
     <button class="launch-card" onclick="openMorePage('${p.key}')">
       <span class="launch-ico">${p.icon}</span>
