@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Report Viewer — DFL Management</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the weekly-reports.html tab panel still works. -->
+<style>body { visibility: hidden; }</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --navy: #0f2044;
+    --navy2: #1a3260;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --success: #16a34a;
+    --success-bg: #f0fdf4;
+    --danger: #dc2626;
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── NAV ── styling now lives in /shared/side-nav.js. */
+
+  .page-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+    padding: 32px;
+    color: white;
+  }
+  .page-header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .breadcrumb { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+  .breadcrumb a { color: rgba(255,255,255,0.5); text-decoration: none; }
+  .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .page-header p { font-size: 13px; color: rgba(255,255,255,0.6); }
+
+  .main { max-width: 1100px; margin: 0 auto; padding: 28px 32px; }
+
+  .week-strip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .week-strip label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); white-space: nowrap; }
+  .week-strip select {
+    flex: 1; min-width: 260px;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer; outline: none;
+    transition: border-color 0.15s;
+  }
+  .week-strip select:focus { border-color: var(--accent); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--navy); color: white; }
+  .btn-primary:hover { background: var(--navy2); }
+  .btn-outline { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--bg); color: var(--text); }
+
+  .state-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 60px 32px; text-align: center; }
+  .state-icon { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+  .state-icon.blue { background: var(--accent-bg); }
+  .state-icon.red { background: #fef2f2; }
+  .state-card h3 { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .state-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto 24px; }
+
+  .loading-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
+  .loading-bar-fill { height: 100%; background: var(--navy); border-radius: 99px; animation: loading 1.4s ease-in-out infinite; }
+  @keyframes loading {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 60%; margin-left: 20%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+
+  /* ── DEPT TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 16px;
+  }
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { background: var(--bg); color: var(--text); }
+  .tab-btn.active { background: var(--navy); color: white; }
+  .tab-btn.missing { color: #cbd5e1; }
+  .tab-btn.missing:hover { color: var(--text-dim); }
+  .tab-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .tab-btn.active .tab-dot { background: var(--success); }
+  .tab-btn:not(.active):not(.missing) .tab-dot { background: var(--success); opacity: 0.6; }
+
+  .dept-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    padding: 14px 20px;
+    border-bottom: none;
+  }
+  .dept-panel-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dept-panel-header h3 { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .dept-panel-sub { font-size: 12px; color: var(--text-muted); }
+  .meta-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .meta-badge.green { background: #dcfce7; color: var(--success); }
+  .meta-badge.blue { background: var(--accent-bg); color: var(--accent); }
+  .meta-badge.amber { background: #fffbeb; color: #d97706; }
+  .dept-panel-actions { display: flex; gap: 8px; }
+
+  .report-frame-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+  #report-frame { width: 100%; height: 70vh; min-height: 480px; border: none; display: block; }
+
+  /* Fullscreen — Chrome/Edge/Firefox use :fullscreen, Safari still wants the
+     -webkit- prefix. The wrap itself is what goes fullscreen (not the iframe),
+     so the empty-state message gets the same treatment as the iframe. */
+  .report-frame-wrap:fullscreen,
+  .report-frame-wrap:-webkit-full-screen {
+    border-radius: 0;
+    border: none;
+  }
+  .report-frame-wrap:fullscreen #report-frame,
+  .report-frame-wrap:-webkit-full-screen #report-frame { height: 100vh; }
+  .report-frame-wrap:fullscreen .dept-empty,
+  .report-frame-wrap:-webkit-full-screen .dept-empty {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dept-empty { padding: 60px 32px; text-align: center; }
+  .dept-empty p { color: var(--text-muted); font-size: 14px; }
+
+  .archive-section { margin-top: 28px; }
+  .archive-section h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 12px; }
+  .archive-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .archive-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 12px; }
+  .archive-card:hover { border-color: #cbd5e1; box-shadow: var(--shadow-md); }
+  .archive-card.active { border-color: var(--accent); background: var(--accent-bg); }
+  .archive-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+  .archive-card-text { min-width: 0; }
+  .archive-card-week { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .archive-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  footer { text-align: center; padding: 24px 32px; font-size: 11px; color: var(--text-dim); border-top: 1px solid var(--border); margin-top: 12px; }
+
+  @media (max-width: 600px) {
+    .page-header { padding: 24px 16px; }
+    .main { padding: 16px; }
+    #report-frame { height: 60vh; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-header-inner">
+    <div>
+      <div class="breadcrumb"><a href="/weekly-reports.html">Weekly Reports</a> / View Reports</div>
+      <h1>Weekly Management Reports</h1>
+      <p>Each department's report, as submitted — no reformatting</p>
+    </div>
+    <button type="button" onclick="goToUpload()" class="btn btn-outline" style="border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.8);">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload Reports
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="week-strip">
+    <label>Report week</label>
+    <select id="week-select" onchange="loadSelectedWeek()">
+      <option value="">Loading reports...</option>
+    </select>
+    <button class="btn btn-outline" onclick="loadReportList()" title="Refresh">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+    </button>
+  </div>
+
+  <div id="state-empty" class="state-card" style="display:none">
+    <div class="state-icon blue">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </div>
+    <h3>No reports yet</h3>
+    <p>No submitted reports found. Upload department reports to see them here.</p>
+    <button type="button" onclick="goToUpload()" class="btn btn-primary">Go to Upload Portal</button>
+  </div>
+
+  <div id="state-loading" class="state-card">
+    <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    <h3>Loading reports...</h3>
+    <p>Fetching submissions from the archive.</p>
+  </div>
+
+  <div id="state-error" class="state-card" style="display:none">
+    <div class="state-icon red">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h3>Could not load report</h3>
+    <p id="error-msg">An error occurred fetching the report.</p>
+    <button class="btn btn-primary" onclick="loadSelectedWeek()">Try again</button>
+  </div>
+
+  <div id="report-view" style="display:none">
+    <div class="tab-bar" id="tab-bar"></div>
+
+    <div class="dept-panel-header">
+      <div class="dept-panel-header-left">
+        <h3 id="dept-title">—</h3>
+        <span class="meta-badge blue" id="dept-person-badge">—</span>
+        <span class="meta-badge amber" id="dept-late-badge" style="display:none">Late submission</span>
+      </div>
+      <div class="dept-panel-actions">
+        <button class="btn btn-outline" id="dept-fullscreen-btn" onclick="toggleFullscreen()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <span id="dept-fullscreen-label">Fullscreen</span>
+        </button>
+        <button class="btn btn-outline" id="dept-open-btn" onclick="openCurrent()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          Open in new tab
+        </button>
+        <button class="btn btn-primary" id="dept-download-btn" onclick="downloadCurrent()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+      </div>
+    </div>
+    <div class="report-frame-wrap" id="report-frame-wrap">
+      <iframe id="report-frame"></iframe>
+      <div class="dept-empty" id="dept-empty" style="display:none">
+        <p>No report submitted yet for this department.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="archive-section" id="archive-section" style="display:none">
+    <h3>All reports</h3>
+    <div class="archive-list" id="archive-list"></div>
+  </div>
+
+</div>
+
+<footer>DFL Importers — Management Portal · Weekly Reports Archive · &copy; 2026</footer>
+
+<script>
+  // Nav, for when this page is opened directly rather than through the
+  // weekly-reports.html tab panel. side-nav.js no-ops when framed, so in the
+  // normal embedded case nothing here renders.
+  window.DFL_PAGE_TITLE = 'Report Viewer';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+
+<script>
+  const BUCKET = 'weekly-reports';
+  const DEPT_META = {
+    hr:      { label: 'Human Resources',        person: 'Paula Tasama' },
+    sales:   { label: 'Sales',                  person: 'Scott Chambers' },
+    it:      { label: 'Information Technology', person: 'Joel Dallas' },
+    finance: { label: 'Finance',                person: 'Ronald Decasseres' },
+    ops:     { label: 'Operations',             person: 'Kyle Decasseres' },
+    proc:    { label: 'Procurement',            person: 'Brandon Decasseres' },
+  };
+  const DEPT_ORDER = ['hr', 'sales', 'it', 'finance', 'ops', 'proc'];
+
+  let reports = [];
+  let submissionsByDept = {}; // dept -> submission row, for the currently loaded week
+  let activeDept = null;
+  let activeBlobUrl = null; // revoked whenever we swap in a new preview
+
+  // Supabase Storage's public endpoint deliberately serves text/html (and a
+  // couple of other "renderable" types) as text/plain with a locked-down CSP,
+  // to stop a stored file from executing as a live page when someone links to
+  // it directly — see the sales_report.html test object, confirmed via
+  // `curl -I` during rebuild testing. Loading it straight into the iframe's
+  // src just shows the raw markup as text instead of rendering it. Fetching
+  // the bytes ourselves and handing the iframe a blob: URL (with the MIME
+  // type WE assign) sidesteps that entirely — and lets us keep the iframe
+  // sandboxed with no allow-same-origin, since a sandboxed frame with no
+  // allow-same-origin gets an opaque origin regardless of blob ancestry, so a
+  // hostile department upload still can't reach into this page.
+  async function fetchAsBlobUrl(url, mimeType) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Could not fetch file (HTTP ${res.status})`);
+    const raw = await res.blob();
+    return URL.createObjectURL(new Blob([raw], { type: mimeType }));
+  }
+
+  function revokeActiveBlobUrl() {
+    if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null; }
+  }
+
+  window.addEventListener('DOMContentLoaded', loadReportList);
+
+  async function loadReportList() {
+    showState('loading');
+    try {
+      const { data, error } = await sb
+        .from('weekly_reports')
+        .select('id, week_start, week_end, week_label, compiled_at, dept_count, status')
+        .eq('status', 'complete')
+        .order('week_start', { ascending: false });
+      if (error) throw new Error(error.message);
+      reports = data || [];
+
+      const sel = document.getElementById('week-select');
+      sel.innerHTML = '';
+
+      if (reports.length === 0) {
+        sel.innerHTML = '<option value="">No reports available</option>';
+        showState('empty');
+        return;
+      }
+
+      reports.forEach((r, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = r.week_label;
+        sel.appendChild(opt);
+      });
+
+      buildArchiveList();
+
+      // Honour ?week= URL param
+      const weekParam = new URLSearchParams(window.location.search).get('week');
+      if (weekParam) {
+        const idx = reports.findIndex(r => r.week_start === weekParam);
+        if (idx >= 0) sel.value = idx;
+      }
+
+      loadSelectedWeek();
+
+    } catch (err) {
+      document.getElementById('error-msg').textContent = err.message;
+      showState('error');
+    }
+  }
+
+  async function loadSelectedWeek() {
+    const sel = document.getElementById('week-select');
+    const idx = parseInt(sel.value);
+    if (isNaN(idx) || !reports[idx]) { showState('empty'); return; }
+
+    const report = reports[idx];
+    showState('loading');
+
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('week', report.week_start);
+    window.history.replaceState({}, '', url);
+
+    document.querySelectorAll('.archive-card').forEach(c => c.classList.remove('active'));
+    const card = document.querySelector(`.archive-card[data-idx="${idx}"]`);
+    if (card) card.classList.add('active');
+
+    try {
+      const { data: subs, error } = await sb
+        .from('weekly_report_submissions')
+        .select('department, submitted_by, submitted_at, file_name, file_type, file_size_bytes, storage_path, is_late')
+        .eq('week_start', report.week_start);
+      if (error) throw new Error(error.message);
+
+      submissionsByDept = {};
+      (subs || []).forEach(s => { submissionsByDept[s.department] = s; });
+
+      buildTabBar();
+      const firstAvailable = DEPT_ORDER.find(d => submissionsByDept[d]) || DEPT_ORDER[0];
+      showDept(firstAvailable);
+
+      showState('report');
+
+    } catch (err) {
+      document.getElementById('error-msg').textContent = err.message;
+      showState('error');
+    }
+  }
+
+  function buildTabBar() {
+    const bar = document.getElementById('tab-bar');
+    bar.innerHTML = '';
+    DEPT_ORDER.forEach(dept => {
+      const has = !!submissionsByDept[dept];
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn' + (has ? '' : ' missing');
+      btn.id = 'tab-' + dept;
+      btn.onclick = () => showDept(dept);
+      btn.innerHTML = `<span class="tab-dot"></span>${DEPT_META[dept].label}`;
+      if (!has) btn.title = 'Not submitted yet';
+      bar.appendChild(btn);
+    });
+  }
+
+  async function showDept(dept) {
+    activeDept = dept;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const tab = document.getElementById('tab-' + dept);
+    if (tab) tab.classList.add('active');
+
+    const sub = submissionsByDept[dept];
+    const frame = document.getElementById('report-frame');
+    const empty = document.getElementById('dept-empty');
+
+    document.getElementById('dept-title').textContent = DEPT_META[dept].label;
+    document.getElementById('dept-person-badge').textContent = DEPT_META[dept].person;
+
+    revokeActiveBlobUrl();
+    frame.removeAttribute('src');
+
+    if (!sub) {
+      frame.style.display = 'none';
+      empty.style.display = 'block';
+      empty.querySelector('p').textContent = 'No report submitted yet for this department.';
+      document.getElementById('dept-late-badge').style.display = 'none';
+      document.getElementById('dept-fullscreen-btn').style.display = 'none';
+      document.getElementById('dept-open-btn').style.display = 'none';
+      document.getElementById('dept-download-btn').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('dept-fullscreen-btn').style.display = 'inline-flex';
+    document.getElementById('dept-open-btn').style.display = 'inline-flex';
+    document.getElementById('dept-download-btn').style.display = 'inline-flex';
+    document.getElementById('dept-late-badge').style.display = sub.is_late ? 'inline-flex' : 'none';
+
+    const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
+    const publicUrl = urlData.publicUrl;
+    const ext = (sub.file_type || '').toLowerCase();
+
+    empty.style.display = 'none';
+    frame.style.display = 'block';
+
+    try {
+      if (ext === 'pdf') {
+        frame.setAttribute('sandbox', 'allow-scripts allow-popups');
+        activeBlobUrl = await fetchAsBlobUrl(publicUrl, 'application/pdf');
+        frame.src = activeBlobUrl;
+      } else if (ext === 'html' || ext === 'htm') {
+        // No allow-same-origin: keeps a hostile upload from reaching this page.
+        frame.setAttribute('sandbox', 'allow-scripts allow-popups');
+        activeBlobUrl = await fetchAsBlobUrl(publicUrl, 'text/html');
+        frame.src = activeBlobUrl;
+      } else {
+        // Only reachable via old data from before uploads were locked to
+        // PDF/HTML — nothing new can produce this branch.
+        frame.style.display = 'none';
+        empty.style.display = 'block';
+        empty.querySelector('p').textContent = `No inline preview for .${ext} files — use Open or Download above.`;
+      }
+    } catch (err) {
+      frame.style.display = 'none';
+      empty.style.display = 'block';
+      empty.querySelector('p').textContent = 'Could not load preview: ' + err.message;
+    }
+  }
+
+  function currentSub() {
+    return activeDept ? submissionsByDept[activeDept] : null;
+  }
+
+  function openCurrent() {
+    const sub = currentSub();
+    if (!sub) return;
+    const ext = (sub.file_type || '').toLowerCase();
+    const { data } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
+    const publicUrl = data.publicUrl;
+
+    if (ext !== 'pdf' && ext !== 'html' && ext !== 'htm') {
+      // Only reachable via old data — nothing new can produce this. No blob
+      // treatment needed/possible to verify, so best-effort raw link.
+      window.open(publicUrl, '_blank');
+      return;
+    }
+
+    // Storage forces text/plain for html (see fetchAsBlobUrl's note below),
+    // so the new tab needs the same blob treatment the inline preview gets,
+    // or it'd show raw markup instead of the rendered report. window.open
+    // has to run synchronously in this click handler or the popup blocker
+    // kills it — so open a blank tab now and fill it in once the blob's
+    // ready, rather than awaiting the fetch first and opening after.
+    const win = window.open('', '_blank');
+    fetchAsBlobUrl(publicUrl, ext === 'pdf' ? 'application/pdf' : 'text/html')
+      .then(blobUrl => { if (win) win.location.href = blobUrl; })
+      .catch(err => {
+        if (win) win.close();
+        alert('Could not open report: ' + err.message);
+      });
+  }
+
+  function toggleFullscreen() {
+    const el = document.getElementById('report-frame-wrap');
+    const request = el.requestFullscreen || el.webkitRequestFullscreen;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      Promise.resolve(request.call(el)).catch(err => {
+        console.error('Fullscreen request failed:', err);
+        alert('This browser/window blocked fullscreen: ' + err.message);
+      });
+    } else {
+      exit.call(document);
+    }
+  }
+
+  // Syncs the button label whether fullscreen was toggled by our button or by
+  // the browser's own Escape-key handling.
+  function syncFullscreenLabel() {
+    const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.getElementById('dept-fullscreen-label').textContent = active ? 'Exit Fullscreen' : 'Fullscreen';
+  }
+  document.addEventListener('fullscreenchange', syncFullscreenLabel);
+  document.addEventListener('webkitfullscreenchange', syncFullscreenLabel);
+
+  async function downloadCurrent() {
+    const sub = currentSub();
+    if (!sub) return;
+    const { data } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
+    try {
+      // The storage URL is cross-origin, so a plain <a download> is silently
+      // ignored by the browser (it just navigates instead of saving). Routing
+      // through a same-tab blob: URL is what makes `download` actually stick.
+      const blobUrl = await fetchAsBlobUrl(data.publicUrl, 'application/octet-stream');
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = sub.file_name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch (err) {
+      alert('Download failed: ' + err.message);
+    }
+  }
+
+  function buildArchiveList() {
+    const list = document.getElementById('archive-list');
+    list.innerHTML = '';
+    reports.forEach((r, i) => {
+      const card = document.createElement('div');
+      card.className = 'archive-card';
+      card.dataset.idx = i;
+      card.onclick = () => {
+        document.getElementById('week-select').value = i;
+        loadSelectedWeek();
+      };
+      const compiled = new Date(r.compiled_at);
+      card.innerHTML = `
+        <div class="archive-dot"></div>
+        <div class="archive-card-text">
+          <div class="archive-card-week">${r.week_label}</div>
+          <div class="archive-card-meta">${r.dept_count} dept${r.dept_count !== 1 ? 's' : ''} · ${compiled.toLocaleDateString('en-JM', { day: 'numeric', month: 'short' })}</div>
+        </div>`;
+      list.appendChild(card);
+    });
+    document.getElementById('archive-section').style.display = 'block';
+  }
+
+  function showState(state) {
+    document.getElementById('state-empty').style.display   = state === 'empty'   ? 'block' : 'none';
+    document.getElementById('state-loading').style.display = state === 'loading' ? 'block' : 'none';
+    document.getElementById('state-error').style.display   = state === 'error'   ? 'block' : 'none';
+    document.getElementById('report-view').style.display   = state === 'report'  ? 'block' : 'none';
+  }
+
+  function goToUpload() {
+    // Framed inside weekly-reports.html — switch its tab instead of
+    // navigating this iframe away, which would lose the shell's tab bar.
+    // window.parent (not window.top) is the right target: it's whichever
+    // page actually embedded this iframe, regardless of nesting depth.
+    if (window.top !== window.self && typeof window.parent.dflShowUploadTab === 'function') {
+      window.parent.dflShowUploadTab();
+    } else {
+      window.location.href = 'report-upload.html';
+    }
+  }
+</script>
+</body>
+</html>

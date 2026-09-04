@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Reports — DFL Staff Portal</title>
+
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted content. -->
+<style>body { visibility: hidden; }</style>
+
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── NAV ──
+     Rendered and styled by /shared/side-nav.js. */
+
+  /* MAIN PANEL — same shell pattern as /management/index.html: a tab bar
+     over a stack of iframes, one per real (independently guarded) page. */
+  .main-panel { display:flex; flex-direction:column; height:100vh; }
+
+  .tabs-bar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 32px; display:flex; gap:0; flex-shrink:0;
+  }
+  .tab-btn {
+    padding:14px 20px; font-size:13px; font-weight:500;
+    color:var(--text-muted); border:none; background:none;
+    cursor:pointer; border-bottom:2px solid transparent;
+    margin-bottom:-1px; transition:all 0.15s;
+    font-family:'Inter',sans-serif; white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  .panels { flex:1; overflow:hidden; }
+  .panel { display:none; width:100%; height:100%; }
+  .panel.active { display:block; }
+  .panel iframe { width:100%; height:100%; border:none; display:block; }
+
+  /* side-nav.js reserves 52px at the top for its mobile bar, so the full-height
+     panels have to give that back or the page gains a scrollbar. */
+  @media (max-width: 767px) {
+    .main-panel { height: calc(100vh - 52px); }
+  }
+  @media (max-width: 640px) {
+    .tabs-bar { padding: 0 16px; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ──
+     Rendered by /shared/side-nav.js (loaded at the bottom of this file). -->
+
+<div class="main-panel" id="mainPanel">
+
+  <div class="tabs-bar">
+    <button class="tab-btn active" id="tab-viewer" onclick="showPanel('panel-viewer', this)">View Reports</button>
+    <button class="tab-btn" id="tab-upload" onclick="showPanel('panel-upload', this)">Upload Reports</button>
+  </div>
+
+  <div class="panels" id="panels">
+
+    <div class="panel active" id="panel-viewer">
+      <iframe src="/report-viewer.html" title="Weekly Report Viewer" allow="fullscreen"></iframe>
+    </div>
+
+    <div class="panel" id="panel-upload">
+      <iframe src="/report-upload.html" title="Weekly Report Upload"></iframe>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  window.DFL_PAGE_TITLE = 'Weekly Reports';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+  function showPanel(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // Called by the embedded upload/viewer pages (same-origin, so a direct
+  // function call is all that's needed — no postMessage) when their own
+  // "View Reports" / "Upload Reports" buttons are clicked while framed here,
+  // so switching feels like one app instead of the child iframe navigating
+  // away and losing this shell's tab bar.
+  window.dflShowViewerTab = function (week) {
+    showPanel('panel-viewer', document.getElementById('tab-viewer'));
+    if (week) {
+      document.querySelector('#panel-viewer iframe').src = '/report-viewer.html?week=' + encodeURIComponent(week);
+    }
+  };
+  window.dflShowUploadTab = function () {
+    showPanel('panel-upload', document.getElementById('tab-upload'));
+  };
+</script>
+
+</body>
+</html>
