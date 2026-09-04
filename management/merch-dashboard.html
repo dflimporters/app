@@ -202,6 +202,17 @@ tbody tr.clickable{cursor:pointer}
 .vd-photos a{display:block;border-radius:7px;overflow:hidden;border:1px solid var(--border);aspect-ratio:1}
 .vd-photos img{width:100%;height:100%;object-fit:cover;display:block}
 .vd-section-title{font-family:var(--mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px}
+
+/* EVALUATIONS */
+.sign-dots{display:flex;gap:5px}
+.sign-dot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.sign-dot.on{background:var(--green)}
+.ev-crit{padding:9px 0;border-bottom:1px solid var(--paper)}
+.ev-crit:last-child{border-bottom:none}
+.ev-crit-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:3px}
+.ev-crit-label{font-size:11.5px;color:var(--ink);font-weight:500}
+.ev-crit-score{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap}
+.ev-crit-comment{font-size:11px;color:var(--muted);line-height:1.4}
 </style>
 </head>
 <body>
@@ -235,6 +246,7 @@ tbody tr.clickable{cursor:pointer}
   <div class="main-tab" id="navTL" onclick="showTL()">🏆 Team Leader Incentive</div>
   <div class="main-tab" id="navPayroll" onclick="showPayroll()">💰 HR Payroll</div>
   <div class="main-tab" id="navVisits" onclick="showVisits()">📍 Visit Log</div>
+  <div class="main-tab" id="navEvals" onclick="showEvals()">📋 Evaluations</div>
 </div>
 
 <!-- MONTH TABS -->
@@ -366,6 +378,73 @@ tbody tr.clickable{cursor:pointer}
         </tr></thead>
         <tbody id="visitTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- EVALUATIONS -->
+<div id="evalsSection" style="display:none">
+  <div class="stats-bar" style="padding:16px 22px 0">
+    <div class="stats-strip">
+      <div class="stat-chip"><div class="val" id="e-total">—</div><div class="lbl">Total Evaluations</div></div>
+      <div class="stat-chip green"><div class="val" id="e-exc">—</div><div class="lbl">Exceptional</div></div>
+      <div class="stat-chip amber"><div class="val" id="e-sat">—</div><div class="lbl">Satisfactory</div></div>
+      <div class="stat-chip"><div class="val" id="e-unsat">—</div><div class="lbl">Unsatisfactory</div></div>
+      <div class="stat-chip amber"><div class="val" id="e-pending">—</div><div class="lbl">Awaiting Sign-off</div></div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="topbar" style="border-radius:9px 9px 0 0;border:1px solid var(--border);border-bottom:none">
+      <div class="search-wrap" style="max-width:260px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="evalSearch" placeholder="Search employee or reviewer…" oninput="renderEvalTable()">
+      </div>
+      <select id="evalRatingFilter" onchange="renderEvalTable()" style="width:160px;padding-left:9px">
+        <option value="">All ratings</option>
+        <option value="Exceptional">Exceptional</option>
+        <option value="Satisfactory">Satisfactory</option>
+        <option value="Unsatisfactory">Unsatisfactory</option>
+      </select>
+      <select id="evalSignoffFilter" onchange="renderEvalTable()" style="width:170px;padding-left:9px">
+        <option value="">All sign-off states</option>
+        <option value="complete">Fully signed off</option>
+        <option value="pending">Awaiting sign-off</option>
+      </select>
+      <button onclick="exportEvalsCSV()" class="btn btn-outline" style="margin-left:auto;border-color:var(--border);color:var(--ink);background:#fff;font-size:11px">⬇ CSV</button>
+    </div>
+    <div class="table-wrap" style="border-radius:0 0 9px 9px">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Employee</th><th>Position</th><th>Review Period</th><th>Reviewed By</th><th>Score</th><th>Rating</th><th>Sign-off</th>
+        </tr></thead>
+        <tbody id="evalTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- EVALUATION DETAIL MODAL -->
+<div class="modal-overlay" id="eval-detail-modal" onclick="if(event.target===this)closeEvalDetail()">
+  <div class="modal" style="width:600px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title" id="ed-name">—</div>
+    <div class="modal-sub" id="ed-sub">—</div>
+    <div class="vd-row" id="ed-meta"></div>
+    <div class="vd-section-title">Scorecard</div>
+    <div id="ed-criteria" style="margin-bottom:14px"></div>
+    <div id="ed-feedback-wrap" style="display:none">
+      <div class="vd-section-title">Employee Feedback</div>
+      <div class="vd-notes" id="ed-feedback"></div>
+    </div>
+    <div id="ed-notes-wrap" style="display:none">
+      <div class="vd-section-title">Notes</div>
+      <div class="vd-notes" id="ed-notes"></div>
+    </div>
+    <div id="ed-scan-wrap" style="display:none;margin-bottom:14px">
+      <div class="vd-section-title">Signed Scan</div>
+      <a id="ed-scan-link" href="#" target="_blank" style="color:var(--accent);font-size:11px">View uploaded scan ↗</a>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-outline" onclick="closeEvalDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -1458,20 +1537,144 @@ function exportVisitsCSV(){
 }
 
 // ══════════════════════════════════════════════
+// EVALUATIONS
+// ══════════════════════════════════════════════
+let evalRows = [];
+const EVAL_CRITERIA = [
+  ['stock_monitoring','Monitoring stock (providing stock report to reps)'],
+  ['attendance','Attendance and punctuality'],
+  ['collaboration','Collaborates with sales reps and team members to effectively complete tasks'],
+  ['rotation_of_goods','Rotation of goods'],
+  ['creative_thinking','Creative and innovative thinking'],
+  ['data_analysis','Ability to analyze data and draw relevant conclusions'],
+  ['time_management','Time management — planning and prioritizing workloads'],
+  ['industry_knowledge','In-depth knowledge of industry-specific trends and issues'],
+  ['shelf_display','Displaying of goods on shelves'],
+  ['proactive_communication','Proactive communication (calls, texts, emails answered on time)'],
+  ['shelf_maintenance','Shelf maintenance (dusting / wiping goods)'],
+  ['customer_attentiveness','Attentive to customer needs, makes product recommendations']
+];
+function evalRatingPill(rating){
+  const cls = rating==='Exceptional'?'pill-green':rating==='Satisfactory'?'pill-amber':rating==='Unsatisfactory'?'pill-red':'pill-grey';
+  return `<span class="pill ${cls}">${rating||'Not yet scored'}</span>`;
+}
+function evalIsComplete(r){ return !!(r.employee_signed && r.supervisor_signed) || !!(r.employee_signed && r.manager_signed); }
+
+async function loadEvals(){
+  try {
+    evalRows = await supa(`merchandiser_evaluations?select=*&order=created_at.desc&limit=2000`);
+  } catch(e) {
+    toast('Evaluations load failed: '+e.message, 'error');
+    evalRows = [];
+  }
+  renderEvalStats();
+  renderEvalTable();
+}
+
+function renderEvalStats(){
+  const rows = evalRows||[];
+  document.getElementById('e-total').textContent = rows.length;
+  document.getElementById('e-exc').textContent = rows.filter(r=>r.rating==='Exceptional').length;
+  document.getElementById('e-sat').textContent = rows.filter(r=>r.rating==='Satisfactory').length;
+  document.getElementById('e-unsat').textContent = rows.filter(r=>r.rating==='Unsatisfactory').length;
+  document.getElementById('e-pending').textContent = rows.filter(r=>!evalIsComplete(r)).length;
+}
+
+function renderEvalTable(){
+  const q = (document.getElementById('evalSearch').value||'').toLowerCase();
+  const ratingFilter = document.getElementById('evalRatingFilter').value;
+  const signoffFilter = document.getElementById('evalSignoffFilter').value;
+  const body = document.getElementById('evalTableBody');
+  let rows = (evalRows||[]).filter(r=>{
+    if(ratingFilter && r.rating!==ratingFilter) return false;
+    if(signoffFilter==='complete' && !evalIsComplete(r)) return false;
+    if(signoffFilter==='pending' && evalIsComplete(r)) return false;
+    if(q && !((r.employee_name||'').toLowerCase().includes(q) || (r.reviewed_by||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">No evaluations match.</td></tr>'; return; }
+  body.innerHTML = rows.map(r=>{
+    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-JM') : '—';
+    const signoff = `<span class="sign-dots" title="Employee / Supervisor / Manager">
+      <span class="sign-dot ${r.employee_signed?'on':''}"></span>
+      <span class="sign-dot ${r.supervisor_signed?'on':''}"></span>
+      <span class="sign-dot ${r.manager_signed?'on':''}"></span>
+    </span>`;
+    return `<tr class="clickable" onclick="openEvalDetail('${r.id}')">
+      <td class="td-id">${date}</td>
+      <td>${r.employee_name||'—'}</td>
+      <td>${r.position||'—'}</td>
+      <td>${r.review_period||'—'}</td>
+      <td>${r.reviewed_by||'—'}</td>
+      <td class="td-num">${r.total_score!=null?r.total_score:'—'}</td>
+      <td>${evalRatingPill(r.rating)}</td>
+      <td onclick="event.stopPropagation()">${signoff}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openEvalDetail(id){
+  const r = (evalRows||[]).find(v=>String(v.id)===String(id));
+  if(!r) return;
+  document.getElementById('ed-name').textContent = r.employee_name || 'Evaluation';
+  document.getElementById('ed-sub').textContent = `${r.position||'—'} · ${r.review_period||'—'}`;
+
+  document.getElementById('ed-meta').innerHTML = `
+    <div class="vd-item"><b>Reviewed By</b>${r.reviewed_by||'—'}</div>
+    <div class="vd-item"><b>Total Score</b>${r.total_score!=null?r.total_score:'—'}</div>
+    <div class="vd-item"><b>Rating</b>${evalRatingPill(r.rating)}</div>
+    <div class="vd-item"><b>Sign-off</b>Employee ${r.employee_signed?'✓':'—'} · Supervisor ${r.supervisor_signed?'✓':'—'} · Manager ${r.manager_signed?'✓':'—'}</div>
+  `;
+
+  document.getElementById('ed-criteria').innerHTML = EVAL_CRITERIA.map(([key,label])=>{
+    const score = r['score_'+key];
+    const comment = r['comments_'+key];
+    return `<div class="ev-crit">
+      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${score!=null?score:'—'}</div></div>
+      ${comment?`<div class="ev-crit-comment">${comment}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const fbWrap = document.getElementById('ed-feedback-wrap');
+  if(r.employee_feedback){ fbWrap.style.display='block'; document.getElementById('ed-feedback').textContent = r.employee_feedback; }
+  else fbWrap.style.display='none';
+
+  const notesWrap = document.getElementById('ed-notes-wrap');
+  if(r.notes){ notesWrap.style.display='block'; document.getElementById('ed-notes').textContent = r.notes; }
+  else notesWrap.style.display='none';
+
+  const scanWrap = document.getElementById('ed-scan-wrap');
+  if(r.scan_file_url){ scanWrap.style.display='block'; document.getElementById('ed-scan-link').href = r.scan_file_url; }
+  else scanWrap.style.display='none';
+
+  document.getElementById('eval-detail-modal').classList.add('open');
+}
+function closeEvalDetail(){ document.getElementById('eval-detail-modal').classList.remove('open'); }
+
+function exportEvalsCSV(){
+  const rows=[['Date','Employee','Position','Review Period','Reviewed By','Total Score','Rating','Employee Signed','Supervisor Signed','Manager Signed']];
+  (evalRows||[]).forEach(r=>rows.push([r.created_at?new Date(r.created_at).toLocaleDateString():'', r.employee_name||'', r.position||'', r.review_period||'', r.reviewed_by||'', r.total_score!=null?r.total_score:'', r.rating||'', r.employee_signed?'Y':'N', r.supervisor_signed?'Y':'N', r.manager_signed?'Y':'N']));
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=`DFL_Evaluations_${currentPeriod}.csv`; a.click();
+}
+
+// ══════════════════════════════════════════════
 // MAIN TAB SWITCHING
 // ══════════════════════════════════════════════
 function setMainTab(tab){
   activeTab = tab;
-  ['navMerch','navTL','navPayroll','navVisits'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['navMerch','navTL','navPayroll','navVisits','navEvals'].forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('merchSection').style.display = tab==='merch' ? 'block' : 'none';
   document.getElementById('tlSection').style.display = tab==='tl' ? 'block' : 'none';
   document.getElementById('payrollSection').style.display = tab==='payroll' ? 'flex' : 'none';
   document.getElementById('visitsSection').style.display = tab==='visits' ? 'block' : 'none';
+  document.getElementById('evalsSection').style.display = tab==='evals' ? 'block' : 'none';
 }
 function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').classList.add('active'); document.getElementById('headerSub').textContent='2026 · MERCHANDISER COMMISSION TRACKER'; if(!storeRows.length) loadData(); }
 function showTL(){ setMainTab('tl'); document.getElementById('navTL').classList.add('active'); document.getElementById('headerSub').textContent='2026 · TEAM LEADER INCENTIVE'; renderTLSection(); }
 function showPayroll(){ setMainTab('payroll'); document.getElementById('navPayroll').classList.add('active'); document.getElementById('headerSub').textContent='2026 · HR PAYROLL · CONFIDENTIAL'; renderPayroll(); }
 function showVisits(){ setMainTab('visits'); document.getElementById('navVisits').classList.add('active'); document.getElementById('headerSub').textContent='2026 · VISIT LOG'; loadVisits(); setTimeout(()=>{ if(visitMapInstance) visitMapInstance.invalidateSize(); },50); }
+function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').classList.add('active'); document.getElementById('headerSub').textContent='2026 · MERCHANDISER EVALUATIONS'; if(!evalRows.length) loadEvals(); }
 
 // ── BOOT ──
 loadStaticRefs().then(loadData);
