@@ -376,6 +376,7 @@
                   '<option value="rep">Sales rep</option>' +
                   '<option value="warehouse">Warehouse</option>' +
                   '<option value="manager">Manager</option>' +
+                  '<option value="rep_management">Rep + Management</option>' +
                 '</select>' +
               '</div>' +
             '</div>' +
@@ -434,7 +435,7 @@
     const tl = el('tlwrap-' + userId);
     const sp = el('spwrap-' + userId);
     if (tl) tl.style.display = (role === 'merchandiser') ? '' : 'none';
-    if (sp) sp.style.display = (role === 'rep') ? '' : 'none';
+    if (sp) sp.style.display = (role === 'rep' || role === 'rep_management') ? '' : 'none';
   }
 
   function setMode(userId, mode) {

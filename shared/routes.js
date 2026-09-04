@@ -40,7 +40,7 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management'
+  'relief_merchandiser', 'management', 'rep_management'
 ];
 
 // ------------------------------------------------------------
@@ -62,7 +62,8 @@ const DFL_HOME_BY_ROLE = {
   warehouse:    '/warehouse.html',
   pending:      '/pending.html',
   relief_merchandiser: '/merch.html',
-  management:   '/morning-brief.html'
+  management:   '/morning-brief.html',
+  rep_management: '/index.html'
 };
 
 // ------------------------------------------------------------
@@ -72,19 +73,19 @@ const DFL_HOME_BY_ROLE = {
 // provisioned staff member can open it. That means a NEW guarded page is open
 // to all roles until you add it here.
 const DFL_PAGE_ROLES = {
-  '/index.html':           ['admin', 'manager', 'rep'],
+  '/index.html':           ['admin', 'manager', 'rep', 'rep_management'],
   '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'relief_merchandiser'],
   '/hub.html':             ['manager', 'admin'],
   '/warehouse.html':       ['warehouse', 'manager', 'admin'],
   '/admin/index.html':     ['admin'],
   '/admin/approvals.html': ['admin'],
   '/specials-upload.html': ['admin', 'manager'],
-  '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser'],
+  '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser', 'rep_management'],
   '/pending.html':         ['pending'],
-  '/budget-explorer.html': ['manager', 'admin', 'management'],
-  '/morning-brief.html':   ['management', 'manager', 'admin'],
-  '/gondola-rentals.html':  ['manager', 'admin', 'management'],
-  '/gondola-analysis.html': ['manager', 'admin', 'management'],
+  '/budget-explorer.html': ['manager', 'admin', 'management', 'rep_management'],
+  '/morning-brief.html':   ['management', 'manager', 'admin', 'rep_management'],
+  '/gondola-rentals.html':  ['manager', 'admin', 'management', 'rep_management'],
+  '/gondola-analysis.html': ['manager', 'admin', 'management', 'rep_management'],
 
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in
@@ -99,6 +100,7 @@ const DFL_PAGE_ROLES = {
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
+  '/management/fleet.html':                 ['manager', 'admin'],
 
   // ---- Weekly Reports ----
   // Shell + the two pages it embeds — each listed individually, same reason

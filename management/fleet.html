@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>DFL Fleet Management</title>
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule so there's no flash of restricted data. Reveals immediately when
+     framed, so the management/index.html tab panels still work. -->
+<style>body { visibility: hidden; }</style>
+<meta name="theme-color" content="#12181f">
+<style>
+  :root{
+    --ink:#12181f; --panel:#182230; --panel-2:#1e2a3a; --line:#2c3a4d;
+    --text:#e8edf3; --muted:#8fa1b5;
+    --amber:#f2a340; --green:#4caf7d; --red:#e2584f; --blue:#2C67D2;
+    --mono:'JetBrains Mono','SF Mono',Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--ink); color:var(--text); font-family:var(--sans); min-height:100vh;}
+
+  /* Top nav */
+  nav{
+    padding:12px 26px; border-bottom:1px solid var(--line); background:#0d1319;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand .logo-chip{background:#fff; border-radius:8px; padding:5px 10px; display:flex; align-items:center;}
+  .brand .logo-chip img{height:26px; width:auto; display:block;}
+  .brand .divider{width:1px; height:26px; background:var(--line);}
+  .brand .title-group{display:flex; flex-direction:column; line-height:1.15;}
+  .brand h1{font-size:15px; font-weight:600; margin:0; color:var(--text);}
+  .brand .tagline{font-size:10.5px; color:var(--muted); font-style:italic;}
+  .tabs{display:flex; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:4px;}
+  .tabs button{
+    background:none; border:none; color:var(--muted); font-size:13px; font-weight:600;
+    padding:7px 16px; border-radius:6px; cursor:pointer;
+  }
+  .tabs button.active{background:var(--blue); color:#fff;}
+
+  .view{display:none; padding:24px 26px 60px;}
+  .view.active{display:block;}
+
+  /* ===== Shared bits ===== */
+  .pill{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:uppercase; white-space:nowrap;}
+  .pill.ok{background:#173226; color:var(--green); border:1px solid #234a37;}
+  .pill.soon{background:#3a2c12; color:var(--amber); border:1px solid #4d3c1c;}
+  .pill.bad{background:#3a1c1a; color:var(--red); border:1px solid #4d2523;}
+  .pill.unset{background:#232f3d; color:var(--muted); border:1px solid var(--line);}
+  .pill.pending{background:#241c3a; color:#a98cf0; border:1px solid #382a54;}
+  .btn{background:var(--blue); color:#fff; border:none; border-radius:8px; padding:9px 18px; font-weight:600; font-size:13.5px; cursor:pointer;}
+  .btn:hover{background:#2456b3;}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--text);}
+  .btn.ghost:hover{border-color:var(--blue);}
+  .btn.small{padding:6px 12px; font-size:12.5px;}
+
+  /* ===== Lookup view ===== */
+  .wrap{max-width:640px; margin:0 auto;}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 24px;}
+  .search-card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; display:flex; gap:10px; margin-bottom:20px;}
+  .search-card input{flex:1; background:var(--ink); border:1px solid var(--line); border-radius:9px; color:var(--text); font-family:var(--mono); font-size:17px; letter-spacing:.06em; padding:13px 14px; text-transform:uppercase; outline:none;}
+  .search-card input:focus{border-color:var(--blue);}
+  .search-card input::placeholder{color:#54687f; letter-spacing:normal; text-transform:none; font-family:var(--sans);}
+  .msg{color:var(--muted); font-size:14px; padding:8px 2px;}
+  .msg.error{color:var(--red);}
+  .veh-card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; margin-bottom:16px;}
+  .veh-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; flex-wrap:wrap; gap:10px;}
+  .veh-head .plate{font-family:var(--mono); font-size:22px; font-weight:700; letter-spacing:.08em; background:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 12px;}
+  .veh-head .meta{color:var(--muted); font-size:13.5px; margin-top:6px;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:6px;}
+  @media(max-width:480px){.grid{grid-template-columns:1fr;}}
+  .item{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:13px 14px; display:flex; flex-direction:column; gap:6px;}
+  .item .label{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:flex; justify-content:space-between; align-items:center;}
+  .item .value{font-size:15px; font-weight:600;}
+  .item .value.dim{color:var(--muted); font-weight:500; font-style:italic; font-size:13.5px;}
+  .item .doclink{font-size:12.5px; color:var(--blue); text-decoration:none; margin-top:2px;}
+  .item .doclink:hover{text-decoration:underline;}
+  .section-title{font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin:22px 0 10px;}
+  .upload-row{display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;}
+  .upload-row input[type=file]{flex:1; min-width:140px; font-size:12.5px; color:var(--muted);}
+  .upload-row input[type=date]{background:var(--ink); border:1px solid var(--line); border-radius:7px; color:var(--text); padding:7px 9px; font-size:13px; font-family:var(--sans);}
+  .mileage-card{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:15px; margin-top:6px;}
+  .mileage-row{display:flex; gap:10px; align-items:center;}
+  .mileage-row input{flex:1; background:var(--ink); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:15px; padding:9px 11px; outline:none;}
+  .mileage-row input:focus{border-color:var(--blue);}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--green); color:var(--green); padding:11px 20px; border-radius:9px; font-size:13.5px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .25s; z-index:99;}
+  .toast.show{opacity:1;}
+  .toast.err{border-color:var(--red); color:var(--red);}
+  .footnote{color:#4c5c6e; font-size:11.5px; text-align:center; margin-top:30px;}
+
+  /* ===== Admin view ===== */
+  .admin-header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;}
+  .stats{display:flex; gap:22px; font-size:13px; color:var(--muted);}
+  .stats b{color:var(--text); font-size:15px;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;}
+  .toolbar input, .toolbar select{background:var(--panel); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:9px 12px; font-size:13.5px; outline:none;}
+  .toolbar input:focus, .toolbar select:focus{border-color:var(--blue);}
+  #search{flex:1; min-width:180px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  tbody td{padding:11px 10px; border-bottom:1px solid #1e2a38; vertical-align:middle;}
+  tbody tr:hover{background:#161f2b; cursor:pointer;}
+  .plate{font-family:var(--mono); font-weight:700; letter-spacing:.04em;}
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:26px; max-width:640px; width:100%; margin-bottom:40px; position:relative;}
+  .modal h2{margin:0 0 4px; font-size:18px;}
+  .modal .sub{color:var(--muted); font-size:13px; margin:0 0 20px;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;}
+  @media(max-width:520px){.form-grid{grid-template-columns:1fr;}}
+  .field label{display:block; font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px;}
+  .field input{width:100%; background:var(--ink); border:1px solid var(--line); border-radius:8px; color:var(--text); padding:9px 11px; font-size:13.5px; outline:none;}
+  .field input:focus{border-color:var(--blue);}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
+  .close-x{position:absolute; top:14px; right:18px; background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer;}
+  .doc-row{display:flex; align-items:center; justify-content:space-between; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:10px 13px; margin-bottom:8px; gap:10px; flex-wrap:wrap;}
+  .doc-row .left{display:flex; align-items:center; gap:10px;}
+  .doc-row a{color:var(--blue); font-size:12.5px; text-decoration:none;}
+  .doc-row a:hover{text-decoration:underline;}
+  .doc-row .meta{font-size:11.5px; color:var(--muted);}
+  .empty{text-align:center; padding:60px 20px; color:var(--muted);}
+  .loading{padding:40px; text-align:center; color:var(--muted); font-size:13.5px;}
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <div class="logo-chip"><img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL Importers"></div>
+    <div class="divider"></div>
+    <div class="title-group">
+      <h1>Fleet Management</h1>
+      <span class="tagline">The Team That Cares</span>
+    </div>
+  </div>
+  <div class="tabs">
+    <button id="tabLookupBtn" class="active">Vehicle Lookup</button>
+    <button id="tabAdminBtn">Admin Dashboard</button>
+  </div>
+</nav>
+
+<!-- ===================== LOOKUP VIEW ===================== -->
+<div class="view active" id="viewLookup">
+  <div class="wrap">
+    <p class="sub">Enter a registration number to view documents and service status, or add missing information.</p>
+    <div class="search-card">
+      <input id="regInput" placeholder="e.g. 4442KK" maxlength="12" autocomplete="off" autocapitalize="characters">
+      <button class="btn" id="searchBtn">Search</button>
+    </div>
+    <div id="msgArea"></div>
+    <div id="result"></div>
+    <div class="footnote">DFL Importers &amp; Distributors — Internal Fleet Tool</div>
+  </div>
+</div>
+
+<!-- ===================== ADMIN VIEW ===================== -->
+<div class="view" id="viewAdmin">
+  <div class="admin-header">
+    <div class="stats">
+      <div>Vehicles <b id="statTotal">—</b></div>
+      <div>Action needed <b id="statAction" style="color:var(--red)">—</b></div>
+      <div>Pending docs <b id="statPending" style="color:#a98cf0">—</b></div>
+    </div>
+    <button class="btn" id="addVehicleBtn">+ Add Vehicle</button>
+  </div>
+  <div class="toolbar">
+    <input id="search" placeholder="Search reg number, driver, department…">
+    <select id="filterStatus">
+      <option value="">All statuses</option>
+      <option value="bad">Has expired item</option>
+      <option value="soon">Due soon</option>
+      <option value="ok">All clear</option>
+    </select>
+    <select id="sortBy">
+      <option value="reg_number">Sort: Reg Number</option>
+      <option value="driver_name">Sort: Driver</option>
+      <option value="department">Sort: Department</option>
+    </select>
+    <button class="btn ghost" id="refreshBtn">Refresh</button>
+  </div>
+  <div id="tableWrap"><div class="loading">Loading vehicles…</div></div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalContent"></div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const FLEET_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const FLEET_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+const headers = { apikey: FLEET_SB_KEY, Authorization: `Bearer ${FLEET_SB_KEY}` };
+
+/* ---------- Nav / tab switching ---------- */
+const tabLookupBtn = document.getElementById('tabLookupBtn');
+const tabAdminBtn = document.getElementById('tabAdminBtn');
+const viewLookup = document.getElementById('viewLookup');
+const viewAdmin = document.getElementById('viewAdmin');
+let adminLoaded = false;
+
+tabLookupBtn.addEventListener('click', ()=>{
+  tabLookupBtn.classList.add('active'); tabAdminBtn.classList.remove('active');
+  viewLookup.classList.add('active'); viewAdmin.classList.remove('active');
+});
+tabAdminBtn.addEventListener('click', ()=>{
+  tabAdminBtn.classList.add('active'); tabLookupBtn.classList.remove('active');
+  viewAdmin.classList.add('active'); viewLookup.classList.remove('active');
+  if(!adminLoaded){ adminLoaded = true; loadAll(); }
+});
+
+function toast(msg, isErr=false){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(()=> t.className='toast', 2600);
+}
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00'); const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((d-now)/86400000);
+}
+function fmtDate(dateStr){
+  if(!dateStr) return null;
+  return new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+function statusFor(dateStr){
+  if(!dateStr) return 'unset';
+  const d = daysUntil(dateStr);
+  if(d<0) return 'bad'; if(d<=30) return 'soon'; return 'ok';
+}
+function statusPill(dateStr){
+  const s = statusFor(dateStr);
+  const map = {bad:'Expired', soon:'Due soon', ok:'Valid', unset:'Not set'};
+  return `<span class="pill ${s}">${map[s]}</span>`;
+}
+
+/* Required docs (insurance, fitness, registration) treat a MISSING date as
+   action-needed, not just an expired one. Service + carriers license are
+   on the back burner for now and don't drive the "action needed" status. */
+function requiredDocStatus(dateStr){
+  if(!dateStr) return 'bad';
+  const d = daysUntil(dateStr);
+  if(d<0) return 'bad'; if(d<=30) return 'soon'; return 'ok';
+}
+function requiredDocPill(dateStr){
+  const s = requiredDocStatus(dateStr);
+  const map = {bad: dateStr ? 'Expired' : 'Missing', soon:'Due soon', ok:'Valid'};
+  return `<span class="pill ${s}">${map[s]}</span>`;
+}
+
+/* ================= LOOKUP LOGIC ================= */
+let currentVehicle = null;
+let currentLatestMileage = null;
+
+async function fetchVehicle(reg){
+  const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?reg_number=eq.${encodeURIComponent(reg)}&select=*`, {headers});
+  if(!res.ok) throw new Error('lookup failed');
+  const rows = await res.json();
+  return rows[0] || null;
+}
+async function fetchDocs(vehicleId){
+  const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?vehicle_id=eq.${vehicleId}&select=*&order=uploaded_at.desc`, {headers});
+  if(!res.ok) return [];
+  return res.json();
+}
+async function fetchMileageHistory(vehicleId){
+  const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_mileage_log?vehicle_id=eq.${vehicleId}&select=*&order=reported_at.desc&limit=1`, {headers});
+  if(!res.ok) return null;
+  const rows = await res.json();
+  return rows[0] || null;
+}
+function serviceStatus(vehicle, latestMileage){
+  const results = [];
+  if(vehicle.next_service_date) results.push({type:'date', days: daysUntil(vehicle.next_service_date)});
+  if(vehicle.last_service_mileage && vehicle.service_interval_km && latestMileage){
+    const dueAt = vehicle.last_service_mileage + vehicle.service_interval_km;
+    results.push({type:'mileage', remaining: dueAt - latestMileage, dueAt});
+  }
+  return results;
+}
+function docTypeLabel(t){
+  return {insurance:'Insurance', fitness:'Fitness', registration:'Registration', carriers_license:'Carriers License'}[t] || t;
+}
+function latestDocOfType(docs, type){
+  return docs.filter(d=>d.doc_type===type).sort((a,b)=> new Date(b.uploaded_at)-new Date(a.uploaded_at))[0];
+}
+
+async function doSearch(){
+  const raw = document.getElementById('regInput').value.trim().toUpperCase();
+  const msgArea = document.getElementById('msgArea');
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = ''; msgArea.innerHTML = '';
+  if(!raw) return;
+  msgArea.innerHTML = '<div class="msg">Searching…</div>';
+  try{
+    const vehicle = await fetchVehicle(raw);
+    if(!vehicle){
+      msgArea.innerHTML = `<div class="msg error">No vehicle found for "${raw}". Check the registration number and try again.</div>`;
+      return;
+    }
+    msgArea.innerHTML = '';
+    currentVehicle = vehicle;
+    const [docs, mileageRow] = await Promise.all([fetchDocs(vehicle.id), fetchMileageHistory(vehicle.id)]);
+    currentLatestMileage = mileageRow ? mileageRow.mileage : vehicle.current_mileage;
+    renderVehicle(vehicle, docs, currentLatestMileage);
+  }catch(e){
+    msgArea.innerHTML = `<div class="msg error">Something went wrong. Please try again.</div>`;
+  }
+}
+
+function renderVehicle(v, docs, latestMileage){
+  const docTypes = ['insurance','fitness','registration','carriers_license'];
+  const expiryMap = { insurance: v.insurance_expiry, fitness: v.fitness_expiry, registration: v.registration_expiry, carriers_license: v.carriers_license_expiry };
+
+  const svc = serviceStatus(v, latestMileage);
+  let svcPill = '<span class="pill unset">Not set</span>';
+  let svcNote = 'No service date or mileage interval on file.';
+  if(svc.length){
+    const worst = svc.reduce((acc, s)=>{
+      const urgency = s.type==='date' ? (s.days<0?0:s.days<=500?1:2) : (s.remaining<0?0:s.remaining<=1000?1:2);
+      return urgency < acc.urgency ? {...s, urgency} : acc;
+    }, {urgency:99});
+    const parts = [];
+    svc.forEach(s=>{
+      if(s.type==='date') parts.push(`Next service due ${fmtDate(v.next_service_date)} (${s.days<0?Math.abs(s.days)+' days overdue':s.days+' days left'})`);
+      else parts.push(`Due at ${s.dueAt.toLocaleString()} km (${s.remaining<0?Math.abs(s.remaining)+' km overdue':s.remaining+' km remaining'})`);
+    });
+    svcNote = parts.join(' · ');
+    if(worst.urgency===0) svcPill = '<span class="pill bad">Overdue</span>';
+    else if(worst.urgency===1) svcPill = '<span class="pill soon">Due soon</span>';
+    else svcPill = '<span class="pill ok">On track</span>';
+  }
+
+  const html = `
+  <div class="veh-card">
+    <div class="veh-head">
+      <div>
+        <div class="plate">${v.reg_number}</div>
+        <div class="meta">${v.make||''} ${v.model||''} ${v.year||''} · ${v.department||'—'} · ${v.driver_name||'Unassigned'}</div>
+      </div>
+    </div>
+    <div class="section-title">Documents</div>
+    <div class="grid">
+      ${docTypes.map(t=>{
+        const latestDoc = latestDocOfType(docs, t);
+        const expiry = expiryMap[t];
+        const isRequired = t !== 'carriers_license';
+        return `
+        <div class="item">
+          <div class="label"><span>${docTypeLabel(t)}</span>${isRequired ? requiredDocPill(expiry) : statusPill(expiry)}</div>
+          <div class="value ${expiry?'':'dim'}">${expiry ? 'Expires '+fmtDate(expiry) : (isRequired ? 'Missing — please upload' : 'No date on file')}</div>
+          ${latestDoc ? `<a class="doclink" href="${latestDoc.file_url}" target="_blank">View uploaded copy →</a>` : ''}
+          <div class="upload-row">
+            <input type="date" id="date-${t}">
+            <input type="file" id="file-${t}" accept="image/*,.pdf">
+            <button class="btn small ghost" onclick="uploadDoc('${t}')">Upload</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="section-title">Service <span style="opacity:.6; text-transform:none; letter-spacing:0;">(on hold for now)</span></div>
+    <div class="item" style="margin-bottom:10px; opacity:.65;">
+      <div class="label"><span>Next Service</span>${svcPill}</div>
+      <div class="value dim">${svcNote}</div>
+    </div>
+    <div class="mileage-card">
+      <div class="label" style="margin-bottom:8px;">Current mileage${latestMileage ? ' (last reported: '+latestMileage.toLocaleString()+' km)' : ''}</div>
+      <div class="mileage-row">
+        <input type="number" id="mileageInput" placeholder="Enter current km reading">
+        <button class="btn small" onclick="submitMileage()">Update</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('result').innerHTML = html;
+}
+
+async function uploadDoc(type){
+  const fileInput = document.getElementById(`file-${type}`);
+  const dateInput = document.getElementById(`date-${type}`);
+  const file = fileInput.files[0];
+  if(!file){ toast('Choose a file first', true); return; }
+  if(!currentVehicle) return;
+  try{
+    const ext = file.name.split('.').pop();
+    const path = `${currentVehicle.reg_number}/${type}-${Date.now()}.${ext}`;
+    const uploadRes = await fetch(`${FLEET_SB_URL}/storage/v1/object/fleet-documents/${path}`, {
+      method:'POST', headers:{...headers, 'Content-Type': file.type || 'application/octet-stream'}, body:file
+    });
+    if(!uploadRes.ok) throw new Error('upload failed');
+    const fileUrl = `${FLEET_SB_URL}/storage/v1/object/public/fleet-documents/${path}`;
+    const docRes = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents`, {
+      method:'POST', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
+      body: JSON.stringify({ vehicle_id: currentVehicle.id, doc_type: type, file_url: fileUrl, expiry_date: dateInput.value || null, status: 'pending_review', uploaded_by: 'public_lookup' })
+    });
+    if(!docRes.ok) throw new Error('save failed');
+    toast(`${docTypeLabel(type)} uploaded — pending review`);
+    doSearch();
+  }catch(e){ toast('Upload failed. Please try again.', true); }
+}
+
+async function submitMileage(){
+  const input = document.getElementById('mileageInput');
+  const val = parseInt(input.value, 10);
+  if(!val || val <= 0){ toast('Enter a valid mileage', true); return; }
+  if(!currentVehicle) return;
+
+  const priorMileage = currentLatestMileage || currentVehicle.current_mileage;
+  if(priorMileage && val < priorMileage){
+    toast(`Mileage can't be lower than the last reading (${priorMileage.toLocaleString()} km)`, true);
+    return;
+  }
+
+  try{
+    await fetch(`${FLEET_SB_URL}/rest/v1/fleet_mileage_log`, {
+      method:'POST', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
+      body: JSON.stringify({vehicle_id: currentVehicle.id, mileage: val, reported_by:'public_lookup'})
+    });
+
+    const patchBody = { current_mileage: val, updated_at: new Date().toISOString() };
+    // First-ever mileage report becomes the service baseline automatically.
+    if(!currentVehicle.last_service_mileage){
+      patchBody.last_service_mileage = val;
+      patchBody.last_service_date = new Date().toISOString().slice(0,10);
+    }
+
+    await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${currentVehicle.id}`, {
+      method:'PATCH', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
+      body: JSON.stringify(patchBody)
+    });
+    toast('Mileage updated');
+    doSearch();
+  }catch(e){ toast('Could not update mileage', true); }
+}
+
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+document.getElementById('regInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+/* ================= ADMIN LOGIC ================= */
+let vehicles = [];
+let allDocsByVehicle = {};
+
+function overallStatus(v){
+  /* Only insurance, fitness, and registration drive "action needed" for now.
+     A missing date counts the same as expired. Service interval and
+     carriers license are on the back burner until these three are current. */
+  const statuses = [v.insurance_expiry, v.fitness_expiry, v.registration_expiry].map(requiredDocStatus);
+  if(statuses.includes('bad')) return 'bad';
+  if(statuses.includes('soon')) return 'soon';
+  return 'ok';
+}
+
+async function loadAll(){
+  document.getElementById('tableWrap').innerHTML = '<div class="loading">Loading vehicles…</div>';
+  const [vRes, dRes] = await Promise.all([
+    fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?select=*&order=reg_number.asc`, {headers}),
+    fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?select=*&status=eq.pending_review`, {headers})
+  ]);
+  vehicles = await vRes.json();
+  const pendingDocs = await dRes.json();
+  allDocsByVehicle = {};
+  pendingDocs.forEach(d=>{ (allDocsByVehicle[d.vehicle_id] ||= []).push(d); });
+  renderStats(pendingDocs.length);
+  renderTable();
+}
+
+function renderStats(pendingCount){
+  document.getElementById('statTotal').textContent = vehicles.length;
+  document.getElementById('statAction').textContent = vehicles.filter(v=>overallStatus(v)==='bad').length;
+  document.getElementById('statPending').textContent = pendingCount;
+}
+
+function renderTable(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const filter = document.getElementById('filterStatus').value;
+  const sortKey = document.getElementById('sortBy').value;
+  let rows = vehicles.filter(v=>{
+    const matchesQ = !q || [v.reg_number,v.driver_name,v.department,v.make,v.model].join(' ').toLowerCase().includes(q);
+    const matchesF = !filter || overallStatus(v)===filter;
+    return matchesQ && matchesF;
+  });
+  rows = rows.slice().sort((a,b)=>{
+    const av = (a[sortKey] || '').toString().toLowerCase();
+    const bv = (b[sortKey] || '').toString().toLowerCase();
+    if(!av && bv) return 1;
+    if(av && !bv) return -1;
+    return av.localeCompare(bv) || a.reg_number.localeCompare(b.reg_number);
+  });
+  if(!rows.length){
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">No vehicles match your filters.</div>';
+    return;
+  }
+  const html = `
+  <table>
+    <thead><tr><th>Reg</th><th>Vehicle</th><th>Driver</th><th>Dept</th><th>Insurance</th><th>Fitness</th><th>Registration</th><th>Next Service (on hold)</th><th>Pending</th></tr></thead>
+    <tbody>
+      ${rows.map(v=>{
+        const pending = allDocsByVehicle[v.id]?.length || 0;
+        return `<tr onclick="openVehicle('${v.id}')">
+          <td class="plate">${v.reg_number}</td>
+          <td>${v.make||''} ${v.model||''} ${v.year||''}</td>
+          <td>${v.driver_name||'—'}</td>
+          <td>${v.department||'—'}</td>
+          <td>${requiredDocPill(v.insurance_expiry)} <span style="color:var(--muted); font-size:11.5px;">${fmtDate(v.insurance_expiry)||'—'}</span></td>
+          <td>${requiredDocPill(v.fitness_expiry)} <span style="color:var(--muted); font-size:11.5px;">${fmtDate(v.fitness_expiry)||'—'}</span></td>
+          <td>${requiredDocPill(v.registration_expiry)} <span style="color:var(--muted); font-size:11.5px;">${fmtDate(v.registration_expiry)||'—'}</span></td>
+          <td style="opacity:.6;">${statusPill(v.next_service_date)} <span style="color:var(--muted); font-size:11.5px;">${fmtDate(v.next_service_date)||'—'}</span></td>
+          <td>${pending ? `<span class="pill pending">${pending} pending</span>` : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+  document.getElementById('tableWrap').innerHTML = html;
+}
+
+async function openVehicle(id){
+  const v = vehicles.find(x=>x.id===id);
+  if(!v) return;
+  const docsRes = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?vehicle_id=eq.${id}&select=*&order=uploaded_at.desc`, {headers});
+  const docs = await docsRes.json();
+  const fieldRow = (label, key, type='text') => `<div class="field"><label>${label}</label><input type="${type}" id="f-${key}" value="${v[key] ?? ''}"></div>`;
+
+  document.getElementById('modalContent').innerHTML = `
+    <button class="close-x" onclick="closeModal()">×</button>
+    <h2>${v.reg_number}</h2>
+    <p class="sub">${v.make||''} ${v.model||''} ${v.year||''}</p>
+    <div class="section-title">Vehicle Details</div>
+    <div class="form-grid">
+      ${fieldRow('Make','make')} ${fieldRow('Model','model')} ${fieldRow('Year','year','number')}
+      ${fieldRow('Department','department')} ${fieldRow('Driver / Officer','driver_name')} ${fieldRow('Current Mileage','current_mileage','number')}
+    </div>
+    <div class="section-title">Documents &amp; Expiry</div>
+    <div class="form-grid">
+      ${fieldRow('Insurance Expiry','insurance_expiry','date')} ${fieldRow('Fitness Expiry','fitness_expiry','date')}
+      ${fieldRow('Registration Expiry','registration_expiry','date')} ${fieldRow('Carriers License Expiry','carriers_license_expiry','date')}
+    </div>
+    <div class="section-title">Service <span style="opacity:.6; text-transform:none; letter-spacing:0; font-weight:400;">(5,000 km / 6 months, whichever first)</span></div>
+    <div class="form-grid">
+      ${fieldRow('Next Service Date','next_service_date','date')} ${fieldRow('Service Interval (km)','service_interval_km','number')}
+      ${fieldRow('Last Service Mileage','last_service_mileage','number')} ${fieldRow('Last Service Date','last_service_date','date')}
+    </div>
+    <div style="margin:-8px 0 8px;">
+      <button class="btn small ghost" onclick="markServiced('${v.id}')">Mark as Serviced Today</button>
+      <span style="font-size:11.5px; color:var(--muted); margin-left:8px;">Resets the interval using current mileage${v.current_mileage ? ` (${v.current_mileage.toLocaleString()} km)` : ''} and today's date.</span>
+    </div>
+    ${docs.length ? `
+    <div class="section-title">Uploaded Documents (${docs.length})</div>
+    ${docs.map(d=>`
+      <div class="doc-row">
+        <div class="left">
+          <span class="pill ${d.status==='pending_review'?'pending':d.status==='approved'?'ok':'bad'}">${d.status.replace('_',' ')}</span>
+          <span>${d.doc_type}</span>
+          <span class="meta">uploaded ${fmtDate(d.uploaded_at?.slice(0,10))||''}</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <a href="${d.file_url}" target="_blank">View</a>
+          ${d.status==='pending_review' ? `<button class="btn small" onclick="approveDoc('${d.id}','${d.vehicle_id}')">Approve</button>` : ''}
+        </div>
+      </div>
+    `).join('')}` : ''}
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveVehicle('${v.id}')">Save Changes</button>
+    </div>
+  `;
+  document.getElementById('modalBg').classList.add('show');
+}
+
+async function approveDoc(docId, vehicleId){
+  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?id=eq.${docId}`, {
+    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
+    body: JSON.stringify({status:'approved', reviewed_at: new Date().toISOString()})
+  });
+  await loadAll();
+  openVehicle(vehicleId);
+}
+
+async function markServiced(id){
+  const v = vehicles.find(x=>x.id===id);
+  if(!v) return;
+  const today = new Date().toISOString().slice(0,10);
+  const nextDate = new Date();
+  nextDate.setMonth(nextDate.getMonth() + (v.service_interval_months || 6));
+  const payload = {
+    last_service_date: today,
+    last_service_mileage: v.current_mileage || v.last_service_mileage || null,
+    next_service_date: nextDate.toISOString().slice(0,10),
+    updated_at: new Date().toISOString(),
+  };
+  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
+    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
+  });
+  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_service_log`, {
+    method:'POST', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
+    body: JSON.stringify({ vehicle_id: id, service_date: today, mileage_at_service: v.current_mileage || null, logged_by: 'admin_dashboard' })
+  });
+  await loadAll();
+  openVehicle(id);
+  toast('Marked as serviced \u2014 interval reset');
+}
+
+async function saveVehicle(id){
+  const keys = ['make','model','year','department','driver_name','current_mileage',
+    'insurance_expiry','fitness_expiry','registration_expiry','carriers_license_expiry',
+    'next_service_date','service_interval_km','last_service_mileage','last_service_date'];
+  const payload = {};
+  keys.forEach(k=>{
+    const el = document.getElementById(`f-${k}`);
+    let val = el.value;
+    if(val === '') val = null;
+    else if(['year','current_mileage','service_interval_km','last_service_mileage'].includes(k)) val = parseInt(val,10);
+    payload[k] = val;
+  });
+  payload.updated_at = new Date().toISOString();
+  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
+    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
+  });
+  closeModal();
+  await loadAll();
+}
+
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+function openAddVehicle(){
+  document.getElementById('modalContent').innerHTML = `
+    <button class="close-x" onclick="closeModal()">×</button>
+    <h2>Add Vehicle</h2>
+    <p class="sub">Enter the registration number and basic details.</p>
+    <div class="form-grid">
+      <div class="field"><label>Reg. Number *</label><input id="new-reg" placeholder="e.g. 4442KK"></div>
+      <div class="field"><label>Make</label><input id="new-make"></div>
+      <div class="field"><label>Model</label><input id="new-model"></div>
+      <div class="field"><label>Year</label><input id="new-year" type="number"></div>
+      <div class="field"><label>Department</label><input id="new-department"></div>
+      <div class="field"><label>Driver / Officer</label><input id="new-driver"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="createVehicle()">Add Vehicle</button>
+    </div>
+  `;
+  document.getElementById('modalBg').classList.add('show');
+}
+
+async function createVehicle(){
+  const reg = document.getElementById('new-reg').value.trim().toUpperCase();
+  if(!reg){ alert('Registration number is required'); return; }
+  const payload = {
+    reg_number: reg,
+    make: document.getElementById('new-make').value || null,
+    model: document.getElementById('new-model').value || null,
+    year: parseInt(document.getElementById('new-year').value,10) || null,
+    department: document.getElementById('new-department').value || null,
+    driver_name: document.getElementById('new-driver').value || null,
+  };
+  const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles`, {
+    method:'POST', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
+  });
+  if(!res.ok){ alert('Could not add vehicle — reg number may already exist.'); return; }
+  closeModal();
+  await loadAll();
+}
+
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('filterStatus').addEventListener('change', renderTable);
+document.getElementById('sortBy').addEventListener('change', renderTable);
+document.getElementById('refreshBtn').addEventListener('click', loadAll);
+document.getElementById('addVehicleBtn').addEventListener('click', openAddVehicle);
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+</script>
+
+<!-- Auth. Access is gated to signed-in managers/admins via DFL_PAGE_ROLES in
+     /shared/routes.js. The guard no-ops when framed, so embedding this page in
+     management/index.html's tab panels is unaffected. -->
+<script>
+window.DFL_PAGE_TITLE = 'Fleet Management';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+</body>
+</html>

@@ -728,7 +728,7 @@
     <!-- INFO BANNER -->
     <div class="info-banner blue" id="info-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      <span>The week for the next Tuesday meeting is pre-selected above — change it only if you're adding a late report for an earlier week. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
+      <span>The current reporting week (Wed–Mon) is pre-selected above — change it only if you're adding a late report for an earlier week. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
     </div>
 
     <!-- DEPT GRID -->
@@ -1071,37 +1071,46 @@
     currentProfile = e.detail.profile;
   });
 
-  // ── WEEK GENERATION ── current week + the previous N-1 (Mon–Fri), newest first
-  function getMondayWeeks(count) {
+  // ── WEEK GENERATION ── current week + the previous N-1 (Wed–Mon), newest
+  // first. Report weeks run Wednesday through the following Monday — the
+  // meeting reviewing that week is the very next day, Tuesday.
+  //
+  // Every calendar day maps to exactly one report week, with Tuesday as the
+  // special case: it's meeting day for the week that ended yesterday
+  // (Monday), not the start of a new one. Using Wednesday(3) as the anchor,
+  // `(dayOfWeek + 4) % 7` gives days-since-this-week's-Wednesday for every day
+  // 0-6 — and, as a side effect of the arithmetic (not a special case), it
+  // naturally comes out to 6 for Tuesday, i.e. "6 days after the Wednesday
+  // that started the week which just ended." Same trick the old Monday-based
+  // version used, just shifted to a different anchor day.
+  function getReportWeeks(count) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
-    const daysSinceMonday = (dayOfWeek + 6) % 7;
-    const thisMonday = new Date(today);
-    thisMonday.setDate(today.getDate() - daysSinceMonday);
+    const daysSinceWed = (dayOfWeek + 4) % 7;
+    const thisWedStart = new Date(today);
+    thisWedStart.setDate(today.getDate() - daysSinceWed);
 
     const list = [];
     for (let i = 0; i < count; i++) {
-      const monday = new Date(thisMonday);
-      monday.setDate(thisMonday.getDate() - (7 * i));
-      const friday = new Date(monday);
-      friday.setDate(monday.getDate() + 4);
-      // The meeting reviewing this week's reports is the Tuesday of the
-      // FOLLOWING week — Monday + 7 (next Monday) + 1 (that Tuesday) = +8.
-      const meetingDate = new Date(monday);
-      meetingDate.setDate(monday.getDate() + 8);
-      list.push({ monday, friday, meetingDate });
+      const weekStart = new Date(thisWedStart);
+      weekStart.setDate(thisWedStart.getDate() - (7 * i));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 5); // Wed + 5 = Mon
+      const meetingDate = new Date(weekEnd);
+      meetingDate.setDate(weekEnd.getDate() + 1); // Mon + 1 = Tue
+      list.push({ weekStart, weekEnd, meetingDate });
     }
     return list;
   }
 
   function formatWeekLabel(w) {
     const opts = { month: 'short', day: 'numeric' };
-    const start = w.monday.toLocaleDateString('en-JM', opts);
-    const end = w.monday.getMonth() === w.friday.getMonth()
-      ? w.friday.toLocaleDateString('en-JM', { day: 'numeric' })
-      : w.friday.toLocaleDateString('en-JM', opts);
-    return `${start} – ${end}, ${w.friday.getFullYear()}`;
+    const start = w.weekStart.toLocaleDateString('en-JM', opts);
+    const end = w.weekStart.getMonth() === w.weekEnd.getMonth()
+      ? w.weekEnd.toLocaleDateString('en-JM', { day: 'numeric' })
+      : w.weekEnd.toLocaleDateString('en-JM', opts);
+    return `${start} – ${end}, ${w.weekEnd.getFullYear()}`;
   }
 
   function formatMeetingLabel(w) {
@@ -1120,20 +1129,15 @@
     return startOfToday() > w.meetingDate;
   }
 
-  // The week most managers mean by default: the most recent one that's
-  // actually finished (Friday has passed), i.e. the one due at the next
-  // Tuesday meeting. Falls back to the in-progress current week only if even
-  // THAT hasn't started yet (shouldn't happen with a 12-week window).
+  // Always the current week (today's, per the Tuesday-aware mapping above) —
+  // index 0 by construction of getReportWeeks, whether or not that week has
+  // actually finished yet.
   function defaultWeekIndex() {
-    const today = startOfToday();
-    for (let i = 0; i < weeks.length; i++) {
-      if (weeks[i].friday <= today) return i;
-    }
     return 0;
   }
 
   function populateWeekSelect() {
-    weeks = getMondayWeeks(12);
+    weeks = getReportWeeks(12);
     const today = startOfToday();
     const defaultIdx = defaultWeekIndex();
     const sel = document.getElementById('week-select');
@@ -1142,9 +1146,13 @@
       const opt = document.createElement('option');
       opt.value = i;
       let tag;
-      if (w.friday > today) tag = ` — in progress, due ${formatMeetingLabel(w)}`;
-      else if (i === defaultIdx) tag = ` — this week's meeting (${formatMeetingLabel(w)})`;
-      else tag = ` — meeting was ${formatMeetingLabel(w)}`;
+      if (i === defaultIdx) {
+        tag = w.weekEnd > today
+          ? ` — this week's meeting (${formatMeetingLabel(w)}) · in progress`
+          : ` — this week's meeting (${formatMeetingLabel(w)})`;
+      } else {
+        tag = ` — meeting was ${formatMeetingLabel(w)}`;
+      }
       opt.textContent = formatWeekLabel(w) + tag;
       sel.appendChild(opt);
     });
@@ -1299,8 +1307,8 @@
   async function runSubmit() {
     const idx = parseInt(document.getElementById('week-select').value);
     const w = weeks[idx];
-    const weekStart = w.monday.toISOString().slice(0, 10);
-    const weekEnd = w.friday.toISOString().slice(0, 10);
+    const weekStart = w.weekStart.toISOString().slice(0, 10);
+    const weekEnd = w.weekEnd.toISOString().slice(0, 10);
     const weekLabel = formatWeekLabel(w);
     const late = isLate(w);
     const compiledBy = (currentProfile && currentProfile.full_name) || 'Management Portal';
