@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · Report Bad Goods</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body { visibility: hidden; }</style>
+<style>
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --navy2:#16264d;
+  --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:640px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:40px;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.mont{font-family:'Montserrat',sans-serif}
+
+.hdr{background:var(--navy);color:#fff;padding:18px 16px;display:flex;align-items:center;gap:12px}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-size:20px;line-height:1}
+.hdr h1{font-size:16px;font-weight:800;margin:0}
+
+.wrap{max-width:var(--content-max);margin:0 auto;padding:16px}
+.card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+
+.store-search-wrap{position:relative}
+.store-search-wrap input{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff}
+.store-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:260px;overflow-y:auto;z-index:20}
+.store-dropdown.open{display:block}
+.store-opt{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+.store-opt:last-child{border-bottom:none}
+.store-opt:active{background:#F0F2FA}
+.store-opt .so-name{font-size:13px;font-weight:700}
+.store-none{padding:14px;text-align:center;font-size:12px;color:var(--mut)}
+
+.selected-store{display:none;align-items:center;justify-content:space-between;gap:10px;background:#EEF2FF;border:1.5px solid var(--blue);border-radius:10px;padding:10px 12px;margin-top:8px}
+.selected-store.on{display:flex}
+.selected-store .nm{font-size:13px;font-weight:700;color:var(--navy)}
+.selected-store button{background:none;border:none;color:var(--mut);font-size:13px;cursor:pointer;font-weight:700}
+
+textarea{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;height:80px;resize:none}
+
+.photo-section{margin-top:6px}
+.photo-btn{width:100%;background:var(--navy2);color:#fff;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.photo-thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:10px}
+.photo-thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-thumb .up{position:absolute;inset:0;background:rgba(13,27,62,.55);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center}
+.photo-thumb .del{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:13px;line-height:1;cursor:pointer}
+
+.bg-status{font-size:11px;font-weight:700;color:var(--bad);text-align:center;margin-top:10px}
+
+.submit-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;margin-top:6px}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.empty{text-align:center;padding:40px 20px;color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="/index.html" title="Back">‹</a>
+  <h1 class="mont">📦 Report Bad Goods</h1>
+</div>
+
+<div class="wrap">
+  <div id="boot-msg" class="empty">Loading…</div>
+
+  <div id="form-wrap" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label>Store</label>
+        <div class="store-search-wrap" id="store-wrap">
+          <input type="text" id="store-input" placeholder="🔍 Search your stores…" autocomplete="off" oninput="filterStores(this.value)" onfocus="filterStores(this.value)">
+          <div class="store-dropdown" id="store-drop"></div>
+        </div>
+        <div class="selected-store" id="selected-store">
+          <span class="nm" id="selected-store-name"></span>
+          <button type="button" onclick="clearStore()">Change</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>Note</label>
+        <textarea id="bg-note" placeholder="e.g. 9oz sleeves coming burst, or customer storing product wrong causing damage"></textarea>
+      </div>
+
+      <div class="field photo-section">
+        <label>🧾 Receipt photo(s)</label>
+        <input type="file" id="receipt-input" accept="image/*" capture="environment" onchange="handlePhotoSelect('receipt',this.files)" style="display:none">
+        <button type="button" class="photo-btn" onclick="document.getElementById('receipt-input').value='';document.getElementById('receipt-input').click()">📷 Add receipt photo</button>
+        <div class="photo-thumb-grid" id="receipt-grid"></div>
+      </div>
+
+      <div class="field photo-section">
+        <label>📦 Product photo(s)</label>
+        <input type="file" id="product-input" accept="image/*" capture="environment" onchange="handlePhotoSelect('product',this.files)" style="display:none">
+        <button type="button" class="photo-btn" onclick="document.getElementById('product-input').value='';document.getElementById('product-input').click()">📷 Add product photo</button>
+        <div class="photo-thumb-grid" id="product-grid"></div>
+      </div>
+
+      <div class="bg-status" id="bg-status">Add at least 1 photo (receipt or product) to continue</div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitBadGoods()" disabled>Submit report →</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
+const SB_STORAGE=SB_URL+"/storage/v1";
+const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+
+let ME=null;       // {id, full_name, role} — from the dfl-auth-ready profile
+let MY_STORES=[];  // {id,name} from rep_customer_cache
+let storeSelected={id:'',name:''};
+const PHOTOS={receipt:[],product:[]};
+
+document.addEventListener('dfl-auth-ready', (e) => { initPage(e.detail.profile); });
+
+async function initPage(profile){
+  ME = {id: profile.rep_id, full_name: profile.full_name, role: profile.role};
+  try{
+    const rows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(profile.full_name)}&select=customer_id,customer_name&order=customer_name`,{headers:H}).then(r=>r.json());
+    MY_STORES = (Array.isArray(rows)?rows:[]).map(r=>({id:r.customer_id,name:r.customer_name}));
+  }catch(e){ console.error('customer list load failed:',e); }
+  document.getElementById('boot-msg').style.display='none';
+  document.getElementById('form-wrap').style.display='block';
+}
+
+// ── STORE PICKER (client-side filter over MY_STORES, same idiom as index.html's drawList) ──
+function filterStores(q){
+  const drop=document.getElementById('store-drop');
+  const ql=(q||'').toLowerCase();
+  const matches = ql ? MY_STORES.filter(s=>s.name.toLowerCase().includes(ql)) : MY_STORES;
+  if(!matches.length){
+    drop.innerHTML='<div class="store-none">No matching stores</div>';
+  } else {
+    drop.innerHTML=matches.slice(0,30).map(s=>`<div class="store-opt" data-id="${encodeURIComponent(s.id)}" data-nm="${encodeURIComponent(s.name)}" onclick="selectStore(this)"><div class="so-name">${escapeHtml(s.name)}</div></div>`).join('');
+  }
+  drop.classList.add('open');
+}
+function selectStore(el){
+  storeSelected = {id: decodeURIComponent(el.dataset.id), name: decodeURIComponent(el.dataset.nm)};
+  document.getElementById('store-drop').classList.remove('open');
+  document.getElementById('store-input').value='';
+  document.getElementById('store-wrap').style.display='none';
+  document.getElementById('selected-store').classList.add('on');
+  document.getElementById('selected-store-name').textContent=storeSelected.name;
+  updateGating();
+}
+function clearStore(){
+  storeSelected={id:'',name:''};
+  document.getElementById('store-wrap').style.display='block';
+  document.getElementById('selected-store').classList.remove('on');
+  updateGating();
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#store-wrap')) document.getElementById('store-drop').classList.remove('open');
+});
+
+// ── PHOTOS (receipt + product) — same compress-then-upload approach as the merch app ──
+const PHOTO_MAX_DIM=1600, PHOTO_JPEG_QUALITY=0.75;
+function compressImage(file){
+  return new Promise(function(resolve){
+    const objUrl=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=function(){
+      URL.revokeObjectURL(objUrl);
+      const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      const scale=Math.min(1, PHOTO_MAX_DIM/Math.max(w||PHOTO_MAX_DIM,h||PHOTO_MAX_DIM));
+      const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+      const canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+      canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+      if(canvas.toBlob) canvas.toBlob(function(b){resolve(b||file);},'image/jpeg',PHOTO_JPEG_QUALITY);
+      else resolve(file);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src=objUrl;
+  });
+}
+
+function handlePhotoSelect(kind, files){
+  if(!files||!files.length) return;
+  Array.from(files).forEach(function(file){
+    const entry={file:null, previewUrl:null, uploadedUrl:null, uploading:false, compressing:true};
+    PHOTOS[kind].push(entry);
+    compressImage(file).then(function(blob){
+      const i=PHOTOS[kind].indexOf(entry);
+      if(i===-1) return;
+      entry.file=blob; entry.previewUrl=URL.createObjectURL(blob); entry.compressing=false;
+      renderThumbs(kind); updateGating();
+      uploadPhoto(kind, i);
+    });
+  });
+  renderThumbs(kind); updateGating();
+}
+
+async function uploadPhoto(kind, i){
+  const p=PHOTOS[kind][i];
+  if(!p||p.uploadedUrl||p.uploading) return;
+  p.uploading=true; renderThumbs(kind);
+  try{
+    const ext = p.file.type==='image/jpeg' ? 'jpg' : (p.file.type||'').split('/').pop() || 'jpg';
+    const uname = (ME&&ME.full_name)?ME.full_name.replace(/\s+/g,'_'):'rep';
+    const cid = storeSelected.id||'unknown';
+    const path = uname+'/'+cid+'/'+Date.now()+'_'+kind+'_'+i+'.'+ext;
+    const res = await fetch(SB_STORAGE+'/object/bad-goods-photos/'+path,{
+      method:'POST', headers:Object.assign({},H,{'Content-Type':p.file.type,'x-upsert':'true'}), body:p.file
+    });
+    if(!res.ok) throw new Error(await res.text());
+    p.uploadedUrl = SB_STORAGE+'/object/public/bad-goods-photos/'+path;
+    p.uploading=false; renderThumbs(kind);
+  }catch(e){
+    p.uploading=false; renderThumbs(kind);
+    console.error('photo upload failed:',e);
+  }
+}
+
+function renderThumbs(kind){
+  const grid=document.getElementById(kind+'-grid');
+  grid.innerHTML='';
+  PHOTOS[kind].forEach(function(p,i){
+    const div=document.createElement('div'); div.className='photo-thumb';
+    if(p.previewUrl){ const img=document.createElement('img'); img.src=p.previewUrl; div.appendChild(img); }
+    if(p.uploading){ const ov=document.createElement('div'); ov.className='up'; ov.textContent='Uploading…'; div.appendChild(ov); }
+    else if(p.compressing){ const ov=document.createElement('div'); ov.className='up'; ov.textContent='Processing…'; div.appendChild(ov); }
+    const del=document.createElement('button'); del.className='del'; del.textContent='×';
+    del.onclick=function(){ removePhoto(kind,i); };
+    div.appendChild(del);
+    grid.appendChild(div);
+  });
+}
+
+function removePhoto(kind, i){
+  const p=PHOTOS[kind][i];
+  if(!p) return;
+  if(p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+  if(p.uploadedUrl){
+    const path=p.uploadedUrl.split('/bad-goods-photos/')[1];
+    if(path) fetch(SB_STORAGE+'/object/bad-goods-photos/'+path,{method:'DELETE',headers:H,body:'{}'}).catch(function(){});
+  }
+  PHOTOS[kind].splice(i,1);
+  renderThumbs(kind); updateGating();
+}
+
+function totalPhotoCount(){ return PHOTOS.receipt.length + PHOTOS.product.length; }
+
+function updateGating(){
+  const btn=document.getElementById('submit-btn');
+  const met = !!storeSelected.id && totalPhotoCount()>0;
+  btn.disabled=!met;
+  document.getElementById('bg-status').style.display = totalPhotoCount()>0 ? 'none' : 'block';
+}
+
+async function ensureAllUploaded(){
+  const kinds=['receipt','product'];
+  for(const kind of kinds){
+    const toUpload = PHOTOS[kind].map((p,i)=>i).filter(i=>!PHOTOS[kind][i].uploadedUrl);
+    await Promise.all(toUpload.map(i=>uploadPhoto(kind,i)));
+  }
+}
+
+async function submitBadGoods(){
+  if(!storeSelected.id || totalPhotoCount()===0) return;
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
+  try{
+    await ensureAllUploaded();
+    const res = await fetch(SB_URL+'/rest/v1/bad_goods_reports',{
+      method:'POST',
+      headers:Object.assign({},H,{'Content-Type':'application/json','Prefer':'return=minimal'}),
+      body:JSON.stringify({
+        reported_by_id: ME.id, reported_by_name: ME.full_name, reported_by_role: ME.role,
+        customer_id: storeSelected.id, customer_name: storeSelected.name,
+        visit_id: null,
+        note: document.getElementById('bg-note').value.trim()||null,
+        receipt_photo_urls: PHOTOS.receipt.filter(p=>p.uploadedUrl).map(p=>p.uploadedUrl),
+        product_photo_urls: PHOTOS.product.filter(p=>p.uploadedUrl).map(p=>p.uploadedUrl)
+      })
+    });
+    if(!res.ok) throw new Error(await res.text());
+    alert('Bad-goods report submitted.');
+    window.location.href='/index.html';
+  }catch(e){
+    alert('Could not submit — check connection and try again.');
+    console.error(e);
+    btn.disabled=false; btn.textContent='Submit report →';
+  }
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

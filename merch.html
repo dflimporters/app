@@ -194,6 +194,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .out-opt.o-ok.on{border-color:var(--green);background:var(--green-lt);color:var(--green)}
 .out-opt.o-iss.on{border-color:var(--red);background:var(--red-lt);color:var(--red)}
 .out-opt.o-pen.on{border-color:var(--amber);background:var(--amber-lt);color:var(--amber)}
+.out-opt.o-no.on{border-color:var(--green);background:var(--green-lt);color:var(--green)}
+.out-opt.o-bad.on{border-color:var(--red);background:var(--red-lt);color:var(--red)}
 
 /* SUBMIT */
 .submit-btn{background:var(--navy);color:#fff;border:none;border-radius:var(--rad);padding:16px;font-size:15px;font-weight:700;cursor:pointer;width:100%;box-shadow:0 2px 10px rgba(27,43,94,0.28);transition:opacity .15s,transform .1s}
@@ -436,6 +438,14 @@ body.dfl-readonly .readonly-note{display:block}
         </div>
       </div>
 
+      <!-- ROUTE CHANGE PREVIEW — read-only, populated by loadPendingRouteChanges().
+           Hidden entirely when there's nothing pending for this merchandiser. -->
+      <div id="m-pending-route-card" style="display:none;background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:var(--rad-sm);padding:12px 14px;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:800;color:var(--navy);margin-bottom:2px">📅 Route change coming <span id="m-pending-route-date"></span></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Preview only — you can't log visits here yet. Your current stores are unaffected until then.</div>
+        <div id="m-pending-route-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
       <!-- SECONDARY ACTIONS -->
       <div onclick="goTab('tab-stock');setNav('n-stock')" style="background:var(--red-lt);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--red);margin-bottom:4px">
         <div style="font-size:24px">⚠️</div>
@@ -463,6 +473,16 @@ body.dfl-readonly .readonly-note{display:block}
           <div style="font-size:10px;color:var(--muted)">Complete your self-evaluation or review a team member</div>
         </div>
         <div style="font-size:16px;color:var(--navy)">›</div>
+      </div>
+
+      <!-- REQUEST LEAVE -->
+      <div onclick="openLeaveModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">🌴</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Request Leave</div>
+          <div style="font-size:10px;color:var(--muted)">Submit a vacation or sick day request</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
       <!-- RECENT STORES QUICK ACCESS (assigned-route widget — hidden for relief, who has none) -->
@@ -597,6 +617,37 @@ body.dfl-readonly .readonly-note{display:block}
           </div>
         </div>
         <div class="field">
+          <label>Bad goods to report?</label>
+          <div class="outcome-row">
+            <div class="out-opt o-no" id="bg-no" onclick="setBadGoods('no')">No bad goods</div>
+            <div class="out-opt o-bad" id="bg-yes" onclick="setBadGoods('yes')">⚠ Yes, report bad goods</div>
+          </div>
+        </div>
+        <div class="field" id="bg-panel" style="display:none;background:var(--red-lt);border:2px solid var(--red);border-radius:var(--rad-sm);padding:12px">
+          <label style="font-weight:800;color:var(--red)">📦 Bad goods details</label>
+          <textarea id="bg-note" placeholder="e.g. 9oz sleeves coming burst, or customer storing product wrong causing damage" style="height:70px;resize:none;width:100%;margin-top:8px;padding:10px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-family:inherit;font-size:13px;box-sizing:border-box"></textarea>
+
+          <div style="margin-top:12px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">🧾 Receipt photo(s)</div>
+            <input type="file" id="bg-receipt-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('receipt',this.files)" style="display:none">
+            <button type="button" onclick="document.getElementById('bg-receipt-input').value='';document.getElementById('bg-receipt-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+              <span style="font-size:18px">📷</span><span>Add receipt photo</span>
+            </button>
+            <div class="photo-thumb-grid" id="bg-receipt-grid" style="margin-top:8px"></div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">📦 Product photo(s)</div>
+            <input type="file" id="bg-product-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('product',this.files)" style="display:none">
+            <button type="button" onclick="document.getElementById('bg-product-input').value='';document.getElementById('bg-product-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+              <span style="font-size:18px">📷</span><span>Add product photo</span>
+            </button>
+            <div class="photo-thumb-grid" id="bg-product-grid" style="margin-top:8px"></div>
+          </div>
+
+          <div id="bg-status" style="font-size:11px;text-align:center;font-weight:600;color:var(--red);margin-top:10px">Add at least 1 photo (receipt or product) to continue</div>
+        </div>
+        <div class="field">
           <label>Notes / competitor sighting</label>
           <div class="notes-wrap">
             <textarea id="vf-notes" placeholder="Type or tap 🎤 to speak…" style="height:80px;resize:none" oninput="onVisitNotesInput()"></textarea>
@@ -612,7 +663,7 @@ body.dfl-readonly .readonly-note{display:block}
             </div>
           </div>
         </div>
-        <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="closeOutVisit()">Close out — leaving store →</button>
+        <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="closeOutVisit()" disabled style="opacity:.4;cursor:not-allowed">Close out — leaving store →</button>
       </div>
     </div>
 
@@ -806,6 +857,48 @@ body.dfl-readonly .readonly-note{display:block}
       <div id="tl-reassign-panel" style="display:none;margin-bottom:16px"></div>
     </div>
 
+    <div class="hide-when-readonly">
+      <div class="sec-hdr" style="margin-top:6px">📍 Log a visit</div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 8px">Filling in for a merchandiser? Log a visit for any store — it's tagged as covered by you.</div>
+      <button class="dash-link" onclick="tlStartAdHocVisit()" style="cursor:pointer;border-color:var(--navy);background:var(--blue-lt);width:100%;text-align:left;font:inherit;margin-bottom:16px">
+        <div class="dash-link-ico">📍</div>
+        <div><div class="dash-link-title" style="color:var(--navy)">Log a visit</div><div class="dash-link-sub">Pick any store and run the normal visit form</div></div>
+        <div class="dash-link-arr" style="color:var(--navy)">›</div>
+      </button>
+    </div>
+
+    <div class="hide-when-readonly">
+      <div class="sec-hdr" style="margin-top:6px">Submit bad goods</div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 8px">Search any store and report damaged product — no visit needed.</div>
+      <div class="store-search-wrap" id="tl-badgoods-wrap" style="margin-bottom:8px">
+        <input type="text" id="tl-badgoods-input" placeholder="🔍 Search stores…" autocomplete="off" oninput="tlSearchBadGoods(this.value)" style="width:100%;padding:10px 34px 10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
+        <div class="store-dropdown" id="tl-badgoods-drop"></div>
+      </div>
+      <div id="tl-badgoods-panel" style="display:none;margin-bottom:16px"></div>
+    </div>
+
+    <button class="dash-link" onclick="openTLTeamStores()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">🏪</div>
+      <div><div class="dash-link-title">Team Stores</div><div class="dash-link-sub">Target & sales for every store across your team</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link hide-when-readonly" onclick="openLeaveModal()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">🌴</div>
+      <div><div class="dash-link-title">Request Leave</div><div class="dash-link-sub">Submit a vacation or sick day request</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <div id="tl-upcoming-leave-wrap" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">🌴 Upcoming leave</div>
+      <div id="tl-upcoming-leave-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
+
+    <div id="tl-leave-requests-wrap" class="hide-when-readonly" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">Leave requests</div>
+      <div id="tl-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
+
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <span>Today's activity</span>
@@ -844,6 +937,11 @@ body.dfl-readonly .readonly-note{display:block}
       <div><div class="dash-link-title">Merch Commission Dashboard</div><div class="dash-link-sub">Full team performance & commission view</div></div>
       <div class="dash-link-arr">↗</div>
     </a>
+
+    <div id="admin-leave-requests-wrap" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">Team leader leave requests</div>
+      <div id="admin-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
 
     <div>
       <div class="sec-hdr" id="tl-ov-hdr">Team leaders</div>
@@ -946,6 +1044,7 @@ const _curMonthNum = _now.getMonth()+1;
 const _curPeriod = String(_curYear)+String(_curMonthNum).padStart(2,'0');
 const _curLabel = _curMonthName+' '+_curYear;
 let visits=[],issueCount=0,catState={},outcome='ok';
+let badGoodsFlag=null; // null (unanswered) | 'no' | 'yes' — gates #v-sbtn
 let myStores=[];
 let storeSelected={id:'',name:''};
 let sfStoreSelected={name:''};
@@ -972,6 +1071,16 @@ function isRelief(){
   return !!(cu && cu.role==='relief_merchandiser');
 }
 
+// Set true only while a team leader is running the visit wizard via
+// "Log a visit" on their own screen (tlStartAdHocVisit()) — never for a
+// merchandiser's/relief's own normal visits.
+let tlAdHocVisit=false;
+
+function currentVisitType(){
+  if(tlAdHocVisit) return 'tl_covered';
+  return isRelief() ? 'relief' : 'regular';
+}
+
 // Hides every target/commission/KPI/route-bound surface on the merchandiser
 // home screen for a relief login — "Stores achieving"/"Period achievement"
 // stats, the My Stores tab (nav + tile + quick-access widget, all three are
@@ -983,7 +1092,7 @@ function applyReliefUI(){
   const relief=isRelief();
   const hide=function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; };
   const show=function(id){ const el=document.getElementById(id); if(el) el.style.display=''; };
-  if(relief){
+  if(relief || tlAdHocVisit){
     hide('m-squal-box'); hide('m-pct-box');
     hide('m-mystores-btn'); hide('n-stores');
     hide('m-eval-tile'); hide('m-quickstores-section');
@@ -1130,20 +1239,35 @@ async function launchMerch(u){
       hdrActions.insertBefore(tlBtn,hdrActions.firstChild);
     }
   }
+  // Plain team_leader has no "home" screen here otherwise — only reachable
+  // via tlStartAdHocVisit(), so it needs its own way back (tl_merch already
+  // gets one above, and that same button also works while covering ad hoc).
+  if(u&&u.role==='team_leader'&&tlAdHocVisit&&!document.getElementById('merch-tl-back-btn')){
+    const hdrActions=document.querySelector('#s-merch .hdr-actions');
+    if(hdrActions){
+      const backBtn=document.createElement('button');
+      backBtn.id='merch-tl-back-btn';
+      backBtn.textContent='‹ Back to team';
+      backBtn.style.cssText='background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;margin-right:6px';
+      backBtn.onclick=function(){ tlEndAdHocVisit(); };
+      hdrActions.insertBefore(backBtn,hdrActions.firstChild);
+    }
+  }
   // Update dynamic month labels
   const lbl = document.getElementById('stores-month-lbl');
   if(lbl) lbl.textContent = 'My stores — '+_curLabel;
   // Start geolocation watch
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
-  await Promise.all([loadMyStores(u), loadTodayVisits(u)]);
+  await Promise.all([loadMyStores(u), loadTodayVisits(u), loadPendingRouteChanges(u)]);
   restoreVisitDraft();
 }
 
 async function loadMyStores(u){
-  if(isRelief()){
+  if(isRelief() || tlAdHocVisit){
     // Relief has no route — merchandiser_map has nothing under their name.
-    // They search any store nationwide instead, via the fallback search
+    // A team leader covering ad hoc (tlAdHocVisit) has no route here either.
+    // Both search any store nationwide instead, via the fallback search
     // already built into filterStores()/filterStoresSF() below.
     myStores=[];
     return;
@@ -1156,6 +1280,31 @@ async function loadMyStores(u){
     buildDropdown('sf-store-drop',myStores,'sf');
     if(!myStores.length)console.warn('No stores found for',u.full_name);
   }catch(e){console.error('stores error:',e);}
+}
+
+// Read-only preview of an upcoming route change (pending_route_changes),
+// scheduled to actually apply to merchandiser_map on effective_date by the
+// apply-pending-route-changes cron job — nothing here grants real access.
+async function loadPendingRouteChanges(u){
+  const card=document.getElementById('m-pending-route-card');
+  if(!card || !u || !u.full_name){ if(card) card.style.display='none'; return; }
+  try{
+    const rows=await rest(`pending_route_changes?to_merchandiser_name=eq.${encodeURIComponent(u.full_name)}&applied=eq.false&order=customer_name&select=customer_id,customer_name,effective_date`);
+    if(!rows||!rows.length){ card.style.display='none'; return; }
+    const targets=await rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=in.(${rows.map(r=>r.customer_id).join(',')})&select=customer_id,target_amount`).catch(function(){return [];});
+    const targetById={};
+    (targets||[]).forEach(function(t){ targetById[t.customer_id]=parseFloat(t.target_amount||0); });
+    const dateLbl=new Date(rows[0].effective_date+'T00:00:00').toLocaleDateString('en-JM',{month:'long',day:'numeric'});
+    document.getElementById('m-pending-route-date').textContent=dateLbl;
+    document.getElementById('m-pending-route-list').innerHTML=rows.map(function(r){
+      const tgt=targetById[r.customer_id];
+      return '<div style="display:flex;justify-content:space-between;gap:8px;background:#fff;border-radius:8px;padding:8px 10px">'+
+        '<span style="font-size:12px;font-weight:700">'+escapeHtmlM(r.customer_name)+'</span>'+
+        '<span style="font-size:11px;color:var(--muted);flex-shrink:0">'+(tgt?'Target: $'+Math.round(tgt).toLocaleString():'No target set')+'</span>'+
+      '</div>';
+    }).join('');
+    card.style.display='block';
+  }catch(e){ console.warn('pending route changes load failed:',e); card.style.display='none'; }
 }
 
 async function loadTodayVisits(u){
@@ -1398,7 +1547,7 @@ async function startVisit(){
     latitude:  currentGeo ? currentGeo.lat  : null,
     longitude: currentGeo ? currentGeo.lng  : null,
     geo_accuracy: currentGeo ? currentGeo.acc : null,
-    visit_type: isRelief() ? 'relief' : 'regular'
+    visit_type: currentVisitType()
   };
   activeVisit={id:null, offlineLocalId:null, stage:1, stockLoggedAt:null, photosLoggedAt:null};
   try{
@@ -1473,6 +1622,8 @@ async function savePhotosStage(){
 async function closeOutVisit(){
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!activeVisit){alert('No visit in progress.');return;}
+  if(!badGoodsFlag){alert('Please answer whether there are any bad goods to report.');return;}
+  if(badGoodsFlag==='yes' && bgTotalPhotoCount()===0){alert('Add at least one bad-goods photo (receipt or product) before closing out.');return;}
   const btn=document.getElementById('v-sbtn');
   btn.disabled=true;btn.textContent='Saving…';
   const now=new Date().toISOString();
@@ -1507,12 +1658,32 @@ async function closeOutVisit(){
       updateSyncBadge();
     }
     if(outcome==='issue')issueCount++;
+    // Bad-goods report — submitted alongside the visit, but its own failure
+    // shouldn't trap the merchandiser mid-visit: the visit itself is already
+    // saved above, so we warn and move on rather than blocking the reset.
+    if(badGoodsFlag==='yes'){
+      try{
+        await bgEnsureAllUploaded();
+        await rest('bad_goods_reports',{method:'POST',headers:{'Prefer':'return=minimal'},body:{
+          reported_by_id: cu.id, reported_by_name: cu.full_name, reported_by_role: cu.role,
+          customer_id: storeSelected.id||null, customer_name: storeSelected.name,
+          visit_id: activeVisit.id||null,
+          note: document.getElementById('bg-note').value.trim()||null,
+          receipt_photo_urls: bgUploadedUrls('receipt'),
+          product_photo_urls: bgUploadedUrls('product')
+        }});
+      }catch(bgErr){
+        console.error('bad goods report:',bgErr);
+        alert('Visit closed out, but the bad-goods report failed to submit — please report it again separately.');
+      }
+    }
     renderFeed();
     // reset for next visit
     activeVisit=null;
     clearStore();catState={};['hh','gb','fo','pr','pp','pl','ec','fs','eb','bv','cp','ea','es'].forEach(c=>{document.getElementById('ct-'+c).className='cat-tile';});
     outcome='ok';setOut('ok');document.getElementById('vf-notes').value='';
     resetPhotos();
+    resetBadGoods();
     clearVisitDraft();
     goToVisitStep(1);
     showOv('✅','Visit closed out!','Logged successfully.');
@@ -1672,6 +1843,7 @@ let tlReassignSelected=null;
 let tlReassignDebounce=null;
 
 async function launchTL(u){
+  tlAdHocVisit=false;
   showScreen('s-tl');
   // Name now comes from the header greeting (updateGreeting(), set in
   // startApp()) — this used to duplicate it here as "{name} · {territory}".
@@ -1683,6 +1855,7 @@ async function launchTL(u){
 // Dual role — lands on the TL screen first, with a button to switch to this
 // person's own merch visit form and back.
 async function launchTLMerch(u){
+  tlAdHocVisit=false;
   showScreen('s-tl');
   document.getElementById('tl-terr').textContent=(u.territory||'')+' · TL + Merch';
   if(!document.getElementById('tl-switch-btn')){
@@ -1711,6 +1884,8 @@ async function loadTLData(u){
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
     loadTeamRouteRequests();
+    loadTLLeaveApprovals();
+    loadTLUpcomingLeave();
 
     if(!myNames.length){
       document.getElementById('tl-tot').textContent='0';
@@ -1821,6 +1996,195 @@ async function tlDecideRequest(btn,approve){
   }
 }
 
+// ══════════════════════════════════════════════
+// LEAVE REQUESTS — submission (merchandiser + TL), TL approval of their own
+// merchandisers' requests, admin/manager approval of TL requests, and a
+// 7-day-out "upcoming leave" heads-up for team leaders (in-app only — there
+// is no push/SMS notification infrastructure in this app to hook into).
+// ══════════════════════════════════════════════
+function jobTitleForRole(role){
+  return role==='team_leader' ? 'Team Leader'
+       : role==='tl_merch' ? 'Team Leader / Merchandiser'
+       : role==='relief_merchandiser' ? 'Relief Merchandiser'
+       : 'Merchandiser';
+}
+
+let leaveType=null; // 'vacation' | 'sick'
+
+function openLeaveModal(){
+  document.getElementById('leave-modal').style.display='flex';
+  showLeaveTab('new');
+  leaveType=null;
+  document.getElementById('lv-vacation').classList.remove('on');
+  document.getElementById('lv-sick').classList.remove('on');
+  document.getElementById('lv-days').value='';
+  document.getElementById('lv-from').value='';
+  document.getElementById('lv-to').value='';
+  document.getElementById('lv-notes').value='';
+  document.getElementById('lv-status').textContent='';
+}
+function closeLeaveModal(){
+  document.getElementById('leave-modal').style.display='none';
+}
+function setLeaveType(v){
+  leaveType=v;
+  document.getElementById('lv-vacation').classList.toggle('on', v==='vacation');
+  document.getElementById('lv-sick').classList.toggle('on', v==='sick');
+}
+function showLeaveTab(tab){
+  const isNew=tab==='new';
+  document.getElementById('leave-panel-new').style.display=isNew?'block':'none';
+  document.getElementById('leave-panel-mine').style.display=isNew?'none':'block';
+  const newBtn=document.getElementById('leave-tab-new'), mineBtn=document.getElementById('leave-tab-mine');
+  newBtn.style.background=isNew?'var(--navy)':'#fff'; newBtn.style.color=isNew?'#fff':'var(--muted)'; newBtn.style.borderColor=isNew?'var(--navy)':'var(--border)';
+  mineBtn.style.background=isNew?'#fff':'var(--navy)'; mineBtn.style.color=isNew?'var(--muted)':'#fff'; mineBtn.style.borderColor=isNew?'var(--border)':'var(--navy)';
+  if(!isNew) loadMyLeaveRequests();
+}
+
+async function submitLeaveRequest(){
+  if(cu&&cu.viewingAs){alert('You are viewing as another user — writes are disabled.');return;}
+  if(!leaveType){alert('Please select Vacation or Sick.');return;}
+  const days=parseFloat(document.getElementById('lv-days').value);
+  const from=document.getElementById('lv-from').value;
+  const to=document.getElementById('lv-to').value;
+  if(!days||days<=0){alert('Please enter the number of days.');return;}
+  if(!from||!to){alert('Please select both a from and to date.');return;}
+  if(to<from){alert('The "to" date can\'t be before the "from" date.');return;}
+  const btn=document.getElementById('lv-submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
+  try{
+    await rest('leave_requests',{method:'POST',headers:{'Prefer':'return=minimal'},body:{
+      requester_id: cu.id, requester_name: cu.full_name, requester_role: cu.role,
+      job_title: jobTitleForRole(cu.role),
+      leave_type: leaveType, days_requested: days, from_date: from, to_date: to,
+      remarks: document.getElementById('lv-notes').value.trim()||null
+    }});
+    document.getElementById('lv-status').textContent='✓ Submitted — awaiting approval.';
+    document.getElementById('lv-status').style.color='var(--green)';
+    setTimeout(closeLeaveModal, 1200);
+  }catch(e){
+    alert('Could not submit — check connection and try again.');
+    console.error(e);
+  }finally{
+    btn.disabled=false; btn.textContent='Submit for approval →';
+  }
+}
+
+function leaveStatusBadge(status){
+  return status==='approved' ? '<span class="badge b-ok">✓ Approved</span>'
+       : status==='denied' ? '<span class="badge b-issue">✗ Denied</span>'
+       : '<span class="badge" style="background:var(--amber-lt);color:var(--amber)">⏳ Pending</span>';
+}
+
+async function loadMyLeaveRequests(){
+  const list=document.getElementById('leave-mine-list');
+  if(!cu||!cu.id){ list.innerHTML='<div class="empty-feed">Not available.</div>'; return; }
+  list.innerHTML='<div class="spinner"></div>';
+  try{
+    const rows=await rest(`leave_requests?requester_id=eq.${cu.id}&order=created_at.desc&select=*`);
+    if(!rows||!rows.length){ list.innerHTML='<div class="empty-feed">No leave requests yet.</div>'; return; }
+    list.innerHTML=rows.map(r=>`<div class="merch-card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:700">${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'} · ${r.days_requested}d</div>
+        ${leaveStatusBadge(r.status)}
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date}</div>
+      ${r.remarks?`<div style="font-size:12px;margin-top:4px">${escapeHtmlM(r.remarks)}</div>`:''}
+      ${r.status!=='pending'&&r.reviewed_by_name?`<div style="font-size:11px;color:var(--muted);margin-top:4px">By ${escapeHtmlM(r.reviewed_by_name)}</div>`:''}
+    </div>`).join('');
+  }catch(e){ console.error('my leave requests load failed:',e); list.innerHTML='<div class="empty-feed">Failed to load.</div>'; }
+}
+
+// Shared approve/deny — used by both the TL (approving their merchandisers)
+// and the admin screen (approving team leaders). Re-runs whichever loader
+// the caller passes so the list refreshes without a full page reload.
+async function decideLeaveRequest(btn,id,approve,reloadFn){
+  if(approve && !confirm('Approve this leave request?')) return;
+  if(!approve && !confirm('Deny this leave request?')) return;
+  btn.disabled=true;
+  try{
+    await rest(`leave_requests?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:{
+      status: approve?'approved':'denied',
+      reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString()
+    }});
+    if(typeof reloadFn==='function') reloadFn();
+  }catch(e){
+    alert('Could not process: '+(e.message||e));
+    btn.disabled=false;
+  }
+}
+
+// Deciding a request can immediately change what belongs in the upcoming-leave
+// banner too (an approval within the next 7 days), so both refresh together.
+function reloadTLLeaveViews(){
+  loadTLLeaveApprovals();
+  loadTLUpcomingLeave();
+}
+
+// TL: pending leave requests from their own merchandisers.
+async function loadTLLeaveApprovals(){
+  const wrap=document.getElementById('tl-leave-requests-wrap');
+  const list=document.getElementById('tl-leave-requests-list');
+  if(!wrap||!list||!cu||cu.viewingAs) return;
+  const ids=(tlMyMerch||[]).map(m=>m.id);
+  if(!ids.length){ wrap.style.display='none'; return; }
+  try{
+    const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.pending&order=created_at.desc&select=*`);
+    if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+    wrap.style.display='block';
+    list.innerHTML=rows.map(r=>`<div class="merch-card">
+      <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
+      <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
+      <div style="display:flex;gap:8px">
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,reloadTLLeaveViews)">Approve</button>
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,reloadTLLeaveViews)">Deny</button>
+      </div>
+    </div>`).join('');
+  }catch(e){ console.warn('TL leave approvals load failed:',e); }
+}
+
+// TL: approved leave starting within the next 7 days — the "notification",
+// in-app since there's no push infrastructure to hook a real alert into.
+async function loadTLUpcomingLeave(){
+  const wrap=document.getElementById('tl-upcoming-leave-wrap');
+  const list=document.getElementById('tl-upcoming-leave-list');
+  if(!wrap||!list||!cu) return;
+  const ids=(tlMyMerch||[]).map(m=>m.id);
+  if(!ids.length){ wrap.style.display='none'; return; }
+  try{
+    const today=new Date(); const weekOut=new Date(today.getTime()+7*86400000);
+    const todayStr=today.toISOString().slice(0,10), weekOutStr=weekOut.toISOString().slice(0,10);
+    const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.approved&from_date=gte.${todayStr}&from_date=lte.${weekOutStr}&order=from_date.asc&select=*`);
+    if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+    wrap.style.display='block';
+    list.innerHTML=rows.map(r=>`<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
+      <div style="font-size:13px;font-weight:700">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</div>
+      <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date} (${r.days_requested}d)</div>
+    </div>`).join('');
+  }catch(e){ console.warn('upcoming leave load failed:',e); }
+}
+
+// Admin/manager: pending leave requests from team leaders (tl_merch counts
+// as a team leader here too — the "supervisor" tier above them).
+async function loadAdminLeaveApprovals(){
+  const wrap=document.getElementById('admin-leave-requests-wrap');
+  const list=document.getElementById('admin-leave-requests-list');
+  if(!wrap||!list) return;
+  try{
+    const rows=await rest(`leave_requests?requester_role=in.(team_leader,tl_merch)&status=eq.pending&order=created_at.desc&select=*`);
+    if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+    wrap.style.display='block';
+    list.innerHTML=rows.map(r=>`<div class="merch-card">
+      <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} (${escapeHtmlM(r.job_title||'Team Leader')}) — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
+      <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
+      <div style="display:flex;gap:8px">
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,loadAdminLeaveApprovals)">Approve</button>
+        <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,loadAdminLeaveApprovals)">Deny</button>
+      </div>
+    </div>`).join('');
+  }catch(e){ console.warn('admin leave approvals load failed:',e); }
+}
+
 function tlSearchReassign(q){
   clearTimeout(tlReassignDebounce);
   const drop=document.getElementById('tl-reassign-drop');
@@ -1896,6 +2260,139 @@ async function tlConfirmReassign(){
   }
 }
 
+// ── TL: SUBMIT BAD GOODS (any store, no visit) ──
+// Same nationwide search as "Reassign a store" (merch_search_stores), but the
+// picked store drives a bad-goods form instead of an assign-target dropdown.
+let tlBadGoodsSelected=null; // {cid,cnm}
+let tlBadGoodsDebounce=null;
+
+function tlSearchBadGoods(q){
+  clearTimeout(tlBadGoodsDebounce);
+  const drop=document.getElementById('tl-badgoods-drop');
+  if(!drop) return;
+  if(!q||q.trim().length<2){ drop.innerHTML=''; drop.classList.remove('open'); return; }
+  tlBadGoodsDebounce=setTimeout(async()=>{
+    try{
+      const rows=await restRpc('merch_search_stores',{p_query:q.trim()});
+      renderTlBadGoodsResults(rows||[]);
+    }catch(e){
+      drop.innerHTML='<div class="store-none">Search failed — check connection</div>';
+      drop.classList.add('open');
+    }
+  },300);
+}
+
+function renderTlBadGoodsResults(rows){
+  const drop=document.getElementById('tl-badgoods-drop');
+  if(!rows.length){ drop.innerHTML='<div class="store-none">No matching stores</div>'; drop.classList.add('open'); return; }
+  drop.innerHTML=rows.map(r=>`<div class="store-opt" data-cid="${encodeURIComponent(r.customer_id)}" data-cnm="${encodeURIComponent(r.customer_name)}" onclick="tlPickBadGoodsStore(this)">
+    <div class="so-name">${escapeHtmlM(r.customer_name)}</div>
+    ${r.city?'<div class="so-city">'+escapeHtmlM(r.city)+'</div>':''}
+  </div>`).join('');
+  drop.classList.add('open');
+}
+
+function tlPickBadGoodsStore(el){
+  const cid=decodeURIComponent(el.dataset.cid), cnm=decodeURIComponent(el.dataset.cnm);
+  tlBadGoodsSelected={cid,cnm};
+  BG_PHOTO_CTX.tlReceipt.customerId = cid;
+  BG_PHOTO_CTX.tlProduct.customerId = cid;
+  document.getElementById('tl-badgoods-input').value=cnm;
+  const drop=document.getElementById('tl-badgoods-drop');
+  drop.innerHTML=''; drop.classList.remove('open');
+
+  const panel=document.getElementById('tl-badgoods-panel');
+  panel.style.display='block';
+  panel.innerHTML=`
+    <div class="store-perf-card">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Reporting bad goods for: <b>${escapeHtmlM(cnm)}</b></div>
+      <textarea id="tlbg-note" placeholder="e.g. 9oz sleeves coming burst, or customer storing product wrong causing damage" style="height:70px;resize:none;width:100%;margin-bottom:10px;padding:10px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-family:inherit;font-size:13px;box-sizing:border-box"></textarea>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">🧾 Receipt photo(s)</div>
+        <input type="file" id="tlbg-receipt-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('tlReceipt',this.files)" style="display:none">
+        <button type="button" onclick="document.getElementById('tlbg-receipt-input').value='';document.getElementById('tlbg-receipt-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+          <span>📷</span><span>Add receipt photo</span>
+        </button>
+        <div class="photo-thumb-grid" id="tlbg-receipt-grid" style="margin-top:8px"></div>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">📦 Product photo(s)</div>
+        <input type="file" id="tlbg-product-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('tlProduct',this.files)" style="display:none">
+        <button type="button" onclick="document.getElementById('tlbg-product-input').value='';document.getElementById('tlbg-product-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+          <span>📷</span><span>Add product photo</span>
+        </button>
+        <div class="photo-thumb-grid" id="tlbg-product-grid" style="margin-top:8px"></div>
+      </div>
+      <div id="tlbg-status" style="font-size:11px;text-align:center;font-weight:600;color:var(--red);margin-bottom:8px">Add at least 1 photo (receipt or product) to continue</div>
+      <div style="display:flex;gap:8px">
+        <button class="submit-btn" id="tlbg-submit-btn" style="flex:1;padding:9px;font-size:13px" onclick="tlSubmitBadGoods()" disabled>Submit →</button>
+        <button class="submit-btn" style="flex:1;padding:9px;font-size:13px;background:#fff;color:var(--muted);border:1.5px solid var(--border)" onclick="tlCancelBadGoods()">Cancel</button>
+      </div>
+    </div>`;
+  bgRenderThumbs('tlReceipt'); bgRenderThumbs('tlProduct');
+  tlUpdateBadGoodsGating();
+}
+
+function tlUpdateBadGoodsGating(){
+  const btn=document.getElementById('tlbg-submit-btn');
+  if(!btn) return;
+  const count=BG_PHOTO_CTX.tlReceipt.photos.length+BG_PHOTO_CTX.tlProduct.photos.length;
+  btn.disabled = count===0;
+  const status=document.getElementById('tlbg-status');
+  if(status) status.style.display = count===0 ? 'block' : 'none';
+}
+
+function tlCancelBadGoods(){
+  tlBadGoodsSelected=null;
+  ['tlReceipt','tlProduct'].forEach(function(kind){
+    var ctx=BG_PHOTO_CTX[kind];
+    ctx.photos.forEach(function(p){ if(p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
+    ctx.photos=[]; ctx.customerId=null;
+  });
+  const input=document.getElementById('tl-badgoods-input');
+  if(input) input.value='';
+  const panel=document.getElementById('tl-badgoods-panel');
+  panel.style.display='none'; panel.innerHTML='';
+}
+
+async function tlSubmitBadGoods(){
+  if(!tlBadGoodsSelected) return;
+  const btn=document.getElementById('tlbg-submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
+  try{
+    await bgEnsureUploaded(['tlReceipt','tlProduct']);
+    await rest('bad_goods_reports',{method:'POST',headers:{'Prefer':'return=minimal'},body:{
+      reported_by_id: cu.id, reported_by_name: cu.full_name, reported_by_role: cu.role,
+      customer_id: tlBadGoodsSelected.cid, customer_name: tlBadGoodsSelected.cnm,
+      visit_id: null,
+      note: document.getElementById('tlbg-note').value.trim()||null,
+      receipt_photo_urls: bgUploadedUrls('tlReceipt'),
+      product_photo_urls: bgUploadedUrls('tlProduct')
+    }});
+    alert('Bad-goods report submitted.');
+    tlCancelBadGoods();
+  }catch(e){
+    alert('Could not submit: '+(e.message||e));
+    btn.disabled=false; btn.textContent='Submit →';
+  }
+}
+
+// ── TL: LOG A VISIT (any store, tagged visit_type='tl_covered') ──
+// Reuses the entire merchandiser visit wizard verbatim — startVisit() only
+// checks cu.viewingAs, so a team leader's own identity flows through
+// unchanged. tlAdHocVisit just makes loadMyStores()/applyReliefUI() treat
+// them like relief (no fixed route, nationwide search) and tags the visit.
+function tlStartAdHocVisit(){
+  tlAdHocVisit = true;
+  launchMerch(cu);
+}
+
+function tlEndAdHocVisit(){
+  tlAdHocVisit = false;
+  const btn=document.getElementById('merch-tl-back-btn'); if(btn) btn.remove();
+  launchTL(cu);
+}
+
 function renderTLVisitFeed(visits, myNames, todayVisits){
   const feedEl=document.getElementById('tl-visit-feed');
   const countEl=document.getElementById('tl-visit-count');
@@ -1940,6 +2437,8 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
     const timeLbl=tOut?(tIn+' – '+tOut):('In: '+tIn);
     const row=document.createElement('div');
     row.className='tl-visit-row';
+    row.style.cursor='pointer';
+    row.onclick=function(){ openTLVisitDetail(v); };
     row.innerHTML=
       '<div class="tl-av-sm">'+ini+'</div>'+
       '<div style="flex:1;min-width:0">'+
@@ -2014,6 +2513,8 @@ function renderWeekFeed(feedEl,visits,myNames){
       const timeLbl=tOut?(tIn+' – '+tOut):('In: '+tIn);
       const row=document.createElement('div');
       row.className='tl-visit-row';
+      row.style.cursor='pointer';
+      row.onclick=function(){ openTLVisitDetail(v); };
       row.innerHTML='<div class="tl-av-sm" style="font-size:9px">'+ini+'</div>'+
         '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
         '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
@@ -2030,6 +2531,160 @@ function renderWeekFeed(feedEl,visits,myNames){
       feedEl.appendChild(more);
     }
   });
+}
+
+// ══════════════════════════════════════════════
+// TL: VISIT DETAIL — everything a merchandiser submitted for one visit,
+// read-only. `v` is the raw merch_visit_log row already held by the visit
+// feed (select=*), so no extra fetch for the visit itself — only the linked
+// bad-goods report (if any) needs its own lookup.
+// ══════════════════════════════════════════════
+const TL_VD_CATS=[
+  ['cat_household','Household'],['cat_garbage','Garbagebag'],['cat_foil','Foil'],
+  ['cat_processing','Processing'],['cat_paper','Paper'],['cat_plastic','Plastic'],
+  ['cat_ecocup','Ecocup'],['cat_foodsup','Food Supply'],['cat_ecobox','Ecobox'],
+  ['cat_beverages','Beverages'],['cat_clearpack','Clearpack'],['cat_ecobag','Ecobag'],
+  ['cat_ecostraw','Ecostraw']
+];
+
+async function openTLVisitDetail(v){
+  const modal=document.getElementById('tl-visit-detail-modal');
+  const body=document.getElementById('tlvd-body');
+  document.getElementById('tlvd-store').textContent=v.store_name||v.customer_id||'Store';
+  const tIn=v.clock_in?new Date(v.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}):'';
+  document.getElementById('tlvd-sub').textContent=(v.user_name||'—')+' · '+v.visit_date+(tIn?' '+tIn:'');
+
+  const outcomeLbl=v.outcome==='issue'?'<span class="badge b-issue">⚠ Issue</span>':v.outcome==='pending'?'<span class="badge b-issue">↩ Follow-up</span>':'<span class="badge b-ok">✓ Good</span>';
+  const typeLbl=v.visit_type==='relief'?'🔄 Relief cover':v.visit_type==='tl_covered'?'📍 TL covered':'Regular';
+  const hoursLbl=v.clock_in&&v.clock_out?fmtDuration(v.clock_in,v.clock_out):'In progress';
+  const loc=(v.latitude!=null&&v.longitude!=null)
+    ?`<a href="https://www.google.com/maps?q=${v.latitude},${v.longitude}" target="_blank" style="color:var(--blue)">${parseFloat(v.latitude).toFixed(5)}, ${parseFloat(v.longitude).toFixed(5)}</a>`
+    :'<span style="color:var(--muted)">Not captured</span>';
+
+  let html=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="merch-card" style="padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700">Outcome</div>${outcomeLbl}</div>
+    <div class="merch-card" style="padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700">Visit type</div><div style="font-size:13px;font-weight:700;margin-top:2px">${typeLbl}</div></div>
+    <div class="merch-card" style="padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700">Hours logged</div><div style="font-size:13px;font-weight:700;margin-top:2px">${hoursLbl}</div></div>
+    <div class="merch-card" style="padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700">Location</div><div style="font-size:12px;margin-top:2px">${loc}</div></div>
+  </div>`;
+
+  if(v.notes){
+    html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">Notes</div><div style="font-size:13px;background:var(--bg);border-radius:8px;padding:10px">${escapeHtmlM(v.notes)}</div></div>`;
+  }
+
+  const oos=new Set(v.oos_skus||[]);
+  const anyCatData=TL_VD_CATS.some(([f])=>v[f]!=null)||oos.size;
+  if(anyCatData){
+    html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">Shelf presence</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+    html+=TL_VD_CATS.map(([f,label])=>{
+      const on=!!v[f];
+      const col=on?'var(--green)':'var(--muted)';
+      return `<div style="font-size:11px;padding:6px 8px;border-radius:6px;background:var(--bg);color:${col}">${on?'✓':'—'} ${label}</div>`;
+    }).join('');
+    html+='</div>';
+    if(oos.size){
+      html+=`<div style="margin-top:8px;font-size:11px;color:var(--red)"><b>Out of stock:</b> ${[...oos].map(escapeHtmlM).join(', ')}</div>`;
+    }
+    html+='</div>';
+  }
+
+  const photos=v.shelf_photo_urls||[];
+  if(photos.length){
+    html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">📷 Shelf photos (${photos.length})</div><div class="photo-thumb-grid">`+
+      photos.map(u=>`<a href="${u}" target="_blank" class="photo-thumb"><img src="${u}" loading="lazy" alt="shelf photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+
+      '</div></div>';
+  }
+
+  body.innerHTML=html+'<div id="tlvd-badgoods"><div class="spinner"></div></div>';
+  modal.style.display='flex';
+
+  // Linked bad-goods report, if the merchandiser filed one at close-out.
+  try{
+    const rows=v.id?await rest(`bad_goods_reports?visit_id=eq.${v.id}&select=note,receipt_photo_urls,product_photo_urls`):[];
+    const bgEl=document.getElementById('tlvd-badgoods');
+    if(!bgEl) return;
+    if(!rows||!rows.length){ bgEl.innerHTML=''; return; }
+    const r=rows[0];
+    const allPhotos=[...(r.receipt_photo_urls||[]),...(r.product_photo_urls||[])];
+    bgEl.innerHTML=`<div style="background:var(--red-lt);border:1.5px solid var(--red);border-radius:10px;padding:12px">
+      <div style="font-size:12px;font-weight:800;color:var(--red);margin-bottom:6px">📦 Bad goods reported</div>
+      ${r.note?`<div style="font-size:13px;margin-bottom:8px">${escapeHtmlM(r.note)}</div>`:''}
+      ${allPhotos.length?`<div class="photo-thumb-grid">`+allPhotos.map(u=>`<a href="${u}" target="_blank" class="photo-thumb"><img src="${u}" loading="lazy" alt="bad goods photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+'</div>':''}
+    </div>`;
+  }catch(e){ console.warn('bad goods lookup failed:',e); }
+}
+
+function closeTLVisitDetail(){
+  document.getElementById('tl-visit-detail-modal').style.display='none';
+}
+
+// ══════════════════════════════════════════════
+// TL: TEAM STORES — target/actual/achievement for every store across every
+// merchandiser on this TL's team, not just the per-person rollup already on
+// the team cards.
+// ══════════════════════════════════════════════
+let _tlTeamStores=[];
+
+async function openTLTeamStores(){
+  const modal=document.getElementById('tl-team-stores-modal');
+  modal.style.display='flex';
+  document.getElementById('tl-team-stores-search').value='';
+  document.getElementById('tl-team-stores-list').innerHTML='<div class="spinner"></div>';
+  try{
+    const names=(tlMyMerch||[]).map(m=>m.name);
+    if(!names.length){ _tlTeamStores=[]; renderTLTeamStores(); return; }
+    const nameList=names.map(n=>'"'+n+'"').join(',');
+    const roster=await rest(`merchandiser_map?merchandiser_name=in.(${nameList})&select=customer_id,merchandiser_name`);
+    const ids=[...new Set((roster||[]).map(r=>r.customer_id))];
+    if(!ids.length){ _tlTeamStores=[]; renderTLTeamStores(); return; }
+    const idList=ids.join(',');
+    const [targets,actuals]=await Promise.all([
+      rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,customer_name,target_amount`),
+      rest(`monthly_actuals?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,actual_amount`)
+    ]);
+    const targetById={}; (targets||[]).forEach(t=>{ targetById[t.customer_id]={name:t.customer_name,target:parseFloat(t.target_amount||0)}; });
+    const actualById={}; (actuals||[]).forEach(a=>{ actualById[a.customer_id]=parseFloat(a.actual_amount||0); });
+    _tlTeamStores=(roster||[]).map(r=>{
+      const t=targetById[r.customer_id]||{};
+      const actual=actualById[r.customer_id]||0;
+      const target=t.target||0;
+      return {
+        customer_id:r.customer_id, customer_name:t.name||r.customer_id,
+        merchandiser_name:r.merchandiser_name, target, actual,
+        pct: target>0 ? (actual/target*100) : null
+      };
+    }).sort((a,b)=>(a.customer_name||'').localeCompare(b.customer_name||''));
+    renderTLTeamStores();
+  }catch(e){
+    console.error('team stores load failed:',e);
+    document.getElementById('tl-team-stores-list').innerHTML='<div class="empty-feed">Failed to load — check connection.</div>';
+  }
+}
+
+function renderTLTeamStores(){
+  const list=document.getElementById('tl-team-stores-list');
+  const q=(document.getElementById('tl-team-stores-search').value||'').toLowerCase();
+  const rows=q
+    ? _tlTeamStores.filter(s=>(s.customer_name||'').toLowerCase().includes(q)||(s.merchandiser_name||'').toLowerCase().includes(q))
+    : _tlTeamStores;
+  if(!rows.length){ list.innerHTML='<div class="empty-feed">No stores found.</div>'; return; }
+  list.innerHTML=rows.map(s=>{
+    const pct=s.pct;
+    const fc=pct==null?'':pct>=100?'pf-green':pct>=80?'pf-green':pct>=50?'pf-amber':'pf-red';
+    return `<div class="merch-card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div style="font-size:13px;font-weight:700">${escapeHtmlM(s.customer_name)}</div>
+        ${pct!=null?`<div style="font-size:13px;font-weight:800;flex-shrink:0" class="${fc==='pf-green'?'c-green':fc==='pf-amber'?'c-amber':fc==='pf-red'?'c-red':''}">${pct.toFixed(1)}%</div>`:'<div style="font-size:11px;color:var(--muted)">No target</div>'}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${escapeHtmlM(s.merchandiser_name)}</div>
+      ${pct!=null?`<div class="prog-bar"><div class="prog-fill ${fc}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="merch-stats"><span><strong>$${Math.round(s.actual).toLocaleString()}</strong> actual</span><span>Target: $${Math.round(s.target).toLocaleString()}</span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function closeTLTeamStores(){
+  document.getElementById('tl-team-stores-modal').style.display='none';
 }
 
 // ══════════════════════════════════════════════
@@ -2313,6 +2968,7 @@ let adminSelf=null;
 
 async function launchAdmin(){
   showScreen('s-admin');
+  loadAdminLeaveApprovals();
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
@@ -3291,13 +3947,19 @@ function saveVisitDraft(){
   const notesEl=document.getElementById('vf-notes');
   const notes = notesEl?notesEl.value:'';
   const photos = pendingPhotos.filter(function(p){return p.uploadedUrl;}).map(function(p){return {uploadedUrl:p.uploadedUrl};});
+  const bgNoteEl=document.getElementById('bg-note');
+  const bgNote = bgNoteEl?bgNoteEl.value:'';
+  const bgReceiptPhotos = BG_PHOTO_CTX.receipt.photos.filter(function(p){return p.uploadedUrl;}).map(function(p){return {uploadedUrl:p.uploadedUrl};});
+  const bgProductPhotos = BG_PHOTO_CTX.product.photos.filter(function(p){return p.uploadedUrl;}).map(function(p){return {uploadedUrl:p.uploadedUrl};});
   const hasContent = !!(storeSelected&&storeSelected.name) || photos.length ||
     (notes&&notes.trim()) || Object.values(catState||{}).some(function(v){return v&&v!=='off';});
   if(!hasContent){ clearVisitDraft(); return; }
   try{
     localStorage.setItem(visitDraftKey(), JSON.stringify({
       storeSelected:storeSelected, catState:catState, outcome:outcome,
-      notes:notes, photos:photos, activeVisit:activeVisit, savedAt:Date.now()
+      notes:notes, photos:photos, activeVisit:activeVisit,
+      badGoodsFlag:badGoodsFlag, bgNote:bgNote, bgReceiptPhotos:bgReceiptPhotos, bgProductPhotos:bgProductPhotos,
+      savedAt:Date.now()
     }));
   }catch(e){ console.warn('draft save failed:',e); }
 }
@@ -3335,6 +3997,18 @@ function restoreVisitDraft(){
 
   const notesEl=document.getElementById('vf-notes');
   if(notesEl && draft.notes) notesEl.value = draft.notes;
+
+  if(draft.badGoodsFlag) setBadGoods(draft.badGoodsFlag);
+  const bgNoteEl=document.getElementById('bg-note');
+  if(bgNoteEl && draft.bgNote) bgNoteEl.value = draft.bgNote;
+  BG_PHOTO_CTX.receipt.photos = (draft.bgReceiptPhotos||[]).map(function(p){
+    return {file:null, previewUrl:p.uploadedUrl, uploadedUrl:p.uploadedUrl, uploading:false};
+  });
+  BG_PHOTO_CTX.product.photos = (draft.bgProductPhotos||[]).map(function(p){
+    return {file:null, previewUrl:p.uploadedUrl, uploadedUrl:p.uploadedUrl, uploading:false};
+  });
+  bgRenderThumbs('receipt'); bgRenderThumbs('product');
+  updateBadGoodsGating();
 
   // Only already-uploaded photos survive — their blob preview URLs die with the
   // page, but the files themselves are safely in storage, so the public URL
@@ -3533,25 +4207,31 @@ function removePhoto(i){
   saveVisitDraft();
 }
 
+// Shared by shelf photos and the bad-goods receipt/product photos — a plain
+// compressed-blob upload to a Storage bucket, returning the public URL.
+async function uploadPhotoToStorage(file, bucket, folderPrefix, i){
+  // file is a compressed Blob (no .name) once compressImage() succeeds — only
+  // the rare fallback-to-original-File case still carries a filename.
+  var ext = file.name ? file.name.split('.').pop().toLowerCase() : (file.type==='image/jpeg' ? 'jpg' : (file.type||'').split('/').pop());
+  if(!ext) ext='jpg';
+  var path = folderPrefix+'/'+Date.now()+'_'+i+'.'+ext;
+  var res = await fetch(SB_STORAGE+'/object/'+bucket+'/'+path,{
+    method:'POST',
+    headers:await restHeaders({'Content-Type':file.type,'x-upsert':'true'}),
+    body:file
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return SB_STORAGE+'/object/public/'+bucket+'/'+path;
+}
+
 async function uploadPhoto(i){
   var p = pendingPhotos[i];
   if(!p||p.uploadedUrl||p.uploading) return;
   p.uploading = true; renderPhotoThumbs();
   try{
-    // p.file is a compressed Blob (no .name) once compressImage() succeeds —
-    // only the rare fallback-to-original-File case still carries a filename.
-    var ext = p.file.name ? p.file.name.split('.').pop().toLowerCase() : (p.file.type==='image/jpeg' ? 'jpg' : (p.file.type||'').split('/').pop());
-    if(!ext) ext='jpg';
     var uname = (cu&&cu.full_name) ? cu.full_name.replace(/\s+/g,'_') : 'merch';
     var cid = storeSelected&&storeSelected.id ? storeSelected.id : 'unknown';
-    var path = uname+'/'+cid+'/'+Date.now()+'_'+i+'.'+ext;
-    var res = await fetch(SB_STORAGE+'/object/shelf-photos/'+path,{
-      method:'POST',
-      headers:await restHeaders({'Content-Type':p.file.type,'x-upsert':'true'}),
-      body:p.file
-    });
-    if(!res.ok) throw new Error(await res.text());
-    pendingPhotos[i].uploadedUrl = SB_STORAGE+'/object/public/shelf-photos/'+path;
+    pendingPhotos[i].uploadedUrl = await uploadPhotoToStorage(p.file, 'shelf-photos', uname+'/'+cid, i);
     pendingPhotos[i].uploading = false;
     renderPhotoThumbs();
     // Persist now, not just on selection — this URL is what survives a reload
@@ -3576,6 +4256,173 @@ function resetPhotos(){
   var g = document.getElementById('photo-thumb-grid'); if(g) g.innerHTML='';
   var inp = document.getElementById('shelf-file-input'); if(inp) inp.value='';
   updatePhotoGating();
+}
+
+// ══════════════════════════════════════════════
+// BAD GOODS — visit close-out gate (receipt + product photos, min 1 total)
+// ══════════════════════════════════════════════
+const BG_PHOTO_CTX = {
+  receipt: {photos:[], gridId:'bg-receipt-grid', bucket:'bad-goods-photos', kindFolder:'receipt'},
+  product: {photos:[], gridId:'bg-product-grid', bucket:'bad-goods-photos', kindFolder:'product'},
+  // Same registry, separate DOM ids — used by the team leader's standalone
+  // "Submit bad goods" panel (#tl-badgoods-panel), not the visit close-out gate.
+  tlReceipt: {photos:[], gridId:'tlbg-receipt-grid', bucket:'bad-goods-photos', kindFolder:'receipt'},
+  tlProduct: {photos:[], gridId:'tlbg-product-grid', bucket:'bad-goods-photos', kindFolder:'product'}
+};
+
+function setBadGoods(v){
+  badGoodsFlag = v;
+  document.getElementById('bg-no').classList.toggle('on', v==='no');
+  document.getElementById('bg-yes').classList.toggle('on', v==='yes');
+  document.getElementById('bg-panel').style.display = v==='yes' ? 'block' : 'none';
+  updateBadGoodsGating();
+  saveVisitDraft();
+}
+
+function bgTotalPhotoCount(){
+  return BG_PHOTO_CTX.receipt.photos.length + BG_PHOTO_CTX.product.photos.length;
+}
+
+function updateBadGoodsGating(){
+  var sbtn = document.getElementById('v-sbtn');
+  if(!sbtn) return;
+  var met = badGoodsFlag==='no' || (badGoodsFlag==='yes' && bgTotalPhotoCount()>0);
+  sbtn.disabled = !met;
+  sbtn.style.opacity = met ? '1' : '.4';
+  sbtn.style.cursor = met ? 'pointer' : 'not-allowed';
+  var status = document.getElementById('bg-status');
+  if(status){
+    status.style.display = (badGoodsFlag==='yes' && bgTotalPhotoCount()===0) ? 'block' : 'none';
+  }
+}
+
+function bgHandlePhotoSelect(kind, files){
+  var ctx = BG_PHOTO_CTX[kind];
+  if(!files||!files.length) return;
+  var gate = ctx.customerId ? tlUpdateBadGoodsGating : updateBadGoodsGating;
+  Array.from(files).forEach(function(file){
+    var entry = {file:null, previewUrl:null, uploadedUrl:null, uploading:false, compressing:true};
+    ctx.photos.push(entry);
+    compressImage(file).then(function(blob){
+      var i = ctx.photos.indexOf(entry);
+      if(i===-1) return;
+      entry.file = blob;
+      entry.previewUrl = URL.createObjectURL(blob);
+      entry.compressing = false;
+      bgRenderThumbs(kind);
+      gate();
+      if(!ctx.customerId) saveVisitDraft();
+      if(!entry.uploadedUrl && !entry.uploading) bgUploadPhoto(kind, i);
+    });
+  });
+  bgRenderThumbs(kind);
+  gate();
+}
+
+async function bgUploadPhoto(kind, i){
+  var ctx = BG_PHOTO_CTX[kind];
+  var p = ctx.photos[i];
+  if(!p||p.uploadedUrl||p.uploading) return;
+  p.uploading = true; bgRenderThumbs(kind);
+  try{
+    var uname = (cu&&cu.full_name) ? cu.full_name.replace(/\s+/g,'_') : 'merch';
+    // The visit close-out gate has no per-context store (it's whatever's
+    // currently checked in, storeSelected); the TL standalone panel sets its
+    // own ctx.customerId when a store is picked instead.
+    var cid = ctx.customerId || (storeSelected&&storeSelected.id ? storeSelected.id : 'unknown');
+    p.uploadedUrl = await uploadPhotoToStorage(p.file, ctx.bucket, uname+'/'+cid+'/'+ctx.kindFolder, i);
+    p.uploading = false;
+    bgRenderThumbs(kind);
+    if(!ctx.customerId) saveVisitDraft(); // only the visit-flow contexts persist to a draft
+  }catch(e){
+    p.uploading = false;
+    bgRenderThumbs(kind);
+    console.error('bad goods photo upload:',e);
+  }
+}
+
+function bgRenderThumbs(kind){
+  var ctx = BG_PHOTO_CTX[kind];
+  var grid = document.getElementById(ctx.gridId);
+  if(!grid) return;
+  grid.innerHTML = '';
+  ctx.photos.forEach(function(p,i){
+    var div = document.createElement('div');
+    div.className = 'photo-thumb';
+    if(p.previewUrl){
+      var img = document.createElement('img'); img.src = p.previewUrl; img.alt = kind+' photo';
+      div.appendChild(img);
+    } else if(p.compressing){
+      var ph = document.createElement('div');
+      ph.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:11px;color:var(--muted)';
+      ph.textContent = 'Processing…';
+      div.appendChild(ph);
+    }
+    if(p.uploading){
+      var ov = document.createElement('div'); ov.className = 'photo-uploading'; ov.textContent = 'Uploading…';
+      div.appendChild(ov);
+    }
+    if(p.uploadedUrl){
+      var badge = document.createElement('div');
+      badge.style.cssText = 'position:absolute;bottom:4px;left:4px;background:var(--green);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px';
+      badge.textContent = '✓ Saved';
+      div.appendChild(badge);
+    }
+    var del = document.createElement('button');
+    del.className = 'photo-thumb-del'; del.textContent = '×';
+    del.onclick = function(){ bgRemovePhoto(kind,i); };
+    div.appendChild(del);
+    grid.appendChild(div);
+  });
+}
+
+function bgRemovePhoto(kind, i){
+  var ctx = BG_PHOTO_CTX[kind];
+  var p = ctx.photos[i];
+  if(!p) return;
+  if(p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+  if(p.uploadedUrl){
+    var path = p.uploadedUrl.split('/'+ctx.bucket+'/')[1];
+    // Storage's DELETE 400s with restHeaders()'s default Content-Type:
+    // application/json unless a (non-empty) body is sent too.
+    if(path) restHeaders().then(function(h){
+      fetch(SB_STORAGE+'/object/'+ctx.bucket+'/'+path,{method:'DELETE',headers:h,body:'{}'}).catch(function(){});
+    });
+  }
+  ctx.photos.splice(i,1);
+  bgRenderThumbs(kind);
+  // The TL standalone panel (ctx.customerId set) has its own gating/submit
+  // button, not the visit close-out's #v-sbtn — must not cross-wire the two.
+  if(ctx.customerId){ tlUpdateBadGoodsGating(); } else { updateBadGoodsGating(); saveVisitDraft(); }
+}
+
+function bgUploadedUrls(kind){
+  return BG_PHOTO_CTX[kind].photos.filter(function(p){return p.uploadedUrl;}).map(function(p){return p.uploadedUrl;});
+}
+
+async function bgEnsureUploaded(kinds){
+  for(var k=0;k<kinds.length;k++){
+    var ctx=BG_PHOTO_CTX[kinds[k]];
+    var toUpload=ctx.photos.map(function(p,i){return i;}).filter(function(i){return !ctx.photos[i].uploadedUrl;});
+    await Promise.all(toUpload.map(function(i){ return bgUploadPhoto(kinds[k], i); }));
+  }
+}
+function bgEnsureAllUploaded(){ return bgEnsureUploaded(['receipt','product']); }
+
+function resetBadGoods(){
+  badGoodsFlag = null;
+  document.getElementById('bg-no').classList.remove('on');
+  document.getElementById('bg-yes').classList.remove('on');
+  document.getElementById('bg-panel').style.display = 'none';
+  document.getElementById('bg-note').value = '';
+  ['receipt','product'].forEach(function(kind){
+    var ctx = BG_PHOTO_CTX[kind];
+    ctx.photos.forEach(function(p){ if(p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
+    ctx.photos = [];
+    var g = document.getElementById(ctx.gridId); if(g) g.innerHTML='';
+    var inp = document.getElementById('bg-'+kind+'-input'); if(inp) inp.value='';
+  });
+  updateBadGoodsGating();
 }
 
 
@@ -3857,6 +4704,80 @@ window.addEventListener('offline', updateLiveDot);
      or not the browser said the app was installable. Installing is now a
      item in the avatar menu (shared/user-menu.js) that appears only when
      it is genuinely on offer, and hides once installed. -->
+
+<!-- REQUEST LEAVE MODAL — shared by both the merchandiser and team leader
+     screens (same cu identity either way). Two views toggled by tab: submit a
+     new request, or see my own past requests + their status. -->
+<div id="leave-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">🌴 Leave</div>
+    <button onclick="closeLeaveModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="flex-shrink:0;display:flex;gap:8px;padding:12px 16px 0">
+    <button id="leave-tab-new" class="submit-btn" style="flex:1;padding:9px;font-size:13px" onclick="showLeaveTab('new')">New request</button>
+    <button id="leave-tab-mine" class="submit-btn" style="flex:1;padding:9px;font-size:13px;background:#fff;color:var(--muted);border:1.5px solid var(--border)" onclick="showLeaveTab('mine')">My requests</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px">
+    <div id="leave-panel-new">
+      <div class="field">
+        <label>Leave type</label>
+        <div class="outcome-row">
+          <div class="out-opt o-no" id="lv-vacation" onclick="setLeaveType('vacation')">🌴 Vacation</div>
+          <div class="out-opt o-bad" id="lv-sick" onclick="setLeaveType('sick')">🤒 Sick</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Days requested</label>
+        <input type="number" id="lv-days" min="0.5" step="0.5" placeholder="e.g. 3" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;font-family:inherit">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">
+          <label>From</label>
+          <input type="date" id="lv-from" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;font-family:inherit">
+        </div>
+        <div class="field">
+          <label>To</label>
+          <input type="date" id="lv-to" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;font-family:inherit">
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes (optional)</label>
+        <textarea id="lv-notes" placeholder="Anything your approver should know" style="height:70px;resize:none;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-family:inherit;font-size:13px;box-sizing:border-box"></textarea>
+      </div>
+      <div id="lv-status" style="font-size:11px;color:var(--muted);margin-bottom:10px"></div>
+      <button class="submit-btn" id="lv-submit-btn" onclick="submitLeaveRequest()">Submit for approval →</button>
+    </div>
+    <div id="leave-panel-mine" style="display:none">
+      <div id="leave-mine-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TL: VISIT DETAIL MODAL (read-only — everything a merchandiser submitted for one visit) -->
+<div id="tl-visit-detail-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(13,27,62,.6);flex-direction:column;align-items:center;justify-content:flex-end">
+  <div style="background:var(--card);width:100%;max-width:520px;max-height:88vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+    <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:15px;font-weight:800" id="tlvd-store">Store</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.7)" id="tlvd-sub">—</div>
+      </div>
+      <button onclick="closeTLVisitDetail()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px" id="tlvd-body"></div>
+  </div>
+</div>
+
+<!-- TL: TEAM STORES MODAL (target/actual/achievement for every store across the team) -->
+<div id="tl-team-stores-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">🏪 Team Stores</div>
+    <button onclick="closeTLTeamStores()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="flex-shrink:0;padding:12px 16px 0">
+    <input type="text" id="tl-team-stores-search" placeholder="🔍 Search store or merchandiser…" autocomplete="off" oninput="renderTLTeamStores()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px" id="tl-team-stores-list"><div class="spinner"></div></div>
+</div>
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->
 <div id="eval-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:#0E2A4E;flex-direction:column">
