@@ -372,6 +372,7 @@
                 '<select id="rl-' + p.user_id + '" onchange="onRoleChanged(\'' + p.user_id + '\')">' +
                   '<option value="merchandiser">Merchandiser</option>' +
                   '<option value="team_leader">Team leader</option>' +
+                  '<option value="tl_merch">Team lead + Merchandiser</option>' +
                   '<option value="relief_merchandiser">Relief merchandiser</option>' +
                   '<option value="rep">Sales rep</option>' +
                   '<option value="warehouse">Warehouse</option>' +
@@ -432,15 +433,32 @@
         '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>').join('');
   }
 
-  // Only show fields that mean something for the chosen role: team lead is a
-  // merchandiser concept, salesperson_id is an ERP code reps have and others
-  // don't.
+  // Which roles each optional field means something for. These two live here,
+  // as shared predicates, because onRoleChanged() decides what to SHOW and
+  // createAndApprove() decides what to SEND — and when those two disagree the
+  // form silently drops what the admin typed. That already happened once with
+  // rep_management's Salesperson ID. One source of truth, no drift.
+  //
+  // Team lead is a merchandising concept: on the live roster it's set for
+  // merchandisers (46/52), relief merchandisers (3/9) and tl_merch (2/3), and
+  // never for reps, managers, admins, management or plain team leaders.
+  function roleHasTeamLead(role) {
+    return role === 'merchandiser' ||
+           role === 'relief_merchandiser' ||
+           role === 'tl_merch';
+  }
+
+  // salesperson_id is an ERP code reps have and others don't.
+  function roleHasSalespersonId(role) {
+    return role === 'rep' || role === 'rep_management';
+  }
+
   function onRoleChanged(userId) {
     const role = el('rl-' + userId).value;
     const tl = el('tlwrap-' + userId);
     const sp = el('spwrap-' + userId);
-    if (tl) tl.style.display = (role === 'merchandiser') ? '' : 'none';
-    if (sp) sp.style.display = (role === 'rep' || role === 'rep_management') ? '' : 'none';
+    if (tl) tl.style.display = roleHasTeamLead(role) ? '' : 'none';
+    if (sp) sp.style.display = roleHasSalespersonId(role) ? '' : 'none';
   }
 
   function setMode(userId, mode) {
@@ -633,12 +651,9 @@
     const name = (el('nm-' + userId).value || '').trim();
     const role = el('rl-' + userId).value;
     const area = (el('ar-' + userId).value || '').trim();
-    const teamLead = role === 'merchandiser' ? (el('tl-' + userId).value || null) : null;
-    // Must match onRoleChanged()'s condition for showing the field. It didn't:
-    // rep_management showed a Salesperson ID box and then dropped whatever was
-    // typed into it, because only 'rep' was read back here. A rep_management
-    // person is a rep, so they need the ERP code like any other.
-    const salesId  = (role === 'rep' || role === 'rep_management')
+    // Read back exactly what the form showed — see roleHasTeamLead() above.
+    const teamLead = roleHasTeamLead(role) ? (el('tl-' + userId).value || null) : null;
+    const salesId  = roleHasSalespersonId(role)
       ? ((el('sp-' + userId).value || '').trim() || null)
       : null;
 
@@ -678,9 +693,13 @@
       showMsg(outName + ' has a staff record and can now sign in as ' + outRole + '.', 'success');
       updateRemainingCount();
 
-      // A new team leader becomes assignable straight away.
-      if (outRole === 'team_leader' && result && result.created_rep_id) {
-        formOptions.team_leads.push({ id: result.created_rep_id, name: outName, area: area });
+      // A new team leader becomes assignable straight away — tl_merch included,
+      // since they lead a team just as much as a plain team_leader does.
+      if ((outRole === 'team_leader' || outRole === 'tl_merch') &&
+          result && result.created_rep_id) {
+        formOptions.team_leads.push({
+          id: result.created_rep_id, name: outName, area: area, role: outRole
+        });
         document.querySelectorAll('.row:not(.done) select[id^="tl-"]').forEach(s => {
           const keep = s.value;
           s.innerHTML = teamLeadOptions();
