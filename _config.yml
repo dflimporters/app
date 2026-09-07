@@ -16,6 +16,22 @@ exclude:
   - DFL_Portal_Claude_Code_Handoff.md
   - discover_covebay/covebay-handoff-brief.md
 
+  # --- retired pages: kept for reference, must NOT be served ---
+  # merch_index.html is the pre-Supabase-auth merch app, superseded by
+  # merch.html. It was never retired properly: it sat at the repo root, so
+  # Jekyll published it, and it carries no auth guard and no DFL_PAGE_ROLES
+  # entry. Its doLogin() signs people in with
+  # `merch_app_users?pin=eq.<pin>` using the anon key — a live 4-digit-PIN
+  # login into the merch data, with one active role='admin' row whose PIN
+  # lands on the admin screen. Excluding it here stops dflhq.com serving it
+  # while keeping the file for reference.
+  #
+  # This only closes the page. The `anon_read_merch_users` policy on
+  # merch_app_users (anon / SELECT / USING true) still exposes the same rows,
+  # PINs included, to anyone with the publishable key — that is a separate,
+  # still-open fix.
+  - merch_index.html
+
   # --- Jekyll's own defaults, restated ---
   # Specifying `exclude` REPLACES the built-in list rather than adding to it,
   # so these have to be repeated or they'd start being published.

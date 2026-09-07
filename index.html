@@ -500,12 +500,18 @@ async function renderAdmin(){
     try{
       const [dashR,repR]=await Promise.all([
         fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?select=*`,{headers:H}).then(r=>r.json()),
-        fetch(`${SB_URL}/rest/v1/reps?active=eq.true&role=eq.rep&select=name,salesperson_id,area,role,pin`,{headers:H}).then(r=>r.json())
+        // role=in.(rep,rep_management): rep_management is a rep who also has
+        // management access, with a salesperson_id and a budget like any other
+        // rep. role=eq.rep silently left them off this leaderboard.
+        //
+        // `pin` is deliberately NOT selected. It is the retired PIN-auth
+        // credential and this page used to print it in the team list.
+        fetch(`${SB_URL}/rest/v1/reps?active=eq.true&role=in.(rep,rep_management)&select=name,salesperson_id,area,role`,{headers:H}).then(r=>r.json())
       ]);
       const dash={}; (Array.isArray(dashR)?dashR:[]).forEach(d=>{dash[d.salesperson]=d;});
       ADMINROWS=(Array.isArray(repR)?repR:[]).map(r=>{
         const d=dash[r.name]||{};
-        return {name:r.name, sp_id:r.salesperson_id, area:r.area, pin:r.pin,
+        return {name:r.name, sp_id:r.salesperson_id, area:r.area,
           target:+d.monthly_target||0, actual:+d.monthly_actual||0,
           pct:+d.pct_to_target||0, pace:d.pace_status||"",
           orders:+d.orders_mtd||0, custs:+d.active_customers_mtd||0};
@@ -554,7 +560,7 @@ function drawAdmin(){
       const p=Math.max(0,Math.min(r.pct,100));
       return `<div class="cust tap" onclick="viewAsRep('${encodeURIComponent(r.name)}','${r.sp_id}')">
         <div class="crow1">
-          <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)} · PIN ${esc(String(r.pin||'—'))}</div></div>
+          <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)}</div></div>
           <div class="cgap"><div class="g" style="color:${rcolor}">${r.pct.toFixed(0)}%</div><div class="gl">achieved</div></div>
         </div>
         <div class="cbar"><span class="${rcls}" style="width:${p}%"></span></div>

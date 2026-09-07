@@ -1183,13 +1183,18 @@ function getSelectedWeek() { return weekOptions[selectedWeekIdx]; }
 // ── Populate rep list from `reps` table, then pre-fill from ?rep= ─────────
 // The dropdown used to be a hardcoded name list that drifted out of sync
 // every time staff changed. Now it's pulled live — same filter used
-// elsewhere in the app (active reps with role='rep', i.e. excluding
-// admin/manager rows that don't submit their own weekly plan).
+// elsewhere in the app: active staff who carry a sales route, i.e. excluding
+// admin/manager rows that don't submit their own weekly plan.
+//
+// `rep_management` is included alongside `rep`. It is a rep who also has
+// management access, with a salesperson_id and a budget like any other; a bare
+// role=eq.rep left them out of this dropdown entirely, so they could not be
+// selected to submit a plan at all.
 (async function initRepSelect(){
   const sel = document.getElementById('rep-select');
   try{
     const r = await fetch(
-      `${PLAN_SB_URL}/rest/v1/reps?active=eq.true&role=eq.rep&select=name&order=name`,
+      `${PLAN_SB_URL}/rest/v1/reps?active=eq.true&role=in.(rep,rep_management)&select=name&order=name`,
       { headers: { apikey: PLAN_SB_KEY, Authorization: `Bearer ${PLAN_SB_KEY}` } }
     );
     const rows = await r.json();

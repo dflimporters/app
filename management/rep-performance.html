@@ -1699,7 +1699,10 @@ async function loadHistoricalMonth_OLD(period) {
         return all;
       })(),
       sbGet(`budget_2026?select=salesperson,budget&month_number=eq.${monthNum}&limit=2000`),
-      sbGet(`reps?select=name,salesperson_id,area&role=eq.rep&active=eq.true&limit=50`),
+      // rep_management carries a salesperson_id and a budget like any other
+      // rep, so without it Richard Gordon still appeared (this builds rows from
+      // actuals+budget names, not the roster) but with no area and no ERP code.
+      sbGet(`reps?select=name,salesperson_id,area&role=in.(rep,rep_management)&active=eq.true&limit=50`),
     ]);
 
     console.log('Data fetched — actuals:', actuals.length, 'budgets:', budgets.length, 'reps:', repMeta.length);
