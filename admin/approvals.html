@@ -376,6 +376,11 @@
                   '<option value="rep">Sales rep</option>' +
                   '<option value="warehouse">Warehouse</option>' +
                   '<option value="manager">Manager</option>' +
+                  // "Manager" and "Management" are two different roles and the
+                  // names alone don't say so, hence the parenthetical: this is
+                  // the executive tier (Morning Brief, Budget Explorer,
+                  // Gondola, weekly reports), not a sales manager.
+                  '<option value="management">Management (exec)</option>' +
                   '<option value="rep_management">Rep + Management</option>' +
                 '</select>' +
               '</div>' +
@@ -629,7 +634,13 @@
     const role = el('rl-' + userId).value;
     const area = (el('ar-' + userId).value || '').trim();
     const teamLead = role === 'merchandiser' ? (el('tl-' + userId).value || null) : null;
-    const salesId  = role === 'rep' ? ((el('sp-' + userId).value || '').trim() || null) : null;
+    // Must match onRoleChanged()'s condition for showing the field. It didn't:
+    // rep_management showed a Salesperson ID box and then dropped whatever was
+    // typed into it, because only 'rep' was read back here. A rep_management
+    // person is a rep, so they need the ERP code like any other.
+    const salesId  = (role === 'rep' || role === 'rep_management')
+      ? ((el('sp-' + userId).value || '').trim() || null)
+      : null;
 
     if (!name) {
       showMsg('Enter the person’s full name.', 'error');
