@@ -2976,13 +2976,13 @@ async function launchAdmin(){
     const [reps, summary, leads, todayVisits] = await Promise.all([
       rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
       rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
-      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name'),
+      rest('reps?active=eq.true&role=in.(team_leader,tl_merch)&select=id,name,area,role&order=name'),
       rest(`merch_visit_log?visit_date=eq.${today}&select=*&order=created_at.desc`)
     ]);
 
     const leadById={};
     (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
-    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||''}));
+    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||'', role:l.role}));
 
     // Latest row per name — "created_at.desc" above means the first match
     // per name wins, i.e. their most recent visit today.
@@ -3146,7 +3146,7 @@ async function viewAsTeamLeader(repId){
     initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
     territory: row.area,
     team_lead: '', team_lead_id: null,
-    role: 'team_leader',
+    role: row.role||'team_leader',
     viewingAs: true
   };
 
@@ -3154,7 +3154,11 @@ async function viewAsTeamLeader(repId){
   document.getElementById('viewas-name').textContent=row.name;
   document.getElementById('viewas-bar').classList.add('show');
 
-  await launchTL(cu);
+  // tl_merch gets the same dual-role screen (with the "My visits" switch to
+  // their own merchandiser side) they'd actually see — not the plain
+  // team-leader-only view.
+  if(row.role==='tl_merch') await launchTLMerch(cu);
+  else await launchTL(cu);
 }
 
 function exitViewAs(){
