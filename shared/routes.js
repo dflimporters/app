@@ -106,9 +106,16 @@ const DFL_PAGE_ROLES = {
   // Shell + the two pages it embeds — each listed individually, same reason
   // as the /management/** entries above: every child is a real page that can
   // be opened directly, not just through the shell's iframe tabs.
-  '/weekly-reports.html': ['manager', 'admin'],
-  '/report-upload.html':  ['manager', 'admin'],
-  '/report-viewer.html':  ['manager', 'admin']
+  //
+  // Being listed here only gets you through the door. Actually *uploading* is
+  // gated separately in Postgres by can_manage_weekly_reports() on
+  // weekly_reports, weekly_report_submissions and the weekly-reports bucket.
+  // If you add a role here and upload still fails silently, that function is
+  // why — it deliberately does NOT reuse is_manager(), which also guards
+  // specials, org_chart and field_intel. Keep the two lists in step.
+  '/weekly-reports.html': ['manager', 'admin', 'management', 'rep_management'],
+  '/report-upload.html':  ['manager', 'admin', 'management', 'rep_management'],
+  '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
