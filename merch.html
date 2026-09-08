@@ -485,6 +485,16 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- PLANOGRAMS -->
+      <div onclick="window.location.href='/planograms.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">📐</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Planograms</div>
+          <div style="font-size:10px;color:var(--muted)">See where products belong on shelf, by category</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+
       <!-- RECENT STORES QUICK ACCESS (assigned-route widget — hidden for relief, who has none) -->
       <div id="m-quickstores-section">
         <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between">
@@ -886,6 +896,12 @@ body.dfl-readonly .readonly-note{display:block}
     <button class="dash-link hide-when-readonly" onclick="openLeaveModal()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">🌴</div>
       <div><div class="dash-link-title">Request Leave</div><div class="dash-link-sub">Submit a vacation or sick day request</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link" onclick="window.location.href='/planograms.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">📐</div>
+      <div><div class="dash-link-title">Planograms</div><div class="dash-link-sub">Shelf placement reference, by category</div></div>
       <div class="dash-link-arr">›</div>
     </button>
 
