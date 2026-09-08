@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Business Card — DFL Importers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f2044; --navy-deep:#0a1730;
+    --blue:#2563eb; --blue-bg:#eff6ff;
+    --bg:#f0f4f8; --card:#ffffff;
+    --line:rgba(15,32,68,0.08);
+    --text:#1e293b; --text-soft:#55677a; --text-faint:#8b99a6;
+    --radius:16px; --radius-sm:10px;
+    --maxw:420px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{width:100%; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:28px 16px 40px;}
+  .inner{width:100%; max-width:var(--maxw);}
+
+  .brand{display:flex; align-items:center; justify-content:center; margin-bottom:22px;}
+  .brand img{height:34px;}
+
+  #loading, #notfound{text-align:center; padding:60px 20px; color:var(--text-soft); font-size:14px;}
+  #notfound strong{display:block; color:var(--text); font-size:16px; font-weight:700; margin-bottom:6px;}
+
+  .hero{
+    position:relative; border-radius:var(--radius); overflow:hidden; color:#fff; padding:28px 22px 24px;
+    background:linear-gradient(155deg, var(--navy) 0%, var(--navy-deep) 100%);
+  }
+  .hero::before{content:""; position:absolute; inset:0; opacity:.4; background-image:radial-gradient(rgba(255,255,255,.08) 1px,transparent 1px); background-size:16px 16px; pointer-events:none;}
+  .hero-inner{position:relative; z-index:2;}
+  .card-row{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+  .avatar{width:58px; height:58px; border-radius:16px; flex-shrink:0; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#fff;}
+  .card-name{font-size:21px; font-weight:800; margin:0 0 3px; line-height:1.15;}
+  .card-title{font-size:13.5px; color:rgba(255,255,255,.68); margin:0; font-weight:500;}
+  .contact-row{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;}
+  .contact-chip{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); padding:7px 12px; border-radius:100px; text-decoration:none;}
+  .contact-chip svg{width:13px; height:13px; flex-shrink:0;}
+  .save-btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px; border-radius:var(--radius-sm); border:none; background:var(--blue); color:#fff; font-weight:800; font-size:15px; cursor:pointer; box-shadow:0 8px 20px rgba(37,99,235,.35); font-family:'Inter',sans-serif;}
+  .save-btn:active{transform:scale(.98);}
+  .save-btn svg{width:17px; height:17px;}
+  .save-hint{text-align:center; font-size:11.5px; color:rgba(255,255,255,.5); margin:10px 0 0;}
+
+  footer{margin-top:24px; text-align:center;}
+  footer p{font-size:11px; color:var(--text-faint); margin:0;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="inner">
+    <div class="brand">
+      <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL Importers">
+    </div>
+
+    <div id="loading">Loading card…</div>
+
+    <div id="notfound" hidden>
+      <strong>We couldn't find that card.</strong>
+      Double-check the link or QR code and try again.
+    </div>
+
+    <div id="card-panel" hidden>
+      <div class="hero">
+        <div class="hero-inner">
+          <div class="card-row">
+            <div class="avatar" id="avatar-initials">DF</div>
+            <div>
+              <p class="card-name" id="staff-name"></p>
+              <p class="card-title" id="staff-title"></p>
+            </div>
+          </div>
+          <div class="contact-row" id="contact-row"></div>
+          <button class="save-btn" onclick="saveContact()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+            Save my contact
+          </button>
+          <p class="save-hint">Adds a contact card to your phone — no app needed.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer><p>DFL Importers &amp; Distributors — Kingston, Jamaica</p></footer>
+  </div>
+</div>
+
+<script>
+const SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+
+const code = new URLSearchParams(window.location.search).get('c') || '';
+let currentCard = null;
+
+const ICONS = {
+  phone: '<path d="M6.6 10.8a15.9 15.9 0 0 0 6.6 6.6l2.2-2.2a1.5 1.5 0 0 1 1.5-.4c1.3.4 2.7.6 4.1.6a1.5 1.5 0 0 1 1.5 1.5V21a1.5 1.5 0 0 1-1.5 1.5A18 18 0 0 1 3 4.5 1.5 1.5 0 0 1 4.5 3H8a1.5 1.5 0 0 1 1.5 1.5c0 1.4.2 2.8.6 4.1a1.5 1.5 0 0 1-.4 1.5z"/>',
+  email: '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>'
+};
+
+function showNotFound(){
+  document.getElementById('loading').hidden = true;
+  document.getElementById('notfound').hidden = false;
+}
+
+function addChip(row, href, label, iconPath){
+  const a = document.createElement('a');
+  a.href = href; a.className = 'contact-chip';
+  a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg><span>${label}</span>`;
+  row.appendChild(a);
+}
+
+function renderCard(c){
+  document.getElementById('loading').hidden = true;
+  document.getElementById('card-panel').hidden = false;
+
+  document.getElementById('staff-name').textContent = c.full_name;
+  document.getElementById('staff-title').textContent = c.title;
+
+  const initials = c.full_name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  document.getElementById('avatar-initials').textContent = initials || 'DF';
+
+  const row = document.getElementById('contact-row');
+  row.innerHTML = '';
+  if(c.phone){ addChip(row, 'tel:' + c.phone.replace(/[^\d+]/g, ''), c.phone, ICONS.phone); }
+  if(c.email){ addChip(row, 'mailto:' + c.email, c.email, ICONS.email); }
+
+  currentCard = c;
+}
+
+function saveContact(){
+  if(!currentCard) return;
+  const c = currentCard;
+  const vcard = [
+    'BEGIN:VCARD', 'VERSION:3.0',
+    `FN:${c.full_name}`,
+    'ORG:DFL Importers & Distributors',
+    `TITLE:${c.title}`,
+    c.phone ? `TEL;TYPE=WORK,VOICE:${c.phone}` : '',
+    c.email ? `EMAIL;TYPE=WORK:${c.email}` : '',
+    `URL:${window.location.href.split('?')[0]}`,
+    'END:VCARD'
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([vcard], {type: 'text/vcard'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = c.full_name.replace(/\s+/g, '_') + '.vcf';
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+async function loadCard(){
+  if(!code){ showNotFound(); return; }
+  try{
+    const res = await fetch(
+      `${SB_URL}/rest/v1/business_cards?code=eq.${encodeURIComponent(code)}&select=full_name,title,phone,email`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    if(!res.ok) throw new Error('fetch failed');
+    const rows = await res.json();
+    if(!rows.length){ showNotFound(); return; }
+    renderCard(rows[0]);
+  }catch(e){
+    showNotFound();
+  }
+}
+
+loadCard();
+</script>
+
+</body>
+</html>
