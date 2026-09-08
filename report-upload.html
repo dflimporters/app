@@ -943,7 +943,9 @@
     hr: 'HR', sales: 'Sales', it: 'IT',
     finance: 'Finance', ops: 'Operations', proc: 'Procurement',
   };
-  const BUCKET = 'weekly-reports';
+  // NOT `weekly-reports` — that bucket belongs to the auto-generated weekly
+  // and month-end report pipeline (a separate system on its own cron).
+  const BUCKET = 'hod-reports';
   const files = {};        // staged in this browser only — NOT yet on the server
   let submitted = {};      // what's actually on the server for the selected week
   let weeks = [];

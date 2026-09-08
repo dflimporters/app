@@ -314,7 +314,9 @@
 <script src="/shared/side-nav.js"></script>
 
 <script>
-  const BUCKET = 'weekly-reports';
+  // NOT `weekly-reports` — that bucket belongs to the auto-generated weekly
+  // and month-end report pipeline (a separate system on its own cron).
+  const BUCKET = 'hod-reports';
   const DEPT_META = {
     hr:      { label: 'Human Resources',        person: 'Paula Tasama' },
     sales:   { label: 'Sales',                  person: 'Scott Chambers' },
