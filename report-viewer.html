@@ -321,7 +321,7 @@
     hr:      { label: 'Human Resources',        person: 'Paula Tasama' },
     sales:   { label: 'Sales',                  person: 'Scott Chambers' },
     it:      { label: 'Information Technology', person: 'Joel Dallas' },
-    finance: { label: 'Finance',                person: 'Ronald Decasseres' },
+    finance: { label: 'Finance',                person: 'Team Solvex' },
     ops:     { label: 'Operations',             person: 'Kyle Decasseres' },
     proc:    { label: 'Procurement',            person: 'Brandon Decasseres' },
   };
@@ -495,7 +495,16 @@
 
     try {
       if (ext === 'pdf') {
-        frame.setAttribute('sandbox', 'allow-scripts allow-popups');
+        // No sandbox attribute at all for PDF — tested every combination
+        // (allow-same-origin with and without allow-scripts/allow-popups)
+        // and Chrome's built-in PDF viewer renders nothing (no error, just a
+        // blank frame) inside ANY sandboxed iframe fed a blob: URL. Safe to
+        // drop entirely: unlike the HTML branch below, a PDF has no path to
+        // execute page-reaching JavaScript through the native viewer — any
+        // PDF-embedded /JavaScript actions run inside Chrome's own separately
+        // sandboxed PDF engine, a security boundary the iframe's `sandbox`
+        // attribute was never what enforced in the first place.
+        frame.removeAttribute('sandbox');
         activeBlobUrl = await fetchAsBlobUrl(publicUrl, 'application/pdf');
         frame.src = activeBlobUrl;
       } else if (ext === 'html' || ext === 'htm') {
