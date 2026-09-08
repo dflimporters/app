@@ -109,6 +109,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `/admin/approvals.html` | admin | Approve pending sign-ups |
 | `/management/**` | manager, admin | Shell + 5 embedded dashboards, all individually guarded |
 | `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
+| `/weekly-reports.html`, `/report-upload.html`, `/report-viewer.html` | manager, admin, management, rep_management | HOD report tool — tabbed shell (View/Upload) over two independently-guarded pages. Departments upload PDF/HTML as-is into the `hod-reports` bucket; no AI parsing. Writes gated by `can_manage_weekly_reports()`, not `is_manager()` — see Database section below. **Not** the same system as the auto-generated reports in the `weekly-reports` bucket. |
 | `/specials.html`, `/specials-upload.html`, `/rep-weekly-plan.html`, `/field-intel.html` | varies | `rep-weekly-plan.html` is iframe-embedded and has no guard |
 
 ## Two parallel Supabase access patterns — check which one a page uses before editing
@@ -133,6 +134,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 9. **DDL via `apply_migration`, not ad-hoc `execute_sql`.** After a migration error, verify against `pg_policies` / `pg_proc` directly — errors can mislead, and a migration may have applied despite reporting failure.
 10. **Revoking `anon` needs to be explicit.** Supabase grants EXECUTE on public functions to `anon` and `authenticated` *directly*, so `revoke ... from public` does not remove it. Trigger functions like `handle_new_user` are a special case — Postgres refuses to call them directly (`0A000`), so an anon grant on those is unexploitable.
 11. **Confirm destructive DB changes before executing.**
+12. **Before writing a new RLS policy, check whether a narrower predicate like `is_manager()` is really what the feature needs — grep `pg_proc` for other `can_*`/`is_*` predicates first.** `is_manager()` (admin, manager only) is shared by `specials`, `org_chart` and `field_intel`. The HOD weekly-report writes use a separate, wider predicate, `can_manage_weekly_reports()` (admin, manager, management, rep_management) — added because the actual department heads mostly carry the `management` role, which `is_manager()` excludes. This has already bitten once: splitting the HOD uploads onto their own storage bucket recreated the new bucket's write policies with `is_manager()` (copied from a similar-looking policy elsewhere) instead of `can_manage_weekly_reports()`, silently narrowing storage-layer access back down for `management`/`rep_management` users while the *table* policies — untouched by that change — kept working. Same class of bug as gotcha 7, one layer down: two policies that are supposed to agree on who counts, quietly drifting apart.
 
 ## Database
 
@@ -167,10 +169,16 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 - **Category intel**: `cat_summary_cache`, `cat_rep_cache`, `cat_cust_cache`, `cat_cust_sku_cache`, `cat_sku_cache`, `cat_sku_cust_cache`, `cat_sku_area_cache`, `cat_sku_not_yet_cache`, `working_days_calendar`
 - **Key accounts**: `kam_cust_cache`
 - **Merch**: `merchandiser_summary`, `merchandiser_map`, `full_year_dashboard`, `merch_store_dashboard`, `store_targets_actual`, `monthly_actuals`, `merch_visit_log`, `merch_stock_reports`, `merch_stock_counts`, `merchandiser_evaluations`
-- **Other**: `rep_followups`, `weekly_reports`, `stock_snapshots`, `specials`, `field_notes`, `rep_visit_log`, `location_test_pings`
-- **Storage buckets**: `Assets` (public), `weekly-reports`, `shelf-photos`
+- **Other**: `rep_followups`, `weekly_reports`, `weekly_report_submissions`, `stock_snapshots`, `specials`, `field_notes`, `rep_visit_log`, `location_test_pings`
+- **Storage buckets**: `Assets` (public), `weekly-reports` (auto-generated sales reports — unrelated to the table above despite the name, see below), `hod-reports` (HOD upload tool, backs `weekly_reports`/`weekly_report_submissions`), `shelf-photos`
 
 Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong, check whether the cache is stale before assuming the query is broken.
+
+### HOD weekly reports vs. the auto-generated weekly-report pipeline — two unrelated systems, same word
+
+- **`weekly_reports` / `weekly_report_submissions`** back the department-head (HOD) report tool: `/weekly-reports.html` (tabbed shell), `/report-upload.html`, `/report-viewer.html`. Departments upload their own PDF/HTML report as-is, once per department per week — no AI parsing or summarizing. (An earlier version briefly ran uploads through the Anthropic API via an edge function, `compile-weekly-report`; that function and its approach are both gone.) Files live in the **`hod-reports`** bucket: public read, writes gated by `can_manage_weekly_reports()`.
+- **The `weekly-reports` bucket is a different, unrelated system.** Cron jobs `generate-weekly-hod-report` (Mondays) and `generate-month-end-report` (1st of the month) call edge functions of the same name, which read the `*_cache` analytics tables (`morning_brief_cache`, `cat_summary_cache`, `kam_cust_cache`, `backorder_weekly_log`, `sales_orders`, …) and write auto-generated HTML sales reports (`latest.html`, `{YYYYMM}/{date}-weekly-report.html`, `month-end/...`). `view-weekly-report` re-serves those files with a correct `Content-Type` for sharing outside the browser — Storage forces `text/plain` on publicly-served `.html` otherwise, an anti-XSS measure that isn't overridable per-file. Something external (an "EA Command Centre" referenced in that function's comments, likely Scott Chambers' own tool) polls `latest.html`. **Don't delete or repoint anything in `weekly-reports` without checking who's consuming it** — the two systems only ever coincidentally shared a bucket name, until the HOD tool was moved onto its own bucket on 2026-09-08.
+- **`can_manage_weekly_reports()`** (admin, manager, management, rep_management) gates every HOD-report write — both tables and the `hod-reports` bucket. It exists because `is_manager()` (admin, manager only) excludes `management`/`rep_management`, the roles most real department heads carry. See gotcha 12 for how these two predicates have already drifted apart once.
 
 ### RLS note for merch tables
 
