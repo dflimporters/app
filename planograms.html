@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1B2B5E">
+<title>DFL · Planograms</title>
+<link rel="icon" href="/favicon.ico">
+<style>body { visibility: hidden; }</style>
+<style>
+:root{
+  --navy:#1B2B5E; --navy2:#2A3F7A; --red:#C8202F; --red-lt:#FCEBEB;
+  --green:#3B6D11; --green-lt:#EAF3DE; --amber:#BA7517; --amber-lt:#FAEEDA;
+  --bg:#F2F4F8; --card:#fff; --border:#E2E5ED;
+  --text:#1A1A2E; --muted:#6B7280;
+  --content-max:640px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased}
+
+.hdr{background:var(--navy);color:#fff;padding:16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.hdr a{color:rgba(255,255,255,.75);text-decoration:none;font-size:20px;line-height:1}
+.hdr h1{font-size:16px;font-weight:800;margin:0;flex:1}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+
+.wrap{max-width:var(--content-max);margin:0 auto;padding:14px}
+
+/* ---- category grid (top level) ---- */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat-tile{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;text-align:left}
+.cat-tile:active{background:#F0F2FA}
+.cat-tile .ico{font-size:24px}
+.cat-tile .nm{font-size:13px;font-weight:700;color:var(--navy)}
+.cat-tile .ct{font-size:11px;color:var(--muted)}
+
+/* ---- category detail ---- */
+.back-link{background:none;border:none;color:var(--navy);font-size:13px;font-weight:700;cursor:pointer;padding:0;margin-bottom:12px;display:flex;align-items:center;gap:4px}
+.cat-hdr{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:4px}
+.cat-hdr-sub{font-size:12px;color:var(--muted);margin-bottom:14px}
+
+.gallery{display:flex;flex-direction:column;gap:14px}
+.pg-card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;overflow:hidden}
+.pg-card img{width:100%;display:block;cursor:zoom-in;background:var(--bg)}
+.pg-card .pdf-tile{padding:30px 16px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+.pg-meta{padding:10px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pg-caption{font-size:12.5px;color:var(--text);flex:1}
+.pg-by{font-size:10.5px;color:var(--muted);margin-top:3px}
+.pg-del{background:none;border:none;color:var(--red);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;padding:2px}
+
+.empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+
+/* ---- manager upload panel ---- */
+.upload-panel{background:var(--card);border:1.5px dashed var(--navy);border-radius:12px;padding:14px;margin-bottom:14px}
+.upload-panel label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+.upload-panel input[type=text]{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;margin-bottom:10px}
+.upload-btn{width:100%;background:var(--navy2);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.upload-btn:disabled{opacity:.5;cursor:not-allowed}
+.upload-status{font-size:11px;color:var(--muted);margin-top:8px;text-align:center}
+
+/* ---- lightbox ---- */
+.lightbox{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,14,30,.92);align-items:center;justify-content:center;padding:20px}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+.lightbox-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer}
+
+.spinner{width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite;margin:30px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="#" id="back-btn" title="Back">‹</a>
+  <div>
+    <h1 id="hdr-title">📐 Planograms</h1>
+    <div class="hdr-sub" id="hdr-sub">Shelf placement reference by category</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="boot-msg" class="empty">Loading…</div>
+  <div id="cat-view" style="display:none">
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+  <div id="detail-view" style="display:none">
+    <button class="back-link" onclick="showCategoryGrid()">‹ All categories</button>
+    <div class="cat-hdr" id="detail-title"></div>
+    <div class="cat-hdr-sub" id="detail-sub"></div>
+    <div id="detail-upload"></div>
+    <div class="gallery" id="detail-gallery"></div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox(event)">×</button>
+  <img id="lightbox-img" src="" alt="Planogram, full size">
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+// SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY / sb all come from
+// /shared/supabase-client.js, loaded above — a page-level redeclaration of
+// SUPABASE_URL here is a SyntaxError that blanks the whole page (CLAUDE.md
+// gotcha 5), not a warning.
+const SB_STORAGE=SUPABASE_URL+"/storage/v1";
+
+// Same category set as merch.html's own CAT_LABELS (stock counts / shelf
+// presence) — merchandisers already know these labels, so planograms use the
+// identical taxonomy rather than inventing a second one.
+const CATEGORIES=[
+  ['HOUSEHOLD','🧴','Household'], ['GARBAGEBAG','🗑️','Garbagebag'], ['FOIL','🧻','Foil'],
+  ['PROCESSING','🍱','Processing'], ['PLSWRAP','📦','PLSwrap'], ['WIPES','🧽','Wipes'],
+  ['PAPER','🧾','Paper'], ['PLASTIC','🥤','Plastic'], ['CLEARPACK','📥','Clearpack'],
+  ['BEVERAGES','🥤','Beverages'], ['FOODSUP','🍽️','Food Supply'], ['ECOBOX','📦','Ecobox'],
+  ['ECOCUP','🥤','Ecocup'], ['ECOSTRAW','🥤','Ecostraw']
+];
+const CAT_LABEL={}; CATEGORIES.forEach(function(c){ CAT_LABEL[c[0]]=c[2]; });
+
+let ME=null;       // {id, full_name, role}
+let IS_MANAGER=false;
+let ALL_PLANOGRAMS=[]; // flat list, grouped client-side by category
+let currentCategory=null;
+const PENDING={file:null, previewUrl:null, isPdf:false};
+
+document.addEventListener('dfl-auth-ready', (e) => { initPage(e.detail.profile); wireBack(); });
+
+function wireBack(){
+  const href = (typeof dflHome === 'function') ? dflHome() : '/hub.html';
+  document.getElementById('back-btn').addEventListener('click', function(ev){ ev.preventDefault(); window.location.href=href; });
+}
+
+async function restHeaders(extra){
+  const { data } = await sb.auth.getSession();
+  const token = data && data.session ? data.session.access_token : null;
+  return Object.assign({
+    'apikey': SUPABASE_PUBLISHABLE_KEY,
+    'Authorization': 'Bearer ' + (token || SUPABASE_PUBLISHABLE_KEY),
+    'Content-Type': 'application/json'
+  }, extra || {});
+}
+async function rest(path, opts){
+  opts = opts || {};
+  const prefer = (opts.headers && opts.headers['Prefer']) ? opts.headers['Prefer'] : (opts.prefer || 'return=representation');
+  const headers = await restHeaders(Object.assign({'Prefer':prefer}, opts.headers||{}));
+  const r = await fetch(SUPABASE_URL+'/rest/v1/'+path, {headers, method:opts.method||'GET', body:opts.body?JSON.stringify(opts.body):undefined});
+  if(!r.ok) throw new Error(await r.text());
+  if(r.status===204 || prefer==='return=minimal') return null;
+  return r.json();
+}
+
+async function initPage(profile){
+  ME = {id: profile.rep_id, full_name: profile.full_name, role: profile.role};
+  IS_MANAGER = (profile.role==='admin' || profile.role==='manager');
+  try{
+    ALL_PLANOGRAMS = await rest('planograms?select=*&order=category.asc,sort_order.asc,created_at.asc');
+  }catch(e){ console.error('planograms load failed:',e); ALL_PLANOGRAMS=[]; }
+  document.getElementById('boot-msg').style.display='none';
+  renderCategoryGrid();
+  document.getElementById('cat-view').style.display='block';
+}
+
+function renderCategoryGrid(){
+  const grid=document.getElementById('cat-grid');
+  grid.innerHTML=CATEGORIES.map(function(c){
+    const count=ALL_PLANOGRAMS.filter(function(p){return p.category===c[0];}).length;
+    return '<button class="cat-tile" onclick="openCategory(\''+c[0]+'\')">'+
+      '<span class="ico">'+c[1]+'</span>'+
+      '<span class="nm">'+c[2]+'</span>'+
+      '<span class="ct">'+count+' planogram'+(count===1?'':'s')+'</span>'+
+    '</button>';
+  }).join('');
+}
+
+function showCategoryGrid(){
+  currentCategory=null;
+  document.getElementById('detail-view').style.display='none';
+  document.getElementById('cat-view').style.display='block';
+  document.getElementById('hdr-title').textContent='📐 Planograms';
+  document.getElementById('hdr-sub').textContent='Shelf placement reference by category';
+}
+
+function openCategory(cat){
+  currentCategory=cat;
+  document.getElementById('cat-view').style.display='none';
+  document.getElementById('detail-view').style.display='block';
+  document.getElementById('detail-title').textContent=CAT_LABEL[cat]||cat;
+  document.getElementById('detail-sub').textContent='Where these products belong on shelf — brand grouping and orientation';
+  document.getElementById('hdr-title').textContent=CAT_LABEL[cat]||cat;
+  document.getElementById('hdr-sub').textContent='Planograms';
+  renderUploadPanel();
+  renderGallery();
+}
+
+function renderGallery(){
+  const wrap=document.getElementById('detail-gallery');
+  const rows=ALL_PLANOGRAMS.filter(function(p){return p.category===currentCategory;});
+  if(!rows.length){ wrap.innerHTML='<div class="empty">No planogram uploaded for this category yet.</div>'; return; }
+  wrap.innerHTML=rows.map(function(p){
+    const isPdf=/\.pdf($|\?)/i.test(p.image_url);
+    const media=isPdf
+      ? '<div class="pdf-tile" onclick="window.open(\''+p.image_url+'\',\'_blank\')">📄 Open PDF planogram</div>'
+      : '<img src="'+p.image_url+'" loading="lazy" alt="'+escapeHtml(p.caption||CAT_LABEL[currentCategory])+'" onclick="openLightbox(\''+p.image_url+'\')">';
+    return '<div class="pg-card">'+media+
+      '<div class="pg-meta">'+
+        '<div><div class="pg-caption">'+(p.caption?escapeHtml(p.caption):'<span style="color:var(--muted)">No caption</span>')+'</div>'+
+        (p.uploaded_by_name?'<div class="pg-by">Added by '+escapeHtml(p.uploaded_by_name)+'</div>':'')+'</div>'+
+        (IS_MANAGER?'<button class="pg-del" onclick="deletePlanogram(\''+p.id+'\',\''+encodeURIComponent(p.image_url)+'\')">Remove</button>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function openLightbox(url){
+  document.getElementById('lightbox-img').src=url;
+  document.getElementById('lightbox').classList.add('on');
+}
+function closeLightbox(ev){
+  if(ev) ev.stopPropagation();
+  document.getElementById('lightbox').classList.remove('on');
+  document.getElementById('lightbox-img').src='';
+}
+
+// ── MANAGER UPLOAD ──
+function renderUploadPanel(){
+  const el=document.getElementById('detail-upload');
+  if(!IS_MANAGER){ el.innerHTML=''; return; }
+  el.innerHTML='<div class="upload-panel">'+
+    '<label>Caption (optional)</label>'+
+    '<input type="text" id="pg-caption" placeholder="e.g. Large format store, top shelf">'+
+    '<input type="file" id="pg-file-input" accept="image/*,application/pdf" style="display:none" onchange="handlePlanogramFile(this.files)">'+
+    '<button class="upload-btn" id="pg-upload-btn" onclick="document.getElementById(\'pg-file-input\').click()">📤 Choose image or PDF</button>'+
+    '<div class="upload-status" id="pg-upload-status"></div>'+
+  '</div>';
+}
+
+function handlePlanogramFile(files){
+  if(!files||!files.length) return;
+  const file=files[0];
+  const isPdf=file.type==='application/pdf';
+  PENDING.isPdf=isPdf;
+  if(isPdf){
+    PENDING.file=file;
+    submitPlanogram();
+    return;
+  }
+  compressImage(file).then(function(blob){
+    PENDING.file=blob;
+    submitPlanogram();
+  });
+}
+
+const PHOTO_MAX_DIM=1800, PHOTO_JPEG_QUALITY=0.82;
+function compressImage(file){
+  return new Promise(function(resolve){
+    const objUrl=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=function(){
+      URL.revokeObjectURL(objUrl);
+      const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+      const scale=Math.min(1, PHOTO_MAX_DIM/Math.max(w||PHOTO_MAX_DIM,h||PHOTO_MAX_DIM));
+      const cw=Math.max(1,Math.round(w*scale)), ch=Math.max(1,Math.round(h*scale));
+      const canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+      canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+      if(canvas.toBlob) canvas.toBlob(function(b){resolve(b||file);},'image/jpeg',PHOTO_JPEG_QUALITY);
+      else resolve(file);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src=objUrl;
+  });
+}
+
+async function submitPlanogram(){
+  if(!PENDING.file || !currentCategory) return;
+  const btn=document.getElementById('pg-upload-btn');
+  const status=document.getElementById('pg-upload-status');
+  btn.disabled=true; btn.textContent='Uploading…';
+  try{
+    const ext = PENDING.isPdf ? 'pdf' : 'jpg';
+    const uname=(ME&&ME.full_name)?ME.full_name.replace(/\s+/g,'_'):'admin';
+    const path=currentCategory+'/'+uname+'_'+Date.now()+'.'+ext;
+    const headers=await restHeaders({'Content-Type': PENDING.isPdf?'application/pdf':'image/jpeg'});
+    const res=await fetch(SB_STORAGE+'/object/planogram-images/'+path,{method:'POST',headers,body:PENDING.file});
+    if(!res.ok) throw new Error(await res.text());
+    const imageUrl=SB_STORAGE+'/object/public/planogram-images/'+path;
+    await rest('planograms',{method:'POST',headers:{'Prefer':'return=minimal'},body:{
+      category: currentCategory, image_url: imageUrl,
+      caption: document.getElementById('pg-caption').value.trim()||null,
+      uploaded_by_id: ME.id, uploaded_by_name: ME.full_name
+    }});
+    status.textContent='✓ Added.'; status.style.color='var(--green)';
+    ALL_PLANOGRAMS = await rest('planograms?select=*&order=category.asc,sort_order.asc,created_at.asc');
+    renderGallery(); renderUploadPanel();
+  }catch(e){
+    console.error(e);
+    status.textContent='Could not upload — check connection and try again.';
+    status.style.color='var(--red)';
+  }finally{
+    PENDING.file=null;
+    btn.disabled=false; btn.textContent='📤 Choose image or PDF';
+  }
+}
+
+async function deletePlanogram(id, encodedUrl){
+  if(!confirm('Remove this planogram?')) return;
+  try{
+    await rest('planograms?id=eq.'+id,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    const url=decodeURIComponent(encodedUrl);
+    const path=url.split('/planogram-images/')[1];
+    if(path){
+      const headers=await restHeaders();
+      fetch(SB_STORAGE+'/object/planogram-images/'+path,{method:'DELETE',headers,body:'{}'}).catch(function(){});
+    }
+    ALL_PLANOGRAMS = ALL_PLANOGRAMS.filter(function(p){return p.id!==id;});
+    renderGallery(); renderCategoryGrid();
+  }catch(e){
+    alert('Could not remove: '+(e.message||e));
+  }
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

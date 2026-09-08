@@ -139,7 +139,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .ordtot .ovval{font-family:'Montserrat';font-weight:800;font-size:20px;color:var(--blue);line-height:1}
 .ordtot .ok{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:6px}
 .ordgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.ordgrid .cred{grid-column:1 / -1}
+.ordgrid .cred,.ordgrid .delrep{grid-column:1 / -1}
 .obox{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);
   border-left:4px solid var(--line);position:relative}
 .obox .oct{font-family:'Montserrat';font-weight:800;font-size:24px;line-height:1}
@@ -154,6 +154,9 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .obox.cred{border-left-color:#0d9488;display:flex;align-items:center;justify-content:space-between}
 .obox.cred .olbl{margin-top:0}
 .obox.cred .oval{margin-top:0;color:var(--bad);font-family:'Montserrat';font-weight:800;font-size:17px}
+.obox.delrep{border-left-color:#ea580c;display:flex;align-items:center;justify-content:space-between}
+.obox.delrep .olbl{margin-top:0}
+.obox.delrep .oval{margin-top:0;color:var(--ink);font-family:'Montserrat';font-weight:800;font-size:17px}
 
 .secthdr{display:flex;justify-content:space-between;align-items:baseline;margin:26px 4px 10px}
 .secthdr h2{font-size:15px;font-weight:800;margin:0}
@@ -611,6 +614,7 @@ let IS_MANAGER = false, IS_REP_MANAGEMENT = false, moreBuilt = false;
 // (a rep who also needs the read-only management dashboards).
 const MORE_PAGES = [
   { key:'bad-goods', title:'Report Bad Goods', sub:'Damaged product or bad batch', icon:'📦', src:'bad-goods.html', topLevel:true },
+  { key:'planograms', title:'Planograms', sub:'Shelf placement reference, by category', icon:'📐', src:'planograms.html', topLevel:true },
   { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
   { key:'specials-upload', title:'Upload Specials', sub:'Add & manage deals and flyers', icon:'📤', src:'specials-upload.html', managerOnly:true, topLevel:true },
   // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
@@ -656,11 +660,13 @@ function closeMorePage(){
 }
 
 let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null, CATMTD=[];
+let DELREP=null, DELVIEWDATE=null;   // Delivery Reports tile — today's shipments, cached; re-fetched on date change
 const CAT_CLASSES=["BEVERAGES","CLEARPACK","ECOBOX","ECOCUP","FOIL","FOODSUP","GARBAGEBAG","HOUSEHOLD","PAPER","PLASTIC","PROCESSING"];
 
 function setOrdSort(s){ ORDSORT=s; if(ORDCTX) openOrders(ORDCTX.bucket, ORDCTX.label); }
 
 function openOrders(bucket, label){
+  if(bucket==="delrep"){ openDeliveryReport(); return; }   // different data shape — grouped by shipment, own view
   ORDCTX={bucket, label};
   const c=document.getElementById("content");
   let rows, isCred = bucket==="cred";
@@ -710,20 +716,109 @@ async function loadData(rep){
     const spid=encodeURIComponent(rep.salesperson_id||"");
     const today=new Date();
     const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
-    const [sumR,custR,ordR,ordListR,catR]=await Promise.all([
+    const [sumR,custR,ordR,ordListR,catR,delR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:H}).then(r=>r.json())
+      fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:H}).then(r=>r.json()),
+      fetchDeliveryReport(spid, todayISO())
     ]);
     const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
     CUST=Array.isArray(custR)?custR:[];
     ORD=Array.isArray(ordR)&&ordR[0]?ordR[0]:null;
     ORDLIST=Array.isArray(ordListR)?ordListR:[];
     CATMTD=Array.isArray(catR)?catR:[];
+    DELREP=delR; DELVIEWDATE=null;
     render(s);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load your numbers. Check your connection and pull to refresh.</div>`; }
+}
+
+/* ---------- Delivery Reports ----------
+   Recreates the Acumatica "Delivery (Shipment) Report" from data already
+   synced to Supabase: invoiced_items (line detail, has salesperson_id) joined
+   to so_invoices (header, has ship_via_description — e.g. "S. Henry Truck 1")
+   on reference_number. tran_type=INV excludes credit memos/adjustments, which
+   the real report doesn't carry either.
+   One caveat: Acumatica's own shipment number (e.g. 275345) isn't synced —
+   the "Num" shown here is our invoice reference_number (e.g. 1053311)
+   instead. Same document, same grouping, different number space. */
+function todayISO(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); }
+function addDaysISO(iso,n){ const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); }
+// fmtDate() does `new Date(s)` — a bare "YYYY-MM-DD" string (no time/offset)
+// parses as UTC midnight, which renders as the PREVIOUS day once toLocaleDateString
+// converts to Jamaica's UTC-5. Append a local-time suffix first, same fix as addDaysISO above.
+function fmtISODate(iso){ return fmtDate(iso+"T00:00:00"); }
+
+async function fetchDeliveryReport(spidEnc, dateISO){
+  const empty={date:dateISO, groups:[], shipCt:0, totalQty:0, totalVal:0};
+  if(!spidEnc) return empty;
+  try{
+    const next=addDaysISO(dateISO,1);
+    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?salesperson_id=eq.${spidEnc}&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:H}).then(r=>r.json());
+    const list=Array.isArray(rows)?rows:[];
+    if(!list.length) return empty;
+    const refs=[...new Set(list.map(r=>r.reference_number))];
+    const viaMap={};
+    try{
+      const viaRows=await fetch(`${SB_URL}/rest/v1/so_invoices?reference_number=in.(${refs.map(encodeURIComponent).join(',')})&select=reference_number,ship_via_description`,{headers:H}).then(r=>r.json());
+      (Array.isArray(viaRows)?viaRows:[]).forEach(v=>{viaMap[v.reference_number]=v.ship_via_description;});
+    }catch(e){ /* Via just shows blank if this lookup fails */ }
+    const byRef={};
+    list.forEach(r=>{
+      const g=byRef[r.reference_number]||(byRef[r.reference_number]={ref:r.reference_number, customer_name:r.customer_name, customer_id:r.customer_id, via:viaMap[r.reference_number]||"", items:[], qty:0, val:0});
+      g.items.push(r); g.qty+=+r.quantity||0; g.val+=+r.ext_amount||0;
+    });
+    const groups=Object.values(byRef).sort((a,b)=>a.ref.localeCompare(b.ref,undefined,{numeric:true}));
+    return {date:dateISO, groups, shipCt:groups.length, totalQty:groups.reduce((a,g)=>a+g.qty,0), totalVal:groups.reduce((a,g)=>a+g.val,0)};
+  }catch(e){ return empty; }
+}
+
+async function openDeliveryReport(dateISO){
+  const date=dateISO || DELVIEWDATE || (DELREP&&DELREP.date) || todayISO();
+  DELVIEWDATE=date;
+  const c=document.getElementById("content");
+  const rep=VIEWAS||REP;
+  const spidEnc=rep?encodeURIComponent(rep.salesperson_id||""):"";
+  const cached=(DELREP && DELREP.date===date) ? DELREP : null;
+  c.innerHTML=`
+    <div class="detailhead" style="padding-top:12px">
+      <button class="backbtn" onclick="render(LASTS)">‹ My Numbers</button>
+      <div class="dname">Delivery Reports</div>
+      <div class="dtags"><span class="dtag">Shipment-level detail</span></div>
+    </div>
+    <div class="dcard" style="display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 14px">
+      <button class="pbtn" style="background:#eef1f8" onclick="shiftDelivDate(-1)" aria-label="Previous day">‹</button>
+      <input type="date" id="delivDateInput" value="${date}" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:'Open Sans';font-size:13px;color:var(--ink)" onchange="openDeliveryReport(this.value)">
+      <button class="pbtn" style="background:#eef1f8" onclick="shiftDelivDate(1)" aria-label="Next day">›</button>
+    </div>
+    <div id="delivBody">${cached?"":'<div class="spin"></div>'}</div>`;
+  window.scrollTo(0,0);
+  const data = cached || await fetchDeliveryReport(spidEnc, date);
+  if(date===todayISO()) DELREP=data;   // keep the Home tile's cache fresh if we're looking at today
+  if(DELVIEWDATE===date) drawDeliveryReport(data);   // guard against a stale response landing after the user changed the date again
+}
+function shiftDelivDate(n){ openDeliveryReport(addDaysISO(DELVIEWDATE||todayISO(), n)); }
+
+function drawDeliveryReport(data){
+  const b=document.getElementById("delivBody"); if(!b) return;
+  if(!data.groups.length){ b.innerHTML=`<div class="empty">No deliveries on ${fmtISODate(data.date)}.</div>`; return; }
+  b.innerHTML=`
+    <div class="ordtot">
+      <div><div class="ov">${data.shipCt}</div><div class="ok">Shipment${data.shipCt===1?"":"s"}</div></div>
+      <div class="ovr"><div class="ovval">${J(data.totalVal)}</div><div class="ok">Total value</div></div>
+    </div>
+    ${data.groups.map(g=>`
+      <div class="dcard">
+        <div class="crow1">
+          <div><div class="cname">${esc(g.customer_name||g.customer_id)}</div><div class="cid">#${esc(g.ref)}${g.via?" · "+esc(g.via):""}</div></div>
+          <div class="cgap"><div class="g">${Jk(g.val)}</div><div class="gl">${g.qty} cs</div></div>
+        </div>
+        <table class="ctable" style="margin-top:10px"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>
+          ${g.items.map(i=>`<tr><td>${esc(i.description||"")}</td><td class="num">${(+i.quantity||0).toLocaleString()}</td><td class="num">${J(+i.unit_price||0)}</td><td class="num">${J(+i.ext_amount||0)}</td></tr>`).join("")}
+        </tbody></table>
+      </div>`).join("")}
+    <div class="foot">Figures in JMD.<br>${fmtISODate(data.date)} · Updated ${lastRefresh()}</div>`;
 }
 
 function obox(label,ct,val,cls,bucket){
@@ -817,6 +912,7 @@ function render(s){
       ${obox("On Hold", ORD?ORD.hold_ct:0, ORD?+ORD.hold_val:0, "hold", "hold")}
       ${obox("Back Order", ORD?ORD.backorder_ct:0, ORD?+ORD.backorder_val:0, "back", "back")}
       ${obox("Credit Notes", CUST.filter(x=>+x.mtd_credits<0).length, credits, "cred", "cred")}
+      ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep")}
     </div>
 
     <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
