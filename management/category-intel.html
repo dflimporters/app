@@ -1160,24 +1160,37 @@ function buildKamRows(groups,elapsed,cat){
     const fillCls=isFu?'rf-r':isW?'rf-a':'rf-g';
     const pctCls=isFu?'c-r':isW?'c-b':'c-g';
     const ptsAhead=pgap>=0;
-    const behindCount=budgeted.filter(r=>(parseFloat(r.pct_to_budget)-elapsed)<-5).length;
+    const budgetFullTotal=stores.reduce((s,r)=>s+(parseFloat(r.budget_full)||0),0);
+    const fullMoBudget=budgetFullTotal>0?fmt(budgetFullTotal):hasBudget?fmt(budgetTotal/(elapsed/100)):fmt(0);
+    const activeBudgeted=budgeted.filter(r=>parseFloat(r.actual_mtd)>0).length;
+    const budgetedCount=budgeted.length;
+    const penPct=budgetedCount?activeBudgeted/budgetedCount*100:null;
+    const badgeCls=!hasBudget?'':isFu?'follow-up':isW?'watch':'on-track';
+    const badgeTxt=!hasBudget?'No Budget':isFu?'⚠ Follow Up':isW?'● Watch':'✓ On Track';
     const uid=`kam_${cat}_${i}`;
     return`<div class="cust-row ${borderCls}" id="${uid}">
-      <div class="cr-main" onclick="toggleCust('${uid}')">
-        <div>
-          <div class="cr-name">${g.name}</div>
-          <div class="cr-rep">${g.role} · ${stores.length} store${stores.length===1?'':'s'}${behindCount?` · <span style="color:var(--red);font-weight:600">${behindCount} behind pace</span>`:''}</div>
+      <div class="cr-main" onclick="toggleCust('${uid}')" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 18px;cursor:pointer">
+        <div style="min-width:190px;flex-shrink:0">
+          <div class="rr-name" style="font-size:14px;white-space:normal;overflow:visible;text-overflow:clip">${g.name}</div>
+          <div class="rr-area">${g.role} · ${stores.length} store${stores.length===1?'':'s'}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:0">
-          <div style="display:flex;flex-direction:column;gap:6px;margin-right:12px;align-items:flex-end">
-            <div class="rr-track" style="height:5px;width:120px">${hasBudget?`<div class="rr-fill ${fillCls}" style="width:${Math.min(pct,100)}%"></div><div class="rr-tick" style="left:${Math.min(elapsed,100)}%"></div>`:''}</div>
-            <div style="display:flex;gap:6px;align-items:center">
-              <span class="rr-pct ${hasBudget?pctCls:''}" style="font-size:11.5px">${hasBudget?Math.round(pct)+'% vs '+elapsed.toFixed(0)+'% pace':'No budget'}</span>
-              ${hasBudget?`<span class="rr-pts ${ptsAhead?'ahead':'behind'}" style="font-size:11px">${ptsAhead?'▲':'▼'} ${Math.abs(pgap).toFixed(1)} pts</span>`:''}
-            </div>
+        <div style="flex-shrink:0"><span class="rr-badge ${badgeCls}">${badgeTxt}</span></div>
+        <div class="rr-meter" style="flex:1;min-width:160px;max-width:360px">
+          <div class="rr-track">${hasBudget?`<div class="rr-fill ${fillCls}" style="width:${Math.min(pct,100)}%"></div><div class="rr-tick" style="left:${Math.min(elapsed,100)}%"></div>`:''}</div>
+          <div class="rr-meta">
+            <span class="rr-pct ${hasBudget?pctCls:''}">${hasBudget?Math.round(pct)+'% vs '+elapsed.toFixed(0)+'% pace':'No budget'}</span>
+            ${hasBudget?`<span class="rr-pts ${ptsAhead?'ahead':'behind'}">${ptsAhead?'▲':'▼'} ${Math.abs(pgap).toFixed(1)} pts ${ptsAhead?'ahead':'behind'} pace</span>`:''}
           </div>
-          <span class="cr-chev">›</span>
         </div>
+        <div class="cat-stats" style="flex-wrap:wrap;row-gap:8px">
+          <div class="stat-block"><div class="stat-val">${fmt(actualTotal)}</div><div class="stat-lbl">actual MTD</div></div>
+          <div class="stat-block"><div class="stat-val">${fmt(budgetTotal)}</div><div class="stat-lbl">budget MTD</div></div>
+          <div class="stat-block"><div class="stat-val">${fullMoBudget}</div><div class="stat-lbl">full mo budget</div></div>
+          <div class="stat-block"><div class="stat-val ${gapTotal<0?'sv-r':'sv-g'}">${fmt(gapTotal)}</div><div class="stat-lbl">gap vs pace</div></div>
+          <div class="stat-block"><div class="stat-val">—</div><div class="stat-lbl">GP %</div></div>
+          <div class="stat-block"><div class="stat-val ${penPct==null?'':penPct>=70?'sv-g':penPct>=40?'sv-b':'sv-r'}">${budgetedCount?activeBudgeted+'/'+budgetedCount:'—'}</div><div class="stat-lbl">cust pen</div></div>
+        </div>
+        <span class="cr-chev" style="flex-shrink:0">›</span>
       </div>
       <div class="cr-expand">${buildKamStoreTable(stores,elapsed)}</div>
     </div>`;
