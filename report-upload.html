@@ -228,7 +228,16 @@
 
   .dept-card:hover { box-shadow: var(--shadow-md); border-color: #cbd5e1; }
 
+  /* Staged but NOT yet sent — deliberately amber, not green. A green card
+     next to a file name was the whole reason two departments thought they
+     were finished when nothing had left the browser. */
   .dept-card.has-file {
+    border-color: #fcd34d;
+    background: #fffbeb;
+  }
+
+  /* Actually on the server. */
+  .dept-card.submitted {
     border-color: #86efac;
     background: #f0fdf4;
   }
@@ -289,9 +298,49 @@
   }
 
   .dept-status.ready {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+
+  .dept-status.submitted {
     background: var(--success-bg);
     color: var(--success);
   }
+
+  /* Per-department submit. Lives inside the card, directly under the file,
+     so it's impossible to stage a file without the button being on screen. */
+  .btn-dept-submit {
+    display: none;
+    width: 100%;
+    justify-content: center;
+    margin-top: 12px;
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--success);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s;
+  }
+  .btn-dept-submit.visible { display: flex; }
+  .btn-dept-submit:hover { background: #15803d; }
+  .btn-dept-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  .dept-submitted-note {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--success);
+    font-weight: 600;
+  }
+  .dept-submitted-note.visible { display: flex; }
 
   .drop-zone {
     border: 1.5px dashed var(--border);
@@ -503,157 +552,6 @@
 
   .checklist-item.done .checklist-dot { background: var(--success); }
 
-  /* ── PROGRESS OVERLAY ── */
-  #compile-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(15,32,68,0.6);
-    backdrop-filter: blur(4px);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #compile-overlay.visible { display: flex; }
-
-  .overlay-card {
-    background: var(--surface);
-    border-radius: 16px;
-    padding: 48px;
-    max-width: 440px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 24px 48px rgba(0,0,0,0.2);
-  }
-
-  .overlay-spinner {
-    width: 48px; height: 48px;
-    border: 3px solid var(--border);
-    border-top-color: var(--navy);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 24px;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .overlay-card h3 {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 8px;
-  }
-
-  .overlay-card p {
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.6;
-    margin-bottom: 20px;
-  }
-
-  .overlay-steps { text-align: left; }
-
-  .overlay-step {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--bg);
-  }
-
-  .overlay-step:last-child { border-bottom: none; }
-  .overlay-step.active { color: var(--text); font-weight: 500; }
-  .overlay-step.done { color: var(--success); }
-
-  .step-icon {
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    flex-shrink: 0;
-    background: var(--bg);
-    color: var(--text-dim);
-  }
-
-  .overlay-step.active .step-icon {
-    background: var(--navy);
-    color: white;
-  }
-
-  .overlay-step.done .step-icon {
-    background: var(--success-bg);
-    color: var(--success);
-  }
-
-  /* ── SUCCESS STATE ── */
-  #success-state { display: none; }
-
-  .success-card {
-    background: var(--surface);
-    border: 1px solid #d1fae5;
-    border-radius: 16px;
-    padding: 48px;
-    text-align: center;
-    box-shadow: var(--shadow-md);
-  }
-
-  .success-icon {
-    width: 64px; height: 64px;
-    background: var(--success-bg);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 24px;
-  }
-
-  .success-card h2 {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-  }
-
-  .success-card p {
-    font-size: 14px;
-    color: var(--text-muted);
-    line-height: 1.6;
-    margin-bottom: 28px;
-  }
-
-  .success-meta {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-  }
-
-  .meta-item { text-align: center; }
-
-  .meta-value {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--navy);
-    line-height: 1;
-  }
-
-  .meta-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 4px;
-  }
-
-  .success-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-
   /* ── INFO BANNER ── */
   .info-banner {
     display: flex;
@@ -728,7 +626,7 @@
     <!-- INFO BANNER -->
     <div class="info-banner blue" id="info-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      <span>The current reporting week (Wed–Mon) is pre-selected above — change it only if you're adding a late report for an earlier week. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Press <strong>Submit Reports</strong> once you're ready — you can come back and add more later.</span>
+      <span>The current reporting week (Wed–Mon) is pre-selected above — change it only if you're adding a late report for an earlier week. Accepted formats: <strong>PDF, HTML</strong> — both render inline in the viewer so nobody has to download anything to see them. Convert PPTX/DOCX/XLSX to PDF before uploading. Choosing a file is <strong>not</strong> enough — press the green <strong>Submit</strong> button on your department's own card, and wait for it to turn green and say <strong>Submitted</strong>.</span>
     </div>
 
     <!-- DEPT GRID -->
@@ -767,6 +665,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('hr')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-hr" onclick="submitDept('hr')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-hr">Submit HR Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-hr"></div>
       </div>
 
       <!-- SALES -->
@@ -801,6 +704,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('sales')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-sales" onclick="submitDept('sales')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-sales">Submit Sales Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-sales"></div>
       </div>
 
       <!-- IT -->
@@ -835,6 +743,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('it')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-it" onclick="submitDept('it')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-it">Submit IT Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-it"></div>
       </div>
 
       <!-- FINANCE -->
@@ -869,6 +782,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('finance')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-finance" onclick="submitDept('finance')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-finance">Submit Finance Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-finance"></div>
       </div>
 
       <!-- OPERATIONS -->
@@ -903,6 +821,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('ops')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-ops" onclick="submitDept('ops')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-ops">Submit Operations Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-ops"></div>
       </div>
 
       <!-- PROCUREMENT -->
@@ -937,6 +860,11 @@
           </div>
           <button class="file-remove" onclick="removeFile('proc')" title="Remove">×</button>
         </div>
+        <button class="btn-dept-submit" id="submit-proc" onclick="submitDept('proc')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span id="submitlabel-proc">Submit Procurement Report</span>
+        </button>
+        <div class="dept-submitted-note" id="note-proc"></div>
       </div>
 
     </div><!-- /dept-grid -->
@@ -945,8 +873,8 @@
     <div class="compile-section" id="compile-section">
       <div class="compile-header">
         <div>
-          <h3>Submit weekly reports</h3>
-          <p>Files are stored as uploaded and shown together in the viewer — nothing is reformatted or summarized.</p>
+          <h3>This week's status</h3>
+          <p>Each department submits from its own card above. Files are stored as uploaded and shown together in the viewer — nothing is reformatted or summarized.</p>
         </div>
         <div class="submission-count">
           <div class="count-num" id="count-num">0</div>
@@ -978,38 +906,10 @@
         <span>Please select a week before submitting.</span>
       </div>
 
-      <button class="btn btn-success" id="compile-btn" onclick="startCompile()" disabled>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Submit Reports
+      <button class="btn btn-accent" onclick="viewReport()" style="width:100%;justify-content:center;padding:12px 20px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View this week's reports
       </button>
-    </div>
-
-    <!-- SUCCESS STATE -->
-    <div id="success-state">
-      <div class="success-card">
-        <div class="success-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        </div>
-        <h2>Reports submitted</h2>
-        <p id="success-desc">This week's department reports have been saved and are ready to view.</p>
-        <div class="success-meta">
-          <div class="meta-item">
-            <div class="meta-value" id="success-week">—</div>
-            <div class="meta-label">Week</div>
-          </div>
-          <div class="meta-item">
-            <div class="meta-value" id="success-count">—</div>
-            <div class="meta-label">Departments</div>
-          </div>
-        </div>
-        <div class="success-actions">
-          <button class="btn btn-accent" onclick="viewReport()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            View Reports
-          </button>
-          <button class="btn btn-outline" onclick="resetForm()">Upload Another Week</button>
-        </div>
-      </div>
     </div>
 
   </div><!-- /main -->
@@ -1018,29 +918,6 @@
     DFL Importers — Management Portal · Weekly Report System · &copy; 2026
   </footer>
 </div><!-- /upload-app -->
-
-<!-- SUBMIT OVERLAY -->
-<div id="compile-overlay">
-  <div class="overlay-card">
-    <div class="overlay-spinner" id="overlay-spinner"></div>
-    <h3>Submitting reports...</h3>
-    <p>Saving each department's file to the archive.</p>
-    <div class="overlay-steps" id="overlay-steps">
-      <div class="overlay-step active" id="step-1">
-        <div class="step-icon">1</div>
-        Uploading files to storage
-      </div>
-      <div class="overlay-step" id="step-2">
-        <div class="step-icon">2</div>
-        Recording submissions
-      </div>
-      <div class="overlay-step" id="step-3">
-        <div class="step-icon">3</div>
-        Saving to archive
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
   // Nav, for when this page is opened directly rather than through the
@@ -1062,8 +939,15 @@
     hr: 'Paula Tasama', sales: 'Scott Chambers', it: 'Joel Dallas',
     finance: 'Ronald Decasseres', ops: 'Kyle Decasseres', proc: 'Brandon Decasseres',
   };
-  const BUCKET = 'weekly-reports';
-  const files = {};
+  const DEPT_LABEL = {
+    hr: 'HR', sales: 'Sales', it: 'IT',
+    finance: 'Finance', ops: 'Operations', proc: 'Procurement',
+  };
+  // NOT `weekly-reports` — that bucket belongs to the auto-generated weekly
+  // and month-end report pipeline (a separate system on its own cron).
+  const BUCKET = 'hod-reports';
+  const files = {};        // staged in this browser only — NOT yet on the server
+  let submitted = {};      // what's actually on the server for the selected week
   let weeks = [];
   let currentProfile = null;
 
@@ -1166,17 +1050,47 @@
     const badge = document.getElementById('week-badge');
     const lateBadge = document.getElementById('late-badge');
 
+    // Anything staged belonged to the previous selection — drop it so a file
+    // picked for one week can't be submitted into another.
+    DEPARTMENTS.forEach(d => {
+      delete files[d];
+      document.getElementById('file-' + d).value = '';
+    });
+
     if (isNaN(idx) || !weeks[idx]) {
       badge.style.display = 'none';
       lateBadge.style.display = 'none';
-    } else {
-      const w = weeks[idx];
-      badge.textContent = `Meeting: ${formatMeetingLabel(w)}`;
-      badge.style.display = 'inline-flex';
-      lateBadge.style.display = isLate(w) ? 'inline-flex' : 'none';
-      document.getElementById('week-warning').style.display = 'none';
+      submitted = {};
+      DEPARTMENTS.forEach(renderDept);
+      updateProgress();
+      return;
     }
-    updateCompileBtn();
+
+    const w = weeks[idx];
+    badge.textContent = `Meeting: ${formatMeetingLabel(w)}`;
+    badge.style.display = 'inline-flex';
+    lateBadge.style.display = isLate(w) ? 'inline-flex' : 'none';
+    document.getElementById('week-warning').style.display = 'none';
+    loadExistingSubmissions(w.weekStart.toISOString().slice(0, 10));
+  }
+
+  // Reads back what's already on the server for this week, so a department
+  // opening the page can see who has and hasn't submitted — and so a card
+  // can't claim "Pending" for something already filed.
+  async function loadExistingSubmissions(weekStart) {
+    submitted = {};
+    try {
+      const { data, error } = await sb
+        .from('weekly_report_submissions')
+        .select('department, file_name, file_type, file_size_bytes, submitted_at, is_late')
+        .eq('week_start', weekStart);
+      if (error) throw new Error(error.message);
+      (data || []).forEach(r => { submitted[r.department] = r; });
+    } catch (err) {
+      console.error('Could not load existing submissions:', err);
+    }
+    DEPARTMENTS.forEach(renderDept);
+    updateProgress();
   }
 
   // ── FILE HANDLING ──
@@ -1205,30 +1119,69 @@
 
   function setFile(dept, file) {
     files[dept] = file;
-
-    document.getElementById('card-' + dept).classList.add('has-file');
-    document.getElementById('status-' + dept).className = 'dept-status ready';
-    document.getElementById('status-' + dept).innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor"></div> Ready';
-
-    document.getElementById('fname-' + dept).textContent = file.name;
-    document.getElementById('fsize-' + dept).textContent = formatSize(file.size);
-    document.getElementById('fileinfo-' + dept).classList.add('visible');
-
-    document.getElementById('check-' + dept).classList.add('done');
+    renderDept(dept);
     updateProgress();
-    updateCompileBtn();
   }
 
   function removeFile(dept) {
     delete files[dept];
-    document.getElementById('card-' + dept).classList.remove('has-file');
-    document.getElementById('status-' + dept).className = 'dept-status pending';
-    document.getElementById('status-' + dept).innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div> Pending';
-    document.getElementById('fileinfo-' + dept).classList.remove('visible');
     document.getElementById('file-' + dept).value = '';
-    document.getElementById('check-' + dept).classList.remove('done');
+    renderDept(dept);
     updateProgress();
-    updateCompileBtn();
+  }
+
+  // Single source of truth for how one card looks. Four states: submitted,
+  // submitted-with-a-replacement-staged, staged, empty.
+  function renderDept(dept) {
+    const sub = submitted[dept];
+    const staged = files[dept];
+    const card = document.getElementById('card-' + dept);
+    const status = document.getElementById('status-' + dept);
+    const info = document.getElementById('fileinfo-' + dept);
+    const btn = document.getElementById('submit-' + dept);
+    const note = document.getElementById('note-' + dept);
+    const remove = info.querySelector('.file-remove');
+
+    card.classList.toggle('submitted', !!sub && !staged);
+    card.classList.toggle('has-file', !!staged);
+    document.getElementById('check-' + dept).classList.toggle('done', !!sub);
+
+    // The submit button is the ONLY thing that sends anything anywhere, so it
+    // shows whenever there's something staged and hides once it's filed.
+    btn.classList.toggle('visible', !!staged);
+    btn.disabled = false;
+    document.getElementById('submitlabel-' + dept).textContent =
+      sub ? `Replace ${DEPT_LABEL[dept]} Report` : `Submit ${DEPT_LABEL[dept]} Report`;
+
+    if (staged) {
+      status.className = 'dept-status ready';
+      status.innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor"></div> Not sent yet';
+      document.getElementById('fname-' + dept).textContent = staged.name;
+      document.getElementById('fsize-' + dept).textContent = formatSize(staged.size);
+      info.classList.add('visible');
+      remove.style.display = '';
+    } else if (sub) {
+      status.className = 'dept-status submitted';
+      status.innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor"></div> Submitted';
+      document.getElementById('fname-' + dept).textContent = sub.file_name;
+      document.getElementById('fsize-' + dept).textContent = formatSize(sub.file_size_bytes || 0);
+      info.classList.add('visible');
+      remove.style.display = 'none';   // nothing to un-stage; this one's filed
+    } else {
+      status.className = 'dept-status pending';
+      status.innerHTML = '<div style="width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.5"></div> Pending';
+      info.classList.remove('visible');
+      remove.style.display = '';
+    }
+
+    if (sub && !staged) {
+      const when = new Date(sub.submitted_at)
+        .toLocaleString('en-JM', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+      note.textContent = `✓ Filed ${when}` + (sub.is_late ? ' · late' : '');
+      note.classList.add('visible');
+    } else {
+      note.classList.remove('visible');
+    }
   }
 
   function onDragOver(e, dept) {
@@ -1252,162 +1205,119 @@
     setFile(dept, file);
   }
 
-  // ── PROGRESS ──
+  // ── PROGRESS ── counts what's actually on the server, not what's staged.
   function updateProgress() {
-    const count = Object.keys(files).length;
+    const count = Object.keys(submitted).length;
+    const staged = Object.keys(files).length;
     const pct = Math.round((count / 6) * 100);
     document.getElementById('count-num').textContent = count;
     document.getElementById('progress-fill').style.width = pct + '%';
     document.getElementById('progress-pct').textContent = pct + '%';
     document.getElementById('progress-fill').className = 'progress-bar-fill' + (count === 6 ? ' complete' : '');
 
-    if (count === 0) document.getElementById('progress-label').textContent = 'Waiting for uploads...';
-    else if (count < 6) document.getElementById('progress-label').textContent = `${count} of 6 departments submitted`;
-    else document.getElementById('progress-label').textContent = 'All departments submitted!';
-  }
-
-  function updateCompileBtn() {
-    const count = Object.keys(files).length;
-    const weekSelected = document.getElementById('week-select').value !== '';
-    const btn = document.getElementById('compile-btn');
-    btn.disabled = !(count >= 1 && weekSelected);
-  }
-
-  function setStep(num) {
-    for (let i = 1; i <= 3; i++) {
-      const el = document.getElementById('step-' + i);
-      if (i < num) {
-        el.className = 'overlay-step done';
-        el.querySelector('.step-icon').textContent = '✓';
-      } else if (i === num) {
-        el.className = 'overlay-step active';
-        el.querySelector('.step-icon').textContent = i;
-      } else {
-        el.className = 'overlay-step';
-        el.querySelector('.step-icon').textContent = i;
-      }
+    const label = document.getElementById('progress-label');
+    if (staged > 0) {
+      label.textContent = `${staged} file${staged === 1 ? '' : 's'} chosen but not sent — press Submit on ${staged === 1 ? 'that card' : 'those cards'}`;
+    } else if (count === 0) {
+      label.textContent = 'Nothing submitted yet for this week';
+    } else if (count < 6) {
+      label.textContent = `${count} of 6 departments submitted`;
+    } else {
+      label.textContent = 'All departments submitted!';
     }
   }
 
-  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-  // ── SUBMIT (direct to Supabase — no compile step, files kept as-is) ──
+  // ── SUBMIT ── one department at a time, straight from its own card.
   let lastWeekStart = null;
 
-  function startCompile() {
-    const weekSel = document.getElementById('week-select');
-    if (!weekSel.value) {
+  async function submitDept(dept) {
+    const idx = parseInt(document.getElementById('week-select').value);
+    const w = weeks[idx];
+    if (!w) {
       document.getElementById('week-warning').style.display = 'flex';
       return;
     }
-    document.getElementById('compile-overlay').classList.add('visible');
-    runSubmit();
-  }
+    const file = files[dept];
+    if (!file) return;
 
-  async function runSubmit() {
-    const idx = parseInt(document.getElementById('week-select').value);
-    const w = weeks[idx];
     const weekStart = w.weekStart.toISOString().slice(0, 10);
     const weekEnd = w.weekEnd.toISOString().slice(0, 10);
     const weekLabel = formatWeekLabel(w);
     const late = isLate(w);
-    const compiledBy = (currentProfile && currentProfile.full_name) || 'Management Portal';
+
+    const btn = document.getElementById('submit-' + dept);
+    const label = document.getElementById('submitlabel-' + dept);
+    btn.disabled = true;
+    label.textContent = 'Submitting…';
 
     try {
-      // Step 1 — upload each selected file to storage
-      setStep(1);
-      const uploaded = [];
-      for (const [dept, file] of Object.entries(files)) {
-        const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
-        const storagePath = `${weekStart}/${dept}/${dept}_report.${ext}`;
-        const { error: uploadErr } = await sb.storage.from(BUCKET).upload(storagePath, file, {
-          contentType: file.type || 'application/octet-stream',
-          upsert: true,
-        });
-        if (uploadErr) throw new Error(`Upload failed for ${dept}: ${uploadErr.message}`);
-        uploaded.push({ dept, file, ext, storagePath });
-      }
+      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+      const storagePath = `${weekStart}/${dept}/${dept}_report.${ext}`;
+      const { error: uploadErr } = await sb.storage.from(BUCKET).upload(storagePath, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: true,
+      });
+      if (uploadErr) throw new Error(uploadErr.message);
 
-      // Step 2 — upsert the report row, then the submission rows
-      setStep(2);
       const { data: reportRow, error: reportErr } = await sb
         .from('weekly_reports')
         .upsert({
           week_start: weekStart, week_end: weekEnd, week_label: weekLabel,
-          compiled_by: compiledBy, is_late_update: late, status: 'complete',
+          compiled_by: (currentProfile && currentProfile.full_name) || 'Management Portal',
+          is_late_update: late, status: 'complete',
         }, { onConflict: 'week_start' })
         .select().single();
-      if (reportErr) throw new Error(`Report save failed: ${reportErr.message}`);
+      if (reportErr) throw new Error(reportErr.message);
 
-      const submissionRows = uploaded.map(u => ({
-        report_id: reportRow.id, week_start: weekStart, department: u.dept,
-        submitted_by: DEPT_PERSON[u.dept], file_name: u.file.name, file_type: u.ext,
-        file_size_bytes: u.file.size, storage_path: u.storagePath, is_late: late,
-      }));
       const { error: subErr } = await sb
         .from('weekly_report_submissions')
-        .upsert(submissionRows, { onConflict: 'week_start,department' });
-      if (subErr) throw new Error(`Submission save failed: ${subErr.message}`);
+        .upsert({
+          report_id: reportRow.id, week_start: weekStart, department: dept,
+          submitted_by: DEPT_PERSON[dept], file_name: file.name, file_type: ext,
+          file_size_bytes: file.size, storage_path: storagePath, is_late: late,
+        }, { onConflict: 'week_start,department' });
+      if (subErr) throw new Error(subErr.message);
 
-      // Step 3 — refresh dept_count from all submissions on record for this week
-      setStep(3);
       const { count: deptCount } = await sb
         .from('weekly_report_submissions')
         .select('id', { count: 'exact', head: true })
         .eq('week_start', weekStart);
-      await sb.from('weekly_reports').update({ dept_count: deptCount || uploaded.length }).eq('id', reportRow.id);
-
-      await delay(400);
+      await sb.from('weekly_reports').update({ dept_count: deptCount || 1 }).eq('id', reportRow.id);
 
       lastWeekStart = weekStart;
-      document.getElementById('compile-overlay').classList.remove('visible');
-
-      document.getElementById('compile-section').style.display = 'none';
-      document.getElementById('dept-grid').style.display = 'none';
-      document.getElementById('info-banner').style.display = 'none';
-      document.querySelector('.week-row').style.display = 'none';
-      document.querySelectorAll('.section-label').forEach(el => el.style.display = 'none');
-
-      document.getElementById('success-week').textContent = weekLabel;
-      document.getElementById('success-count').textContent = deptCount || uploaded.length;
-      document.getElementById('success-desc').textContent = late
-        ? 'Late submission saved alongside this week\'s existing reports.'
-        : 'This week\'s department reports have been saved and are ready to view.';
-      document.getElementById('success-state').style.display = 'block';
+      delete files[dept];
+      document.getElementById('file-' + dept).value = '';
+      await loadExistingSubmissions(weekStart);
 
     } catch (err) {
-      document.getElementById('compile-overlay').classList.remove('visible');
-      alert('Submit failed: ' + err.message);
+      btn.disabled = false;
+      label.textContent = `Submit ${DEPT_LABEL[dept]} Report`;
+      alert(`Could not submit the ${DEPT_LABEL[dept]} report: ${err.message}`);
     }
   }
 
   function viewReport() {
-    if (!lastWeekStart) return;
+    const idx = parseInt(document.getElementById('week-select').value);
+    const week = weeks[idx] ? weeks[idx].weekStart.toISOString().slice(0, 10) : lastWeekStart;
+    if (!week) return;
     // Framed inside weekly-reports.html — switch its tab instead of
     // navigating this iframe away, which would lose the shell's tab bar.
     // window.parent (not window.top) is the right target: it's whichever
     // page actually embedded this iframe, regardless of nesting depth.
     if (window.top !== window.self && typeof window.parent.dflShowViewerTab === 'function') {
-      window.parent.dflShowViewerTab(lastWeekStart);
+      window.parent.dflShowViewerTab(week);
     } else {
-      window.location.href = 'report-viewer.html?week=' + lastWeekStart;
+      window.location.href = 'report-viewer.html?week=' + week;
     }
   }
 
-  function resetForm() {
-    DEPARTMENTS.forEach(d => removeFile(d));
-    document.getElementById('week-select').value = '';
-    document.getElementById('week-badge').style.display = 'none';
-    document.getElementById('late-badge').style.display = 'none';
-    document.getElementById('success-state').style.display = 'none';
-    document.getElementById('compile-section').style.display = 'block';
-    document.getElementById('dept-grid').style.display = 'grid';
-    document.getElementById('info-banner').style.display = 'flex';
-    document.querySelector('.week-row').style.display = 'flex';
-    document.querySelectorAll('.section-label').forEach(el => el.style.display = 'block');
-    updateProgress();
-    updateCompileBtn();
-  }
+  // Last line of defence: if someone picked a file and never pressed Submit,
+  // don't let them close the tab believing it went in.
+  window.addEventListener('beforeunload', (e) => {
+    if (Object.keys(files).length === 0) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 
   populateWeekSelect();
 </script>

@@ -663,7 +663,7 @@ body.dfl-readonly .readonly-note{display:block}
             </div>
           </div>
         </div>
-        <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="closeOutVisit()" disabled style="opacity:.4;cursor:not-allowed">Close out — leaving store →</button>
+        <button class="submit-btn hide-when-readonly" id="v-sbtn" onclick="closeOutVisit()">Close out — leaving store →</button>
       </div>
     </div>
 
@@ -1070,6 +1070,29 @@ function storeNameFor(custId){
 function isRelief(){
   return !!(cu && cu.role==='relief_merchandiser');
 }
+
+// ------------------------------------------------------------
+// WHO COUNTS AS WHAT — one definition, used by every roster query below.
+// ------------------------------------------------------------
+// These filters used to be spelled `role=eq.merchandiser` and
+// `role=eq.team_leader` inline in four places, which quietly excluded real
+// people:
+//
+//   * MERCH_FIELD_ROLES — anyone doing a merchandiser's job on the ground.
+//     `relief_merchandiser` (9 active) and `tl_merch` (3 active) were missing,
+//     so 12 staff with 151 logged visits between them never appeared in the
+//     admin overview or in their own team leader's list.
+//   * TEAM_LEAD_ROLES — anyone who leads a team. `tl_merch` is a team leader
+//     who also merchandises, and three of the company's six leads are one, so
+//     half the leads were invisible and un-viewable.
+//
+// A tl_merch legitimately appears in BOTH lists: they carry a route and lead a
+// team. management/merch-dashboard.html already models them that way.
+const MERCH_FIELD_ROLES = ['merchandiser', 'relief_merchandiser', 'tl_merch'];
+const TEAM_LEAD_ROLES   = ['team_leader', 'tl_merch'];
+
+// PostgREST `in` filter: roleIn(['a','b']) -> "role=in.(a,b)"
+function roleIn(roles){ return 'role=in.(' + roles.join(',') + ')'; }
 
 // Set true only while a team leader is running the visit wizard via
 // "Log a visit" on their own screen (tlStartAdHocVisit()) — never for a
@@ -1622,7 +1645,8 @@ async function savePhotosStage(){
 async function closeOutVisit(){
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
   if(!activeVisit){alert('No visit in progress.');return;}
-  if(!badGoodsFlag){alert('Please answer whether there are any bad goods to report.');return;}
+  // Answering the bad-goods question is optional — only actively saying
+  // "Yes" with no photo attached yet blocks closing out.
   if(badGoodsFlag==='yes' && bgTotalPhotoCount()===0){alert('Add at least one bad-goods photo (receipt or product) before closing out.');return;}
   const btn=document.getElementById('v-sbtn');
   btn.disabled=true;btn.textContent='Saving…';
@@ -1880,7 +1904,7 @@ async function loadTLData(u){
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&role=eq.merchandiser&active=eq.true&select=id,name,area&order=name`);
+    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
     loadTeamRouteRequests();
@@ -2770,7 +2794,7 @@ async function loadAuditStores(){
   try{
     listEl.innerHTML='<div class="spinner" style="margin:8px auto"></div>';
     // This TL's merchandisers via the reps.team_lead_id FK — same join as loadTLData.
-    const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&role=eq.merchandiser&active=eq.true&select=name&order=name`);
+    const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     if(!myNames.length){
       listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No merchandisers in your team.</div>';
@@ -2974,15 +2998,17 @@ async function launchAdmin(){
     // for WHO exists; merchandiser_summary only has rows for people with data.
     const today=new Date().toISOString().slice(0,10);
     const [reps, summary, leads, todayVisits] = await Promise.all([
-      rest('reps?active=eq.true&role=eq.merchandiser&select=id,name,area,team_lead_id&order=name'),
+      rest(`reps?active=eq.true&${roleIn(MERCH_FIELD_ROLES)}&select=id,name,area,role,team_lead_id&order=name`),
       rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
-      rest('reps?active=eq.true&role=eq.team_leader&select=id,name,area&order=name'),
+      rest(`reps?active=eq.true&${roleIn(TEAM_LEAD_ROLES)}&select=id,name,area,role&order=name`),
       rest(`merch_visit_log?visit_date=eq.${today}&select=*&order=created_at.desc`)
     ]);
 
     const leadById={};
     (leads||[]).forEach(l=>{ leadById[l.id]=l.name; });
-    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||''}));
+    // `role` is carried through so view-as can adopt the person's REAL role
+    // rather than assuming 'team_leader' — see viewAsTeamLeader().
+    teamLeadRows=(leads||[]).map(l=>({id:l.id, name:l.name, area:l.area||'', role:l.role}));
 
     // Latest row per name — "created_at.desc" above means the first match
     // per name wins, i.e. their most recent visit today.
@@ -2996,7 +3022,7 @@ async function launchAdmin(){
     (summary||[]).forEach(r=>{ perfByName[r.merchandiser_name]=r; });
 
     overviewRows=(reps||[]).map(r=>({
-      id:r.id, name:r.name, area:r.area||'',
+      id:r.id, name:r.name, area:r.area||'', role:r.role,
       team_lead:r.team_lead_id?(leadById[r.team_lead_id]||''):'',
       team_lead_id:r.team_lead_id||null,
       perf:perfByName[r.name]||null
@@ -3120,7 +3146,10 @@ async function viewAsMerchandiser(repId){
     territory: row.area,
     team_lead: row.team_lead,
     team_lead_id: row.team_lead_id,
-    role: 'merchandiser',
+    // Their real role, not a hardcoded 'merchandiser'. The overview now also
+    // lists relief merchandisers, and isRelief() drives whether the app shows
+    // a fixed store list and target/commission numbers — both wrong for them.
+    role: row.role || 'merchandiser',
     viewingAs: true
   };
 
@@ -3146,7 +3175,8 @@ async function viewAsTeamLeader(repId){
     initials: row.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(),
     territory: row.area,
     team_lead: '', team_lead_id: null,
-    role: 'team_leader',
+    // The TL list now includes tl_merch, so adopt their real role.
+    role: row.role || 'team_leader',
     viewingAs: true
   };
 
@@ -3154,7 +3184,11 @@ async function viewAsTeamLeader(repId){
   document.getElementById('viewas-name').textContent=row.name;
   document.getElementById('viewas-bar').classList.add('show');
 
-  await launchTL(cu);
+  // tl_merch gets the same dual-role screen (with the "My visits" switch to
+  // their own merchandiser side) they'd actually see — not the plain
+  // team-leader-only view.
+  if(row.role==='tl_merch') await launchTLMerch(cu);
+  else await launchTL(cu);
 }
 
 function exitViewAs(){
@@ -4286,7 +4320,9 @@ function bgTotalPhotoCount(){
 function updateBadGoodsGating(){
   var sbtn = document.getElementById('v-sbtn');
   if(!sbtn) return;
-  var met = badGoodsFlag==='no' || (badGoodsFlag==='yes' && bgTotalPhotoCount()>0);
+  // Answering is optional — leaving it untouched must never block closing
+  // out. Only an explicit "Yes" with no photo attached yet holds the button.
+  var met = badGoodsFlag!=='yes' || bgTotalPhotoCount()>0;
   sbtn.disabled = !met;
   sbtn.style.opacity = met ? '1' : '.4';
   sbtn.style.cursor = met ? 'pointer' : 'not-allowed';
