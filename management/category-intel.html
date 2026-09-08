@@ -559,6 +559,21 @@ const MM={
 const MC={Rejene:'#6D28D9',Trebor:'#0E7490',Travis:'#B45309',Richard:'#C0392B',Matthew:'#16A34A'};
 const CHAIN_IDS=new Set(['C000001907','C000001908','C000001909','C000001911','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004159','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004361','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005650','C000005651','C000005652','C000005653','C000005654','C000006029','C000006110','C000006386','C000007077','C000009109','C000009140','C000009381','C000009487']);
 
+// KAM store portfolios — same hardcoded customer-ID lists as management/key-account-management.html.
+// These are each KAM's actual assigned/managed stores; NOT the same thing as the invoice
+// "salesperson" field on cat_cust_cache, which for these three names can point at whoever
+// wrote the order rather than who owns the account. Named KAM_* to avoid colliding with
+// the unrelated CHAIN_IDS above (that one tags "Chain" vs "Key" vs "General" in the SKU
+// Penetration tab — a different segmentation, coincidentally same name).
+const KAM_CHAIN_IDS=new Set(['C000001907','C000001908','C000001909','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005651','C000005652','C000005653','C000006029','C000006110','C000007077','C000003041','C000003042','C000003043','C000004658','C000003778']);
+const KAM_KEY_IDS=new Set(['C000000081','C000009549','C000005934','C000000554','C000000556','C000000757','C000001490','C000001627','C000001656','C000001689','C000005724','C000001703','C000001704','C000001972','C000005725','C000002523','C000002679','C000002680','C000002731','C000002794','C000002795','C000002896','C000005579','C000009557','C000002974','C000002976','C000003331','C000003774','C000003934','C000004462','C000004565','C000004990','C000005049','C000005697','C000005228']);
+const KAM_DAMITA_IDS=new Set(['C000000446','C000005640','C000007120','C000002706','C000005356','C000002033','C000002034','C000002990','C000002778','C000000456','C000000944','C000003103','C000003696','C000004009','C000004393','C000004635','C000005442','C000005714','C000007491','C000009590','C000004874','C000001575']);
+const KAM_PORTFOLIOS=[
+  {name:'Andrea Skelton',role:'Chain Stores',ids:KAM_CHAIN_IDS},
+  {name:'Shallet Marsh',role:'Key Stores',ids:KAM_KEY_IDS},
+  {name:'Damita Samuels-Foster',role:'Key Stores DF',ids:KAM_DAMITA_IDS}
+];
+
 let D={sum:[],rep:[],cust:[],custAll:[],sku:[],skuCust:[],skuArea:[],skuNotYet:[],keyAccts:[],workingDays:null};
 let snapMgr=null;
 
@@ -595,7 +610,7 @@ async function loadAll(){
       ? await getAll('cat_cust_sku_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date,missing_skus_json',order:'gap_mtd.asc',financial_period:fp})
       : await getAll('cat_cust_cache',{select:'item_class,customer_name,salesperson,area,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,last_purchase_date',financial_period:fp,pct_to_budget:'lt.100'});
     // All customers for Top 10 tab (cat_cust_cache has all, not just Tier 1-3)
-    D.custAll=await getAll('cat_cust_cache',{select:'item_class,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd',financial_period:fp,order:'actual_mtd.desc'});
+    D.custAll=await getAll('cat_cust_cache',{select:'item_class,customer_id,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,last_purchase_date',financial_period:fp,order:'actual_mtd.desc'});
     setLdr('Fetching key SKU data…');
     D.sku=await getAll('cat_sku_cache',{select:'item_class,inventory_id,description,actual_mtd,cases_mtd,gp_pct,prev_month_actual,ytd_avg_monthly_rev,ytd_avg_monthly_cases,pace_vs_prev,pace_vs_same_period,pct_of_prev_full,prev_period_rev',financial_period:fp});
     setLdr('Fetching SKU customer detail…');
@@ -790,6 +805,9 @@ function renderCats(){
         if(aNo&&!bNo)return -1;if(!aNo&&bNo)return 1;return ap-bp;
       });
 
+    // KAM groups — stores each KAM actually manages (KAM_PORTFOLIOS), not who's on the invoice
+    const kamGroups=KAM_PORTFOLIOS.map(k=>({...k,stores:D.custAll.filter(r=>r.item_class===row.item_class&&k.ids.has(r.customer_id))})).filter(g=>g.stores.length);
+
     return`<div class="cat-card ${pi.bc}" id="cc_${row.item_class}">
       <div class="cat-row" onclick="toggle('${row.item_class}')">
         <div><div class="cat-nm">${row.item_class}</div><div class="cat-mgr-line"><span class="mgr-tag mt-${m.mc}">${m.mgr}</span></div></div>
@@ -812,6 +830,7 @@ function renderCats(){
       <div class="cat-detail">
         <div class="dtab-bar">
           <div class="dtab active" onclick="stab(event,'${row.item_class}','r')">By Rep <span class="tab-cnt ${repRows.filter(r=>(parseFloat(r.pct_to_budget)-elapsed)<0).length?'tc-r':'tc-g'}">${repRows.length} reps</span></div>
+          <div class="dtab" onclick="stab(event,'${row.item_class}','kam')">By KAM <span class="tab-cnt tc-b">${kamGroups.length}</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','c')">High Impact Accounts <span class="tab-cnt tc-a">${custRows.length}</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','s')">Key SKUs <span class="tab-cnt tc-a">${skuRows.length}</span></div>
           <div class="dtab" onclick="stab(event,'${row.item_class}','ka')">Key Accounts <span class="tab-cnt tc-b">${D.keyAccts.filter(r=>r.item_class===row.item_class).length}</span></div>
@@ -819,6 +838,7 @@ function renderCats(){
           <div class="dtab" onclick="stab(event,'${row.item_class}','skup')">SKU Penetration</div>
         </div>
         <div class="dp active" id="dp_${row.item_class}_r">${buildRepRows(repRows,elapsed)}</div>
+        <div class="dp" id="dp_${row.item_class}_kam">${buildKamRows(kamGroups,elapsed,row.item_class)}</div>
         <div class="dp" id="dp_${row.item_class}_c">${buildCustRows(custRows,elapsed,row.item_class)}</div>
         <div class="dp" id="dp_${row.item_class}_s">${buildSkuRows(skuRows,row.item_class)}</div>
         <div class="dp" id="dp_${row.item_class}_ka">${buildKeyAccountsRows(row.item_class,elapsed)}</div>
@@ -1121,6 +1141,87 @@ function buildRepRows(rows,elapsed){
       </div>
     </div>`;
   }).join('')}</div>`;
+}
+
+// ── BY KAM (Andrea/Shallet/Damita's actual managed stores, from KAM_PORTFOLIOS) ──
+function buildKamRows(groups,elapsed,cat){
+  if(!groups.length) return'<div class="empty-row">No Chain/Key stores in this category</div>';
+  return`<div class="cust-rows">${groups.map((g,i)=>{
+    const stores=g.stores;
+    const budgeted=stores.filter(r=>parseFloat(r.budget_full)>0);
+    const budgetTotal=stores.reduce((s,r)=>s+(parseFloat(r.budget_mtd)||0),0);
+    const actualTotal=stores.reduce((s,r)=>s+(parseFloat(r.actual_mtd)||0),0);
+    const gapTotal=stores.reduce((s,r)=>s+(parseFloat(r.gap_mtd)||0),0);
+    const hasBudget=budgetTotal>0;
+    const pct=hasBudget?(actualTotal/budgetTotal*100):0;
+    const pgap=pct-elapsed;
+    const isFu=hasBudget&&pgap<-10,isW=hasBudget&&pgap<-5&&pgap>=-10;
+    const borderCls=!hasBudget?'':isFu?'cr-r':isW?'cr-a':'cr-g';
+    const fillCls=isFu?'rf-r':isW?'rf-a':'rf-g';
+    const pctCls=isFu?'c-r':isW?'c-b':'c-g';
+    const ptsAhead=pgap>=0;
+    const budgetFullTotal=stores.reduce((s,r)=>s+(parseFloat(r.budget_full)||0),0);
+    const fullMoBudget=budgetFullTotal>0?fmt(budgetFullTotal):hasBudget?fmt(budgetTotal/(elapsed/100)):fmt(0);
+    const activeBudgeted=budgeted.filter(r=>parseFloat(r.actual_mtd)>0).length;
+    const budgetedCount=budgeted.length;
+    const penPct=budgetedCount?activeBudgeted/budgetedCount*100:null;
+    const badgeCls=!hasBudget?'':isFu?'follow-up':isW?'watch':'on-track';
+    const badgeTxt=!hasBudget?'No Budget':isFu?'⚠ Follow Up':isW?'● Watch':'✓ On Track';
+    const uid=`kam_${cat}_${i}`;
+    return`<div class="cust-row ${borderCls}" id="${uid}">
+      <div class="cr-main" onclick="toggleCust('${uid}')" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 18px;cursor:pointer">
+        <div style="min-width:190px;flex-shrink:0">
+          <div class="rr-name" style="font-size:14px;white-space:normal;overflow:visible;text-overflow:clip">${g.name}</div>
+          <div class="rr-area">${g.role} · ${stores.length} store${stores.length===1?'':'s'}</div>
+        </div>
+        <div style="flex-shrink:0"><span class="rr-badge ${badgeCls}">${badgeTxt}</span></div>
+        <div class="rr-meter" style="flex:1;min-width:160px;max-width:360px">
+          <div class="rr-track">${hasBudget?`<div class="rr-fill ${fillCls}" style="width:${Math.min(pct,100)}%"></div><div class="rr-tick" style="left:${Math.min(elapsed,100)}%"></div>`:''}</div>
+          <div class="rr-meta">
+            <span class="rr-pct ${hasBudget?pctCls:''}">${hasBudget?Math.round(pct)+'% vs '+elapsed.toFixed(0)+'% pace':'No budget'}</span>
+            ${hasBudget?`<span class="rr-pts ${ptsAhead?'ahead':'behind'}">${ptsAhead?'▲':'▼'} ${Math.abs(pgap).toFixed(1)} pts ${ptsAhead?'ahead':'behind'} pace</span>`:''}
+          </div>
+        </div>
+        <div class="cat-stats" style="flex-wrap:wrap;row-gap:8px">
+          <div class="stat-block"><div class="stat-val">${fmt(actualTotal)}</div><div class="stat-lbl">actual MTD</div></div>
+          <div class="stat-block"><div class="stat-val">${fmt(budgetTotal)}</div><div class="stat-lbl">budget MTD</div></div>
+          <div class="stat-block"><div class="stat-val">${fullMoBudget}</div><div class="stat-lbl">full mo budget</div></div>
+          <div class="stat-block"><div class="stat-val ${gapTotal<0?'sv-r':'sv-g'}">${fmt(gapTotal)}</div><div class="stat-lbl">gap vs pace</div></div>
+          <div class="stat-block"><div class="stat-val">—</div><div class="stat-lbl">GP %</div></div>
+          <div class="stat-block"><div class="stat-val ${penPct==null?'':penPct>=70?'sv-g':penPct>=40?'sv-b':'sv-r'}">${budgetedCount?activeBudgeted+'/'+budgetedCount:'—'}</div><div class="stat-lbl">cust pen</div></div>
+        </div>
+        <span class="cr-chev" style="flex-shrink:0">›</span>
+      </div>
+      <div class="cr-expand">${buildKamStoreTable(stores,elapsed)}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+function buildKamStoreTable(stores,elapsed){
+  const rows=[...stores].sort((a,b)=>{
+    const ap=parseFloat(a.budget_full)>0?parseFloat(a.pct_to_budget)-elapsed:999;
+    const bp=parseFloat(b.budget_full)>0?parseFloat(b.pct_to_budget)-elapsed:999;
+    return ap-bp;
+  });
+  return`<table class="exp-table">
+    <tr><th>Store</th><th>Area</th><th>Tier</th><th style="text-align:right">MTD Actual</th><th style="text-align:right">Budget</th><th style="text-align:right">Ach %</th><th style="text-align:right">Gap</th><th>Last Purchase</th></tr>
+    ${rows.map(r=>{
+      const hasBudget=parseFloat(r.budget_full)>0;
+      const pct=parseFloat(r.pct_to_budget||0);
+      const pgap=pct-elapsed;
+      const achCls=!hasBudget?'':pgap>=-5?'sv-g':pgap>=-10?'sv-a':'sv-r';
+      const lp=lastPurchaseInfo(r.last_purchase_date);
+      return`<tr>
+        <td style="font-weight:700">${r.customer_name}</td>
+        <td style="font-size:11px">${r.area||'—'}</td>
+        <td style="font-size:11px">${r.tier||'—'}</td>
+        <td style="text-align:right;font-weight:600">${fmt(r.actual_mtd)}</td>
+        <td style="text-align:right">${hasBudget?fmt(r.budget_full):'—'}</td>
+        <td style="text-align:right;font-weight:700" class="${achCls}">${hasBudget?pct.toFixed(0)+'%':'—'}</td>
+        <td style="text-align:right;font-weight:700;color:${r.gap_mtd!=null&&parseFloat(r.gap_mtd)<0?'var(--red)':r.gap_mtd!=null?'var(--green)':'var(--text-soft)'}">${r.gap_mtd!=null?fmt(r.gap_mtd):'—'}</td>
+        <td class="cr-date ${lp.cls}" style="font-size:11px">${lp.txt}</td>
+      </tr>`;
+    }).join('')}
+  </table>`;
 }
 
 // ── BY CUSTOMER (top 10 Tier 1-3, expandable for missing SKUs) ────────────────
