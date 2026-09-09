@@ -640,7 +640,7 @@ body.dfl-readonly .readonly-note{display:block}
           <div style="margin-top:12px">
             <div style="font-size:12px;font-weight:700;margin-bottom:6px">🧾 Receipt photo(s)</div>
             <input type="file" id="bg-receipt-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('receipt',this.files)" style="display:none">
-            <button type="button" onclick="document.getElementById('bg-receipt-input').value='';document.getElementById('bg-receipt-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+            <button type="button" onclick="openBgCamera('receipt')" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
               <span style="font-size:18px">📷</span><span>Add receipt photo</span>
             </button>
             <div class="photo-thumb-grid" id="bg-receipt-grid" style="margin-top:8px"></div>
@@ -649,7 +649,7 @@ body.dfl-readonly .readonly-note{display:block}
           <div style="margin-top:12px">
             <div style="font-size:12px;font-weight:700;margin-bottom:6px">📦 Product photo(s)</div>
             <input type="file" id="bg-product-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('product',this.files)" style="display:none">
-            <button type="button" onclick="document.getElementById('bg-product-input').value='';document.getElementById('bg-product-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+            <button type="button" onclick="openBgCamera('product')" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
               <span style="font-size:18px">📷</span><span>Add product photo</span>
             </button>
             <div class="photo-thumb-grid" id="bg-product-grid" style="margin-top:8px"></div>
@@ -840,6 +840,19 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="stat-box"><div class="stat-lbl">Team commission</div><div class="stat-val c-amber" id="tl-comm">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="tl-avg">–</div></div>
     </div>
+
+    <div class="merch-card" id="tl-att-card" style="margin-bottom:14px">
+      <div class="sec-hdr" style="margin-bottom:8px">Attendance today</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font-size:22px;font-weight:800" id="tl-att-count">–/–</div>
+        <div style="font-size:12px;color:var(--muted)" id="tl-att-pct">–</div>
+      </div>
+      <div style="height:8px;border-radius:5px;background:var(--border);margin-top:8px;overflow:hidden">
+        <div id="tl-att-bar" style="height:100%;width:0%"></div>
+      </div>
+      <div id="tl-att-missing" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+    </div>
+
     <div class="dash-link hide-when-readonly" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB">
       <div class="dash-link-ico">📋</div>
       <div><div class="dash-link-title" style="color:var(--amber)">Store Audit</div><div class="dash-link-sub">Score shelf presence, cleanliness, pricing & rotation</div></div>
@@ -946,6 +959,17 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="stat-box"><div class="stat-lbl">Qualifying</div><div class="stat-val c-green" id="ov-qual">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Total commission</div><div class="stat-val c-amber" id="ov-comm">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="ov-avg">–</div></div>
+    </div>
+
+    <div class="merch-card" id="ov-att-card" style="margin-bottom:14px">
+      <div class="sec-hdr" style="margin-bottom:8px">Attendance today — all merchandisers</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font-size:22px;font-weight:800" id="ov-att-count">–/–</div>
+        <div style="font-size:12px;color:var(--muted)" id="ov-att-pct">–</div>
+      </div>
+      <div style="height:8px;border-radius:5px;background:var(--border);margin-top:8px;overflow:hidden">
+        <div id="ov-att-bar" style="height:100%;width:0%"></div>
+      </div>
     </div>
 
     <a class="dash-link" href="#" onclick="openDash(event)">
@@ -2350,7 +2374,7 @@ function tlPickBadGoodsStore(el){
       <div style="margin-bottom:10px">
         <div style="font-size:12px;font-weight:700;margin-bottom:6px">🧾 Receipt photo(s)</div>
         <input type="file" id="tlbg-receipt-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('tlReceipt',this.files)" style="display:none">
-        <button type="button" onclick="document.getElementById('tlbg-receipt-input').value='';document.getElementById('tlbg-receipt-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+        <button type="button" onclick="openBgCamera('tlReceipt')" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
           <span>📷</span><span>Add receipt photo</span>
         </button>
         <div class="photo-thumb-grid" id="tlbg-receipt-grid" style="margin-top:8px"></div>
@@ -2358,7 +2382,7 @@ function tlPickBadGoodsStore(el){
       <div style="margin-bottom:10px">
         <div style="font-size:12px;font-weight:700;margin-bottom:6px">📦 Product photo(s)</div>
         <input type="file" id="tlbg-product-input" accept="image/*" capture="environment" onchange="bgHandlePhotoSelect('tlProduct',this.files)" style="display:none">
-        <button type="button" onclick="document.getElementById('tlbg-product-input').value='';document.getElementById('tlbg-product-input').click()" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+        <button type="button" onclick="openBgCamera('tlProduct')" style="background:var(--navy2);color:#fff;border:none;border-radius:var(--rad-sm);padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
           <span>📷</span><span>Add product photo</span>
         </button>
         <div class="photo-thumb-grid" id="tlbg-product-grid" style="margin-top:8px"></div>
@@ -4083,12 +4107,98 @@ function restoreVisitDraft(){
   showOv('📝','Draft restored','Picked up where you left off'+(storeSelected.name?' at '+storeSelected.name:'')+'.'+photoNote);
 }
 
+// ── IN-PAGE CAMERA CAPTURE ──
+// See the comment on #dfl-camera-overlay for why this exists. onCapture gets
+// a JPEG Blob already downscaled to PHOTO_MAX_DIM — drawing the video frame
+// straight into a small canvas costs far less peak memory than the old path
+// (decode a 3-8MB native photo into a full-res <img>/canvas, then shrink).
+let dflCameraStream = null;
+
+async function dflOpenCamera(onCapture, opts){
+  opts = opts || {};
+  if(dflCameraStream) dflCloseCamera();
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    dflCameraFallback(opts);
+    return;
+  }
+  const overlay = document.getElementById('dfl-camera-overlay');
+  const video = document.getElementById('dfl-camera-video');
+  const shutter = document.getElementById('dfl-camera-shutter');
+  const closeBtn = document.getElementById('dfl-camera-close');
+  const label = document.getElementById('dfl-camera-label');
+  if(!overlay || !video){ dflCameraFallback(opts); return; }
+
+  function updateLabel(){ if(label) label.textContent = opts.getLabel ? opts.getLabel() : (opts.label||''); }
+  updateLabel();
+  overlay.style.display = 'flex';
+
+  try{
+    dflCameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: {ideal: 1920}, height: {ideal: 1080} },
+      audio: false
+    });
+  }catch(e){
+    console.warn('in-page camera unavailable, falling back to native capture:', e);
+    dflCloseCamera();
+    dflCameraFallback(opts);
+    return;
+  }
+  video.srcObject = dflCameraStream;
+  try{ await video.play(); }catch(e){}
+
+  shutter.onclick = function(){
+    const vw = video.videoWidth || PHOTO_MAX_DIM, vh = video.videoHeight || PHOTO_MAX_DIM;
+    const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(vw, vh));
+    const cw = Math.max(1, Math.round(vw*scale)), ch = Math.max(1, Math.round(vh*scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    canvas.getContext('2d').drawImage(video, 0, 0, cw, ch);
+    const flash = document.getElementById('dfl-camera-flash');
+    if(flash){
+      flash.style.transition = 'none'; flash.style.opacity = '1';
+      requestAnimationFrame(function(){ flash.style.transition = 'opacity .4s'; flash.style.opacity = '0'; });
+    }
+    canvas.toBlob(function(blob){
+      if(!blob) return;
+      onCapture(blob);
+      const remaining = opts.remainingFn ? opts.remainingFn() : null;
+      if(opts.closeAfterOne || remaining === 0){ dflCloseCamera(); }
+      else { updateLabel(); }
+    }, 'image/jpeg', PHOTO_JPEG_QUALITY);
+  };
+  closeBtn.onclick = dflCloseCamera;
+}
+
+function dflCameraFallback(opts){
+  const inp = opts.fallbackInputId && document.getElementById(opts.fallbackInputId);
+  if(inp){ inp.value=''; inp.click(); }
+}
+
+function dflCloseCamera(){
+  const overlay = document.getElementById('dfl-camera-overlay');
+  const video = document.getElementById('dfl-camera-video');
+  if(dflCameraStream){ dflCameraStream.getTracks().forEach(function(t){ t.stop(); }); dflCameraStream = null; }
+  if(video) video.srcObject = null;
+  if(overlay) overlay.style.display = 'none';
+}
+
+// Release the camera the moment the tab is backgrounded (app switch, lock
+// screen) rather than leaving it running — doesn't help the OS-kill issue
+// (the tab is never backgrounded during capture) but avoids burning battery
+// or holding the camera hostage from another app if someone switches away
+// mid-shot.
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden) dflCloseCamera();
+});
+
 function openCamera(){
   if(pendingPhotos.length >= MAX_PHOTOS){ alert('Maximum '+MAX_PHOTOS+' photos per visit — remove one first (tap the × on a photo below) to add another.'); return; }
-  // Reset file input so same file can be re-triggered
-  const inp = document.getElementById('shelf-file-input');
-  inp.value = '';
-  inp.click();
+  dflOpenCamera(function(blob){ addCapturedPhoto(blob); }, {
+    fallbackInputId: 'shelf-file-input',
+    getLabel: function(){ return 'Shelf photo — '+pendingPhotos.length+' of '+MAX_PHOTOS+' taken'; },
+    closeAfterOne: false,
+    remainingFn: function(){ return MAX_PHOTOS - pendingPhotos.length; }
+  });
 }
 
 // Raw phone-camera photos run 3-8MB each; holding several of those as decoded
@@ -4145,6 +4255,18 @@ function handlePhotoSelect(files){
   });
   renderPhotoThumbs();
   updatePhotoGating();
+}
+
+// In-page camera capture already returns a downscaled JPEG Blob (see
+// dflOpenCamera), so unlike handlePhotoSelect there's no compressImage step.
+function addCapturedPhoto(blob){
+  if(pendingPhotos.length >= MAX_PHOTOS) return;
+  const entry = {file:blob, previewUrl:URL.createObjectURL(blob), uploadedUrl:null, uploading:false, compressing:false};
+  pendingPhotos.push(entry);
+  renderPhotoThumbs();
+  updatePhotoGating();
+  saveVisitDraft();
+  uploadPhoto(pendingPhotos.length-1);
 }
 
 function renderPhotoThumbs(){
@@ -4346,6 +4468,37 @@ function updateBadGoodsGating(){
   if(status){
     status.style.display = (badGoodsFlag==='yes' && bgTotalPhotoCount()===0) ? 'block' : 'none';
   }
+}
+
+// Kind -> its native-camera fallback input and on-screen label, shared by
+// the visit close-out bad-goods panel and the team leader's standalone one.
+const DFL_BG_CAMERA_META = {
+  receipt:    {inputId:'bg-receipt-input',   label:'Receipt photo'},
+  product:    {inputId:'bg-product-input',   label:'Product photo'},
+  tlReceipt:  {inputId:'tlbg-receipt-input', label:'Receipt photo'},
+  tlProduct:  {inputId:'tlbg-product-input', label:'Product photo'}
+};
+
+function openBgCamera(kind){
+  const meta = DFL_BG_CAMERA_META[kind];
+  dflOpenCamera(function(blob){ addCapturedBgPhoto(kind, blob); }, {
+    fallbackInputId: meta.inputId,
+    label: meta.label,
+    closeAfterOne: true
+  });
+}
+
+// In-page camera capture already returns a downscaled JPEG Blob (see
+// dflOpenCamera), so unlike bgHandlePhotoSelect there's no compressImage step.
+function addCapturedBgPhoto(kind, blob){
+  const ctx = BG_PHOTO_CTX[kind];
+  const gate = ctx.customerId ? tlUpdateBadGoodsGating : updateBadGoodsGating;
+  const entry = {file:blob, previewUrl:URL.createObjectURL(blob), uploadedUrl:null, uploading:false, compressing:false};
+  ctx.photos.push(entry);
+  bgRenderThumbs(kind);
+  gate();
+  if(!ctx.customerId) saveVisitDraft();
+  bgUploadPhoto(kind, ctx.photos.length-1);
 }
 
 function bgHandlePhotoSelect(kind, files){
@@ -5398,6 +5551,24 @@ function openOrderSummary(){
       <button onclick="submitAudit()" id="audit-submit-btn" disabled style="flex:2;padding:12px;background:var(--amber);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;opacity:.5">Submit audit</button>
     </div>
   </div>
+</div>
+
+<!-- IN-PAGE CAMERA (getUserMedia) — avoids handing the whole tab to the
+     native camera app the way capture="environment" does. On Samsung's One
+     UI especially, backgrounding the tab for the native camera gets it
+     killed by the OS's aggressive memory management almost every time on a
+     device like the Galaxy A24, forcing a reload on every single photo.
+     Staying in-page means the tab is never backgrounded, so there's nothing
+     for the OS to reclaim. Falls back to the native file inputs above if
+     getUserMedia is unavailable or the user denies camera permission. -->
+<div id="dfl-camera-overlay" style="display:none;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center">
+  <video id="dfl-camera-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;background:#000"></video>
+  <div id="dfl-camera-flash" style="position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none"></div>
+  <div id="dfl-camera-label" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);left:16px;right:56px;text-align:center;color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.7)"></div>
+  <button id="dfl-camera-close" type="button" aria-label="Close camera" onclick="dflCloseCamera()"
+    style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:14px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:none;font-size:20px;line-height:1;cursor:pointer">×</button>
+  <button id="dfl-camera-shutter" type="button" aria-label="Take photo"
+    style="position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);left:50%;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.5);cursor:pointer"></button>
 </div>
 
 </body>
