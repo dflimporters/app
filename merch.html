@@ -1956,6 +1956,10 @@ async function loadTLData(u){
       document.getElementById('tl-qual').textContent='0';
       document.getElementById('tl-comm').textContent='$0';
       document.getElementById('tl-avg').textContent='—';
+      document.getElementById('tl-att-count').textContent='0/0';
+      document.getElementById('tl-att-pct').textContent='—';
+      document.getElementById('tl-att-bar').style.width='0%';
+      document.getElementById('tl-att-missing').textContent='';
       document.getElementById('tl-list').innerHTML='<div class="empty-feed">No merchandisers assigned to your team yet.</div>';
       document.getElementById('tl-visit-feed').innerHTML='<div class="empty-feed">No activity today.</div>';
       return;
@@ -1980,6 +1984,24 @@ async function loadTLData(u){
     const todayVisits=weekVisits.filter(v=>v.visit_date===todayStr);
     renderTLVisitFeed(weekVisits, myNames, todayVisits);
 
+    // Attendance: "logged in" = logged at least one visit today. Relief
+    // coverage doesn't count here — reliefVisits are OTHER people covering
+    // this team's stores, not this team's own merchandisers showing up — so
+    // this reads from ownVisits (already scoped to myNames), not weekVisits.
+    const todayOwnByName={};
+    (ownVisits||[]).forEach(v=>{ if(v.visit_date===todayStr && !todayOwnByName[v.user_name]) todayOwnByName[v.user_name]=v; });
+    const presentNames=myNames.filter(n=>todayOwnByName[n]);
+    const missingNames=myNames.filter(n=>!todayOwnByName[n]);
+    const attPct=myNames.length?Math.round(presentNames.length/myNames.length*100):0;
+    document.getElementById('tl-att-count').textContent=presentNames.length+'/'+myNames.length;
+    document.getElementById('tl-att-pct').textContent=attPct+'% logged a visit today';
+    const attBar=document.getElementById('tl-att-bar');
+    attBar.style.width=attPct+'%';
+    attBar.style.background=attPct>=80?'var(--green)':attPct>=50?'var(--amber)':'var(--red)';
+    document.getElementById('tl-att-missing').textContent=missingNames.length
+      ? 'Not yet logged in: '+missingNames.join(', ')
+      : 'Everyone on the team has logged in today.';
+
     // 3. Stats
     const totComm=team.reduce((s,m)=>s+parseFloat(m.commission||0),0);
     const qual=team.filter(m=>m.stores_qualified>0).length;
@@ -2003,6 +2025,10 @@ async function loadTLData(u){
       const qual=m&&m.stores_qualified>0;
       const qb=qual?`<div class="badge b-ok">${m.stores_qualified} qualifying</div>`:`<div class="badge b-issue">None qualifying</div>`;
       const actual=m?parseFloat(m.total_actual||0):0;
+      const todayVisit=todayOwnByName[name];
+      const attRow=todayVisit
+        ?`<div style="font-size:10px;margin-top:6px">${visitStageChip(todayVisit)}</div>`
+        :`<div style="font-size:11px;color:var(--red);margin-top:6px">Not logged in today</div>`;
       return`<div class="merch-card">
         <div class="merch-hdr">
           <div class="merch-av">${ini}</div>
@@ -2018,6 +2044,7 @@ async function loadTLData(u){
           <span><strong>$${Math.round(actual).toLocaleString()}</strong> actual</span>
           ${comm>0?`<span style="color:var(--green)"><strong>$${Math.round(comm).toLocaleString()}</strong> comm</span>`:''}
         </div>`:'<div style="font-size:12px;color:var(--muted);padding-top:4px">No performance data for this period</div>'}
+        ${attRow}
       </div>`;
     }).join('')||'<div class="empty-feed">No team data found.</div>';
 
@@ -3069,6 +3096,7 @@ async function launchAdmin(){
     }));
 
     renderOverviewStats();
+    renderAttendanceStats();
     renderOverview();
     renderTeamLeadOverview();
   }catch(e){
@@ -3087,6 +3115,12 @@ function renderTeamLeadOverview(){
   }
   list.innerHTML=teamLeadRows.map(r=>{
     const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const teamMembers=overviewRows.filter(m=>m.team_lead_id===r.id);
+    const present=teamMembers.filter(m=>latestVisitByName[m.name]).length;
+    const attCls=!teamMembers.length?'b-pend':present===teamMembers.length?'b-ok':present===0?'b-issue':'b-pend';
+    const attBadge=teamMembers.length
+      ?`<div class="badge ${attCls}">${present}/${teamMembers.length} logged in</div>`
+      :`<div class="badge b-pend">No team</div>`;
     return `<div class="merch-card tappable" onclick="viewAsTeamLeader('${r.id}')">
       <div class="merch-hdr">
         <div class="merch-av">${ini}</div>
@@ -3094,10 +3128,22 @@ function renderTeamLeadOverview(){
           <div class="merch-nm">${escapeHtmlM(r.name)}</div>
           <div class="merch-rt">${escapeHtmlM(r.area||'No area')}</div>
         </div>
+        ${attBadge}
       </div>
       <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px">Open their team view →</div>
     </div>`;
   }).join('');
+}
+
+function renderAttendanceStats(){
+  const total=overviewRows.length;
+  const present=overviewRows.filter(r=>latestVisitByName[r.name]).length;
+  const pct=total?Math.round(present/total*100):0;
+  document.getElementById('ov-att-count').textContent=present+'/'+total;
+  document.getElementById('ov-att-pct').textContent=pct+'% logged a visit today';
+  const bar=document.getElementById('ov-att-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
 }
 
 function renderOverviewStats(){
