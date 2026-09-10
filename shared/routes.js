@@ -80,7 +80,7 @@ const DFL_PAGE_ROLES = {
   '/admin/index.html':     ['admin'],
   '/admin/approvals.html': ['admin'],
   '/specials-upload.html': ['admin', 'manager'],
-  '/bad-goods.html':       ['rep', 'rep_management'],
+  '/bad-goods.html':       ['rep', 'rep_management', 'admin', 'manager'],
   '/planograms.html':      ['merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser', 'rep', 'rep_management', 'manager', 'admin'],
   '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser', 'rep_management'],
   '/pending.html':         ['pending'],
