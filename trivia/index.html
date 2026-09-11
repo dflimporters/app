@@ -384,7 +384,13 @@ async function handleNameSubmit() {
   try { suggestions = await rpc('search_trivia_players', { p_name: val }); } catch (e) { suggestions = []; }
   const top = suggestions[0];
 
-  if (top && top.player_name.toLowerCase() !== val.toLowerCase() && top.sim > 0.5) {
+  if (top && top.player_name.toLowerCase() === val.toLowerCase()) {
+    // Same name, just different casing/whitespace -- reuse the existing
+    // canonical spelling silently rather than creating a case-variant dupe.
+    finishNameEntry(top.player_name);
+    return;
+  }
+  if (top && top.sim > 0.5) {
     pendingName = val;
     showConfirm(val, top.player_name);
     return;
