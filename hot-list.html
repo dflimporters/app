@@ -55,7 +55,14 @@
   <span class="nav-sub" id="refreshedNote"></span>
 </nav>
 
-<div class="content" id="content"><div class="spin"></div></div>
+<div class="content">
+  <div id="repPicker" style="display:none;margin-bottom:14px">
+    <select id="repPickerSelect" onchange="onPickRep(this.value)" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text)">
+      <option value="">— My own view —</option>
+    </select>
+  </div>
+  <div id="content"><div class="spin"></div></div>
+</div>
 
 <footer>© 2026 DFL Importers · Internal use only</footer>
 
@@ -68,27 +75,90 @@ const MANAGER_LIMIT = 150; // a curated top-N, not an exhaustive audit view
 // Category managers see island-wide recos filtered to their categories,
 // regardless of salesperson — mirrors the manager/category mapping already
 // hardcoded in management/category-intel.html (Rejene/Trebor/Matthew/Travis).
-// Key-account managers see whatever's assigned to them via customers.bdm.
-// Not role-driven: Damita holds role='rep' in `reps` but is a key-account
-// person for this feature, same as Andrea/Shallet who are role='manager'.
+// Key-account managers (Andrea, Shallet) see whatever's assigned to them via
+// customers.bdm — they hold role='manager' with no personal sales portfolio
+// of their own, so bdm is the only way to scope them to specific accounts.
+//
+// Damita is deliberately NOT listed here even though she's a key-account
+// person by job function: she holds role='rep' in `reps` AND already has a
+// real 38-account portfolio in rep_customer_cache (confirmed against the
+// "22 accounts" Key Account dashboard view for her). Putting her through the
+// bdm branch scoped her down to only the handful of accounts manually
+// tagged, hiding the rest of her real book. Leaving her out of this map lets
+// her fall through to the default per-rep branch below, same as any other
+// rep — showing her full portfolio, not a narrow slice of it.
 const MANAGER_SCOPE = {
   'Rejene Henry':        { type: 'category', categories: ['PAPER', 'PLASTIC', 'CLEARPACK'], label: 'Paper · Plastic · Clearpack (island-wide)' },
   'Trebor Sergeant':      { type: 'category', categories: ['FOODSUP', 'BEVERAGES'], label: 'Foodsup · Beverages (island-wide)' },
   'Matthew Decasseres':   { type: 'category', categories: ['ECOBOX', 'ECOCUP', 'ECOSTRAW', 'ECOBAG'], label: 'Ecobox · Ecocup · Ecostraw · Ecobag (island-wide)' },
   'Travis DeCasseres':    { type: 'category', categories: ['GARBAGEBAG', 'FOIL', 'PROCESSING', 'HOUSEHOLD'], label: 'Garbage Bag · Foil · Processing · Household (island-wide)' },
   'Andrea Skelton':       { type: 'key_accounts', label: 'Your key accounts' },
-  'Damita Samuels-Foster':{ type: 'key_accounts', label: 'Your key accounts' },
   'Shallet Marsh':        { type: 'key_accounts', label: 'Your key accounts' }
 };
 
+const OVERSIGHT_ROLES = ['admin', 'manager'];
+
 document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
+
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+async function fetchSalespersonRecos(name, label) {
+  const recoRes = await fetch(
+    `${SB_URL}/rest/v1/gap_closer_reco_cache?salesperson=eq.${encodeURIComponent(name)}&order=rank_order.asc&select=*`,
+    { headers: H }
+  );
+  const recos = await recoRes.json();
+  render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, label);
+}
+
+async function loadRepPicker(selectedRepId) {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/reps?role=in.(rep,rep_management)&active=eq.true&select=id,name&order=name.asc`, { headers: H });
+    const reps = await res.json();
+    const select = document.getElementById('repPickerSelect');
+    (Array.isArray(reps) ? reps : []).forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.name;
+      if (r.id === selectedRepId) opt.selected = true;
+      select.appendChild(opt);
+    });
+    document.getElementById('repPicker').style.display = 'block';
+  } catch (err) {
+    console.warn('Could not load rep picker list:', err);
+  }
+}
+
+function onPickRep(repId) {
+  window.location.href = repId ? `/hot-list.html?rep=${encodeURIComponent(repId)}` : '/hot-list.html';
+}
 
 async function init(profile) {
   if (!profile.rep_id) {
     render([], null);
     return;
   }
+  const isOversight = OVERSIGHT_ROLES.includes(profile.role);
+
   try {
+    const viewRepId = getParam('rep');
+
+    // Admin/manager picking a specific rep to check on — overrides their own
+    // scope entirely, and doesn't touch MANAGER_SCOPE at all.
+    if (isOversight && viewRepId) {
+      await loadRepPicker(viewRepId);
+      const repRes = await fetch(`${SB_URL}/rest/v1/reps?id=eq.${encodeURIComponent(viewRepId)}&select=name`, { headers: H });
+      const repRows = await repRes.json();
+      const viewName = Array.isArray(repRows) && repRows[0] ? repRows[0].name : null;
+      if (!viewName) { render([], null, 'Rep not found'); return; }
+      await fetchSalespersonRecos(viewName, `Viewing ${viewName}'s hot list`);
+      return;
+    }
+
+    if (isOversight) loadRepPicker(null); // don't await — picker fills in alongside the own-scope view below
+
     const repRes = await fetch(`${SB_URL}/rest/v1/reps?id=eq.${encodeURIComponent(profile.rep_id)}&select=name`, { headers: H });
     const repRows = await repRes.json();
     const name = Array.isArray(repRows) && repRows[0] ? repRows[0].name : null;
@@ -99,12 +169,7 @@ async function init(profile) {
     if (!scope) {
       // Reps (and any manager/admin not in the scope map above) see their own
       // personal numbers, same as before.
-      const recoRes = await fetch(
-        `${SB_URL}/rest/v1/gap_closer_reco_cache?salesperson=eq.${encodeURIComponent(name)}&order=rank_order.asc&select=*`,
-        { headers: H }
-      );
-      const recos = await recoRes.json();
-      render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, null);
+      await fetchSalespersonRecos(name, null);
       return;
     }
 
