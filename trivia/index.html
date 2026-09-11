@@ -211,6 +211,14 @@
     font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
     color: var(--muted); margin: 22px 0 10px;
   }
+  .segment-toggle {
+    display: flex; background: var(--bg); border-radius: 10px; padding: 3px; gap: 3px; margin-bottom: 16px;
+  }
+  .segment-btn {
+    flex: 1; padding: 8px; border: none; background: none; border-radius: 8px; cursor: pointer;
+    font-size: 12.5px; font-weight: 700; color: var(--muted); font-family: 'Inter', sans-serif; transition: all .15s;
+  }
+  .segment-btn.active { background: var(--surface); color: var(--navy); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
@@ -490,7 +498,7 @@ async function renderPlayView() {
 
   if (roundState === 'before') {
     renderState('play', '⏰', `${currentRound.title} opens soon`,
-      `Opens ${formatWhen(currentRound.opens_at)} (Jamaica time). Come back then!`);
+      `Opens ${formatWhen(currentRound.opens_at)}. Come back then!`);
     return;
   }
 
@@ -625,20 +633,40 @@ function leaderboardHtml(rows) {
   return html;
 }
 
+// Cumulative across every round a player has taken part in -- shown on the
+// main Leaderboard tab so it always has something to show, independent of
+// whatever round is "current" right now.
+function overallLeaderboardHtml(rows) {
+  if (!rows.length) return `<div class="state-card"><div class="state-icon">🏆</div><div class="state-title">No answers yet</div></div>`;
+  const medals = ['🥇','🥈','🥉'];
+  let html = `<div class="lb-wrap"><div class="lb-head"><div>#</div><div>Player</div><div style="text-align:center">Rounds</div><div style="text-align:center">Score</div></div>`;
+  rows.forEach(r => {
+    const isMe = r.player_name.toLowerCase() === currentPlayer.toLowerCase();
+    const podium = r.rnk <= 3;
+    html += `<div class="lb-row ${podium ? 'podium' : ''} ${isMe ? 'is-me' : ''}">
+      <div class="lb-rank">${podium ? medals[r.rnk - 1] : r.rnk}</div>
+      <div class="lb-name ${isMe ? 'me' : ''}">${escapeHtml(r.player_name)}${isMe ? ' ◀' : ''}</div>
+      <div class="lb-num">${r.rounds_played}</div>
+      <div class="lb-pts">${r.total_correct}/${r.total_answered}</div>
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
 async function loadLeaderboard() {
-  if (!currentRound) return;
   const container = document.getElementById('view-leaderboard');
   if (!container.dataset.loaded) container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading leaderboard...</div>`;
   let rows;
   try {
-    rows = await rpc('get_leaderboard', { p_round_id: currentRound.id });
+    rows = await rpc('get_overall_leaderboard');
   } catch (e) {
     renderState('leaderboard', '⚠️', 'Could not load leaderboard', 'Try again in a moment.');
     return;
   }
   container.dataset.loaded = '1';
   const updated = `<div class="lb-updated">Updated ${new Date().toLocaleTimeString('en-JM', {hour:'2-digit', minute:'2-digit'})}</div>`;
-  container.innerHTML = leaderboardHtml(rows) + (rows.length ? updated : '');
+  container.innerHTML = overallLeaderboardHtml(rows) + (rows.length ? updated : '');
 }
 
 // ── Past Rounds ──
@@ -664,6 +692,8 @@ async function loadPastRoundsList() {
     </div>`).join('') + `</div>`;
 }
 
+let pastRoundData = null; // { round, resultRows, lbRows }
+
 async function openPastRound(roundId) {
   const container = document.getElementById('view-past');
   container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading round...</div>`;
@@ -679,10 +709,22 @@ async function openPastRound(roundId) {
   }
   if (!round) { renderState('past', '⚠️', 'Round not found', ''); return; }
 
+  pastRoundData = { round, resultRows, lbRows };
+  renderPastRoundDetail('mine');
+}
+
+function renderPastRoundDetail(segment) {
+  const { round, resultRows, lbRows } = pastRoundData;
   const back = `<button class="back-link" onclick="loadPastRoundsList()">← Past Rounds</button>`;
-  const results = resultRows.length ? resultsHtml(round.title, resultRows) : `<div class="state-card"><div class="state-sub">No results available for this round.</div></div>`;
-  const lbSection = `<div class="section-title">Final Standings</div>${leaderboardHtml(lbRows)}`;
-  container.innerHTML = back + results + lbSection;
+  const toggle = `
+    <div class="segment-toggle">
+      <button class="segment-btn ${segment === 'mine' ? 'active' : ''}" onclick="renderPastRoundDetail('mine')">My Score</button>
+      <button class="segment-btn ${segment === 'board' ? 'active' : ''}" onclick="renderPastRoundDetail('board')">Leaderboard</button>
+    </div>`;
+  const body = segment === 'mine'
+    ? (resultRows.length ? resultsHtml(round.title, resultRows) : `<div class="state-card"><div class="state-sub">No results available for this round.</div></div>`)
+    : `<div class="section-title">${escapeHtml(round.title)} — Final Standings</div>${leaderboardHtml(lbRows)}`;
+  document.getElementById('view-past').innerHTML = back + toggle + body;
 }
 
 // ── Auto-refresh: catch state transitions (opens/closes) and keep leaderboard live ──
