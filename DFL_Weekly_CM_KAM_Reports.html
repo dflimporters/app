@@ -250,18 +250,98 @@ function fmtJ(n){
 function monthName(m){ return ['','January','February','March','April','May','June','July','August','September','October','November','December'][m]; }
 
 /* ============== STORAGE (Supabase table) ============== */
+function blankRecord(){ return {plan:null, updates:[], recap:null, drafts:{plan:null, updates:{}, recap:null}}; }
 async function loadRecord(personId,y,m){
   try{
     const rows = await sbSelect('cmkam_weekly_reports', {person_id:personId, year:y, month:m}, 'data');
-    if(rows && rows.length && rows[0].data) return rows[0].data;
+    if(rows && rows.length && rows[0].data){
+      const d = rows[0].data;
+      return { plan: d.plan||null, updates: d.updates||[], recap: d.recap||null, drafts: d.drafts || {plan:null, updates:{}, recap:null} };
+    }
   }catch(e){
     console.error('loadRecord failed:', e);
   }
-  return {plan:null, updates:[], recap:null};
+  return blankRecord();
 }
 async function saveRecord(personId,y,m,rec){
   await sbUpsert('cmkam_weekly_reports', {person_id:personId, year:y, month:m, data:rec, updated_at:new Date().toISOString()}, 'person_id,year,month');
 }
+
+/* ============== AUTOSAVE (drafts) ==============
+   Continuously saves whatever is in the form to a `drafts` bucket that is
+   completely separate from the real submitted plan/update/recap — so Manager
+   View / EA Command Centre only ever show a checkpoint as "done" once the
+   person actually clicks Save, never from an in-progress draft. */
+let currentRec = null;
+let autosaveTimer = null;
+function scheduleAutosave(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(autosaveGatherAndPersist, 1200);
+}
+function autosaveIndicatorEl(){ return document.getElementById('autosaveIndicator'); }
+function showAutosaveState(msg){
+  const el = autosaveIndicatorEl();
+  if(el) el.textContent = msg;
+}
+async function autosaveGatherAndPersist(){
+  if(state.screen!=='person' || !currentRec) return;
+  const person = PEOPLE.find(p=>p.id===state.personId);
+  if(!person) return;
+  const fridays = getFridays(state.year, state.month);
+  const cls = classify(state.fIdx, fridays.length);
+  currentRec.drafts = currentRec.drafts || {plan:null, updates:{}, recap:null};
+  try{
+    if(cls.type==='plan'){
+      const el = document.getElementById('f_declines');
+      if(!el) return;
+      currentRec.drafts.plan = {
+        initiatives: planInitiatives.slice(),
+        declines: el.value,
+        opportunities: document.getElementById('f_opps').value,
+        challenges: document.getElementById('f_challenges').value,
+        productDev: document.getElementById('f_pd').value,
+        savedAt: new Date().toISOString()
+      };
+    } else if(cls.type==='update'){
+      const el = document.getElementById('u_wins');
+      if(!el) return;
+      currentRec.drafts.updates[cls.weekNum] = {
+        statuses: updStatuses.slice(),
+        wins: el.value,
+        unplanned: document.getElementById('u_unplanned').value,
+        general: document.getElementById('u_general').value,
+        savedAt: new Date().toISOString()
+      };
+    } else {
+      const el = document.getElementById('r_improve');
+      if(!el) return;
+      currentRec.drafts.recap = {
+        review: recapReview.slice(),
+        actuals: recapActuals,
+        improve: el.value,
+        blockers: document.getElementById('r_blockers').value,
+        commentary: document.getElementById('r_commentary').value,
+        savedAt: new Date().toISOString()
+      };
+    }
+    showAutosaveState('Saving draft…');
+    await saveRecord(person.id, state.year, state.month, currentRec);
+    showAutosaveState('Draft saved '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+  }catch(e){
+    console.error('Autosave failed:', e);
+    showAutosaveState('Draft not saved — check connection');
+  }
+}
+/* Delegated listeners: attached once, work regardless of how many times
+   #personCard gets re-rendered. */
+document.addEventListener('input', (e)=>{
+  const card = document.getElementById('personCard');
+  if(card && card.contains(e.target)) scheduleAutosave();
+});
+document.addEventListener('change', (e)=>{
+  const card = document.getElementById('personCard');
+  if(card && card.contains(e.target)) scheduleAutosave();
+});
 function showToast(msg, isError){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
@@ -325,6 +405,7 @@ async function renderPersonScreen(){
   const fridays = getFridays(state.year,state.month);
   const cls = classify(state.fIdx, fridays.length);
   const rec = await loadRecord(person.id, state.year, state.month);
+  currentRec = rec;
 
   // status strip
   const chips = fridays.map((f,i)=>{
@@ -380,21 +461,25 @@ function renderPlanCard(person, rec, editMode){
     planInitiatives = rec.plan.initiatives || [];
     return readonlyPlan(person, rec.plan);
   }
-  planInitiatives = rec.plan ? JSON.parse(JSON.stringify(rec.plan.initiatives||[])) : [];
+  const draft = rec.drafts && rec.drafts.plan;
+  const useDraft = draft && (!rec.plan || new Date(draft.savedAt) > new Date(rec.plan.submittedAt));
+  const src = useDraft ? draft : rec.plan;
+  planInitiatives = src ? JSON.parse(JSON.stringify(src.initiatives||[])) : [];
   if(planInitiatives.length===0) planInitiatives.push(blankInitiative());
   return '<div class="card accent-plan">'
     + '<h2>Week 1 Plan — '+person.name+'</h2>'
     + '<div class="sub">'+person.focus+'. How will you hit target this month, and what needs driving?</div>'
+    + (useDraft ? '<div class="note-box">Restored your unsaved draft from '+new Date(draft.savedAt).toLocaleString()+'.</div>' : '')
     + '<div class="section-divider"><span>MAIN UPDATE</span><div class="line"></div></div>'
-    + '<div class="field"><label>What declined last month, and what needs driving because of it?</label><textarea id="f_declines">'+esc(rec.plan?.declines)+'</textarea></div>'
-    + '<div class="field"><label>Opportunities you\'ll be exploring</label><textarea id="f_opps">'+esc(rec.plan?.opportunities)+'</textarea></div>'
-    + '<div class="field"><label>Challenges the category/portfolio is facing</label><textarea id="f_challenges">'+esc(rec.plan?.challenges)+'</textarea></div>'
-    + '<div class="field"><label>Anything new — product development, new lines, etc.</label><textarea id="f_pd">'+esc(rec.plan?.productDev)+'</textarea></div>'
+    + '<div class="field"><label>What declined last month, and what needs driving because of it?</label><textarea id="f_declines">'+esc(src?.declines)+'</textarea></div>'
+    + '<div class="field"><label>Opportunities you\'ll be exploring</label><textarea id="f_opps">'+esc(src?.opportunities)+'</textarea></div>'
+    + '<div class="field"><label>Challenges the category/portfolio is facing</label><textarea id="f_challenges">'+esc(src?.challenges)+'</textarea></div>'
+    + '<div class="field"><label>Anything new — product development, new lines, etc.</label><textarea id="f_pd">'+esc(src?.productDev)+'</textarea></div>'
     + '<div class="section-divider"><span>PLANNED INITIATIVES</span><div class="line"></div></div>'
     + '<div class="hint" style="margin-bottom:12px;">One row per concrete action you\'re taking this month — a promotion, a display push, a new listing, a pricing move. Keep it specific: in weeks 2–3 you\'ll be reporting status against exactly what you write here, and at month-end you will recap on what you achieved. "Drive PAPER sales" is too vague; "Bundle promo on Domino Rollo with top 5 wholesalers" is the right level of detail.</div>'
     + '<div id="initRows"></div>'
     + '<button class="btn btn-ghost btn-sm" onclick="addInitiative()">+ Add initiative</button>'
-    + '<div class="btn-row" style="margin-top:16px;"><button class="btn btn-primary" onclick="savePlan()">Save plan</button></div>'
+    + '<div class="btn-row" style="margin-top:16px;align-items:center;"><button class="btn btn-primary" onclick="savePlan()">Save plan</button><span class="hint" id="autosaveIndicator"></span></div>'
     + '</div>';
 }
 function blankInitiative(){ return {id:'i'+Date.now()+Math.random().toString(36).slice(2,7), name:'', category:'', actionType:'Promotion', action:'', target:''}; }
@@ -428,6 +513,8 @@ async function savePlan(){
     challenges: document.getElementById('f_challenges').value,
     productDev: document.getElementById('f_pd').value
   };
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  rec.drafts.plan = null;
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Plan saved');
@@ -460,6 +547,8 @@ async function deletePlan(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecord(person.id, state.year, state.month);
   rec.plan = null;
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  rec.drafts.plan = null;
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Plan deleted');
@@ -476,22 +565,30 @@ let updStatuses = [];
 function renderUpdateCard(person, rec, weekNum, fridayDate, editMode){
   const existing = rec.updates.find(u=>u.weekNum===weekNum);
   if(existing && !editMode) return readonlyUpdate(person, existing, weekNum);
+  const draft = rec.drafts && rec.drafts.updates && rec.drafts.updates[weekNum];
+  const useDraft = draft && (!existing || new Date(draft.savedAt) > new Date(existing.submittedAt));
   const planItems = rec.plan ? rec.plan.initiatives : [];
-  updStatuses = planItems.map(it=>{
-    const prior = existing ? existing.statuses.find(s=>s.initiativeId===it.id) : null;
-    return {initiativeId:it.id, name:it.name, status: prior?prior.status:'On track', note: prior?prior.note:''};
-  });
-  const noPlanNote = planItems.length===0 ? '<div class="note-box">No Week 1 plan found for this month — submit that first if you can, or just fill in general updates below.</div>' : '';
+  if(useDraft){
+    updStatuses = JSON.parse(JSON.stringify(draft.statuses||[]));
+  } else {
+    updStatuses = planItems.map(it=>{
+      const prior = existing ? existing.statuses.find(s=>s.initiativeId===it.id) : null;
+      return {initiativeId:it.id, name:it.name, status: prior?prior.status:'On track', note: prior?prior.note:''};
+    });
+  }
+  const src = useDraft ? draft : existing;
+  const noPlanNote = planItems.length===0 && !useDraft ? '<div class="note-box">No Week 1 plan found for this month — submit that first if you can, or just fill in general updates below.</div>' : '';
   return '<div class="card accent-update">'
     + '<h2>Week '+weekNum+' Update — '+person.name+'</h2>'
     + '<div class="sub">Progress against what you planned at the start of the month.</div>'
+    + (useDraft ? '<div class="note-box">Restored your unsaved draft from '+new Date(draft.savedAt).toLocaleString()+'.</div>' : '')
     + noPlanNote
     + '<div id="updRows"></div>'
     + '<div class="section-divider"><span>THIS WEEK</span><div class="line"></div></div>'
-    + '<div class="field"><label>Wins</label><textarea id="u_wins">'+esc(existing?.wins)+'</textarea></div>'
-    + '<div class="field"><label>Unplanned issues / adjustments needed</label><textarea id="u_unplanned">'+esc(existing?.unplanned)+'</textarea></div>'
-    + '<div class="field"><label>Any other general updates</label><textarea id="u_general">'+esc(existing?.general)+'</textarea></div>'
-    + '<div class="btn-row"><button class="btn btn-primary" onclick="saveUpdate('+weekNum+',\''+isoDate(fridayDate)+'\')">Save update</button></div>'
+    + '<div class="field"><label>Wins</label><textarea id="u_wins">'+esc(src?.wins)+'</textarea></div>'
+    + '<div class="field"><label>Unplanned issues / adjustments needed</label><textarea id="u_unplanned">'+esc(src?.unplanned)+'</textarea></div>'
+    + '<div class="field"><label>Any other general updates</label><textarea id="u_general">'+esc(src?.general)+'</textarea></div>'
+    + '<div class="btn-row" style="align-items:center;"><button class="btn btn-primary" onclick="saveUpdate('+weekNum+',\''+isoDate(fridayDate)+'\')">Save update</button><span class="hint" id="autosaveIndicator"></span></div>'
     + '</div>';
 }
 function renderUpdRows(){
@@ -520,6 +617,8 @@ async function saveUpdate(weekNum, fridayIso){
   };
   rec.updates = rec.updates.filter(u=>u.weekNum!==weekNum);
   rec.updates.push(entry);
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  if(rec.drafts.updates) delete rec.drafts.updates[weekNum];
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Update saved');
@@ -551,6 +650,8 @@ async function deleteUpdate(weekNum){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecord(person.id, state.year, state.month);
   rec.updates = rec.updates.filter(u=>u.weekNum!==weekNum);
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  if(rec.drafts.updates) delete rec.drafts.updates[weekNum];
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Update deleted');
@@ -569,24 +670,34 @@ function blankActualsRows(person){
 }
 function renderRecapCard(person, rec, editMode){
   if(rec.recap && !editMode) return readonlyRecap(person, rec.recap);
+  const draft = rec.drafts && rec.drafts.recap;
+  const useDraft = draft && (!rec.recap || new Date(draft.savedAt) > new Date(rec.recap.submittedAt));
   const planItems = rec.plan ? rec.plan.initiatives : [];
-  recapReview = planItems.map(it=>{
-    // pull latest status from updates
-    let latest=null;
-    (rec.updates||[]).slice().sort((a,b)=>a.weekNum-b.weekNum).forEach(u=>{
-      const s=u.statuses.find(x=>x.initiativeId===it.id); if(s) latest=s;
+  if(useDraft){
+    recapReview = JSON.parse(JSON.stringify(draft.review||[]));
+  } else {
+    recapReview = planItems.map(it=>{
+      // pull latest status from updates
+      let latest=null;
+      (rec.updates||[]).slice().sort((a,b)=>a.weekNum-b.weekNum).forEach(u=>{
+        const s=u.statuses.find(x=>x.initiativeId===it.id); if(s) latest=s;
+      });
+      const prior = rec.recap ? rec.recap.review.find(r=>r.initiativeId===it.id) : null;
+      return {initiativeId:it.id, name:it.name, finalStatus: prior?prior.finalStatus:(latest?latest.status:'On track'), note: prior?prior.note:(latest?latest.note:'')};
     });
-    const prior = rec.recap ? rec.recap.review.find(r=>r.initiativeId===it.id) : null;
-    return {initiativeId:it.id, name:it.name, finalStatus: prior?prior.finalStatus:(latest?latest.status:'On track'), note: prior?prior.note:(latest?latest.note:'')};
-  });
-  recapActuals = (rec.recap && rec.recap.actuals && rec.recap.actuals.rows && rec.recap.actuals.rows.length)
-    ? JSON.parse(JSON.stringify(rec.recap.actuals))
-    : {rows: blankActualsRows(person), source:null, fetchedAt:null};
+  }
+  const src = useDraft ? draft : rec.recap;
+  recapActuals = (useDraft && draft.actuals && draft.actuals.rows && draft.actuals.rows.length)
+    ? JSON.parse(JSON.stringify(draft.actuals))
+    : (rec.recap && rec.recap.actuals && rec.recap.actuals.rows && rec.recap.actuals.rows.length)
+      ? JSON.parse(JSON.stringify(rec.recap.actuals))
+      : {rows: blankActualsRows(person), source:null, fetchedAt:null};
   const canAuto = !!person.rpc;
   const multi = (person.catOptions||[]).length > 1;
   return '<div class="card accent-recap">'
     + '<h2>Month-End Recap — '+person.name+' · '+monthName(state.month)+' '+state.year+'</h2>'
     + '<div class="sub">How the month went against what was planned.</div>'
+    + (useDraft ? '<div class="note-box">Restored your unsaved draft from '+new Date(draft.savedAt).toLocaleString()+'.</div>' : '')
     + '<div id="recapRows"></div>'
     + '<div class="section-divider"><span>NUMBERS</span><div class="line"></div></div>'
     + (person.approx ? '<div class="note-box">Portfolio definition for this role is still being finalized — treat auto-pulled figures as approximate until confirmed.</div>' : '')
@@ -594,10 +705,10 @@ function renderRecapCard(person, rec, editMode){
     + (canAuto ? '<div class="btn-row" style="margin-bottom:12px;"><button class="btn btn-gold" id="fetchBtn" onclick="fetchActuals()">Fetch actuals from Supabase</button></div>' : '<div class="note-box">Auto-pull isn\'t configured yet for this portfolio — enter actuals manually below.</div>')
     + '<div id="actualsBox"></div>'
     + '<div class="section-divider"><span>REFLECTION</span><div class="line"></div></div>'
-    + '<div class="field"><label>What needs to improve next month</label><textarea id="r_improve">'+esc(rec.recap?.improve)+'</textarea></div>'
-    + '<div class="field"><label>Major blockages</label><textarea id="r_blockers">'+esc(rec.recap?.blockers)+'</textarea></div>'
-    + '<div class="field"><label>Overall commentary</label><textarea id="r_commentary">'+esc(rec.recap?.commentary)+'</textarea></div>'
-    + '<div class="btn-row"><button class="btn btn-primary" onclick="saveRecap()">Save recap</button></div>'
+    + '<div class="field"><label>What needs to improve next month</label><textarea id="r_improve">'+esc(src?.improve)+'</textarea></div>'
+    + '<div class="field"><label>Major blockages</label><textarea id="r_blockers">'+esc(src?.blockers)+'</textarea></div>'
+    + '<div class="field"><label>Overall commentary</label><textarea id="r_commentary">'+esc(src?.commentary)+'</textarea></div>'
+    + '<div class="btn-row" style="align-items:center;"><button class="btn btn-primary" onclick="saveRecap()">Save recap</button><span class="hint" id="autosaveIndicator"></span></div>'
     + '</div>';
 }
 function renderRecapRows(){
@@ -681,6 +792,8 @@ async function saveRecap(){
     blockers: document.getElementById('r_blockers').value,
     commentary: document.getElementById('r_commentary').value
   };
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  rec.drafts.recap = null;
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Recap saved');
@@ -729,6 +842,8 @@ async function deleteRecap(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecord(person.id, state.year, state.month);
   rec.recap = null;
+  rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+  rec.drafts.recap = null;
   try{
     await saveRecord(person.id, state.year, state.month, rec);
     showToast('Recap deleted');
