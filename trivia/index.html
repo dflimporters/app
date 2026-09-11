@@ -193,6 +193,25 @@
   .lb-pts { text-align: center; font-size: 17px; font-weight: 800; color: var(--navy); }
   .lb-updated { text-align: center; font-size: 11px; color: var(--muted); padding: 10px; }
 
+  /* PAST ROUNDS */
+  .past-round-row {
+    display: flex; flex-direction: column; gap: 2px; padding: 14px 16px;
+    border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s;
+  }
+  .past-round-row:last-child { border-bottom: none; }
+  .past-round-row:hover { background: var(--accent-bg); }
+  .past-round-title { font-weight: 700; color: var(--navy); font-size: 14px; }
+  .past-round-sub { font-size: 12px; color: var(--muted); }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+    color: var(--accent); cursor: pointer; margin-bottom: 14px; background: none; border: none;
+    padding: 0; font-family: 'Inter', sans-serif;
+  }
+  .section-title {
+    font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--muted); margin: 22px 0 10px;
+  }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
     background: var(--text); color: #fff; padding: 10px 18px; border-radius: 24px; font-size: 13px;
@@ -247,6 +266,7 @@
   <div class="tabs">
     <button class="tab active" id="tab-play" onclick="showTab('play')">Play</button>
     <button class="tab" id="tab-leaderboard" onclick="showTab('leaderboard')">Leaderboard</button>
+    <button class="tab" id="tab-past" onclick="showTab('past')">Past Rounds</button>
   </div>
 
   <div class="round-indicator" id="round-indicator" style="display:none"></div>
@@ -254,6 +274,7 @@
   <div class="main">
     <div id="view-play"></div>
     <div id="view-leaderboard" style="display:none"></div>
+    <div id="view-past" style="display:none"></div>
   </div>
 </div>
 
@@ -404,12 +425,19 @@ function showTab(name) {
   activeTab = name;
   document.getElementById('tab-play').classList.toggle('active', name === 'play');
   document.getElementById('tab-leaderboard').classList.toggle('active', name === 'leaderboard');
+  document.getElementById('tab-past').classList.toggle('active', name === 'past');
   document.getElementById('view-play').style.display = name === 'play' ? 'block' : 'none';
   document.getElementById('view-leaderboard').style.display = name === 'leaderboard' ? 'block' : 'none';
+  document.getElementById('view-past').style.display = name === 'past' ? 'block' : 'none';
   if (name === 'leaderboard') loadLeaderboard();
+  if (name === 'past') loadPastRoundsList();
 }
 
 // ── Round auto-detect ──
+// Priority: a live round always wins; otherwise prefer teasing the next
+// upcoming round over showing a past one's results (that's what the
+// Past Rounds tab is for) — only fall back to the last closed round when
+// nothing is scheduled next.
 async function loadRound() {
   let rounds;
   try {
@@ -428,11 +456,11 @@ async function loadRound() {
   const active = rounds.find(r => now >= new Date(r.opens_at).getTime() && now <= new Date(r.closes_at).getTime());
   if (active) { currentRound = active; roundState = 'active'; }
   else {
-    const closed = rounds.filter(r => now > new Date(r.closes_at).getTime()).sort((a,b) => new Date(b.closes_at) - new Date(a.closes_at));
-    if (closed.length) { currentRound = closed[0]; roundState = 'closed'; }
+    const upcoming = rounds.filter(r => now < new Date(r.opens_at).getTime()).sort((a,b) => new Date(a.opens_at) - new Date(b.opens_at));
+    if (upcoming.length) { currentRound = upcoming[0]; roundState = 'before'; }
     else {
-      const upcoming = rounds.filter(r => now < new Date(r.opens_at).getTime()).sort((a,b) => new Date(a.opens_at) - new Date(b.opens_at));
-      currentRound = upcoming[0] || null; roundState = upcoming.length ? 'before' : 'none';
+      const closed = rounds.filter(r => now > new Date(r.closes_at).getTime()).sort((a,b) => new Date(b.closes_at) - new Date(a.closes_at));
+      currentRound = closed[0] || null; roundState = closed.length ? 'closed' : 'none';
     }
   }
   renderRoundIndicator();
@@ -496,7 +524,7 @@ async function renderPlayView() {
     <div class="q-card">
       <div class="q-text">${escapeHtml(q.question_text)}</div>
       <div class="opt-set" id="opt-set">
-        ${['a','b','c','d'].map(l => `
+        ${['a','b','c','d'].filter(l => q['option_' + l]).map(l => `
           <button class="opt-btn" data-opt="${l}" onclick="selectOption('${l}', this)">
             <span class="opt-letter">${l.toUpperCase()}</span>
             <span>${escapeHtml(q['option_' + l])}</span>
@@ -530,7 +558,38 @@ async function submitAnswer(questionId) {
   }
 }
 
-// ── Results (after close) ──
+// ── Results (after close) — shared by the Play tab and Past Rounds detail ──
+function resultsHtml(roundTitle, rows) {
+  const correct = rows.filter(r => r.player_correct === true).length;
+
+  let html = `
+    <div class="score-banner">
+      <div class="big">${correct} / ${rows.length}</div>
+      <div class="lbl">${escapeHtml(roundTitle)} — Final Score</div>
+    </div>`;
+
+  rows.forEach(r => {
+    html += `<div class="result-card"><div class="result-q">${r.order_index}. ${escapeHtml(r.question_text)}</div>`;
+    ['a','b','c','d'].forEach(l => {
+      const text = r['option_' + l];
+      if (!text) return;
+      const isCorrect = r.correct_option === l;
+      const isMine = r.player_selected === l;
+      let cls = '';
+      if (isCorrect) cls = 'correct';
+      else if (isMine) cls = 'wrong-pick';
+      let tag = '';
+      if (isCorrect) tag = '<span class="result-tag">✓ Correct</span>';
+      else if (isMine) tag = '<span class="result-tag">Your pick</span>';
+      html += `<div class="result-opt ${cls}"><span>${l.toUpperCase()}. ${escapeHtml(text)}</span>${tag}</div>`;
+    });
+    if (r.player_selected === null) html += `<div class="result-opt">No answer submitted</div>`;
+    html += `</div>`;
+  });
+
+  return html;
+}
+
 async function renderResults() {
   document.getElementById('view-play').innerHTML = `<div class="state-card"><div class="spinner"></div>Loading results...</div>`;
   let rows;
@@ -544,52 +603,12 @@ async function renderResults() {
     renderState('play', '🔒', 'Results not ready', 'Check back shortly.');
     return;
   }
-  const answered = rows.filter(r => r.player_selected !== null);
-  const correct = rows.filter(r => r.player_correct === true).length;
-
-  let html = `
-    <div class="score-banner">
-      <div class="big">${correct} / ${rows.length}</div>
-      <div class="lbl">${currentRound.title} — Final Score</div>
-    </div>`;
-
-  rows.forEach(r => {
-    html += `<div class="result-card"><div class="result-q">${r.order_index}. ${escapeHtml(r.question_text)}</div>`;
-    ['a','b','c','d'].forEach(l => {
-      const isCorrect = r.correct_option === l;
-      const isMine = r.player_selected === l;
-      let cls = '';
-      if (isCorrect) cls = 'correct';
-      else if (isMine) cls = 'wrong-pick';
-      let tag = '';
-      if (isCorrect) tag = '<span class="result-tag">✓ Correct</span>';
-      else if (isMine) tag = '<span class="result-tag">Your pick</span>';
-      html += `<div class="result-opt ${cls}"><span>${l.toUpperCase()}. ${escapeHtml(r['option_' + l])}</span>${tag}</div>`;
-    });
-    if (r.player_selected === null) html += `<div class="result-opt">No answer submitted</div>`;
-    html += `</div>`;
-  });
-
-  document.getElementById('view-play').innerHTML = html;
+  document.getElementById('view-play').innerHTML = resultsHtml(currentRound.title, rows);
 }
 
-// ── Leaderboard ──
-async function loadLeaderboard() {
-  if (!currentRound) return;
-  const container = document.getElementById('view-leaderboard');
-  if (!container.dataset.loaded) container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading leaderboard...</div>`;
-  let rows;
-  try {
-    rows = await rpc('get_leaderboard', { p_round_id: currentRound.id });
-  } catch (e) {
-    renderState('leaderboard', '⚠️', 'Could not load leaderboard', 'Try again in a moment.');
-    return;
-  }
-  container.dataset.loaded = '1';
-  if (!rows.length) {
-    renderState('leaderboard', '🏆', 'No answers yet', 'Be the first to play!');
-    return;
-  }
+// ── Leaderboard — shared by the Leaderboard tab and Past Rounds detail ──
+function leaderboardHtml(rows) {
+  if (!rows.length) return `<div class="state-card"><div class="state-icon">🏆</div><div class="state-title">No answers yet</div></div>`;
   const medals = ['🥇','🥈','🥉'];
   let html = `<div class="lb-wrap"><div class="lb-head"><div>#</div><div>Player</div><div style="text-align:center">✓</div><div style="text-align:center">Score</div></div>`;
   rows.forEach(r => {
@@ -602,15 +621,75 @@ async function loadLeaderboard() {
       <div class="lb-pts">${r.correct_count}</div>
     </div>`;
   });
-  html += `</div><div class="lb-updated">Updated ${new Date().toLocaleTimeString('en-JM', {hour:'2-digit', minute:'2-digit'})}</div>`;
-  container.innerHTML = html;
+  html += `</div>`;
+  return html;
+}
+
+async function loadLeaderboard() {
+  if (!currentRound) return;
+  const container = document.getElementById('view-leaderboard');
+  if (!container.dataset.loaded) container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading leaderboard...</div>`;
+  let rows;
+  try {
+    rows = await rpc('get_leaderboard', { p_round_id: currentRound.id });
+  } catch (e) {
+    renderState('leaderboard', '⚠️', 'Could not load leaderboard', 'Try again in a moment.');
+    return;
+  }
+  container.dataset.loaded = '1';
+  const updated = `<div class="lb-updated">Updated ${new Date().toLocaleTimeString('en-JM', {hour:'2-digit', minute:'2-digit'})}</div>`;
+  container.innerHTML = leaderboardHtml(rows) + (rows.length ? updated : '');
+}
+
+// ── Past Rounds ──
+async function loadPastRoundsList() {
+  const container = document.getElementById('view-past');
+  container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading past rounds...</div>`;
+  let rounds;
+  try {
+    const nowIso = encodeURIComponent(new Date().toISOString());
+    rounds = await rest(`trivia_rounds?select=*&closes_at=lt.${nowIso}&order=closes_at.desc`);
+  } catch (e) {
+    renderState('past', '⚠️', 'Could not load past rounds', 'Try again in a moment.');
+    return;
+  }
+  if (!rounds.length) {
+    renderState('past', '📜', 'No past rounds yet', "Once a round closes, it'll show up here.");
+    return;
+  }
+  container.innerHTML = `<div class="lb-wrap">` + rounds.map(r => `
+    <div class="past-round-row" onclick="openPastRound(${r.id})">
+      <div class="past-round-title">${escapeHtml(r.title)}</div>
+      <div class="past-round-sub">Closed ${formatWhen(r.closes_at)}</div>
+    </div>`).join('') + `</div>`;
+}
+
+async function openPastRound(roundId) {
+  const container = document.getElementById('view-past');
+  container.innerHTML = `<div class="state-card"><div class="spinner"></div>Loading round...</div>`;
+  let round, resultRows, lbRows;
+  try {
+    const rounds = await rest(`trivia_rounds?select=*&id=eq.${roundId}`);
+    round = rounds[0];
+    resultRows = await rpc('get_round_results', { p_round_id: roundId, p_player_name: currentPlayer });
+    lbRows = await rpc('get_leaderboard', { p_round_id: roundId });
+  } catch (e) {
+    renderState('past', '⚠️', 'Could not load that round', 'Try again in a moment.');
+    return;
+  }
+  if (!round) { renderState('past', '⚠️', 'Round not found', ''); return; }
+
+  const back = `<button class="back-link" onclick="loadPastRoundsList()">← Past Rounds</button>`;
+  const results = resultRows.length ? resultsHtml(round.title, resultRows) : `<div class="state-card"><div class="state-sub">No results available for this round.</div></div>`;
+  const lbSection = `<div class="section-title">Final Standings</div>${leaderboardHtml(lbRows)}`;
+  container.innerHTML = back + results + lbSection;
 }
 
 // ── Auto-refresh: catch state transitions (opens/closes) and keep leaderboard live ──
 setInterval(() => {
   if (!currentPlayer) return;
   if (activeTab === 'play') loadRound();
-  else loadLeaderboard();
+  else if (activeTab === 'leaderboard') loadLeaderboard();
 }, 20000);
 
 init();
