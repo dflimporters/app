@@ -2355,10 +2355,25 @@ async function decideLeaveRequest(btn,id,approve,reloadFn){
       reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString()
     }});
     if(typeof reloadFn==='function') reloadFn();
+    // Fire-and-forget — HR gets the filled-out form by email the moment a
+    // request is approved. The approval itself already succeeded above, so a
+    // failure here shouldn't alarm the approver; just log it for follow-up.
+    if(approve) sendLeaveApprovalEmail(id);
   }catch(e){
     alert('Could not process: '+(e.message||e));
     btn.disabled=false;
   }
+}
+
+async function sendLeaveApprovalEmail(leaveRequestId){
+  try{
+    const res=await fetch(SUPABASE_URL+'/functions/v1/send-leave-approval-email',{
+      method:'POST',
+      headers:await restHeaders(),
+      body:JSON.stringify({leave_request_id:leaveRequestId})
+    });
+    if(!res.ok) console.warn('leave approval email failed:',await res.text());
+  }catch(e){ console.warn('leave approval email failed:',e); }
 }
 
 // Deciding a request can immediately change what belongs in the upcoming-leave
