@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer — DFL</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<style>
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); --green:#16a34a; --green-bg:#f0fdf4; --amber:#d97706; --amber-bg:#fffbeb; --red:#dc2626; --red-bg:#fef2f2; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  nav { background:var(--navy); min-height:52px; display:flex; align-items:center; gap:12px; padding:10px 20px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .homebtn { background:none; border:none; color:#fff; cursor:pointer; padding:4px; display:flex; }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .content { max-width:640px; margin:0 auto; padding:16px 16px 60px; }
+  .empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:14px; line-height:1.6; }
+  .header-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .header-card .name { font-size:18px; font-weight:700; }
+  .header-card .meta { font-size:12px; color:var(--text-dim); margin-top:4px; }
+  .section-label { font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin:18px 0 10px; }
+  .section-label:first-of-type { margin-top:0; }
+  .contact-chip { display:inline-flex; align-items:center; gap:6px; background:var(--accent-bg); color:var(--accent); border-radius:20px; padding:6px 12px; font-size:13px; font-weight:600; margin:0 8px 8px 0; }
+  .contact-chip .role { font-weight:400; opacity:0.8; }
+  .reco-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; box-shadow:var(--shadow); }
+  .reco-card .p-desc { font-weight:600; font-size:13.5px; }
+  .reco-card .p-class { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .badge { font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; white-space:nowrap; float:right; }
+  .badge.quick-win { background:var(--green-bg); color:var(--green); }
+  .badge.high-impact { background:var(--red-bg); color:var(--red); }
+  .badge.stretch-play { background:var(--amber-bg); color:var(--amber); }
+  .debrief-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; box-shadow:var(--shadow); border-left:3px solid var(--border); }
+  .debrief-card.sentiment-positive { border-left-color:var(--green); }
+  .debrief-card.sentiment-negative { border-left-color:var(--red); }
+  .debrief-card.sentiment-neutral { border-left-color:var(--text-dim); }
+  .debrief-card .d-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .debrief-card .d-date { font-size:11px; color:var(--text-dim); }
+  .debrief-card .d-sentiment { font-size:11px; font-weight:600; text-transform:capitalize; }
+  .debrief-card .d-summary { font-size:13.5px; line-height:1.5; margin-bottom:6px; }
+  .debrief-card .d-action { font-size:12.5px; background:var(--accent-bg); color:var(--accent); border-radius:8px; padding:8px 10px; }
+  .debrief-card .d-status { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-top:8px; color:var(--text-dim); }
+  .review-pill { display:inline-block; font-size:10px; font-weight:700; background:var(--amber-bg); color:var(--amber); border-radius:10px; padding:2px 8px; margin-left:6px; }
+  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); }
+  .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; margin:60px auto; animation:sp 0.8s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<nav>
+  <button class="homebtn" onclick="history.back()" aria-label="Back">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="nav-title" id="navTitle">Customer</span>
+</nav>
+
+<div class="content" id="content"><div class="spin"></div></div>
+
+<footer>© 2026 DFL Importers · Internal use only</footer>
+
+<script>
+const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+
+document.addEventListener('dfl-auth-ready', () => { init(); });
+
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+async function init() {
+  const customerId = getParam('id');
+  if (!customerId) {
+    document.getElementById('content').innerHTML = `<div class="empty">No customer specified.</div>`;
+    return;
+  }
+
+  try {
+    const [recoRes, debriefRes, contactRes] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(customerId)}&order=rank_order.asc&select=*`, { headers: H }),
+      fetch(`${SB_URL}/rest/v1/rep_debrief_items?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H }),
+      fetch(`${SB_URL}/rest/v1/customer_contacts?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H })
+    ]);
+    const recos = await recoRes.json();
+    const debriefItems = await debriefRes.json();
+    const contacts = await contactRes.json();
+    render(customerId, Array.isArray(recos) ? recos : [], Array.isArray(debriefItems) ? debriefItems : [], Array.isArray(contacts) ? contacts : []);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('content').innerHTML = `<div class="empty">Couldn't load this customer right now. Try again shortly.</div>`;
+  }
+}
+
+function dedupeContacts(contacts) {
+  // Append-only log — collapse to the most recent mention per contact name.
+  const seen = new Map();
+  for (const c of contacts) {
+    if (!seen.has(c.contact_name)) seen.set(c.contact_name, c);
+  }
+  return Array.from(seen.values());
+}
+
+function badgeClass(label) {
+  if (label === 'Quick Win') return 'quick-win';
+  if (label === 'High Impact') return 'high-impact';
+  return 'stretch-play';
+}
+
+function render(customerId, recos, debriefItems, contacts) {
+  const nameFromParam = getParam('name');
+  const displayName = (recos[0] && recos[0].customer_name) || nameFromParam || customerId;
+  document.getElementById('navTitle').textContent = displayName;
+
+  const first = recos[0] || {};
+  const uniqueContacts = dedupeContacts(contacts);
+
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="header-card">
+      <div class="name">${escapeHtml(displayName)}</div>
+      <div class="meta">${escapeHtml(first.customer_tier || '')}${first.area ? ' · ' + escapeHtml(first.area) : ''}${first.salesperson ? ' · ' + escapeHtml(first.salesperson) : ''}</div>
+    </div>
+
+    ${uniqueContacts.length ? `
+      <div class="section-label">Known contacts</div>
+      <div>${uniqueContacts.map(c => `
+        <span class="contact-chip">👤 ${escapeHtml(c.contact_name)}${c.contact_role ? ` <span class="role">· ${escapeHtml(c.contact_role)}</span>` : ''}</span>
+      `).join('')}</div>
+    ` : ''}
+
+    ${recos.length ? `
+      <div class="section-label">Open opportunities (${recos.length})</div>
+      ${recos.map(r => `
+        <div class="reco-card">
+          <span class="badge ${badgeClass(r.priority_label)}">${escapeHtml(r.priority_label)}</span>
+          <div class="p-desc">${escapeHtml(r.description || r.inventory_id)}</div>
+          <div class="p-class">${escapeHtml(r.item_class || '')} · ${r.days_overdue > 0 ? r.days_overdue + ' days overdue' : 'dormant ' + (r.days_since_last || '?') + ' days'}</div>
+        </div>
+      `).join('')}
+    ` : ''}
+
+    <div class="section-label">Debrief history ${debriefItems.length ? `(${debriefItems.length})` : ''}</div>
+    ${debriefItems.length ? debriefItems.map(d => `
+      <div class="debrief-card sentiment-${d.sentiment || 'neutral'}">
+        <div class="d-top">
+          <span class="d-date">${new Date(d.created_at).toLocaleDateString('en-JM', { month:'short', day:'numeric', year:'numeric' })}</span>
+          <span class="d-sentiment">${escapeHtml(d.sentiment || '')}${d.match_status === 'needs_review' ? '<span class="review-pill">Needs review</span>' : ''}</span>
+        </div>
+        <div class="d-summary">${escapeHtml(d.summary || d.customer_name_raw || '')}</div>
+        ${d.action_needed ? `<div class="d-action">📌 ${escapeHtml(d.action_needed)}${d.suggested_due_date ? ` — by ${d.suggested_due_date}` : ''}</div>` : ''}
+        <div class="d-status">${escapeHtml(d.status || 'open')}</div>
+      </div>
+    `).join('') : '<div class="empty" style="padding:20px 0">No debriefs have mentioned this customer yet.</div>'}
+  `;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

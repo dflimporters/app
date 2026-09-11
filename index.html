@@ -613,6 +613,9 @@ let IS_MANAGER = false, IS_REP_MANAGEMENT = false, moreBuilt = false;
 // reps, or repManagementOnly:true to show only to the rep_management role
 // (a rep who also needs the read-only management dashboards).
 const MORE_PAGES = [
+  { key:'hot-list', title:'Hot List', sub:"Today's top opportunities, ranked", icon:'🔥', src:'hot-list.html', topLevel:true },
+  { key:'calendar', title:'My Week', sub:'Your submitted plan, day by day', icon:'📅', src:'calendar.html', topLevel:true, hideFromManager:true },
+  { key:'debrief', title:'Store Debrief', sub:'How did your last store visit go?', icon:'📝', src:'debrief.html', topLevel:true },
   { key:'bad-goods', title:'Report Bad Goods', sub:'Damaged product or bad batch', icon:'📦', src:'bad-goods.html', topLevel:true },
   { key:'planograms', title:'Planograms', sub:'Shelf placement reference, by category', icon:'📐', src:'planograms.html', topLevel:true },
   { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
@@ -627,7 +630,7 @@ function goMore(){ switchTab('more'); showMoreLauncher(); }
 
 function buildMoreLauncher(){
   const pages = MORE_PAGES.filter(p =>
-    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT));
+    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER));
   document.getElementById('launchGrid').innerHTML = pages.map(p => `
     <button class="launch-card" onclick="openMorePage('${p.key}')">
       <span class="launch-ico">${p.icon}</span>

@@ -465,6 +465,16 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- DELIVERY REPORTS (route-bound — reads myStores, hidden for relief) -->
+      <div id="m-delivery-tile" onclick="openDeliveryReport('merch')" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">🚚</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Delivery Reports</div>
+          <div style="font-size:10px;color:var(--muted)">See if a delivery is out for your stores today</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+
       <!-- QUARTERLY EVALUATION (performance-review cycle — hidden for relief) -->
       <div id="m-eval-tile" onclick="openEvaluationTool()" style="background:var(--blue-lt);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--navy);margin-bottom:4px">
         <div style="font-size:22px">📋</div>
@@ -841,6 +851,37 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="stat-box"><div class="stat-lbl">Avg achievement</div><div class="stat-val" id="tl-avg">–</div></div>
     </div>
 
+    <!-- Every team leader (team_leader AND tl_merch) earns a flat per-store
+         incentive on their team's stores — separate from "Team commission"
+         above, which is the sum of the merchandisers' own commission, not
+         anything paid to the TL. Hidden if their team has no stores. -->
+    <div class="merch-card" id="tl-incentive-card" style="margin-bottom:14px;display:none">
+      <div class="sec-hdr" style="margin-bottom:8px">Your team leader incentive</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-lbl">Stores @ 80-99%</div><div class="stat-val c-amber" id="tl-inc-80">–</div></div>
+        <div class="stat-box"><div class="stat-lbl">Stores @ 100%+</div><div class="stat-val c-green" id="tl-inc-100">–</div></div>
+      </div>
+      <div style="margin-top:10px;text-align:center;background:var(--green-lt);border-radius:8px;padding:10px">
+        <div class="stat-lbl">Total incentive earned</div>
+        <div style="font-size:24px;font-weight:800;color:var(--green)" id="tl-inc-earn">–</div>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">J$250/store @80%+, J$500/store @100%+</div>
+    </div>
+
+    <!-- Only shown for tl_merch (a team leader who also merchandises their
+         own stores) — hidden via display:none when they have no personal
+         stores in merchandiser_summary, e.g. a plain team_leader. -->
+    <div class="merch-card" id="tl-own-comm-card" style="margin-bottom:14px;display:none">
+      <div class="sec-hdr" style="margin-bottom:8px">Your own commission</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-lbl">Your stores</div><div class="stat-val c-navy" id="tl-own-stores">–</div></div>
+        <div class="stat-box"><div class="stat-lbl">At 80%+ target</div><div class="stat-val c-green" id="tl-own-80">–</div></div>
+        <div class="stat-box"><div class="stat-lbl">At 100%+ target</div><div class="stat-val c-green" id="tl-own-100">–</div></div>
+        <div class="stat-box"><div class="stat-lbl">Commission earned</div><div class="stat-val c-amber" id="tl-own-comm">–</div></div>
+      </div>
+      <div style="text-align:right;margin-top:6px;font-size:12px;color:var(--muted)">Achievement: <span id="tl-own-pct" style="font-weight:800">–</span></div>
+    </div>
+
     <div class="merch-card" id="tl-att-card" style="margin-bottom:14px">
       <div class="sec-hdr" style="margin-bottom:8px">Attendance today</div>
       <div style="display:flex;align-items:baseline;justify-content:space-between">
@@ -903,6 +944,12 @@ body.dfl-readonly .readonly-note{display:block}
     <button class="dash-link" onclick="openTLTeamStores()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">🏪</div>
       <div><div class="dash-link-title">Team Stores</div><div class="dash-link-sub">Target & sales for every store across your team</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link" onclick="openDeliveryReport('tl')" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">🚚</div>
+      <div><div class="dash-link-title">Delivery Reports</div><div class="dash-link-sub">See if a delivery is out for any of your team's stores</div></div>
       <div class="dash-link-arr">›</div>
     </button>
 
@@ -1158,13 +1205,13 @@ function applyReliefUI(){
   if(relief || tlAdHocVisit){
     hide('m-squal-box'); hide('m-pct-box');
     hide('m-mystores-btn'); hide('n-stores');
-    hide('m-eval-tile'); hide('m-quickstores-section');
+    hide('m-eval-tile'); hide('m-quickstores-section'); hide('m-delivery-tile');
     const grid=document.getElementById('m-action-grid');
     if(grid) grid.style.gridTemplateColumns='1fr';
   } else {
     show('m-squal-box'); show('m-pct-box');
     show('m-mystores-btn'); show('n-stores');
-    show('m-eval-tile'); show('m-quickstores-section');
+    show('m-eval-tile'); show('m-quickstores-section'); show('m-delivery-tile');
     const grid=document.getElementById('m-action-grid');
     if(grid) grid.style.gridTemplateColumns='1fr 1fr';
   }
@@ -1936,10 +1983,119 @@ async function launchTLMerch(u){
   await loadTLData(u);
 }
 
+// ── TEAM LEADER INCENTIVE ──
+// A flat per-store bonus paid to team leaders (both formal team_leader AND
+// acting tl_merch), on top of everything above — mirrors
+// management/merch-dashboard.html's buildTeamLeaderRoster()/
+// calcIncentiveByStores() exactly. Keep the two in sync if the incentive
+// rules change; this is the one piece of business logic duplicated between
+// the two files rather than shared, since they're separate static pages.
+const TL_RATE_80 = 250;   // J$ per store at >=80% of target
+const TL_RATE_100 = 500;  // J$ per store at >=100% of target
+
+function tlOwnTeamFor(rep, merchByLeaderId){
+  return [...new Set([rep.name, ...(merchByLeaderId[rep.id]||[])])];
+}
+// A formal TL's full team includes any acting (tl_merch) TL reporting to
+// them who hasn't opted out via acting_tl_shares_credit===false.
+function tlFullTeamFor(formalRep, merchByLeaderId, dualsByLeaderId){
+  const names=new Set(tlOwnTeamFor(formalRep, merchByLeaderId));
+  (dualsByLeaderId[formalRep.id]||[]).forEach(function(dual){
+    if(dual.acting_tl_shares_credit===false) return;
+    tlOwnTeamFor(dual, merchByLeaderId).forEach(function(n){ names.add(n); });
+  });
+  return [...names];
+}
+
+async function loadTLIncentive(u, period){
+  const card=document.getElementById('tl-incentive-card');
+  if(!card) return;
+  try{
+    const [repsRows, mapRows] = await Promise.all([
+      rest(`reps?select=id,name,role,area,active,team_lead_id,acting_tl_shares_credit&active=eq.true`),
+      rest(`merchandiser_map?select=customer_id,merchandiser_name`)
+    ]);
+    const byId={}; (repsRows||[]).forEach(function(r){ byId[r.id]=r; });
+    const merchByLeaderId={}, dualsByLeaderId={};
+    (repsRows||[]).forEach(function(r){
+      if(!r.team_lead_id) return;
+      if(r.role==='merchandiser'||r.role==='relief_merchandiser') (merchByLeaderId[r.team_lead_id]=merchByLeaderId[r.team_lead_id]||[]).push(r.name);
+      if(r.role==='tl_merch') (dualsByLeaderId[r.team_lead_id]=dualsByLeaderId[r.team_lead_id]||[]).push(r);
+    });
+
+    const me=byId[u.id];
+    let names=null;
+    if(me && me.role==='team_leader'){
+      names=tlFullTeamFor(me, merchByLeaderId, dualsByLeaderId);
+    } else if(me && me.role==='tl_merch'){
+      const shares=me.acting_tl_shares_credit!==false;
+      const formal=me.team_lead_id?byId[me.team_lead_id]:null;
+      names = shares ? (formal?tlFullTeamFor(formal, merchByLeaderId, dualsByLeaderId):tlOwnTeamFor(me, merchByLeaderId)) : tlOwnTeamFor(me, merchByLeaderId);
+    }
+    if(!names){ card.style.display='none'; return; }
+
+    const nameSet=new Set(names);
+    const storeIds=(mapRows||[]).filter(function(r){ return nameSet.has(r.merchandiser_name); }).map(function(r){ return r.customer_id; });
+    if(!storeIds.length){ card.style.display='none'; return; }
+
+    const [targets, actuals] = await Promise.all([
+      rest(`store_targets_actual?period=eq.${period}&customer_id=in.(${storeIds.join(',')})&select=customer_id,target_amount`),
+      rest(`monthly_actuals?period=eq.${period}&customer_id=in.(${storeIds.join(',')})&select=customer_id,actual_amount`)
+    ]);
+    const targetById={}; (targets||[]).forEach(function(t){ targetById[t.customer_id]=parseFloat(t.target_amount||0); });
+    const actualById={}; (actuals||[]).forEach(function(a){ actualById[a.customer_id]=parseFloat(a.actual_amount||0); });
+
+    let s80=0, s100=0;
+    storeIds.forEach(function(cid){
+      const target=targetById[cid];
+      if(!(target>0)) return;
+      const pct=(actualById[cid]||0)/target;
+      if(pct>=1) s100++;
+      else if(pct>=0.8) s80++;
+    });
+    const earn = s80*TL_RATE_80 + s100*TL_RATE_100;
+
+    card.style.display='block';
+    document.getElementById('tl-inc-80').textContent=s80;
+    document.getElementById('tl-inc-100').textContent=s100;
+    document.getElementById('tl-inc-earn').textContent='$'+Math.round(earn).toLocaleString();
+  }catch(e){ console.warn('TL incentive load failed:',e); card.style.display='none'; }
+}
+
+// A tl_merch's own performance as a merchandiser — separate from the team
+// stats below, which only cover their subordinates (reps.team_lead_id points
+// AWAY from the TL, never at themselves). Reads merchandiser_summary under
+// their own name, same row a plain merchandiser's own screen would show.
+async function loadTLOwnCommission(u, period){
+  const card=document.getElementById('tl-own-comm-card');
+  if(!card) return;
+  try{
+    const rows=await rest(`merchandiser_summary?period=eq.${period}&merchandiser_name=eq.${encodeURIComponent(u.full_name)}&select=*`);
+    const m=(rows||[])[0];
+    if(!m || !m.store_count){ card.style.display='none'; return; }
+    card.style.display='block';
+    document.getElementById('tl-own-stores').textContent=m.store_count;
+    document.getElementById('tl-own-80').textContent=m.stores_qualified||0;
+    document.getElementById('tl-own-100').textContent=m.stores_100||0;
+    document.getElementById('tl-own-comm').textContent='$'+Math.round(parseFloat(m.commission||0)).toLocaleString();
+    const pct=parseFloat(m.achievement_pct||0);
+    const pctEl=document.getElementById('tl-own-pct');
+    pctEl.textContent=pct.toFixed(1)+'%';
+    pctEl.style.color=pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
+  }catch(e){ console.warn('own commission load failed:',e); card.style.display='none'; }
+}
+
 async function loadTLData(u){
   try{
     const now=new Date(); const period=String(now.getFullYear())+String(now.getMonth()+1).padStart(2,'0');
     document.getElementById('tl-period-hdr').textContent=`${u.territory} — ${_curLabel}`;
+
+    // Both the TL incentive and a tl_merch's own personal commission are
+    // independent of the team-roster fetch below (the incentive computes its
+    // own roster; personal commission doesn't need a roster at all) — fetched
+    // up front rather than after the early-return for an empty team.
+    loadTLIncentive(u, period);
+    loadTLOwnCommission(u, period);
 
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
@@ -2199,10 +2355,25 @@ async function decideLeaveRequest(btn,id,approve,reloadFn){
       reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString()
     }});
     if(typeof reloadFn==='function') reloadFn();
+    // Fire-and-forget — HR gets the filled-out form by email the moment a
+    // request is approved. The approval itself already succeeded above, so a
+    // failure here shouldn't alarm the approver; just log it for follow-up.
+    if(approve) sendLeaveApprovalEmail(id);
   }catch(e){
     alert('Could not process: '+(e.message||e));
     btn.disabled=false;
   }
+}
+
+async function sendLeaveApprovalEmail(leaveRequestId){
+  try{
+    const res=await fetch(SUPABASE_URL+'/functions/v1/send-leave-approval-email',{
+      method:'POST',
+      headers:await restHeaders(),
+      body:JSON.stringify({leave_request_id:leaveRequestId})
+    });
+    if(!res.ok) console.warn('leave approval email failed:',await res.text());
+  }catch(e){ console.warn('leave approval email failed:',e); }
 }
 
 // Deciding a request can immediately change what belongs in the upcoming-leave
@@ -2776,6 +2947,116 @@ function renderTLTeamStores(){
 
 function closeTLTeamStores(){
   document.getElementById('tl-team-stores-modal').style.display='none';
+}
+
+// ══════════════════════════════════════════════
+// DELIVERY REPORTS (merchandiser + TL)
+// ══════════════════════════════════════════════
+// Recreates index.html's Delivery Reports (Acumatica shipment report, from
+// invoiced_items + so_invoices) but scoped to a set of customer_ids instead
+// of a rep's salesperson_id — a merchandiser's own stores, or a TL's whole
+// team's stores. See index.html's fetchDeliveryReport() for the original.
+function deliveryTodayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function deliveryAddDaysISO(iso,n){ const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function deliveryFmtISODate(iso){ return new Date(iso+'T00:00:00').toLocaleDateString('en-JM',{weekday:'short',month:'short',day:'numeric'}); }
+
+let _delivMode=null, _delivDate=null;
+
+async function openDeliveryReport(mode, dateOverride){
+  if(mode) _delivMode=mode;
+  const date=dateOverride || _delivDate || deliveryTodayISO();
+  _delivDate=date;
+  const modal=document.getElementById('delivery-report-modal');
+  const body=document.getElementById('delivery-report-body');
+  document.getElementById('delivery-date-input').value=date;
+  modal.style.display='flex';
+  body.innerHTML='<div class="spinner"></div>';
+
+  let customerIds=[];
+  try{
+    if(_delivMode==='tl'){
+      const names=[...(tlMyMerch||[]).map(function(m){return m.name;}), cu.full_name];
+      const nameList=names.map(function(n){return '"'+n+'"';}).join(',');
+      const rows=await rest(`merchandiser_map?merchandiser_name=in.(${nameList})&select=customer_id`);
+      customerIds=(rows||[]).map(function(r){return r.customer_id;});
+    } else {
+      customerIds=(myStores||[]).map(function(s){return s.id;});
+    }
+  }catch(e){ console.warn('delivery report roster fetch failed:',e); }
+
+  const data=await fetchMerchDeliveryReport(customerIds, date);
+  if(_delivDate===date) drawMerchDeliveryReport(data);
+}
+
+function closeDeliveryReport(){
+  document.getElementById('delivery-report-modal').style.display='none';
+}
+
+function shiftDeliveryDate(n){
+  openDeliveryReport(null, deliveryAddDaysISO(_delivDate||deliveryTodayISO(), n));
+}
+
+async function fetchMerchDeliveryReport(customerIds, dateISO){
+  const empty={date:dateISO, groups:[], shipCt:0, totalQty:0, totalVal:0};
+  if(!customerIds || !customerIds.length) return empty;
+  try{
+    const next=deliveryAddDaysISO(dateISO,1);
+    const rows=await rest(`invoiced_items?customer_id=in.(${customerIds.join(',')})&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`);
+    const list=Array.isArray(rows)?rows:[];
+    if(!list.length) return empty;
+    const refs=[...new Set(list.map(function(r){return r.reference_number;}))];
+    const viaMap={};
+    try{
+      const viaRows=await rest(`so_invoices?reference_number=in.(${refs.join(',')})&select=reference_number,ship_via_description`);
+      (viaRows||[]).forEach(function(v){ viaMap[v.reference_number]=v.ship_via_description; });
+    }catch(e){ /* Via just shows blank if this lookup fails */ }
+    const byRef={};
+    list.forEach(function(r){
+      const g=byRef[r.reference_number]||(byRef[r.reference_number]={ref:r.reference_number, customer_name:r.customer_name, customer_id:r.customer_id, via:viaMap[r.reference_number]||'', items:[], qty:0, val:0});
+      g.items.push(r); g.qty+=parseFloat(r.quantity)||0; g.val+=parseFloat(r.ext_amount)||0;
+    });
+    const groups=Object.values(byRef).sort(function(a,b){ return a.ref.localeCompare(b.ref,undefined,{numeric:true}); });
+    return {date:dateISO, groups, shipCt:groups.length, totalQty:groups.reduce(function(a,g){return a+g.qty;},0), totalVal:groups.reduce(function(a,g){return a+g.val;},0)};
+  }catch(e){ console.warn('delivery report fetch failed:',e); return empty; }
+}
+
+function drawMerchDeliveryReport(data){
+  const b=document.getElementById('delivery-report-body');
+  if(!b) return;
+  if(!data.groups.length){
+    b.innerHTML='<div class="empty-feed">No deliveries on '+deliveryFmtISODate(data.date)+'.</div>';
+    return;
+  }
+  b.innerHTML=
+    '<div class="stats-grid" style="margin-bottom:12px">'+
+      '<div class="stat-box"><div class="stat-lbl">Shipment'+(data.shipCt===1?'':'s')+'</div><div class="stat-val c-navy">'+data.shipCt+'</div></div>'+
+      '<div class="stat-box"><div class="stat-lbl">Total value</div><div class="stat-val c-green">$'+Math.round(data.totalVal).toLocaleString()+'</div></div>'+
+    '</div>'+
+    data.groups.map(function(g){
+      return '<div class="merch-card" style="margin-bottom:10px">'+
+        '<div class="merch-hdr">'+
+          '<div style="flex:1">'+
+            '<div class="merch-nm">'+escapeHtmlM(g.customer_name||g.customer_id)+'</div>'+
+            '<div class="merch-rt">#'+escapeHtmlM(g.ref)+(g.via?' · '+escapeHtmlM(g.via):'')+'</div>'+
+          '</div>'+
+          '<div style="text-align:right;flex-shrink:0">'+
+            '<div style="font-size:15px;font-weight:800;color:var(--navy)">$'+Math.round(g.val).toLocaleString()+'</div>'+
+            '<div style="font-size:11px;color:var(--muted)">'+g.qty+' cs</div>'+
+          '</div>'+
+        '</div>'+
+        '<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px">'+
+          '<thead><tr style="color:var(--muted);text-align:left"><th style="padding:4px 0">Item</th><th style="padding:4px 0;text-align:right">Qty</th><th style="padding:4px 0;text-align:right">Amount</th></tr></thead>'+
+          '<tbody>'+g.items.map(function(i){
+            return '<tr style="border-top:1px solid var(--border)">'+
+              '<td style="padding:5px 0">'+escapeHtmlM(i.description||'')+'</td>'+
+              '<td style="padding:5px 0;text-align:right">'+(parseFloat(i.quantity)||0).toLocaleString()+'</td>'+
+              '<td style="padding:5px 0;text-align:right">$'+Math.round(parseFloat(i.ext_amount)||0).toLocaleString()+'</td>'+
+            '</tr>';
+          }).join('')+'</tbody>'+
+        '</table>'+
+      '</div>';
+    }).join('')+
+    '<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Figures in JMD · '+deliveryFmtISODate(data.date)+'</div>';
 }
 
 // ══════════════════════════════════════════════
@@ -4239,10 +4520,15 @@ document.addEventListener('visibilitychange', function(){
 
 function openCamera(){
   if(pendingPhotos.length >= MAX_PHOTOS){ alert('Maximum '+MAX_PHOTOS+' photos per visit — remove one first (tap the × on a photo below) to add another.'); return; }
+  // One tap = one photo, then back to the visit screen — same as the bad-goods
+  // camera. Was closeAfterOne:false, which kept the camera open after every
+  // shot until MAX_PHOTOS or a manual close, forcing a continuous-shooting
+  // session instead of letting merchandisers take photos one at a time as
+  // each is actually needed.
   dflOpenCamera(function(blob){ addCapturedPhoto(blob); }, {
     fallbackInputId: 'shelf-file-input',
     getLabel: function(){ return 'Shelf photo — '+pendingPhotos.length+' of '+MAX_PHOTOS+' taken'; },
-    closeAfterOne: false,
+    closeAfterOne: true,
     remainingFn: function(){ return MAX_PHOTOS - pendingPhotos.length; }
   });
 }
@@ -5028,6 +5314,23 @@ window.addEventListener('offline', updateLiveDot);
     <input type="text" id="tl-team-stores-search" placeholder="🔍 Search store or merchandiser…" autocomplete="off" oninput="renderTLTeamStores()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
   </div>
   <div style="flex:1;overflow-y:auto;padding:12px 16px" id="tl-team-stores-list"><div class="spinner"></div></div>
+</div>
+
+<!-- DELIVERY REPORTS — recreates the rep app's Delivery Reports (index.html)
+     for merchandisers/TLs, scoped to their own stores' customer_ids instead
+     of a salesperson_id. Shared by both the merchandiser tile and the TL
+     tile; openDeliveryReport() is called with the right customer_id set. -->
+<div id="delivery-report-modal" style="display:none;position:fixed;inset:0;z-index:99995;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">🚚 Delivery Reports</div>
+    <button onclick="closeDeliveryReport()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="flex-shrink:0;padding:12px 16px;display:flex;align-items:center;justify-content:center;gap:14px;border-bottom:1px solid var(--border)">
+    <button onclick="shiftDeliveryDate(-1)" aria-label="Previous day" style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">‹</button>
+    <input type="date" id="delivery-date-input" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--card);color:var(--text)" onchange="openDeliveryReport(null,this.value)">
+    <button onclick="shiftDeliveryDate(1)" aria-label="Next day" style="background:var(--card);border:1.5px solid var(--border);border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer">›</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px" id="delivery-report-body"><div class="spinner"></div></div>
 </div>
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->

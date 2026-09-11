@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hot List — DFL</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>body{visibility:hidden}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<style>
+  :root { --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --navy:#0f2044; --navy2:#1a3260; --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8; --accent:#2563eb; --accent-bg:#eff6ff; --shadow:0 1px 3px rgba(0,0,0,0.07); --green:#16a34a; --green-bg:#f0fdf4; --amber:#d97706; --amber-bg:#fffbeb; --red:#dc2626; --red-bg:#fef2f2; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  nav { background:var(--navy); min-height:52px; display:flex; align-items:center; gap:12px; padding:10px 20px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+  .homebtn { background:none; border:none; color:#fff; cursor:pointer; padding:4px; display:flex; }
+  .nav-title { font-size:14px; font-weight:600; color:#fff; }
+  .nav-sub { font-size:11px; color:rgba(255,255,255,0.65); margin-left:auto; text-align:right; }
+  .content { max-width:640px; margin:0 auto; padding:16px 16px 60px; }
+  .empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:14px; line-height:1.6; }
+  .scope-label { font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px; }
+  .summary-row { display:flex; gap:10px; margin-bottom:16px; }
+  .summary-pill { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center; box-shadow:var(--shadow); }
+  .summary-pill .n { font-size:20px; font-weight:700; color:var(--navy); }
+  .summary-pill .l { font-size:11px; color:var(--text-dim); margin-top:2px; text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+  .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .cust-name { font-size:16px; font-weight:700; color:var(--text); }
+  .cust-tier { font-size:11px; color:var(--text-dim); font-weight:500; margin-top:2px; }
+  .badge { font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+  .badge.quick-win { background:var(--green-bg); color:var(--green); }
+  .badge.high-impact { background:var(--red-bg); color:var(--red); }
+  .badge.stretch-play { background:var(--amber-bg); color:var(--amber); }
+  .reason { font-size:13px; color:var(--text-muted); line-height:1.5; margin-bottom:10px; }
+  .reason b { color:var(--text); }
+  .product-row { background:var(--accent-bg); border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:10px; }
+  .product-row .p-desc { font-weight:600; color:var(--text); }
+  .product-row .p-class { color:var(--text-dim); font-size:11px; margin-top:2px; }
+  .stat-row { display:flex; gap:14px; font-size:12px; color:var(--text-muted); flex-wrap:wrap; }
+  .stat-row span b { color:var(--text); font-weight:600; }
+  footer { text-align:center; padding:20px; font-size:11px; color:var(--text-dim); }
+  .spin { width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; margin:60px auto; animation:sp 0.8s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<nav>
+  <button class="homebtn" onclick="window.location.href='/index.html'" aria-label="Back">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <span class="nav-title">🔥 Hot List</span>
+  <span class="nav-sub" id="refreshedNote"></span>
+</nav>
+
+<div class="content" id="content"><div class="spin"></div></div>
+
+<footer>© 2026 DFL Importers · Internal use only</footer>
+
+<script>
+const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+const MANAGER_LIMIT = 150; // a curated top-N, not an exhaustive audit view
+
+// Category managers see island-wide recos filtered to their categories,
+// regardless of salesperson — mirrors the manager/category mapping already
+// hardcoded in management/category-intel.html (Rejene/Trebor/Matthew/Travis).
+// Key-account managers see whatever's assigned to them via customers.bdm.
+// Not role-driven: Damita holds role='rep' in `reps` but is a key-account
+// person for this feature, same as Andrea/Shallet who are role='manager'.
+const MANAGER_SCOPE = {
+  'Rejene Henry':        { type: 'category', categories: ['PAPER', 'PLASTIC', 'CLEARPACK'], label: 'Paper · Plastic · Clearpack (island-wide)' },
+  'Trebor Sergeant':      { type: 'category', categories: ['FOODSUP', 'BEVERAGES'], label: 'Foodsup · Beverages (island-wide)' },
+  'Matthew Decasseres':   { type: 'category', categories: ['ECOBOX', 'ECOCUP', 'ECOSTRAW', 'ECOBAG'], label: 'Ecobox · Ecocup · Ecostraw · Ecobag (island-wide)' },
+  'Travis DeCasseres':    { type: 'category', categories: ['GARBAGEBAG', 'FOIL', 'PROCESSING', 'HOUSEHOLD'], label: 'Garbage Bag · Foil · Processing · Household (island-wide)' },
+  'Andrea Skelton':       { type: 'key_accounts', label: 'Your key accounts' },
+  'Damita Samuels-Foster':{ type: 'key_accounts', label: 'Your key accounts' },
+  'Shallet Marsh':        { type: 'key_accounts', label: 'Your key accounts' }
+};
+
+document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
+
+async function init(profile) {
+  if (!profile.rep_id) {
+    render([], null);
+    return;
+  }
+  try {
+    const repRes = await fetch(`${SB_URL}/rest/v1/reps?id=eq.${encodeURIComponent(profile.rep_id)}&select=name`, { headers: H });
+    const repRows = await repRes.json();
+    const name = Array.isArray(repRows) && repRows[0] ? repRows[0].name : null;
+    if (!name) { render([], null); return; }
+
+    const scope = MANAGER_SCOPE[name];
+
+    if (!scope) {
+      // Reps (and any manager/admin not in the scope map above) see their own
+      // personal numbers, same as before.
+      const recoRes = await fetch(
+        `${SB_URL}/rest/v1/gap_closer_reco_cache?salesperson=eq.${encodeURIComponent(name)}&order=rank_order.asc&select=*`,
+        { headers: H }
+      );
+      const recos = await recoRes.json();
+      render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, null);
+      return;
+    }
+
+    if (scope.type === 'category') {
+      const catList = scope.categories.map(encodeURIComponent).join(',');
+      const recoRes = await fetch(
+        `${SB_URL}/rest/v1/gap_closer_reco_cache?item_class=in.(${catList})&order=rank_order.asc&limit=${MANAGER_LIMIT}&select=*`,
+        { headers: H }
+      );
+      const recos = await recoRes.json();
+      render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, scope.label);
+      return;
+    }
+
+    // key_accounts: resolve this manager's assigned accounts via customers.bdm
+    const custRes = await fetch(`${SB_URL}/rest/v1/customers?bdm=eq.${encodeURIComponent(name)}&select=customer_id`, { headers: H });
+    const custRows = await custRes.json();
+    const ids = (Array.isArray(custRows) ? custRows : []).map(c => c.customer_id);
+    if (ids.length === 0) {
+      render([], null, scope.label + ' — no accounts assigned to you yet in the system (customers.bdm)');
+      return;
+    }
+    const idList = ids.map(encodeURIComponent).join(',');
+    const recoRes = await fetch(
+      `${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=in.(${idList})&order=rank_order.asc&limit=${MANAGER_LIMIT}&select=*`,
+      { headers: H }
+    );
+    const recos = await recoRes.json();
+    render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, scope.label);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('content').innerHTML = `<div class="empty">Couldn't load your hot list right now. Try again shortly.</div>`;
+  }
+}
+
+function badgeClass(label) {
+  if (label === 'Quick Win') return 'quick-win';
+  if (label === 'High Impact') return 'high-impact';
+  return 'stretch-play';
+}
+
+function reasonText(r) {
+  if (r.recommendation_type === 'OVERDUE_REORDER') {
+    return `Usually reorders every <b>${Math.round((r.days_since_last||0) - (r.days_overdue||0))} days</b> — this one's <b>${r.days_overdue} days overdue</b>.`;
+  }
+  if (r.recommendation_type === 'DORMANT_ITEM') {
+    return `Was a regular buyer of this item, hasn't ordered in <b>${r.days_since_last} days</b>.`;
+  }
+  if (r.recommendation_type === 'HIGH_ELASTICITY') {
+    return `Dormant on this item, and has responded well to pricing/discount conversations before.`;
+  }
+  return '';
+}
+
+function elasticityNote(r) {
+  if (r.elasticity_signal === 'STRONG RESPONDER' || r.elasticity_signal === 'RESPONDS TO DISCOUNT') {
+    return `<span>💡 <b>${r.elasticity_signal === 'STRONG RESPONDER' ? 'Strong' : 'Some'} response to discount</b> historically — worth a pricing conversation</span>`;
+  }
+  return '';
+}
+
+function render(recos, refreshedAt, scopeLabel) {
+  const note = document.getElementById('refreshedNote');
+  if (refreshedAt) {
+    note.textContent = 'Updated ' + new Date(refreshedAt).toLocaleDateString('en-JM', { month:'short', day:'numeric' });
+  }
+
+  const content = document.getElementById('content');
+  const scopeHtml = scopeLabel ? `<div class="scope-label">${escapeHtml(scopeLabel)}</div>` : '';
+  if (recos.length === 0) {
+    content.innerHTML = `${scopeHtml}<div class="empty">No hot-list items for you right now — check back tomorrow, or ask your manager if this looks wrong.</div>`;
+    return;
+  }
+
+  const quickWins = recos.filter(r => r.priority_label === 'Quick Win').length;
+  const highImpact = recos.filter(r => r.priority_label === 'High Impact').length;
+
+  content.innerHTML = `
+    ${scopeHtml}
+    <div class="summary-row">
+      <div class="summary-pill"><div class="n">${recos.length}</div><div class="l">Total</div></div>
+      <div class="summary-pill"><div class="n">${quickWins}</div><div class="l">Quick Wins</div></div>
+      <div class="summary-pill"><div class="n">${highImpact}</div><div class="l">High Impact</div></div>
+    </div>
+    ${recos.map(r => `
+      <div class="card">
+        <div class="card-top">
+          <div onclick="openCustomer('${encodeURIComponent(r.customer_id)}','${encodeURIComponent(r.customer_name || '')}')" style="cursor:pointer">
+            <div class="cust-name">${escapeHtml(r.customer_name || r.customer_id)} <span style="color:var(--text-dim);font-weight:400">›</span></div>
+            <div class="cust-tier">${escapeHtml(r.customer_tier || '')}${r.area ? ' · ' + escapeHtml(r.area) : ''}</div>
+          </div>
+          <span class="badge ${badgeClass(r.priority_label)}">${escapeHtml(r.priority_label)}</span>
+        </div>
+        <div class="reason">${reasonText(r)}</div>
+        <div class="product-row">
+          <div class="p-desc">${escapeHtml(r.description || r.inventory_id)}</div>
+          <div class="p-class">${escapeHtml(r.item_class || '')}</div>
+        </div>
+        <div class="stat-row">
+          <span>Last ordered <b>${r.last_order_date || '—'}</b></span>
+          <span>Avg order <b>$${Math.round(r.avg_revenue_per_order || 0).toLocaleString('en-JM')}</b></span>
+        </div>
+        ${elasticityNote(r) ? `<div class="stat-row" style="margin-top:8px">${elasticityNote(r)}</div>` : ''}
+      </div>
+    `).join('')}
+  `;
+}
+
+function openCustomer(customerId, customerName) {
+  window.location.href = `/customer.html?id=${customerId}&name=${customerName}`;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

@@ -88,6 +88,10 @@ const DFL_PAGE_ROLES = {
   '/morning-brief.html':   ['management', 'manager', 'admin', 'rep_management'],
   '/gondola-rentals.html':  ['manager', 'admin', 'management', 'rep_management'],
   '/gondola-analysis.html': ['manager', 'admin', 'management', 'rep_management'],
+  '/hot-list.html':         ['admin', 'manager', 'rep', 'rep_management'],
+  '/calendar.html':         ['admin', 'manager', 'rep', 'rep_management'],
+  '/debrief.html':          ['admin', 'manager', 'rep', 'rep_management'],
+  '/customer.html':         ['admin', 'manager', 'rep', 'rep_management'],
 
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in
