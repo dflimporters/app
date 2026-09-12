@@ -291,7 +291,11 @@
 <script>
 const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
-const NAME_KEY = 'dfl_trivia_player_name';
+// Bumped to _v2 to force everyone to re-enter their name once: a browser
+// that already had a name cached from before the case-insensitive-match
+// fix would otherwise keep resuming under a stale casing forever, since
+// that fix only runs on the name-entry path, never on cached auto-login.
+const NAME_KEY = 'dfl_trivia_player_name_v2';
 
 let currentPlayer = null;
 let currentRound = null;   // the auto-detected round row
