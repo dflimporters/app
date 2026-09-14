@@ -1041,7 +1041,7 @@ function drawList(){
 const EXCL=['0','Z-NONSTOCK','MEZSMALLWA','PLSWRAP'];
 let KEYSKUS=null, PERIOD="MTD", CURCUST=null;
 function switchToCustList(){ renderCustList(); window.scrollTo(0,0); }
-function setPeriod(p){ PERIOD=p; if(CURCUST) renderCustDetail(CURCUST.cid, CURCUST.cache, CURCUST.budget, CURCUST.mbudget, CURCUST.merch); }
+function setPeriod(p){ PERIOD=p; if(CURCUST) renderCustDetail(CURCUST.cid, CURCUST.cache, CURCUST.budget, CURCUST.mbudget, CURCUST.merch, CURCUST.hot); }
 
 function openCustFromHome(cid){
   switchTab('custs');
@@ -1053,7 +1053,7 @@ async function openCust(cid){
   document.getElementById("custhdr").textContent="Account";
   const mnum=new Date().getMonth()+1;
   try{
-    const [cacheR,budR,mbudR,skuR,visitR,stockR]=await Promise.all([
+    const [cacheR,budR,mbudR,skuR,visitR,stockR,hotR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
@@ -1063,7 +1063,11 @@ async function openCust(cid){
       // One save writes one row per SKU sharing the same counted_at — fetch a
       // batch, then keep just the rows matching the latest timestamp so the
       // rep can see the full itemized count, not only its date.
-      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${cid}&order=counted_at.desc&limit=60&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name`,{headers:H}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${cid}&order=counted_at.desc&limit=60&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      // Same source as the Hot List page (gap_closer_reco_cache) — surfaced
+      // here too so a rep sees it while already looking at the account,
+      // not only on a separate page.
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${cid}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
     ]);
     KEYSKUS=Array.isArray(skuR)?skuR:[];
     const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
@@ -1089,13 +1093,23 @@ async function openCust(cid){
       lastStockCount: latestCountedAt?{counted_at:latestCountedAt, items:stockRows.filter(r=>r.counted_at===latestCountedAt)}:null,
       lastReport: Array.isArray(reportR)&&reportR[0]?reportR[0]:null
     };
-    renderCustDetail(cid, cache, budget, mbudget, merch);
+const hot=Array.isArray(hotR)?hotR:[];
+    renderCustDetail(cid, cache, budget, mbudget, merch, hot);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load this account. <span class="link" onclick="switchToCustList()">Back</span></div>`; }
   window.scrollTo(0,0);
 }
 
-function renderCustDetail(cid, cache, budget, mbudget, merch){
-  CURCUST={cid, cache, budget, mbudget, merch};
+function hotBadgeColor(p){ return p==='High Impact'?'var(--bad)':p==='Quick Win'?'var(--good)':'#a5760a'; }
+function hotBadgeBg(p){ return p==='High Impact'?'#fff5f5':p==='Quick Win'?'#f0fdf4':'#fffbeb'; }
+function hotReason(r){
+  if(r.recommendation_type==='OVERDUE_REORDER') return `${r.days_overdue}d overdue for reorder`;
+  if(r.recommendation_type==='DORMANT_ITEM') return `Dormant — ${r.days_since_last}d since last order`;
+  if(r.recommendation_type==='HIGH_ELASTICITY') return `Dormant, responds well to discount conversations`;
+  return '';
+}
+
+function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
+  CURCUST={cid, cache, budget, mbudget, merch, hot};
   const c=document.getElementById("custcontent");
   const today=new Date();
   const name=cache?cache.customer_name:cid;
@@ -1176,6 +1190,11 @@ function renderCustDetail(cid, cache, budget, mbudget, merch){
         <div ${msc&&msc.items&&msc.items.length?`onclick="viewCustStockCount()" style="cursor:pointer"`:""}><div class="tk">Last stock count</div><div class="tv" style="${msc&&msc.items&&msc.items.length?'text-decoration:underline':''}">${msc?fmtDate(msc.counted_at):"None yet"}</div><div class="ts">${msc&&msc.items&&msc.items.length?msc.items.length+" SKUs · tap to view":""}</div></div>
       </div>
       ${flaggedSkus.length?`<div class="listrow" style="margin-top:8px"><span class="dot reddot"></span><div><div class="lr1" style="color:var(--bad)">⚠ ${flaggedSkus.length} SKU${flaggedSkus.length!==1?'s':''} flagged out of stock</div><div class="lr2">${fmtDate(mr.report_date)} · ${flaggedSkus.slice(0,4).map(esc).join(", ")}${flaggedSkus.length>4?"…":""}</div></div></div>`:""}
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">🔥 Hot List for this account${hot.length?' ('+hot.length+')':''}</div>
+      ${hot.length?hot.map(r=>{const nm=(r.description||r.inventory_id||'').length>46?(r.description||r.inventory_id).slice(0,43)+"…":(r.description||r.inventory_id);return `<div class="listrow"><span class="dot" style="background:${hotBadgeColor(r.priority_label)}"></span><div style="flex:1;min-width:0"><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.item_class||'')} · ${esc(hotReason(r))}</div></div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;color:${hotBadgeColor(r.priority_label)};background:${hotBadgeBg(r.priority_label)};white-space:nowrap;margin-left:8px">${esc(r.priority_label||'')}</span></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing on the hot list for this account right now.</div>`}
     </div>
 
     <div class="dcard">
