@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>DFL · Going on Leave</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Keep the page hidden until the auth guard confirms who's logged in —
+   this is a real production page (unlike the sandbox index.html), so it
+   uses the real /shared/auth-guard.js like every other page in the app. */
+body { visibility: hidden; }
+</style>
+<style>
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --navy2:#16264d;
+  --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:640px; --hdr-h:100px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  padding-bottom:calc(40px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+h1,h2,h3,.mont{font-family:'Montserrat',sans-serif}
+.hidden{display:none!important}
+header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
+  box-sizing:border-box;height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) max(20px, calc((100% - var(--content-max)) / 2)) 0;
+  display:flex;align-items:center;position:sticky;top:0;z-index:5}
+.hrow{display:flex;justify-content:space-between;align-items:center;width:100%;gap:12px}
+.hdr-logo-img{height:34px}
+.backbtn{background:rgba(255,255,255,.14);border:none;border-radius:10px;width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;flex:none}
+.htitle{font-size:16px;font-weight:800}
+.hdr-actions{display:flex;align-items:center;gap:10px}
+.wrap{max-width:var(--content-max);margin:0 auto;padding:18px 16px 40px}
+.secthdr{display:flex;justify-content:space-between;align-items:baseline;margin:22px 4px 10px}
+.secthdr h2{font-size:19px;font-weight:800;margin:0}
+.secthdr .cnt{font-size:12px;color:var(--mut);font-weight:600}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.cust{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);margin-bottom:9px}
+.crow1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cname{font-weight:700;font-size:14.5px}
+.cid{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600;margin-top:6px}
+.cmeta b{color:var(--ink)}
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);
+  border-radius:50%;animation:sp .7s linear infinite;margin:30px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.field .hint{font-size:11.5px;color:var(--mut);font-weight:500;margin-top:4px}
+input[type=date],input[type=text],select,textarea{
+  width:100%;font:500 14.5px/1.3 'Open Sans',system-ui,sans-serif;color:var(--ink);
+  background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;outline:none}
+input[type=date]:focus,input[type=text]:focus,select:focus,textarea:focus{border-color:var(--blue)}
+textarea{resize:vertical;min-height:70px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* !important: .field label{display:block} (used for ordinary field labels
+   like "From"/"To") also matches these — they're <label> elements sitting
+   inside a .field wrapper — and its higher specificity (class+tag beats a
+   single class) was silently winning over this rule regardless of source
+   order, which is why the radio never actually moved inline. */
+.radio-opt{display:flex!important;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.radio-opt:last-child{border-bottom:none}
+.radio-opt input[type=radio]{flex:0 0 18px;width:18px;height:18px;margin:0;accent-color:var(--blue)}
+.radio-opt .rtext{flex:1}
+.radio-opt .rlabel{font-size:13.5px;font-weight:600}
+.radio-opt .rsub{font-size:11.5px;color:var(--mut);font-weight:500;margin-top:2px}
+.warnbox{background:#fdf1e0;border:1px solid var(--warn);color:#8a5a06;border-radius:10px;
+  padding:10px 12px;font-size:12.5px;font-weight:600;margin-top:8px}
+.badbox{background:#fbe9e9;border:1px solid var(--bad);color:#9a2c2c;border-radius:10px;
+  padding:10px 12px;font-size:12.5px;font-weight:600;margin-top:8px}
+.goodbox{background:#e8f6ee;border:1px solid var(--good);color:#166a3e;border-radius:10px;
+  padding:12px 14px;font-size:13.5px;font-weight:700}
+/* Color-coded per tier: Key = blue (brand primary), Chain = amber (--warn) —
+   a colored left rail + light tint on each store row, plus a solid pill for
+   the tier label instead of plain gray text. */
+.store-row{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;
+  padding:12px 14px;margin-bottom:8px;border-radius:10px;border-left:4px solid var(--line);background:#fff}
+.store-row:last-child{margin-bottom:0}
+.store-row.tier-key{background:#eef3fc;border-left-color:var(--blue)}
+.store-row.tier-chain{background:#fdf3e2;border-left-color:var(--warn)}
+.store-name{font-size:13.5px;font-weight:700}
+.store-tier{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+  padding:2px 8px;border-radius:999px;margin-top:4px;color:#fff}
+.store-row.tier-key .store-tier{background:var(--blue)}
+.store-row.tier-chain .store-tier{background:var(--warn)}
+.btn{display:block;width:100%;text-align:center;border:none;border-radius:12px;padding:14px;
+  font:800 14.5px 'Open Sans',system-ui,sans-serif;cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+.btn-row{display:flex;gap:10px;margin-top:18px}
+.btn-row .btn{flex:1}
+.applyrow{display:flex;gap:8px;margin-bottom:12px}
+.applyrow select{flex:1}
+.applyrow button{flex:none;background:var(--navy2);color:#fff;border:none;border-radius:10px;
+  padding:0 14px;font:700 12.5px 'Open Sans',system-ui,sans-serif;cursor:pointer}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="backbtn" onclick="window.location.href='index.html'" aria-label="Back">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="htitle">🌴 Going on Leave</div>
+    </div>
+    <div class="hdr-actions"><div data-dfl-hub-button></div><div data-dfl-user-menu></div></div>
+  </div>
+</header>
+
+<div class="wrap" id="app"><div class="spin"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/hub-button.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script>
+const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+const HRET={...H,Prefer:"return=representation"};
+function esc(s){return(s||"").toString().replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+let PROFILE=null, STAFF=null, COVERERS=[], REQUESTS=[];
+
+document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
+
+async function init(profile){
+  PROFILE=profile;
+  const app=document.getElementById('app');
+  // Admins have no salesperson_id/leave_tracker_staff row of their own, and
+  // don't need one — this isn't a real submission for them, just a look at
+  // the exact same screen a rep gets, to guide people through it. Reuses
+  // drawList()/drawStep1() as-is; submitStep1() below refuses to actually
+  // save when there's no real STAFF.id behind it. Actual admin-level
+  // visibility into everyone's submissions lives in the separate Leave &
+  // Coverage Tracker tool, not here.
+  if(profile.role==='admin'){
+    STAFF = {id:null, name:profile.full_name||'You', territory:''};
+    REQUESTS = [];
+    // So the coverage checklist's "who's covering you" picker isn't just an
+    // empty dropdown in the preview — same pool a real rep would see.
+    try{
+      const [staffPoolR, merchR] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
+        fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json())
+      ]);
+      const staffCoverers=(Array.isArray(staffPoolR)?staffPoolR:[]).map(s=>({code:'staff:'+s.id, name:s.name}));
+      const merchCoverers=(Array.isArray(merchR)?merchR:[]).map(m=>({code:'merch:'+m.id, name:m.name}));
+      COVERERS=[...staffCoverers, ...merchCoverers].sort((a,b)=>a.name.localeCompare(b.name));
+    }catch(e){ COVERERS=[]; }
+    drawList();
+    return;
+  }
+  if(!profile.salesperson_id){
+    app.innerHTML=`<div class="empty">Leave requests are only available to sales reps with a salesperson ID on file. Contact your admin if you think this is wrong.</div>`;
+    return;
+  }
+  try{
+    const [staffR, staffPoolR, merchR] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/leave_tracker_staff?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=id,name,territory,role`,{headers:H}).then(r=>r.json()),
+      // Covering-person picker is deliberately narrow — only these three roles
+      // (not Sales Support/Other/Admin/etc.) make sense as someone who could
+      // actually cover a rep's stores.
+      fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json())
+    ]);
+    STAFF=(Array.isArray(staffR)&&staffR[0])?staffR[0]:null;
+    // Prefixed codes since these come from two tables with different id types
+    // (leave_tracker_staff.id is a uuid, merchandisers.id is a bigint) —
+    // resolved back to a name by the same "staff:"/"merch:" split wherever
+    // this code is read (here and in the Leave & Coverage Tracker tool).
+    const staffCoverers=(Array.isArray(staffPoolR)?staffPoolR:[]).filter(s=>!STAFF||s.id!==STAFF.id).map(s=>({code:'staff:'+s.id, name:s.name}));
+    const merchCoverers=(Array.isArray(merchR)?merchR:[]).map(m=>({code:'merch:'+m.id, name:m.name}));
+    COVERERS=[...staffCoverers, ...merchCoverers].sort((a,b)=>a.name.localeCompare(b.name));
+    if(!STAFF){
+      app.innerHTML=`<div class="empty">You're not set up in the leave tracker yet. Ask your admin to add you before submitting a leave request.</div>`;
+      return;
+    }
+    // This checklist (key stores, coverage plan) is for Field Reps, Category
+    // Managers and Key Account Managers — Sales Support still gets their leave
+    // logged via the Leave & Coverage Tracker tool directly, not this page.
+    if(STAFF.role !== 'Field Rep' && STAFF.role !== 'Category Manager' && STAFF.role !== 'Key Account Manager'){
+      app.innerHTML=`<div class="empty">This coverage checklist is for Field Reps, Category Managers and Key Account Managers. Ask your manager to log your leave in the Leave &amp; Coverage Tracker instead.</div>`;
+      return;
+    }
+    await loadRequests();
+    drawList();
+  }catch(e){
+    app.innerHTML=`<div class="empty">Couldn't load this page. Try again shortly.</div>`;
+  }
+}
+
+async function loadRequests(){
+  const r = await fetch(`${SB_URL}/rest/v1/leave_tracker_records?staff_id=eq.${STAFF.id}&select=*&order=start_date.desc`,{headers:H});
+  REQUESTS = await r.json();
+  if(!Array.isArray(REQUESTS)) REQUESTS=[];
+}
+
+function statusBadge(rec){
+  if(rec.discussed_status==='none') return {text:'🚩 No cover identified', cls:'badbox'};
+  if(!rec.checklist_submitted_at) return {text:'⚠ Checklist not finished', cls:'warnbox'};
+  return {text:'✅ Cleared', cls:'goodbox'};
+}
+
+function drawList(){
+  const app=document.getElementById('app');
+  app.innerHTML = `
+    <div class="secthdr"><h2>Your leave requests</h2><span class="cnt">${esc(STAFF.name)} · ${esc(STAFF.territory||'')}</span></div>
+    ${REQUESTS.length ? REQUESTS.map(r=>{
+        const b=statusBadge(r);
+        const resumeBtn = !r.checklist_submitted_at
+          ? `<div style="margin-top:8px"><button class="btn btn-ghost" style="padding:8px" onclick="startChecklist('${r.id}')">Finish coverage checklist</button></div>` : '';
+        return `<div class="cust">
+          <div class="crow1">
+            <div><div class="cname">${esc(r.leave_type||'Leave')}</div><div class="cid">${esc(r.start_date)} → ${esc(r.end_date)}</div></div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;font-weight:700;color:${b.cls==='badbox'?'var(--bad)':b.cls==='warnbox'?'#8a5a06':'var(--good)'}">${b.text}</div>
+          ${resumeBtn}
+        </div>`;
+      }).join("") : `<div class="empty">No leave requests logged yet.</div>`}
+    <div class="btn-row"><button class="btn btn-primary" onclick="drawStep1()">+ New leave request</button></div>
+  `;
+}
+
+/* ---------- Step 1: informal request (dates + type) ---------- */
+function drawStep1(){
+  const app=document.getElementById('app');
+  app.innerHTML = `
+    <div class="secthdr"><h2>New leave request</h2></div>
+    <div class="card">
+      <div class="field"><label>From</label><input type="date" id="f-from"></div>
+      <div class="field"><label>To</label><input type="date" id="f-to"></div>
+      <div class="field">
+        <label>Leave type</label>
+        <select id="f-type">
+          <option value="Vacation">Vacation</option>
+          <option value="Sick">Sick</option>
+          <option value="Personal">Personal</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field hint" id="f-err" style="color:var(--bad);display:none"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="drawList()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitStep1()">Next: Coverage checklist</button>
+    </div>
+  `;
+}
+
+async function submitStep1(){
+  const from=document.getElementById('f-from').value;
+  const to=document.getElementById('f-to').value;
+  const type=document.getElementById('f-type').value;
+  const err=document.getElementById('f-err');
+  if(!from || !to){ err.textContent='Pick both a from and to date.'; err.style.display='block'; return; }
+  if(to < from){ err.textContent='"To" date must be on or after "From" date.'; err.style.display='block'; return; }
+  err.style.display='none';
+  // Admin preview has no real STAFF.id behind it (see init()) — walk straight
+  // into the coverage checklist on an in-memory record instead of posting to
+  // the DB, so admins can click all the way through what a rep sees.
+  if(!STAFF.id){
+    const rec={id:'preview', start_date:from, end_date:to, leave_type:type};
+    REQUESTS=[rec];
+    startChecklist('preview');
+    return;
+  }
+  try{
+    const res = await fetch(`${SB_URL}/rest/v1/leave_tracker_records`,{
+      method:'POST', headers:HRET,
+      body: JSON.stringify({staff_id:STAFF.id, start_date:from, end_date:to, leave_type:type})
+    });
+    const rows = await res.json();
+    if(!res.ok || !Array.isArray(rows) || !rows[0]) throw new Error('insert failed');
+    await loadRequests();
+    startChecklist(rows[0].id);
+  }catch(e){
+    err.textContent='Could not save your request. Try again.'; err.style.display='block';
+  }
+}
+
+/* ---------- Step 2: coverage checklist ---------- */
+let KEYSTORES=[], CURRENT_ID=null;
+
+async function startChecklist(id){
+  CURRENT_ID = id;
+  const rec = REQUESTS.find(r=>r.id===id) || {};
+  const app=document.getElementById('app');
+  app.innerHTML = `<div class="spin"></div>`;
+  try{
+    KEYSTORES = await loadKeyStores();
+  }catch(e){ KEYSTORES=[]; }
+  drawStep2(rec);
+}
+
+async function loadKeyStores(){
+  // customers.segment ('Key'/'Chain') is the real classification — turned up
+  // via salespersons.sp_code -> acumatica_numeric_id -> customers.salesperson_id,
+  // since there's no direct FK from customers to a rep code. (Earlier attempt
+  // used cat_key_accounts_cache.tier, which is an unrelated per-category
+  // ranking — it happened to return real Tier 1 stores but had zero Tier 2
+  // rows for reps like Clerett who do have real Chain accounts.)
+  const spRow = await fetch(`${SB_URL}/rest/v1/salespersons?sp_code=eq.${encodeURIComponent(PROFILE.salesperson_id)}&select=acumatica_numeric_id`,{headers:H}).then(r=>r.json());
+  const numId = Array.isArray(spRow) && spRow[0] ? spRow[0].acumatica_numeric_id : null;
+  if(numId==null) return [];
+  const url = `${SB_URL}/rest/v1/customers?salesperson_id=eq.${numId}&segment=in.(Key,Chain)&select=customer_id,customer_name,segment&order=segment.asc,customer_name.asc`;
+  const rows = await fetch(url,{headers:H}).then(r=>r.json());
+  if(!Array.isArray(rows)) return [];
+  return rows.map(r=>({customer_id:r.customer_id, customer_name:r.customer_name, tier:r.segment}));
+}
+
+function drawStep2(rec){
+  const app=document.getElementById('app');
+  const savedStores = Array.isArray(rec.key_stores) ? rec.key_stores : null;
+  // No single "default" rep any more — territories are wide enough that the
+  // covering person genuinely differs store to store, so each row is its own
+  // required pick. The fallback select only appears when there are no stores
+  // on file at all, so there's still *some* answer to "who covers you".
+  const coverFor = cid => { const s = savedStores && savedStores.find(x=>x.customer_id===cid); return s ? s.covering_salesperson_id : ''; };
+  const repOptions = (selected) => COVERERS.map(r=>`<option value="${esc(r.code)}" ${r.code===selected?'selected':''}>${esc(r.name)}</option>`).join('');
+
+  app.innerHTML = `
+    <div class="secthdr"><h2>Coverage checklist</h2><span class="cnt">${esc(rec.start_date)} → ${esc(rec.end_date)}</span></div>
+
+    <div class="card">
+      <div class="field" style="margin-bottom:0">
+        <label>Key store coverage${KEYSTORES.length ? '' : ' — none on file'}</label>
+        ${KEYSTORES.length ? `<div class="hint" style="margin:-4px 0 10px">Select who will be covering each of these stores while you're out.</div>` : ''}
+        ${KEYSTORES.length ? KEYSTORES.map(s=>`
+          <div class="store-row tier-${s.tier==='Key'?'key':'chain'}">
+            <div><div class="store-name">${esc(s.customer_name)}</div><div class="store-tier">${esc(s.tier)}</div></div>
+            <select data-store="${esc(s.customer_id)}" class="store-cover">
+              <option value="">Choose…</option>${repOptions(coverFor(s.customer_id))}
+            </select>
+          </div>`).join('')
+          : `<div class="field"><label>Who is covering you?</label>
+             <select id="f-fallbackcover"><option value="">Choose…</option>${repOptions(rec.covering_salesperson_id)}</select>
+             <div class="hint">No Key or Chain accounts found on file for you — that's fine, just name who's covering you overall.</div></div>`}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field" style="margin-bottom:6px">
+        <label>Have you discussed this with the reps covering you?</label>
+        <label class="radio-opt"><input type="radio" name="f-discussed" value="agreed" ${rec.discussed_status==='agreed'?'checked':''}>
+          <div class="rtext"><div class="rlabel">Already discussed &amp; agreed</div></div></label>
+        <label class="radio-opt"><input type="radio" name="f-discussed" value="planned" ${rec.discussed_status==='planned'?'checked':''}>
+          <div class="rtext"><div class="rlabel">Planned, not yet discussed</div></div></label>
+        <label class="radio-opt"><input type="radio" name="f-discussed" value="none" ${rec.discussed_status==='none'?'checked':''}>
+          <div class="rtext"><div class="rlabel">Haven't identified anyone</div>
+          <div class="rsub">This will be flagged for your manager to follow up on.</div></div></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row2">
+        <div class="field">
+          <label>Will notify Key Accounts by</label>
+          <input type="date" id="f-notifyby" value="${esc(rec.key_accounts_notify_by||'')}">
+        </div>
+        <div class="field">
+          <label>Will brief merchandisers by</label>
+          <input type="date" id="f-briefby" value="${esc(rec.merchandiser_brief_by||'')}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Anything currently outstanding on your accounts your cover should know about?</label>
+        <textarea id="f-handover" placeholder="Open orders, unresolved complaints, pending deliveries…">${esc(rec.handover_notes||'')}</textarea>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>How reachable will you be while out?</label>
+        <select id="f-reachable">
+          <option value="Not reachable" ${rec.reachable_during_leave==='Not reachable'?'selected':''}>Not reachable</option>
+          <option value="Reachable for emergencies only" ${(!rec.reachable_during_leave||rec.reachable_during_leave==='Reachable for emergencies only')?'selected':''}>Reachable for emergencies only</option>
+          <option value="Fully reachable" ${rec.reachable_during_leave==='Fully reachable'?'selected':''}>Fully reachable</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field" id="f-err2" style="color:var(--bad);display:none;font-size:12.5px;font-weight:600"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="loadRequests().then(drawList)">Save &amp; finish later</button>
+      <button class="btn btn-primary" onclick="submitStep2()">Submit checklist</button>
+    </div>
+  `;
+}
+
+async function submitStep2(){
+  const err=document.getElementById('f-err2');
+  const discussedEl = document.querySelector('input[name="f-discussed"]:checked');
+  const notifyBy = document.getElementById('f-notifyby').value;
+  const briefBy = document.getElementById('f-briefby').value;
+  const handover = document.getElementById('f-handover').value.trim();
+  const reachable = document.getElementById('f-reachable').value;
+
+  const storeSelects = [...document.querySelectorAll('.store-cover')];
+  const missingStore = storeSelects.some(s=>!s.value);
+  const fallbackEl = document.getElementById('f-fallbackcover');   // only present when KEYSTORES is empty
+
+  if(KEYSTORES.length && missingStore){ err.textContent='Every key/chain store needs a proposed covering rep.'; err.style.display='block'; return; }
+  if(!KEYSTORES.length && (!fallbackEl || !fallbackEl.value)){ err.textContent='Pick who is covering you.'; err.style.display='block'; return; }
+  if(!discussedEl){ err.textContent='Choose one of the three discussion options.'; err.style.display='block'; return; }
+  if(!notifyBy || !briefBy){ err.textContent='Give a target date for both Key Account notification and merchandiser briefing.'; err.style.display='block'; return; }
+  err.style.display='none';
+
+  const key_stores = KEYSTORES.map(s=>{
+    const sel = storeSelects.find(x=>x.dataset.store===s.customer_id);
+    return {customer_id:s.customer_id, customer_name:s.customer_name, tier:s.tier, covering_salesperson_id: sel?sel.value:''};
+  });
+
+  // Mirror this submission into the legacy covered/covered_by/notes columns
+  // too — those are the only fields the standalone Leave & Coverage Tracker
+  // tool actually displays, and it has no idea key_stores/discussed_status
+  // etc. exist. Without this, a fully-submitted checklist would still show
+  // there as "not covered, no one named", which is exactly wrong.
+  const coverCodes = KEYSTORES.length
+    ? [...new Set(key_stores.map(s=>s.covering_salesperson_id).filter(Boolean))]
+    : (fallbackEl && fallbackEl.value ? [fallbackEl.value] : []);
+  const coverNames = coverCodes.map(code => (COVERERS.find(r=>r.code===code) || {}).name || code);
+
+  const body = {
+    // Only meaningful in the no-stores fallback case — otherwise each store's
+    // own covering_salesperson_id (in key_stores below) is the real answer.
+    covering_salesperson_id: fallbackEl ? fallbackEl.value : null,
+    discussed_status: discussedEl.value,
+    key_accounts_notify_by: notifyBy,
+    merchandiser_brief_by: briefBy,
+    key_stores,
+    handover_notes: handover || null,
+    reachable_during_leave: reachable,
+    checklist_submitted_at: new Date().toISOString(),
+    // Legacy fields the Leave & Coverage Tracker reads directly:
+    covered: discussedEl.value !== 'none',
+    covered_by: coverNames.join(', '),
+    notes: handover || ''
+  };
+
+  // Admin preview (see submitStep1) — CURRENT_ID isn't a real row, so land on
+  // the same completion screen without writing anything.
+  if(!STAFF.id){
+    drawDone(discussedEl.value==='none');
+    return;
+  }
+
+  try{
+    const res = await fetch(`${SB_URL}/rest/v1/leave_tracker_records?id=eq.${CURRENT_ID}`,{
+      method:'PATCH', headers:H, body:JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error('update failed');
+    drawDone(discussedEl.value==='none');
+  }catch(e){
+    err.textContent='Could not submit the checklist. Try again.'; err.style.display='block';
+  }
+}
+
+function drawDone(flagged){
+  const app=document.getElementById('app');
+  app.innerHTML = `
+    <div class="goodbox">Checklist submitted. Your manager can now review this leave request.</div>
+    ${flagged?`<div class="badbox" style="margin-top:10px">You haven't identified anyone to cover you yet — your manager will follow up on this before approving.</div>`:''}
+    <div class="btn-row"><button class="btn btn-primary" onclick="loadRequests().then(drawList)">Back to your requests</button></div>
+  `;
+}
+</script>
+</body>
+</html>
