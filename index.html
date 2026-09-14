@@ -873,8 +873,11 @@ function drawDeliveryReport(data){
     <div class="foot">Figures in JMD.<br>${fmtISODate(data.date)} · Updated ${lastRefresh()}</div>`;
 }
 
-function obox(label,ct,val,cls,bucket){
-  const tappable = ct>0;
+function obox(label,ct,val,cls,bucket,forceTap){
+  // forceTap: Delivery Reports should still open on a zero-shipment day — the
+  // date picker inside it lets a rep page back to a day that did have activity.
+  // Every other tile keeps the ct>0 rule: nothing to drill into at zero.
+  const tappable = forceTap || ct>0;
   return `<div class="obox ${cls} ${tappable?'tap':''}" ${tappable?`onclick="openOrders('${bucket}','${label}')"`:''}>
     <div class="oct">${ct||0}</div>
     <div class="olbl">${label}${tappable?' ›':''}</div>
@@ -964,7 +967,7 @@ function render(s){
       ${obox("On Hold", ORD?ORD.hold_ct:0, ORD?+ORD.hold_val:0, "hold", "hold")}
       ${obox("Back Order", ORD?ORD.backorder_ct:0, ORD?+ORD.backorder_val:0, "back", "back")}
       ${obox("Credit Notes", CUST.filter(x=>+x.mtd_credits<0).length, credits, "cred", "cred")}
-      ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep")}
+      ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep", true)}
     </div>
 
     <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
