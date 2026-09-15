@@ -676,7 +676,7 @@ function openOrders(bucket, label){
   let rows, isCred = bucket==="cred", isBack = bucket==="back";
   if(isCred){
     rows = CUST.filter(x=>+x.mtd_credits<0)
-      .map(x=>({customer_name:x.customer_name||x.customer_id, order_total:+x.mtd_credits, status:"Credit note", order_nbr:"", order_date:null}));
+      .map(x=>({customer_name:x.customer_name||x.customer_id, customer_id:x.customer_id, order_total:+x.mtd_credits, status:"Credit note", order_nbr:"", order_date:null}));
   }else{
     rows = ORDLIST.filter(o=>o.bucket===bucket).slice();
   }
@@ -700,8 +700,16 @@ function openOrders(bucket, label){
     </div>`}
     ${rows.length? rows.map(o=>{
       const age = o.order_date? Math.round((today-new Date(o.order_date))/86400000) : null;
-      const tappable = isBack && o.order_nbr;
-      return `<div class="cust ${tappable?'tap':''}" ${tappable?`onclick="openBackorderItems('${encodeURIComponent(o.order_nbr)}','${encodeURIComponent(o.customer_name||'')}')"`:''}>
+      const tapBack = isBack && o.order_nbr;
+      const tapCred = isCred && o.customer_id;
+      const tappable = tapBack || tapCred;
+      const onclick = tapBack
+        ? `openBackorderItems('${encodeURIComponent(o.order_nbr)}','${encodeURIComponent(o.customer_name||'')}')`
+        : tapCred
+        ? `openCreditNoteItems('${encodeURIComponent(o.customer_id)}','${encodeURIComponent(o.customer_name||'')}')`
+        : '';
+      const hint = tapBack ? 'See backordered items ›' : tapCred ? 'See credit note items ›' : '';
+      return `<div class="cust ${tappable?'tap':''}" ${tappable?`onclick="${onclick}"`:''}>
         <div class="crow1">
           <div>
             <div class="cname">${esc(o.customer_name)}</div>
@@ -709,7 +717,7 @@ function openOrders(bucket, label){
           </div>
           <div class="cgap"><div class="g" style="${+o.order_total<0?'color:var(--bad)':'color:var(--ink)'}">${Jk(o.order_total)}</div></div>
         </div>
-        ${tappable?'<div class="lr2" style="text-align:right;margin-top:4px">See backordered items ›</div>':''}
+        ${hint?`<div class="lr2" style="text-align:right;margin-top:4px">${hint}</div>`:''}
       </div>`;}).join("")
     : `<div class="empty">No orders in this status.</div>`}
     <div class="foot">Figures in JMD.<br>Updated ${lastRefresh()}</div>`;
@@ -760,6 +768,68 @@ function showBackorderModal(orderNbr, customerName, items){
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function closeBackorderModal(){ const m=document.getElementById('backorderModal'); if(m) m.remove(); }
+
+/* ---------- Credit Note line-item detail ----------
+   Mirrors openBackorderItems above. Scoped by salesperson NAME (not
+   salesperson_id) because that's the exact join key rep_customer_cache.mtd_credits
+   itself is built from — verified live against invoiced_items with zero mismatches
+   across every rep/customer before shipping this, so the modal's total always ties
+   out to the figure the rep already saw on the list. A customer can have more than
+   one credit memo in a month, so this groups by reference_number like Delivery
+   Reports does, not a single flat list. */
+async function openCreditNoteItems(cidEnc, nameEnc){
+  const cid=decodeURIComponent(cidEnc), name=decodeURIComponent(nameEnc);
+  showCreditNoteModal(name, null);
+  const rep=VIEWAS||REP;
+  const nameEncForQuery=rep?encodeURIComponent(rep.name||""):"";
+  const today=new Date();
+  const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
+  try{
+    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?customer_id=eq.${encodeURIComponent(cid)}&salesperson=eq.${nameEncForQuery}&tran_type=eq.CRM&financial_period=eq.${fp}&select=reference_number,invoice_date,description,item_class,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:H}).then(r=>r.json());
+    const list=Array.isArray(rows)?rows:[];
+    const byRef={};
+    list.forEach(r=>{
+      const g=byRef[r.reference_number]||(byRef[r.reference_number]={ref:r.reference_number, date:r.invoice_date, items:[], val:0});
+      g.items.push(r); g.val+=+r.ext_amount||0;
+    });
+    const groups=Object.values(byRef).sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
+    showCreditNoteModal(name, groups);
+  }catch(e){ showCreditNoteModal(name, []); }
+}
+
+function showCreditNoteModal(customerName, groups){
+  const existing=document.getElementById('creditNoteModal'); if(existing) existing.remove();
+  let html='<div style="position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end" id="creditNoteModal">';
+  html+='<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column">';
+  html+='<div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--ink);border-radius:18px 18px 0 0">';
+  html+='<div><div style="font-size:15px;font-weight:800;color:#fff">🧾 Credit note items</div>';
+  html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+esc(customerName||'')+'</div></div>';
+  html+='<button onclick="closeCreditNoteModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  html+='<div style="flex:1;overflow-y:auto;padding:4px 18px">';
+  if(groups===null){
+    html+='<div class="spin"></div>';
+  }else if(!groups.length){
+    html+='<div class="empty">No credit note detail found for this account.</div>';
+  }else{
+    const total=groups.reduce((a,g)=>a+g.val,0);
+    html+=`<div style="padding:10px 0 4px;font-size:11px;color:var(--mut)">${groups.length} credit note${groups.length===1?"":"s"} · ${J(total)} total</div>`;
+    groups.forEach(g=>{
+      html+='<div style="padding:8px 0 2px;font-size:11px;font-weight:700;color:var(--mut);display:flex;justify-content:space-between">';
+      html+='<span>#'+esc(g.ref)+(g.date?' · '+fmtDate(g.date):'')+'</span><span style="color:var(--bad)">'+J(g.val)+'</span></div>';
+      g.items.forEach(i=>{
+        html+='<div class="listrow"><div style="flex:1;min-width:0"><div class="lr1">'+esc(i.description||'Credit line')+'</div>';
+        html+='<div class="lr2">'+(i.item_class?esc(i.item_class)+' · ':'')+(+i.quantity||0).toLocaleString()+' cs</div></div>';
+        html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800;color:var(--bad)">'+J(+i.ext_amount||0)+'</div></div></div>';
+      });
+    });
+  }
+  html+='</div>';
+  html+='<div style="padding:12px 16px;border-top:1px solid var(--line)">';
+  html+='<button onclick="closeCreditNoteModal()" style="width:100%;padding:12px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Close</button>';
+  html+='</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+function closeCreditNoteModal(){ const m=document.getElementById('creditNoteModal'); if(m) m.remove(); }
 
 async function loadData(rep){
   const c=document.getElementById("content");
@@ -873,8 +943,11 @@ function drawDeliveryReport(data){
     <div class="foot">Figures in JMD.<br>${fmtISODate(data.date)} · Updated ${lastRefresh()}</div>`;
 }
 
-function obox(label,ct,val,cls,bucket){
-  const tappable = ct>0;
+function obox(label,ct,val,cls,bucket,forceTap){
+  // forceTap: Delivery Reports should still open on a zero-shipment day — the
+  // date picker inside it lets a rep page back to a day that did have activity.
+  // Every other tile keeps the ct>0 rule: nothing to drill into at zero.
+  const tappable = forceTap || ct>0;
   return `<div class="obox ${cls} ${tappable?'tap':''}" ${tappable?`onclick="openOrders('${bucket}','${label}')"`:''}>
     <div class="oct">${ct||0}</div>
     <div class="olbl">${label}${tappable?' ›':''}</div>
@@ -964,7 +1037,7 @@ function render(s){
       ${obox("On Hold", ORD?ORD.hold_ct:0, ORD?+ORD.hold_val:0, "hold", "hold")}
       ${obox("Back Order", ORD?ORD.backorder_ct:0, ORD?+ORD.backorder_val:0, "back", "back")}
       ${obox("Credit Notes", CUST.filter(x=>+x.mtd_credits<0).length, credits, "cred", "cred")}
-      ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep")}
+      ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep", true)}
     </div>
 
     <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
