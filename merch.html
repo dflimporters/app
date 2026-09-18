@@ -991,7 +991,10 @@ body.dfl-readonly .readonly-note{display:block}
       <div id="tl-upcoming-leave-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
     </div>
 
-    <div id="tl-leave-requests-wrap" class="hide-when-readonly" style="display:none">
+    <!-- Not hide-when-readonly on purpose: an admin viewing as this TL should
+         still be able to SEE pending leave requests (just not act on them —
+         see loadTLLeaveApprovals()'s viewingAs handling below). -->
+    <div id="tl-leave-requests-wrap" style="display:none">
       <div class="sec-hdr" style="margin-top:6px">Leave requests</div>
       <div id="tl-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
     </div>
@@ -1053,7 +1056,7 @@ body.dfl-readonly .readonly-note{display:block}
     </div>
 
     <div id="admin-leave-requests-wrap" style="display:none">
-      <div class="sec-hdr" style="margin-top:6px">Team leader leave requests</div>
+      <div class="sec-hdr" style="margin-top:6px">Leave requests</div>
       <div id="admin-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
     </div>
 
@@ -2410,24 +2413,33 @@ function reloadTLLeaveViews(){
   loadTLUpcomingLeave();
 }
 
-// TL: pending leave requests from their own merchandisers.
+// TL: pending leave requests from their own merchandisers. Loads (and shows)
+// even while an admin is viewing as this TL — an admin checking someone's
+// screen should still be able to SEE what's pending, just not act on it from
+// here. decideLeaveRequest() already independently refuses writes under
+// viewingAs, but showing live, clickable-looking buttons that silently no-op
+// is worse than just not offering them — so the buttons themselves are
+// swapped for a read-only note in that case.
 async function loadTLLeaveApprovals(){
   const wrap=document.getElementById('tl-leave-requests-wrap');
   const list=document.getElementById('tl-leave-requests-list');
-  if(!wrap||!list||!cu||cu.viewingAs) return;
+  if(!wrap||!list||!cu) return;
   const ids=(tlMyMerch||[]).map(m=>m.id);
   if(!ids.length){ wrap.style.display='none'; return; }
   try{
     const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.pending&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
+    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
-      <div style="display:flex;gap:8px">
+      ${readonly
+        ? `<div style="font-size:11px;color:var(--muted)">👁️ Read-only — open this TL's real login, or approve it from your own admin screen, to act on this.</div>`
+        : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,reloadTLLeaveViews)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,reloadTLLeaveViews)">Deny</button>
-      </div>
+      </div>`}
     </div>`).join('');
   }catch(e){ console.warn('TL leave approvals load failed:',e); }
 }
@@ -2455,16 +2467,22 @@ async function loadTLUpcomingLeave(){
 
 // Admin/manager: pending leave requests from team leaders (tl_merch counts
 // as a team leader here too — the "supervisor" tier above them).
+// Every pending leave request, any role — a merchandiser's request normally
+// belongs in their own TL's queue (loadTLLeaveApprovals), but admin needs a
+// direct view too rather than having to "View as" every TL one by one to
+// check. This used to filter to requester_role=in.(team_leader,tl_merch)
+// only, which meant a merchandiser's or rep's request was invisible here
+// entirely — admin could only ever see it through the submitter's own TL.
 async function loadAdminLeaveApprovals(){
   const wrap=document.getElementById('admin-leave-requests-wrap');
   const list=document.getElementById('admin-leave-requests-list');
   if(!wrap||!list) return;
   try{
-    const rows=await rest(`leave_requests?requester_role=in.(team_leader,tl_merch)&status=eq.pending&order=created_at.desc&select=*`);
+    const rows=await rest(`leave_requests?status=eq.pending&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     list.innerHTML=rows.map(r=>`<div class="merch-card">
-      <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} (${escapeHtmlM(r.job_title||'Team Leader')}) — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
+      <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} (${escapeHtmlM(r.job_title||r.requester_role||'Staff')}) — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
       <div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,loadAdminLeaveApprovals)">Approve</button>
