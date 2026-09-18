@@ -2367,6 +2367,7 @@ async function loadMyLeaveRequests(){
       </div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date}</div>
       ${r.remarks?`<div style="font-size:12px;margin-top:4px">${escapeHtmlM(r.remarks)}</div>`:''}
+      ${r.status==='approved'&&r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
       ${r.status!=='pending'&&r.reviewed_by_name?`<div style="font-size:11px;color:var(--muted);margin-top:4px">By ${escapeHtmlM(r.reviewed_by_name)}</div>`:''}
     </div>`).join('');
   }catch(e){ console.error('my leave requests load failed:',e); list.innerHTML='<div class="empty-feed">Failed to load.</div>'; }
@@ -2375,23 +2376,90 @@ async function loadMyLeaveRequests(){
 // Shared approve/deny — used by both the TL (approving their merchandisers)
 // and the admin screen (approving team leaders). Re-runs whichever loader
 // the caller passes so the list refreshes without a full page reload.
-async function decideLeaveRequest(btn,id,approve,reloadFn){
-  if(approve && !confirm('Approve this leave request?')) return;
-  if(!approve && !confirm('Deny this leave request?')) return;
+// Deny needs no further info and stays a plain confirm; approve requires
+// naming who's covering the route first, so it hands off to a small modal
+// instead of approving immediately.
+function decideLeaveRequest(btn,id,approve,reloadFn){
+  if(!approve){
+    if(!confirm('Deny this leave request?')) return;
+    denyLeaveRequest(btn,id,reloadFn);
+    return;
+  }
+  openLeaveApproveModal(btn,id,reloadFn);
+}
+
+async function denyLeaveRequest(btn,id,reloadFn){
   btn.disabled=true;
   try{
     await rest(`leave_requests?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:{
-      status: approve?'approved':'denied',
-      reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString()
+      status:'denied', reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString()
     }});
+    if(typeof reloadFn==='function') reloadFn();
+  }catch(e){
+    alert('Could not process: '+(e.message||e));
+    btn.disabled=false;
+  }
+}
+
+// Rows currently on screen, keyed by id — lets the approval modal show who
+// it's approving leave for without threading escaped name strings through
+// inline onclick handlers. Populated by loadTLLeaveApprovals()/
+// loadAdminLeaveApprovals() each time they render.
+let _leaveRowsById={};
+let _leaveApproveCtx=null;
+
+function openLeaveApproveModal(btn,id,reloadFn){
+  _leaveApproveCtx={id,btn,reloadFn};
+  const row=_leaveRowsById[id];
+  document.getElementById('leave-approve-sub').textContent = row
+    ? 'Approving leave for '+row.requester_name+' ('+row.from_date+' → '+row.to_date+')'
+    : 'Approving leave request';
+  document.getElementById('leave-approve-cover-name').value='';
+  document.getElementById('leave-approve-cover-phone').value='';
+  updateLeaveApproveGating();
+  document.getElementById('leave-approve-modal').style.display='flex';
+}
+function closeLeaveApproveModal(){
+  document.getElementById('leave-approve-modal').style.display='none';
+  _leaveApproveCtx=null;
+}
+function updateLeaveApproveGating(){
+  const btn=document.getElementById('leave-approve-confirm-btn');
+  if(!btn) return;
+  const name=document.getElementById('leave-approve-cover-name').value.trim();
+  const phone=document.getElementById('leave-approve-cover-phone').value.trim();
+  const met = name.length>0 && phone.length>0;
+  btn.disabled=!met;
+  btn.style.opacity=met?'1':'.4';
+  btn.style.cursor=met?'pointer':'not-allowed';
+}
+async function confirmLeaveApproval(){
+  if(!_leaveApproveCtx) return;
+  const {id,btn,reloadFn}=_leaveApproveCtx;
+  const coverName=document.getElementById('leave-approve-cover-name').value.trim();
+  const coverPhone=document.getElementById('leave-approve-cover-phone').value.trim();
+  if(!coverName||!coverPhone) return;
+  const confirmBtn=document.getElementById('leave-approve-confirm-btn');
+  confirmBtn.disabled=true; confirmBtn.textContent='Approving…';
+  if(btn) btn.disabled=true;
+  try{
+    await rest(`leave_requests?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:{
+      status:'approved',
+      reviewed_by_id: cu.id, reviewed_by_name: cu.full_name, reviewed_at: new Date().toISOString(),
+      covering_name: coverName, covering_phone: coverPhone
+    }});
+    closeLeaveApproveModal();
     if(typeof reloadFn==='function') reloadFn();
     // Fire-and-forget — HR gets the filled-out form by email the moment a
     // request is approved. The approval itself already succeeded above, so a
     // failure here shouldn't alarm the approver; just log it for follow-up.
-    if(approve) sendLeaveApprovalEmail(id);
+    sendLeaveApprovalEmail(id);
   }catch(e){
-    alert('Could not process: '+(e.message||e));
-    btn.disabled=false;
+    alert('Could not approve: '+(e.message||e));
+    if(btn) btn.disabled=false;
+  }finally{
+    confirmBtn.textContent='Approve';
+    updateLeaveApproveGating();
   }
 }
 
@@ -2430,6 +2498,7 @@ async function loadTLLeaveApprovals(){
     const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.pending&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
+    rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
     const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
@@ -2461,6 +2530,7 @@ async function loadTLUpcomingLeave(){
     list.innerHTML=rows.map(r=>`<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
       <div style="font-size:13px;font-weight:700">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date} (${r.days_requested}d)</div>
+      ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
     </div>`).join('');
   }catch(e){ console.warn('upcoming leave load failed:',e); }
 }
@@ -2481,6 +2551,7 @@ async function loadAdminLeaveApprovals(){
     const rows=await rest(`leave_requests?status=eq.pending&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
+    rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} (${escapeHtmlM(r.job_title||r.requester_role||'Staff')}) — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
@@ -5643,6 +5714,24 @@ window.addEventListener('offline', updateLiveDot);
     <button class="issue-tab" id="issue-tab-resolved" onclick="setIssueAdminTab('resolved')">Resolved</button>
   </div>
   <div style="flex:1;overflow-y:auto;padding:12px 16px" id="issue-admin-list"><div class="spinner"></div></div>
+</div>
+
+<!-- LEAVE APPROVAL — requires naming who's covering the route before a leave
+     request can actually be approved (deny needs no coverage info). -->
+<div id="leave-approve-modal" style="display:none;position:fixed;inset:0;z-index:99992;background:rgba(0,0,0,.6);flex-direction:column;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card);border-radius:16px;width:100%;max-width:380px;padding:20px;box-sizing:border-box">
+    <div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:4px">Approve Leave Request</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="leave-approve-sub">Approving leave request</div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Who's covering their route?</div>
+    <input type="text" id="leave-approve-cover-name" oninput="updateLeaveApproveGating()" placeholder="Covering merchandiser's name" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <input type="tel" id="leave-approve-cover-phone" oninput="updateLeaveApproveGating()" placeholder="Their phone number" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:16px;box-sizing:border-box;font-family:inherit">
+
+    <div style="display:flex;gap:8px">
+      <button onclick="closeLeaveApproveModal()" style="flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer">Cancel</button>
+      <button id="leave-approve-confirm-btn" onclick="confirmLeaveApproval()" disabled style="flex:1;background:var(--green);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:800;cursor:not-allowed;opacity:.4">Approve</button>
+    </div>
+  </div>
 </div>
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->
