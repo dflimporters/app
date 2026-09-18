@@ -1273,6 +1273,19 @@ function applyReliefUI(){
   }
 }
 
+// Called from loadMyStores() once it confirms a relief-flagged user actually
+// has real stores in merchandiser_map — un-hides the same route-bound UI
+// applyReliefUI() hid on the (usually correct, but not guaranteed) assumption
+// that relief means routeless.
+function revealReliefRouteUI(){
+  const show=function(id){ const el=document.getElementById(id); if(el) el.style.display=''; };
+  show('m-squal-box'); show('m-pct-box');
+  show('m-mystores-btn'); show('n-stores');
+  show('m-eval-tile'); show('m-quickstores-section'); show('m-delivery-tile');
+  const grid=document.getElementById('m-action-grid');
+  if(grid) grid.style.gridTemplateColumns='1fr 1fr';
+}
+
 // ============================================================
 // BOOT — identity from the auth guard, not a PIN
 // ============================================================
@@ -1430,21 +1443,31 @@ async function launchMerch(u){
 }
 
 async function loadMyStores(u){
-  if(isRelief() || tlAdHocVisit){
-    // Relief has no route — merchandiser_map has nothing under their name.
-    // A team leader covering ad hoc (tlAdHocVisit) has no route here either.
-    // Both search any store nationwide instead, via the fallback search
-    // already built into filterStores()/filterStoresSF() below.
+  if(tlAdHocVisit){
+    // A team leader covering ad hoc has no route here — search any store
+    // nationwide instead, via the fallback search already built into
+    // filterStores()/filterStoresSF() below.
     myStores=[];
     return;
   }
   try{
-    // Use RPC which does a proper SQL JOIN — merchandiser_map has no FK to customers
+    // Use RPC which does a proper SQL JOIN — merchandiser_map has no FK to customers.
+    // Fetched even for relief: relief normally has no route (merchandiser_map
+    // has nothing under their name) and applyReliefUI() hides the route-bound
+    // UI on that assumption — but relief is a job title, not a guarantee of
+    // routelessness. Someone can be flagged relief_merchandiser and still
+    // hold a real assigned route in merchandiser_map (e.g. Qewon Campbell).
+    // When that's genuinely the case, this un-hides the same UI a regular
+    // merchandiser gets instead of silently hiding real data.
     const rows=await restRpc('get_merch_stores',{p_name:u.full_name});
     myStores=(rows||[]).map(r=>({id:r.customer_id,name:r.customer_name,city:r.city}));
     buildDropdown('store-drop',myStores,'vf');
     buildDropdown('sf-store-drop',myStores,'sf');
-    if(!myStores.length)console.warn('No stores found for',u.full_name);
+    if(!myStores.length){
+      console.warn('No stores found for',u.full_name);
+    } else if(isRelief()){
+      revealReliefRouteUI();
+    }
   }catch(e){console.error('stores error:',e);}
 }
 
@@ -2386,6 +2409,12 @@ async function loadMyLeaveRequests(){
   try{
     const rows=await rest(`leave_requests?requester_id=eq.${cu.id}&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ list.innerHTML='<div class="empty-feed">No leave requests yet.</div>'; return; }
+    rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
+    // Only team leaders (formal or acting) can set who's covering for their
+    // OWN leave here — a plain merchandiser's coverage is set by whoever
+    // approves their request, not by themselves. Never while viewing as
+    // someone else (writes stay disabled under view-as everywhere else).
+    const canEditOwnCovering = !cu.viewingAs && (cu.role==='team_leader' || cu.role==='tl_merch');
     list.innerHTML=rows.map(r=>`<div class="merch-card" style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px">
         <div style="font-size:13px;font-weight:700">${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'} · ${r.days_requested}d</div>
@@ -2393,8 +2422,9 @@ async function loadMyLeaveRequests(){
       </div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date}</div>
       ${r.remarks?`<div style="font-size:12px;margin-top:4px">${escapeHtmlM(r.remarks)}</div>`:''}
-      ${r.status==='approved'&&r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
+      ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
       ${r.status!=='pending'&&r.reviewed_by_name?`<div style="font-size:11px;color:var(--muted);margin-top:4px">By ${escapeHtmlM(r.reviewed_by_name)}</div>`:''}
+      ${canEditOwnCovering&&r.status!=='denied'?`<button class="submit-btn" style="margin-top:8px;padding:6px 10px;font-size:12px;background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="openLeaveCoveringModal('${r.id}',loadMyLeaveRequests)">🔄 ${r.covering_name?'Edit':'Set'} covering</button>`:''}
     </div>`).join('');
   }catch(e){ console.error('my leave requests load failed:',e); list.innerHTML='<div class="empty-feed">Failed to load.</div>'; }
 }
@@ -2489,6 +2519,59 @@ async function confirmLeaveApproval(){
   }
 }
 
+// Set/edit who's covering on an already-submitted request, independent of
+// approve/deny — never touches status. Pre-fills from _leaveRowsById, so
+// callers must populate that (as loadTLLeaveApprovals/loadTLUpcomingLeave/
+// loadMyLeaveRequests already do) before a row's button can open this.
+let _leaveCoveringCtx=null;
+
+function openLeaveCoveringModal(id, reloadFn){
+  _leaveCoveringCtx={id,reloadFn};
+  const row=_leaveRowsById[id];
+  document.getElementById('leave-covering-sub').textContent = row
+    ? (row.requester_name+' — '+row.from_date+' → '+row.to_date)
+    : 'Leave request';
+  document.getElementById('leave-covering-name').value = (row&&row.covering_name)||'';
+  document.getElementById('leave-covering-phone').value = (row&&row.covering_phone)||'';
+  updateLeaveCoveringGating();
+  document.getElementById('leave-covering-modal').style.display='flex';
+}
+function closeLeaveCoveringModal(){
+  document.getElementById('leave-covering-modal').style.display='none';
+  _leaveCoveringCtx=null;
+}
+function updateLeaveCoveringGating(){
+  const btn=document.getElementById('leave-covering-save-btn');
+  if(!btn) return;
+  const name=document.getElementById('leave-covering-name').value.trim();
+  const phone=document.getElementById('leave-covering-phone').value.trim();
+  const met = name.length>0 && phone.length>0;
+  btn.disabled=!met;
+  btn.style.opacity=met?'1':'.4';
+  btn.style.cursor=met?'pointer':'not-allowed';
+}
+async function saveLeaveCovering(){
+  if(!_leaveCoveringCtx) return;
+  const {id,reloadFn}=_leaveCoveringCtx;
+  const name=document.getElementById('leave-covering-name').value.trim();
+  const phone=document.getElementById('leave-covering-phone').value.trim();
+  if(!name||!phone) return;
+  const btn=document.getElementById('leave-covering-save-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    await rest(`leave_requests?id=eq.${id}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:{
+      covering_name: name, covering_phone: phone
+    }});
+    closeLeaveCoveringModal();
+    if(typeof reloadFn==='function') reloadFn();
+  }catch(e){
+    alert('Could not save: '+(e.message||e));
+  }finally{
+    btn.disabled=false; btn.textContent='Save';
+    updateLeaveCoveringGating();
+  }
+}
+
 async function sendLeaveApprovalEmail(leaveRequestId){
   try{
     const res=await fetch(SUPABASE_URL+'/functions/v1/send-leave-approval-email',{
@@ -2529,11 +2612,13 @@ async function loadTLLeaveApprovals(){
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
+      ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-bottom:8px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
       ${readonly
         ? `<div style="font-size:11px;color:var(--muted)">👁️ Read-only — open this TL's real login, or approve it from your own admin screen, to act on this.</div>`
         : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,reloadTLLeaveViews)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,reloadTLLeaveViews)">Deny</button>
+        <button class="submit-btn" style="flex:0 0 auto;padding:8px 10px;font-size:13px;background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="openLeaveCoveringModal('${r.id}',reloadTLLeaveViews)" title="Set who's covering">🔄</button>
       </div>`}
     </div>`).join('');
   }catch(e){ console.warn('TL leave approvals load failed:',e); }
@@ -2553,10 +2638,13 @@ async function loadTLUpcomingLeave(){
     const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.approved&from_date=gte.${todayStr}&from_date=lte.${weekOutStr}&order=from_date.asc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
+    rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
+    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(r=>`<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
       <div style="font-size:13px;font-weight:700">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date} (${r.days_requested}d)</div>
       ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
+      ${readonly?'':`<button class="submit-btn" style="margin-top:8px;padding:6px 10px;font-size:12px;background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="openLeaveCoveringModal('${r.id}',loadTLUpcomingLeave)">🔄 ${r.covering_name?'Edit':'Set'} covering</button>`}
     </div>`).join('');
   }catch(e){ console.warn('upcoming leave load failed:',e); }
 }
@@ -4226,7 +4314,7 @@ async function viewStockHistory(custId,custName){
 let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
 
 async function ensureStoresLoaded(){
-  if(isRelief())return; // no route, no targets — nothing for this tab to show
+  if(isRelief() && !myStores.length) return; // no route, no targets — nothing for this tab to show
   if(storesLoaded) return;
   await loadStorePerf();
 }
@@ -5909,6 +5997,28 @@ window.addEventListener('offline', updateLiveDot);
     <div style="display:flex;gap:8px">
       <button onclick="closeLeaveApproveModal()" style="flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer">Cancel</button>
       <button id="leave-approve-confirm-btn" onclick="confirmLeaveApproval()" disabled style="flex:1;background:var(--green);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:800;cursor:not-allowed;opacity:.4">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEAVE COVERING — lets a TL (formal or acting) set/edit who's covering on
+     an already-submitted request, independent of approve/deny: their own
+     merchandisers' requests, their team's already-approved upcoming leave,
+     or their own leave request. Unlike the approve modal above, saving here
+     never changes status. -->
+<div id="leave-covering-modal" style="display:none;position:fixed;inset:0;z-index:99992;background:rgba(0,0,0,.6);flex-direction:column;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card);border-radius:16px;width:100%;max-width:380px;padding:20px;box-sizing:border-box">
+    <div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:4px">Who's Covering?</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="leave-covering-sub">Leave request</div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Covering person's name</div>
+    <input type="text" id="leave-covering-name" oninput="updateLeaveCoveringGating()" placeholder="Covering person's name" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:10px;box-sizing:border-box;font-family:inherit">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Their phone number</div>
+    <input type="tel" id="leave-covering-phone" oninput="updateLeaveCoveringGating()" placeholder="Phone number" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:16px;box-sizing:border-box;font-family:inherit">
+
+    <div style="display:flex;gap:8px">
+      <button onclick="closeLeaveCoveringModal()" style="flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer">Cancel</button>
+      <button id="leave-covering-save-btn" onclick="saveLeaveCovering()" disabled style="flex:1;background:var(--navy);color:#fff;border:none;border-radius:var(--rad-sm);padding:12px;font-size:13px;font-weight:800;cursor:not-allowed;opacity:.4">Save</button>
     </div>
   </div>
 </div>
