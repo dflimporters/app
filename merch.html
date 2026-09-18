@@ -1273,6 +1273,19 @@ function applyReliefUI(){
   }
 }
 
+// Called from loadMyStores() once it confirms a relief-flagged user actually
+// has real stores in merchandiser_map — un-hides the same route-bound UI
+// applyReliefUI() hid on the (usually correct, but not guaranteed) assumption
+// that relief means routeless.
+function revealReliefRouteUI(){
+  const show=function(id){ const el=document.getElementById(id); if(el) el.style.display=''; };
+  show('m-squal-box'); show('m-pct-box');
+  show('m-mystores-btn'); show('n-stores');
+  show('m-eval-tile'); show('m-quickstores-section'); show('m-delivery-tile');
+  const grid=document.getElementById('m-action-grid');
+  if(grid) grid.style.gridTemplateColumns='1fr 1fr';
+}
+
 // ============================================================
 // BOOT — identity from the auth guard, not a PIN
 // ============================================================
@@ -1430,21 +1443,31 @@ async function launchMerch(u){
 }
 
 async function loadMyStores(u){
-  if(isRelief() || tlAdHocVisit){
-    // Relief has no route — merchandiser_map has nothing under their name.
-    // A team leader covering ad hoc (tlAdHocVisit) has no route here either.
-    // Both search any store nationwide instead, via the fallback search
-    // already built into filterStores()/filterStoresSF() below.
+  if(tlAdHocVisit){
+    // A team leader covering ad hoc has no route here — search any store
+    // nationwide instead, via the fallback search already built into
+    // filterStores()/filterStoresSF() below.
     myStores=[];
     return;
   }
   try{
-    // Use RPC which does a proper SQL JOIN — merchandiser_map has no FK to customers
+    // Use RPC which does a proper SQL JOIN — merchandiser_map has no FK to customers.
+    // Fetched even for relief: relief normally has no route (merchandiser_map
+    // has nothing under their name) and applyReliefUI() hides the route-bound
+    // UI on that assumption — but relief is a job title, not a guarantee of
+    // routelessness. Someone can be flagged relief_merchandiser and still
+    // hold a real assigned route in merchandiser_map (e.g. Qewon Campbell).
+    // When that's genuinely the case, this un-hides the same UI a regular
+    // merchandiser gets instead of silently hiding real data.
     const rows=await restRpc('get_merch_stores',{p_name:u.full_name});
     myStores=(rows||[]).map(r=>({id:r.customer_id,name:r.customer_name,city:r.city}));
     buildDropdown('store-drop',myStores,'vf');
     buildDropdown('sf-store-drop',myStores,'sf');
-    if(!myStores.length)console.warn('No stores found for',u.full_name);
+    if(!myStores.length){
+      console.warn('No stores found for',u.full_name);
+    } else if(isRelief()){
+      revealReliefRouteUI();
+    }
   }catch(e){console.error('stores error:',e);}
 }
 
@@ -4226,7 +4249,7 @@ async function viewStockHistory(custId,custName){
 let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
 
 async function ensureStoresLoaded(){
-  if(isRelief())return; // no route, no targets — nothing for this tab to show
+  if(isRelief() && !myStores.length) return; // no route, no targets — nothing for this tab to show
   if(storesLoaded) return;
   await loadStorePerf();
 }
