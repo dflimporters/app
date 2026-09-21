@@ -465,9 +465,24 @@ async function submitStep2(){
     });
     if(!res.ok) throw new Error('update failed');
     drawDone(discussedEl.value==='none');
+    // Fire-and-forget — HR (and Monique/Scott, cc'd) get the completed
+    // checklist by email. The checklist submission itself already succeeded
+    // above, so a failure here shouldn't alarm the submitter.
+    sendLeaveChecklistEmail(CURRENT_ID);
   }catch(e){
     err.textContent='Could not submit the checklist. Try again.'; err.style.display='block';
   }
+}
+
+async function sendLeaveChecklistEmail(leaveTrackerRecordId){
+  try{
+    const res = await fetch(`${SB_URL}/functions/v1/send-rep-leave-checklist-email`,{
+      method:'POST',
+      headers:H,
+      body:JSON.stringify({leave_tracker_record_id:leaveTrackerRecordId})
+    });
+    if(!res.ok) console.warn('leave checklist email failed:', await res.text());
+  }catch(e){ console.warn('leave checklist email failed:', e); }
 }
 
 function drawDone(flagged){
