@@ -3284,7 +3284,8 @@ async function openTLTeamStores(){
     const idList=ids.join(',');
     const [targets,actuals]=await Promise.all([
       rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,customer_name,target_amount`),
-      rest(`monthly_actuals?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,actual_amount`)
+      rest(`monthly_actuals?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,actual_amount`),
+      ensureYtdActualsLoaded()
     ]);
     const targetById={}; (targets||[]).forEach(t=>{ targetById[t.customer_id]={name:t.customer_name,target:parseFloat(t.target_amount||0)}; });
     const actualById={}; (actuals||[]).forEach(a=>{ actualById[a.customer_id]=parseFloat(a.actual_amount||0); });
@@ -3323,6 +3324,7 @@ function renderTLTeamStores(){
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${escapeHtmlM(s.merchandiser_name)}</div>
       ${pct!=null?`<div class="prog-bar"><div class="prog-fill ${fc}" style="width:${Math.min(pct,100)}%"></div></div>
       <div class="merch-stats"><span><strong>$${Math.round(s.actual).toLocaleString()}</strong> actual</span><span>Target: $${Math.round(s.target).toLocaleString()}</span></div>`:''}
+      ${ytdRiskBadgeHtml(s.customer_id)?`<div style="margin-top:6px">${ytdRiskBadgeHtml(s.customer_id)}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -4310,6 +4312,45 @@ async function viewStockHistory(custId,custName){
   }
 }
 
+// ── AT-RISK STORES (YTD) ──
+// A store is flagged if its year-to-date actual (Jan-current month, via the
+// get_ytd_actuals RPC) falls below a flat threshold — HIGH RISK under
+// $1.5M, AT RISK $1.5M-$2M, applied the same way regardless of tier.
+// Loaded once and cached; ensureYtdActualsLoaded() is safe to call repeatedly.
+const YTD_HIGH_RISK_MAX = 1500000;
+const YTD_AT_RISK_MAX = 2000000;
+let ytdActualsByCustomer = null;
+
+async function ensureYtdActualsLoaded(){
+  if(ytdActualsByCustomer) return ytdActualsByCustomer;
+  try{
+    const rows = await restRpc('get_ytd_actuals', {});
+    ytdActualsByCustomer = {};
+    (rows||[]).forEach(function(r){ ytdActualsByCustomer[r.customer_id] = parseFloat(r.ytd_actual||0); });
+  }catch(e){ console.warn('YTD actuals load failed:', e); ytdActualsByCustomer = {}; }
+  return ytdActualsByCustomer;
+}
+
+// Returns {level:'high'|'at'|null, ytd} — level null means not at risk (or
+// no YTD data at all yet, e.g. a brand-new store with zero sales history).
+function ytdRiskLevel(customerId){
+  if(!ytdActualsByCustomer) return {level:null, ytd:null};
+  const ytd = ytdActualsByCustomer[customerId];
+  if(ytd==null) return {level:null, ytd:null};
+  if(ytd < YTD_HIGH_RISK_MAX) return {level:'high', ytd};
+  if(ytd < YTD_AT_RISK_MAX) return {level:'at', ytd};
+  return {level:null, ytd};
+}
+
+function ytdRiskBadgeHtml(customerId){
+  const r = ytdRiskLevel(customerId);
+  if(!r.level) return '';
+  const ytdLbl = '$'+Math.round(r.ytd/1000).toLocaleString()+'K YTD';
+  return r.level==='high'
+    ? '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--red-lt);color:var(--red)" title="Under $1.5M YTD — flagged for possible removal in 30 days if it doesn\'t improve">🔴 High Risk · '+ytdLbl+'</span>'
+    : '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--amber-lt);color:var(--amber)" title="Under $2M YTD — watch this store">🟠 At Risk · '+ytdLbl+'</span>';
+}
+
 // ── MY STORES ──
 let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
 
@@ -4322,7 +4363,10 @@ async function ensureStoresLoaded(){
 async function loadStorePerf(){
   document.getElementById('stores-list').innerHTML='<div class="stores-loading"><div class="spinner"></div></div>';
   try{
-    const rows=await restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_curMonthNum});
+    const [rows]=await Promise.all([
+      restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_curMonthNum}),
+      ensureYtdActualsLoaded()
+    ]);
     storePerf=rows||[];
     storesLoaded=true;
     renderStoresSummary();
@@ -4433,6 +4477,7 @@ function renderStores(){
             ${s.service_day?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--blue-lt);color:var(--navy)">📅 ${s.service_day}</span>`:''}
             ${s.customer_tier&&s.customer_tier!=='NULL'?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--amber-lt);color:var(--amber)">${s.customer_tier}</span>`:''}
             ${s.route_tag?`<span style="font-size:10px;color:var(--muted);padding:2px 7px;border-radius:4px;background:#F0F0F0">${s.route_tag}</span>`:''}
+            ${ytdRiskBadgeHtml(s.customer_id)}
           </div>
         </div>
         <div class="spc-badge">${badgeHtml}</div>
