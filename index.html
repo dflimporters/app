@@ -231,6 +231,9 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .catbar>span.warn{background:linear-gradient(90deg,#d9920a,#f0b13d)}
 .cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600}
 .cmeta b{color:var(--ink)}
+.risk-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-top:5px}
+.risk-high{background:#fbe9e9;color:var(--bad)}
+.risk-at{background:#fdf1e0;color:#8a5a06}
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px}
 .foot{text-align:center;color:var(--mut);font-size:11px;margin-top:22px;line-height:1.6}
 .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);
@@ -397,7 +400,19 @@ const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(
 // window.DFL_PROFILE. This is our single entry point into the app —
 // it replaces the old PIN-based enterApp().
 document.addEventListener('dfl-auth-ready', (e) => {
-  initApp(e.detail.profile);
+  const profile = e.detail.profile;
+  // dflhq.com serves this file by default (GitHub Pages convention), and
+  // admin/manager are allowed here too so they can reach it via the
+  // Sales/Merch switcher (see hub-button.js) — but their real home is
+  // /hub.html. A same-origin referrer means they navigated here on purpose
+  // (the switcher, or login.html honouring ?redirect= after a session
+  // expired mid-use); no referrer means a genuinely fresh open — typed URL,
+  // bookmark, home-screen icon — so send them to Hub instead.
+  if ((profile.role === 'admin' || profile.role === 'manager') && !document.referrer) {
+    window.location.replace('/hub.html');
+    return;
+  }
+  initApp(profile);
   wireHomeLogos();
 });
 
@@ -664,6 +679,19 @@ function closeMorePage(){
 }
 
 let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null, CATMTD=[];
+
+// At-risk flag: a store's year-to-date actual (via the get_ytd_actuals RPC,
+// same threshold/logic as the merch app) falls below a flat dollar amount —
+// HIGH RISK under $1.5M, AT RISK $1.5M-$2M, same cutoffs regardless of tier.
+let YTD_ACTUALS={};
+const YTD_HIGH_RISK_MAX=1500000, YTD_AT_RISK_MAX=2000000;
+function ytdRiskBadgeHtml(customerId){
+  const ytd=YTD_ACTUALS[customerId];
+  if(ytd==null) return "";
+  if(ytd<YTD_HIGH_RISK_MAX) return `<span class="risk-badge risk-high" title="Under $1.5M YTD — flagged for possible removal in 30 days if it doesn't improve">🔴 High Risk · $${Math.round(ytd/1000).toLocaleString()}K YTD</span>`;
+  if(ytd<YTD_AT_RISK_MAX) return `<span class="risk-badge risk-at" title="Under $2M YTD — watch this store">🟠 At Risk · $${Math.round(ytd/1000).toLocaleString()}K YTD</span>`;
+  return "";
+}
 let DELREP=null, DELVIEWDATE=null;   // Delivery Reports tile — today's shipments, cached; re-fetched on date change
 const CAT_CLASSES=["BEVERAGES","CLEARPACK","ECOBOX","ECOCUP","FOIL","FOODSUP","GARBAGEBAG","HOUSEHOLD","PAPER","PLASTIC","PROCESSING"];
 
@@ -838,13 +866,14 @@ async function loadData(rep){
     const spid=encodeURIComponent(rep.salesperson_id||"");
     const today=new Date();
     const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
-    const [sumR,custR,ordR,ordListR,catR,delR]=await Promise.all([
+    const [sumR,custR,ordR,ordListR,catR,delR,ytdR]=await Promise.all([
       fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:H}).then(r=>r.json()),
-      fetchDeliveryReport(spid, todayISO())
+      fetchDeliveryReport(spid, todayISO()),
+      fetch(`${SB_URL}/rest/v1/rpc/get_ytd_actuals`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:"{}"}).then(r=>r.json()).catch(()=>[])
     ]);
     const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
     CUST=Array.isArray(custR)?custR:[];
@@ -852,6 +881,8 @@ async function loadData(rep){
     ORDLIST=Array.isArray(ordListR)?ordListR:[];
     CATMTD=Array.isArray(catR)?catR:[];
     DELREP=delR; DELVIEWDATE=null;
+    YTD_ACTUALS={};
+    (Array.isArray(ytdR)?ytdR:[]).forEach(r=>{ YTD_ACTUALS[r.customer_id]=parseFloat(r.ytd_actual||0); });
     render(s);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load your numbers. Check your connection and pull to refresh.</div>`; }
 }
@@ -1107,6 +1138,7 @@ function drawList(){
         <span><b>${Jk(net)}</b>${bud>0?" / "+Jk(bud):""}</span>
         <span>${x.order_count||0} ord · ${last} ›</span>
       </div>
+      ${ytdRiskBadgeHtml(x.customer_id)}
     </div>`;
   }).join("");
 }
