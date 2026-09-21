@@ -397,7 +397,19 @@ const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(
 // window.DFL_PROFILE. This is our single entry point into the app —
 // it replaces the old PIN-based enterApp().
 document.addEventListener('dfl-auth-ready', (e) => {
-  initApp(e.detail.profile);
+  const profile = e.detail.profile;
+  // dflhq.com serves this file by default (GitHub Pages convention), and
+  // admin/manager are allowed here too so they can reach it via the
+  // Sales/Merch switcher (see hub-button.js) — but their real home is
+  // /hub.html. A same-origin referrer means they navigated here on purpose
+  // (the switcher, or login.html honouring ?redirect= after a session
+  // expired mid-use); no referrer means a genuinely fresh open — typed URL,
+  // bookmark, home-screen icon — so send them to Hub instead.
+  if ((profile.role === 'admin' || profile.role === 'manager') && !document.referrer) {
+    window.location.replace('/hub.html');
+    return;
+  }
+  initApp(profile);
   wireHomeLogos();
 });
 
