@@ -103,6 +103,7 @@ td{padding:8px 10px;vertical-align:middle}
 .sn{font-weight:600;color:var(--navy);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
 .sid{font-size:10px;color:var(--dim);margin-top:1px}
 .tar{color:var(--muted);font-size:11px;white-space:nowrap}
+.tloc{color:var(--muted);font-size:11px;white-space:nowrap}
 .tty{color:var(--muted);font-size:11px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
 .trt{font-size:12px;font-weight:600;color:var(--text);text-align:right;white-space:nowrap}
 .tan{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
@@ -131,6 +132,42 @@ td.tco{text-align:right;white-space:nowrap}
 .lst{padding:60px;text-align:center;color:var(--dim)}
 .spin{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* STORE CELL — photo trigger */
+.snrow{display:flex;align-items:center;gap:6px}
+.pbtn{background:transparent;border:1px solid var(--border);color:var(--dim);width:22px;height:22px;border-radius:6px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;padding:0}
+.pbtn:hover{border-color:var(--accent);color:var(--accent);background:#eff6ff}
+.pbtn.has{border-color:var(--accent);color:var(--accent)}
+.pcnt{position:absolute;top:-6px;right:-6px;background:var(--accent);color:#fff;font-size:8.5px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1}
+
+/* PHOTO PANEL */
+.pscrim{position:fixed;inset:0;background:rgba(15,32,68,.45);z-index:400;opacity:0;pointer-events:none;transition:opacity .2s}
+.pscrim.show{opacity:1;pointer-events:auto}
+.ppanel{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:92vw;background:var(--surface);z-index:401;box-shadow:-8px 0 30px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.ppanel.show{transform:translateX(0)}
+.phdr{background:var(--navy);padding:16px 20px;flex-shrink:0}
+.phdr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.phdr-title{font-size:14px;font-weight:700;color:#fff;line-height:1.3}
+.phdr-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:3px}
+.pclose{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:26px;height:26px;border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0}
+.pclose:hover{background:rgba(255,255,255,.2)}
+.pbody{flex:1;overflow-y:auto;padding:18px 20px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.pshot{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);aspect-ratio:1;cursor:pointer}
+.pshot img{width:100%;height:100%;object-fit:cover;display:block}
+.pshot .pdel{position:absolute;top:5px;right:5px;background:rgba(15,32,68,.75);color:#fff;border:none;width:22px;height:22px;border-radius:6px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.pshot .pdel:hover{background:var(--red)}
+.pempty{text-align:center;padding:30px 10px;color:var(--dim);font-size:12px}
+.pupload{border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center}
+.pupload input{display:none}
+.pupload label{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
+.pupload label:hover{background:#1d4ed8}
+.pupload .phint{font-size:10.5px;color:var(--dim);margin-top:8px}
+.pupload.busy label{opacity:.5;pointer-events:none}
+.plight{position:fixed;inset:0;z-index:410;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:30px}
+.plight.show{display:flex}
+.plight img{max-width:100%;max-height:100%;border-radius:6px}
+.plight-close{position:absolute;top:18px;right:22px;background:rgba(255,255,255,.15);color:#fff;border:none;width:34px;height:34px;border-radius:8px;font-size:16px;cursor:pointer}
 
 /* DEBUG BAR */
 .dbg{background:#fef9c3;border-bottom:1px solid #fde047;padding:6px 28px;font-size:11px;color:#713f12;display:none}
@@ -174,7 +211,7 @@ td.tco{text-align:right;white-space:nowrap}
 <div class="ctrl">
   <div class="sw">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input class="si" id="si" type="text" placeholder="Search store or area…" oninput="applyF()">
+    <input class="si" id="si" type="text" placeholder="Search store, location or area…" oninput="applyF()">
   </div>
   <div class="cd"></div>
   <div class="fg" id="rfg">
@@ -204,6 +241,32 @@ td.tco{text-align:right;white-space:nowrap}
   <div class="lst"><div class="spin"></div><div>Loading gondola data…</div></div>
 </div>
 
+<div class="pscrim" id="pscrim" onclick="closePhotos()"></div>
+<div class="ppanel" id="ppanel">
+  <div class="phdr">
+    <div class="phdr-top">
+      <div>
+        <div class="phdr-title" id="pTitle">—</div>
+        <div class="phdr-sub" id="pSub">—</div>
+      </div>
+      <button class="pclose" onclick="closePhotos()">✕</button>
+    </div>
+  </div>
+  <div class="pbody">
+    <div class="pgrid" id="pGrid"></div>
+    <div class="pupload" id="pUpload">
+      <label for="pFile">⬆ Add photos</label>
+      <input type="file" id="pFile" accept="image/*" multiple onchange="uploadPhotos(this.files)">
+      <div class="phint">JPG or PNG · multiple at once</div>
+    </div>
+  </div>
+</div>
+
+<div class="plight" id="plight" onclick="closeLightbox()">
+  <button class="plight-close" onclick="closeLightbox(event)">✕</button>
+  <img id="plightImg" src="" alt="">
+</div>
+
 <button class="stb" id="stb" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
 <script>
@@ -227,121 +290,121 @@ const MF = ['January','February','March','April','May','June','July','August','S
 // c = customer_id (exact match to gondola_invoices.customer_id)
 const G = [
   // ── South East
-  {c:'C000002976',r:'South East',s:'MASTER MAC STONY HILL',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:40000,b:'Domino'},
-  {c:'C000005579',r:'South East',s:'MASTER MAC FOOD STORE',a:'Portmore',t:'Gondola only',st:'Keep',m:40250,b:'McCallums/El Rey'},
-  {c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER (Floor)',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:57500,b:'El Leon'},
-  {c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER (Domino)',a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:57500,b:'Domino'},
-  {c:'C000000554',r:'South East',s:"BROOKLYN CLOCK TOWER (Ol'Timez)",a:'Kingston',t:'Gondola + Shelf',st:'Keep',m:0,b:"Ol'Timez"},
-  {c:'C000004703',r:'South East',s:'SYDENHAM WHOLESALE',a:'Old Harbour',t:'Gondola + Shelf',st:'Keep',m:10000,b:'Domino'},
-  {c:'C000001536',r:'South East',s:'FIRST CHOICE FOOD',a:'Kingston',t:'Shelf Only',st:'Remove',m:10000,b:''},
+  {id:1,c:'C000002976',r:'South East',s:'MASTER MAC STONY HILL',a:'Kingston',t:'Gondola',st:'Keep',m:40000,b:'Domino'},
+  {id:2,c:'C000005579',r:'South East',s:'MASTER MAC FOOD STORE',a:'Portmore',t:'Gondola',st:'Keep',m:40250,b:'McCallums/El Rey'},
+  {id:3,c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER',loc:'Floor',a:'Kingston',t:'Gondola',st:'Keep',m:57500,b:'El Leon'},
+  {id:4,c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER',loc:'Domino',a:'Kingston',t:'Gondola',st:'Keep',m:57500,b:'Domino'},
+  {id:5,c:'C000000554',r:'South East',s:'BROOKLYN CLOCK TOWER',loc:"Ol'Timez",a:'Kingston',t:'Gondola',st:'Keep',m:0,b:"Ol'Timez"},
+  {id:6,c:'C000004703',r:'South East',s:'SYDENHAM WHOLESALE',a:'Old Harbour',t:'Gondola',st:'Keep',m:10000,b:'Domino'},
+  {id:7,c:'C000001536',r:'South East',s:'FIRST CHOICE FOOD',a:'Kingston',t:'Shelf',st:'Remove',m:10000,b:''},
   // ── North East
-  {c:'C000004140',r:'North East',s:'SALEM FRESHCO SUPERMARKET',a:'Runaway Bay',t:'',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000000540',r:'North East',s:'BRAVO SUPERMARKET',a:"St Ann's Bay",t:'Gondola + Shelf',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000004883',r:'North East',s:'TIADONG SUPERMARKET',a:"St Ann's Bay",t:'Gondola only',st:'Keep',m:20000,b:'Domino'},
-  {c:'C000003934',r:'North East',s:'REXO SUPERMARKET (Shelf)',a:'Ochi',t:'Gondola + Shelf',st:'Keep',m:20000,b:'Clean & White'},
-  {c:'C000003934',r:'North East',s:'REXO SUPERMARKET (Island)',a:'Ochi',t:'Gondola + Shelf',st:'Keep',m:85000,b:'Ol Timez'},
-  {c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET (Back)',a:'Ochi',t:'Gondola only',st:'Keep',m:25000,b:'Amigo/Ol Timez'},
-  {c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET (Middle)',a:'Ochi',t:'Gondola',st:'Keep',m:25000,b:'Corneez/Frosteez'},
-  {c:'C000001703',r:'North East',s:'GIANT FAMILY MART G1',a:'Pt. Maria',t:'Gondola + Shelf',st:'Keep',m:20000,b:'Bingo'},
-  {c:'C000001703',r:'North East',s:'GIANT FAMILY MART G2',a:'Pt. Maria',t:'Gondola + Shelf',st:'Remove',m:20000,b:'Domino'},
-  {c:'C000000136',r:'North East',s:'AEON SUPERMARKET',a:'Annotto Bay',t:'Gondola only',st:'Pending',m:10000,b:'Covebay'},
-  {c:'C000002230',r:'North East',s:'JIN LONG WHOLESALE',a:'Annotto Bay',t:'Gondola only',st:'',m:20000,b:'Domino'},
-  {c:'C000000081',r:'North East',s:'A & J RAMTULLA SUPERCENTRE',a:'Pt Antonio',t:'Gondola only',st:'',m:15000,b:'Azukitas/Frooteez'},
-  {c:'C000004990',r:'North East',s:'TRUE FLAVA Domino',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Domino'},
-  {c:'C000004990',r:'North East',s:'TRUE FLAVA Clean & White',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Clean & White'},
-  {c:'C000004990',r:'North East',s:'TRUE FLAVA Cereal',a:'Highgate',t:'Gondola only',st:'Keep',m:20000,b:'Azukitas/El Rey'},
-  {c:'C000003686',r:'North East',s:'PETAL VARIETY STORE',a:'St Mary',t:'Gondola only',st:'',m:15000,b:'Domino'},
-  {c:'C000005745',r:'North East',s:'CHUNG PHAT',a:'Old Harbour',t:'Gondola only',st:'',m:20000,b:'El Rey/Froot/Corneez'},
-  {c:'C000003011',r:'North East',s:"MCDONALD'S SUPERSALE",a:'Claremont',t:'Gondola only',st:'',m:15000,b:''},
+  {id:8,c:'C000004140',r:'North East',s:'SALEM FRESHCO SUPERMARKET',a:'Runaway Bay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {id:9,c:'C000000540',r:'North East',s:'BRAVO SUPERMARKET',a:"St Ann's Bay",t:'Gondola',st:'Keep',m:15000,b:'Domino'},
+  {id:10,c:'C000004883',r:'North East',s:'TIADONG SUPERMARKET',a:"St Ann's Bay",t:'Gondola',st:'Keep',m:20000,b:'Domino'},
+  {id:11,c:'C000003934',r:'North East',s:'REXO SUPERMARKET',loc:'',a:'Ochi',t:'Shelf',st:'Keep',m:20000,b:'Clean & White'},
+  {id:12,c:'C000003934',r:'North East',s:'REXO SUPERMARKET',loc:'',a:'Ochi',t:'Island',st:'Keep',m:85000,b:'Ol Timez'},
+  {id:13,c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET',loc:'Back',a:'Ochi',t:'Gondola',st:'Keep',m:25000,b:'Amigo/Ol Timez'},
+  {id:14,c:'C000000757',r:'North East',s:'CHAMPION SUPERMARKET',loc:'Middle',a:'Ochi',t:'Gondola',st:'Keep',m:25000,b:'Corneez/Frosteez'},
+  {id:15,c:'C000001703',r:'North East',s:'GIANT FAMILY MART',loc:'G1',a:'Pt. Maria',t:'Gondola',st:'Keep',m:20000,b:'Bingo'},
+  {id:16,c:'C000001703',r:'North East',s:'GIANT FAMILY MART',loc:'G2',a:'Pt. Maria',t:'Gondola',st:'Remove',m:20000,b:'Domino'},
+  {id:17,c:'C000000136',r:'North East',s:'AEON SUPERMARKET',a:'Annotto Bay',t:'Gondola',st:'Pending',m:10000,b:'Covebay'},
+  {id:18,c:'C000002230',r:'North East',s:'JIN LONG WHOLESALE',a:'Annotto Bay',t:'Gondola',st:'',m:20000,b:'Domino'},
+  {id:19,c:'C000000081',r:'North East',s:'A & J RAMTULLA SUPERCENTRE',a:'Pt Antonio',t:'Gondola',st:'',m:15000,b:'Azukitas/Frooteez'},
+  {id:20,c:'C000004990',r:'North East',s:'TRUE FLAVA',loc:'',a:'Highgate',t:'Gondola',st:'Keep',m:20000,b:'Domino'},
+  {id:21,c:'C000004990',r:'North East',s:'TRUE FLAVA',loc:'',a:'Highgate',t:'Gondola',st:'Keep',m:20000,b:'Clean & White'},
+  {id:22,c:'C000004990',r:'North East',s:'TRUE FLAVA',loc:'Cereal',a:'Highgate',t:'Gondola',st:'Keep',m:20000,b:'Azukitas/El Rey'},
+  {id:23,c:'C000003686',r:'North East',s:'PETAL VARIETY STORE',a:'St Mary',t:'Gondola',st:'',m:15000,b:'Domino'},
+  {id:24,c:'C000005745',r:'North East',s:'CHUNG PHAT',a:'Old Harbour',t:'Gondola',st:'',m:20000,b:'El Rey/Froot/Corneez'},
+  {id:25,c:'C000003011',r:'North East',s:"MCDONALD'S SUPERSALE",a:'Claremont',t:'Gondola',st:'',m:15000,b:''},
   // ── South West
-  {c:'C000002034',r:'South West',s:'INTOWN SUPER SAVE BLACK RIVER',a:'Black River',t:'',st:'Remove',m:30000,b:'Domino'},
-  {c:'C000005536',r:'South West',s:'JACKY YANG WHOLESALE',a:'Junction',t:'',st:'Keep',m:15000,b:''},
-  {c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE G1',a:'Alligator Pond',t:'',st:'Keep',m:12000,b:'Domino'},
-  {c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE G2',a:'Alligator Pond',t:'',st:'Remove',m:12000,b:'Soft&Lovely'},
-  {c:'C000003171',r:'South West',s:'MORGANS VARIETY STORE',a:'Santa Cruz',t:'',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000004073',r:'South West',s:'RT MART LIMITED',a:'Santa Cruz',t:'',st:'Keep',m:18000,b:'Domino'},
-  {c:'C000005672',r:'South West',s:'SUPER MAX FORMERLY MAXX MART',a:'Santa Cruz',t:'',st:'Keep',m:25000,b:'Domino'},
-  {c:'C000001953',r:'South West',s:'HONG XIN SANTA',a:'Santa Cruz',t:'',st:'Remove',m:12000,b:'Mixed Cereal'},
-  {c:'C000003786',r:'South West',s:'PRIME WHOLESALE',a:'Santa Cruz',t:'',st:'Keep',m:20000,b:'Ol Timez'},
-  {c:'C000005671',r:'South West',s:'SUN ISLAND G1 (Middle)',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Mixed Cereal'},
-  {c:'C000005671',r:'South West',s:'SUN ISLAND G2 (Middle)',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Domino'},
-  {c:'C000005671',r:'South West',s:'SUN ISLAND G3 (Back)',a:'Grangehill',t:'',st:'Remove',m:13000,b:'Covebay'},
-  {c:'C000003819',r:'South West',s:'QUALITY TRADERS',a:'Negril',t:'',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000005455',r:'South West',s:'D & Y SUPERMARKET WHOLESALE',a:'Sav',t:'',st:'Keep',m:34500,b:'Domino'},
-  {c:'C000002706',r:'South West',s:"LI'S WHOLESALE",a:'Sav',t:'',st:'Keep',m:25000,b:'Domino'},
-  {c:'C000007491',r:'South West',s:'BETTER LIFE-UPTOWN',a:'Sav',t:'',st:'Keep',m:23000,b:'Covebay/Amigo/Rhino'},
-  {c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE (Front)',a:'Sav',t:'',st:'Keep',m:16500,b:'Covebay'},
-  {c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE (Back)',a:'Sav',t:'',st:'Remove',m:15000,b:'Domino'},
-  {c:'C000005714',r:'South West',s:'Z & W FORMERLY L&D WHOLESALE',a:'Sav',t:'',st:'Keep',m:15000,b:'Covebay'},
-  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET Cereals',a:'Sav',t:'',st:'Keep',m:10000,b:'Clean & White'},
-  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET CW',a:'Sav',t:'',st:'Keep',m:20000,b:'Domino'},
-  {c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET Domino',a:'Sav',t:'',st:'Keep',m:20000,b:''},
-  {c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS G1',a:'Sav',t:'',st:'Keep',m:20833,b:'El Rey/Golden Foods'},
-  {c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS G2',a:'Sav',t:'',st:'Remove',m:20833,b:'Domino'},
-  {c:'C000004635',r:'South West',s:'SUPER LIFE Bleach',a:'Sav',t:'Shelf Only',st:'Keep',m:12000,b:'Clean & White'},
-  {c:'C000004635',r:'South West',s:'SUPER LIFE Tissue',a:'Sav',t:'Gondola only',st:'Keep',m:12000,b:'Domino'},
-  {c:'C000007120',r:'South West',s:'CHENMART SUPERMARKET',a:'Darliston',t:'',st:'Keep',m:20000,b:'Ol Timez'},
-  {c:'C000007129',r:'South West',s:'SANTA CENTRE SUPERMARKET',a:'Santa Cruz',t:'Gondola only',st:'Keep',m:40250,b:''},
-  {c:'C000007394',r:'South West',s:'THE ONE SUPERCENTRE',a:'Santa Cruz',t:'',st:'Keep',m:50000,b:''},
+  {id:26,c:'C000002034',r:'South West',s:'INTOWN SUPER SAVE BLACK RIVER',a:'Black River',t:'',st:'Remove',m:30000,b:'Domino'},
+  {id:27,c:'C000005536',r:'South West',s:'JACKY YANG WHOLESALE',a:'Junction',t:'',st:'Keep',m:15000,b:''},
+  {id:28,c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE',loc:'G1',a:'Alligator Pond',t:'',st:'Keep',m:12000,b:'Domino'},
+  {id:29,c:'C000000190',r:'South West',s:'ALLIGATOR POND WHOLESALE',loc:'G2',a:'Alligator Pond',t:'',st:'Remove',m:12000,b:'Soft&Lovely'},
+  {id:30,c:'C000003171',r:'South West',s:'MORGANS VARIETY STORE',a:'Santa Cruz',t:'',st:'Keep',m:15000,b:'Domino'},
+  {id:31,c:'C000004073',r:'South West',s:'RT MART LIMITED',a:'Santa Cruz',t:'',st:'Keep',m:18000,b:'Domino'},
+  {id:32,c:'C000005672',r:'South West',s:'SUPER MAX FORMERLY MAXX MART',a:'Santa Cruz',t:'',st:'Keep',m:25000,b:'Domino'},
+  {id:33,c:'C000001953',r:'South West',s:'HONG XIN SANTA',a:'Santa Cruz',t:'',st:'Remove',m:12000,b:'Mixed Cereal'},
+  {id:34,c:'C000003786',r:'South West',s:'PRIME WHOLESALE',a:'Santa Cruz',t:'',st:'Keep',m:20000,b:'Ol Timez'},
+  {id:35,c:'C000005671',r:'South West',s:'SUN ISLAND',loc:'G1 · Middle',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Mixed Cereal'},
+  {id:36,c:'C000005671',r:'South West',s:'SUN ISLAND',loc:'G2 · Middle',a:'Grangehill',t:'',st:'Keep',m:13000,b:'Domino'},
+  {id:37,c:'C000005671',r:'South West',s:'SUN ISLAND',loc:'G3 · Back',a:'Grangehill',t:'',st:'Remove',m:13000,b:'Covebay'},
+  {id:38,c:'C000003819',r:'South West',s:'QUALITY TRADERS',a:'Negril',t:'',st:'Keep',m:15000,b:'Domino'},
+  {id:39,c:'C000005455',r:'South West',s:'D & Y SUPERMARKET WHOLESALE',a:'Sav',t:'',st:'Keep',m:34500,b:'Domino'},
+  {id:40,c:'C000002706',r:'South West',s:"LI'S WHOLESALE",a:'Sav',t:'',st:'Keep',m:25000,b:'Domino'},
+  {id:41,c:'C000007491',r:'South West',s:'BETTER LIFE-UPTOWN',a:'Sav',t:'',st:'Keep',m:23000,b:'Covebay/Amigo/Rhino'},
+  {id:42,c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE',loc:'Front',a:'Sav',t:'',st:'Keep',m:16500,b:'Covebay'},
+  {id:43,c:'C000000456',r:'South West',s:'BETTER LIFE WHOLESALE',loc:'Back',a:'Sav',t:'',st:'Remove',m:15000,b:'Domino'},
+  {id:44,c:'C000005714',r:'South West',s:'Z & W FORMERLY L&D WHOLESALE',a:'Sav',t:'',st:'Keep',m:15000,b:'Covebay'},
+  {id:45,c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET',loc:'Cereals',a:'Sav',t:'',st:'Keep',m:10000,b:'Clean & White'},
+  {id:46,c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET',loc:'CW',a:'Sav',t:'',st:'Keep',m:20000,b:'Domino'},
+  {id:47,c:'C000000446',r:'South West',s:'BESTCO SUPERMARKET',loc:'Domino',a:'Sav',t:'',st:'Keep',m:20000,b:'Domino'},
+  {id:48,c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS',loc:'G1',a:'Sav',t:'',st:'Keep',m:20833,b:'El Rey/Golden Foods'},
+  {id:49,c:'C000005442',r:'South West',s:'CHOICE FRESH FOODS',loc:'G2',a:'Sav',t:'',st:'Remove',m:20833,b:'Domino'},
+  {id:50,c:'C000004635',r:'South West',s:'SUPER LIFE',loc:'Bleach',a:'Sav',t:'Shelf',st:'Keep',m:12000,b:'Clean & White'},
+  {id:51,c:'C000004635',r:'South West',s:'SUPER LIFE',loc:'Tissue',a:'Sav',t:'Gondola',st:'Keep',m:12000,b:'Domino'},
+  {id:52,c:'C000007120',r:'South West',s:'CHENMART SUPERMARKET',a:'Darliston',t:'',st:'Keep',m:20000,b:'Ol Timez'},
+  {id:53,c:'C000007129',r:'South West',s:'SANTA CENTRE SUPERMARKET',a:'Santa Cruz',t:'Gondola',st:'Keep',m:40250,b:''},
+  {id:54,c:'C000007394',r:'South West',s:'THE ONE SUPERCENTRE',a:'Santa Cruz',t:'',st:'Keep',m:50000,b:''},
   // ── South Central
-  {c:'C000005490',r:'South Central',s:"FLLOYD'S FAMILY SUPERMARKET",a:'MayPen',t:'Shelf Only',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000003331',r:'South Central',s:'NATIONAL SELF SERVE BROOKS AVE',a:'MayPen',t:'Shelf Only',st:'Keep',m:25000,b:'Ol Timez'},
-  {c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET G1',a:'MayPen',t:'Gondola only',st:'Remove',m:25000,b:'Domino'},
-  {c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET G2',a:'MayPen',t:'Gondola only',st:'Keep',m:25000,b:'Covebay'},
-  {c:'C000002491',r:'South Central',s:"KES' SUPERMARKET",a:'MayPen',t:'Gondola only',st:'Remove',m:3333,b:'El Rey'},
-  {c:'C000004438',r:'South Central',s:'SONG HUI (Shelf)',a:'MayPen',t:'Shelf Only',st:'Keep',m:3333,b:'El Rey/Golden Foods'},
-  {c:'C000004438',r:'South Central',s:'SONG HUI (Gondola)',a:'MayPen',t:'Gondola Only',st:'Remove',m:15000,b:''},
-  {c:'C000006110',r:'South Central',s:'SELECT GROCERS SUPERMARKET',a:'MayPen',t:'Gondola Only',st:'Remove',m:50000,b:'Domino'},
-  {c:'C000002232',r:'South Central',s:'JIN XI AN YE SUPERMARKET',a:'Porus',t:'Shelf Only',st:'Remove',m:15000,b:'Covebay'},
-  {c:'C000005238',r:'South Central',s:'WINNER 88 G1',a:'Mandeville',t:'Gondola only',st:'Keep',m:10000,b:'Amigo/Golden Foods'},
-  {c:'C000005238',r:'South Central',s:'WINNER 88 G2 (Shelf)',a:'Mandeville',t:'Shelf Only',st:'Remove',m:10000,b:'El Rey'},
-  {c:'C000005049',r:'South Central',s:'URVILLS SUPERMARKET',a:'Mandeville',t:'Shelf Only',st:'Pending',m:15000,b:'Domino'},
-  {c:'C000005518',r:'South Central',s:"HO'S HUI MING (Shelf)",a:'Mandeville',t:'Shelf Only',st:'Pending',m:15000,b:'Domino'},
-  {c:'C000005518',r:'South Central',s:"HO'S HUI MING (Gondola)",a:'Mandeville',t:'Gondola only',st:'Pending',m:30000,b:'Ol Timez'},
-  {c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN G1',a:'Lionel Town',t:'Gondola only',st:'Remove',m:20000,b:''},
-  {c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN G2',a:'Lionel Town',t:'Gondola only',st:'Keep',m:30000,b:''},
-  {c:'C000005696',r:'South Central',s:'WAVE SUPERMARKET',a:'Christiana',t:'Gondola only',st:'Already Removed',m:15000,b:'Domino'},
-  {c:'C000002327',r:'South Central',s:'JUN SUPERMARKET',a:'Christiana',t:'Gondola only',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000003774',r:'South Central',s:'PRICE GEL SUPERMARKET',a:'Christiana',t:'',st:'Keep',m:30000,b:'Amigo/El Rey'},
-  {c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET (Shelf)',a:'Browns Town',t:'Shelf Only',st:'Keep',m:15000,b:'Covebay'},
-  {c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET (Gondola)',a:'Browns Town',t:'Gondola',st:'Keep',m:15000,b:'El Rey/Froot'},
-  {c:'C000004794',r:'South Central',s:'TENGDA SUPERMARKET LTD',a:'Browns Town',t:'Gondola',st:'Remove',m:30000,b:'Domino'},
-  {c:'C000000560',r:'South Central',s:"BROWN'S TOWN SUPERMARKET",a:'Browns Town',t:'Gondola only',st:'Already Removed',m:12000,b:'Covebay'},
-  {c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET G1',a:'Frankfield',t:'Gondola only',st:'Keep',m:20000,b:'Ol Timez'},
-  {c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET G2',a:'Frankfield',t:'Gondola Only',st:'Remove',m:18000,b:'Cereals/Amigo'},
-  {c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE G1',a:'Chapleton',t:'Gondola Only',st:'Keep',m:20000,b:'Ol Timez'},
-  {c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE G2',a:'Chapleton',t:'Gondola Only',st:'Keep',m:20000,b:''},
-  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Domino',a:'Spaulding',t:'Gondola only',st:'Remove',m:30000,b:'Domino'},
-  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Cereals',a:'Spaulding',t:'Shelf Only',st:'Keep',m:20000,b:'Ol Timez'},
-  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET Covebay',a:'Spaulding',t:'Shelf Only',st:'Remove',m:20000,b:'Covebay'},
-  {c:'C000002523',r:'South Central',s:'KIND SUPERMARKET CW',a:'Spaulding',t:'Shelf Only',st:'Keep',m:10000,b:'Clean & White'},
-  {c:'C000008829',r:'South Central',s:'SAMUEL SUPERMARKET',a:'Frankfield',t:'Shelf Only',st:'Keep',m:15000,b:''},
-  {c:'C000000246',r:'South Central',s:'C & H SUPERMARKET',a:'Mandeville',t:'Gondola Only',st:'Pending',m:15000,b:''},
+  {id:55,c:'C000005490',r:'South Central',s:"FLLOYD'S FAMILY SUPERMARKET",a:'MayPen',t:'Shelf',st:'Keep',m:15000,b:'Domino'},
+  {id:56,c:'C000003331',r:'South Central',s:'NATIONAL SELF SERVE BROOKS AVE',a:'MayPen',t:'Shelf',st:'Keep',m:25000,b:'Ol Timez'},
+  {id:57,c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET',loc:'G1',a:'MayPen',t:'Gondola',st:'Remove',m:25000,b:'Domino'},
+  {id:58,c:'C000001972',r:'South Central',s:'HOSKIN SUPERMARKET',loc:'G2',a:'MayPen',t:'Gondola',st:'Keep',m:25000,b:'Covebay'},
+  {id:59,c:'C000002491',r:'South Central',s:"KES' SUPERMARKET",a:'MayPen',t:'Gondola',st:'Remove',m:3333,b:'El Rey'},
+  {id:60,c:'C000004438',r:'South Central',s:'SONG HUI',loc:'',a:'MayPen',t:'Shelf',st:'Keep',m:3333,b:'El Rey/Golden Foods'},
+  {id:61,c:'C000004438',r:'South Central',s:'SONG HUI',loc:'',a:'MayPen',t:'Gondola',st:'Remove',m:15000,b:''},
+  {id:62,c:'C000006110',r:'South Central',s:'SELECT GROCERS SUPERMARKET',a:'MayPen',t:'Gondola',st:'Remove',m:50000,b:'Domino'},
+  {id:63,c:'C000002232',r:'South Central',s:'JIN XI AN YE SUPERMARKET',a:'Porus',t:'Shelf',st:'Remove',m:15000,b:'Covebay'},
+  {id:64,c:'C000005238',r:'South Central',s:'WINNER 88',loc:'G1',a:'Mandeville',t:'Gondola',st:'Keep',m:10000,b:'Amigo/Golden Foods'},
+  {id:65,c:'C000005238',r:'South Central',s:'WINNER 88',loc:'G2',a:'Mandeville',t:'Shelf',st:'Remove',m:10000,b:'El Rey'},
+  {id:66,c:'C000005049',r:'South Central',s:'URVILLS SUPERMARKET',a:'Mandeville',t:'Shelf',st:'Pending',m:15000,b:'Domino'},
+  {id:67,c:'C000005518',r:'South Central',s:"HO'S HUI MING",loc:'',a:'Mandeville',t:'Shelf',st:'Pending',m:15000,b:'Domino'},
+  {id:68,c:'C000005518',r:'South Central',s:"HO'S HUI MING",loc:'',a:'Mandeville',t:'Gondola',st:'Pending',m:30000,b:'Ol Timez'},
+  {id:69,c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN',loc:'G1',a:'Lionel Town',t:'Gondola',st:'Remove',m:20000,b:''},
+  {id:70,c:'C000002896',r:'South Central',s:'MAP WHOLESALE LIONEL TOWN',loc:'G2',a:'Lionel Town',t:'Gondola',st:'Keep',m:30000,b:''},
+  {id:71,c:'C000005696',r:'South Central',s:'WAVE SUPERMARKET',a:'Christiana',t:'Gondola',st:'Already Removed',m:15000,b:'Domino'},
+  {id:72,c:'C000002327',r:'South Central',s:'JUN SUPERMARKET',a:'Christiana',t:'Gondola',st:'Keep',m:15000,b:'Domino'},
+  {id:73,c:'C000003774',r:'South Central',s:'PRICE GEL SUPERMARKET',a:'Christiana',t:'',st:'Keep',m:30000,b:'Amigo/El Rey'},
+  {id:74,c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET',loc:'',a:'Browns Town',t:'Shelf',st:'Keep',m:15000,b:'Covebay'},
+  {id:75,c:'C000000465',r:'South Central',s:'BEYOND SUPERMARKET',loc:'',a:'Browns Town',t:'Gondola',st:'Keep',m:15000,b:'El Rey/Froot'},
+  {id:76,c:'C000004794',r:'South Central',s:'TENGDA SUPERMARKET LTD',a:'Browns Town',t:'Gondola',st:'Remove',m:30000,b:'Domino'},
+  {id:77,c:'C000000560',r:'South Central',s:"BROWN'S TOWN SUPERMARKET",a:'Browns Town',t:'Gondola',st:'Already Removed',m:12000,b:'Covebay'},
+  {id:78,c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET',loc:'G1',a:'Frankfield',t:'Gondola',st:'Keep',m:20000,b:'Ol Timez'},
+  {id:79,c:'C000002661',r:'South Central',s:'LAVENDA SUPERMARKET',loc:'G2',a:'Frankfield',t:'Gondola',st:'Remove',m:18000,b:'Cereals/Amigo'},
+  {id:80,c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE',loc:'G1',a:'Chapleton',t:'Gondola',st:'Keep',m:20000,b:'Ol Timez'},
+  {id:81,c:'C000003374',r:'South Central',s:'NEW CENTURY WHOLESALE',loc:'G2',a:'Chapleton',t:'Gondola',st:'Keep',m:20000,b:''},
+  {id:82,c:'C000002523',r:'South Central',s:'KIND SUPERMARKET',loc:'',a:'Spaulding',t:'Gondola',st:'Remove',m:30000,b:'Domino'},
+  {id:83,c:'C000002523',r:'South Central',s:'KIND SUPERMARKET',loc:'Cereals',a:'Spaulding',t:'Shelf',st:'Keep',m:20000,b:'Ol Timez'},
+  {id:84,c:'C000002523',r:'South Central',s:'KIND SUPERMARKET',loc:'',a:'Spaulding',t:'Shelf',st:'Remove',m:20000,b:'Covebay'},
+  {id:85,c:'C000002523',r:'South Central',s:'KIND SUPERMARKET',loc:'CW',a:'Spaulding',t:'Shelf',st:'Keep',m:10000,b:'Clean & White'},
+  {id:86,c:'C000008829',r:'South Central',s:'SAMUEL SUPERMARKET',a:'Frankfield',t:'Shelf',st:'Keep',m:15000,b:''},
+  {id:87,c:'C000000246',r:'South Central',s:'C & H SUPERMARKET',a:'Mandeville',t:'Gondola',st:'Pending',m:15000,b:''},
   // ── North West
-  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G1',a:'Mobay',t:'',st:'Remove',m:25000,b:'Ol Timez'},
-  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:18000,b:'El Rey/Froot/Corneez'},
-  {c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET G3',a:'Mobay',t:'',st:'Keep',m:18000,b:'Domino'},
-  {c:'C000000438',r:'North West',s:'BEST STAR / R & L STOP & SHOP',a:'Hanover',t:'',st:'Keep',m:25000,b:''},
-  {c:'C000004664',r:'North West',s:'SUPERMARKET MANELLI LIMITED',a:'Mobay',t:'',st:'Keep',m:40000,b:'Domino'},
-  {c:'C000005480',r:'North West',s:'EXPRESS SUPERMARKET',a:'Mobay',t:'',st:'Remove',m:12000,b:'Domino'},
-  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G1',a:'Mobay',t:'',st:'Remove',m:15000,b:'Rhino/Clean&White'},
-  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:15000,b:'Golden Foods/El Rey'},
-  {c:'C000004401',r:'North West',s:'SIUS SUPERMARKET G3',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET G1",a:'Lucea',t:'',st:'Keep',m:20000,b:'Domino'},
-  {c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET G2",a:'Lucea',t:'',st:'Remove',m:25000,b:'Mixed'},
-  {c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH G1',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Covebay'},
-  {c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH G2',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Domino'},
-  {c:'C000000440',r:'North West',s:'YUNFENG WHOLESALE',a:'Falmouth',t:'',st:'Remove',m:15000,b:'Cereal'},
-  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G1',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
-  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G2',a:'Mobay',t:'',st:'Keep',m:20000,b:'McCallums/Amigo'},
-  {c:'C000000045',r:'North West',s:'348 SUPERMARKET G3 (8ft)',a:'Mobay',t:'',st:'Keep',m:15000,b:'Covebay'},
-  {c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE G1",a:'Falmouth',t:'',st:'Keep',m:12000,b:'Domino'},
-  {c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE G2",a:'Falmouth',t:'',st:'Pending',m:30000,b:''},
-  {c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING G1',a:'Mobay',t:'',st:'Keep',m:25000,b:'Ol Timez'},
-  {c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING G2',a:'Mobay',t:'',st:'Remove',m:25000,b:'Amigo/Covebay'},
-  {c:'C000001888',r:'North West',s:'HEWING WHOLESALE SUPERMARKET',a:'Hopewell',t:'',st:'Pending',m:24000,b:'Cereal Mix'},
-  {c:'C000000186',r:'North West',s:'ALLEN WHOLESALE',a:'Lucea',t:'',st:'',m:18000,b:''},
-  {c:'C000002000',r:'North West',s:'I & C SUPERMARKET',a:'Mobay',t:'',st:'Keep',m:15000,b:'McCallums/Golden Foods'},
+  {id:88,c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET',loc:'G1',a:'Mobay',t:'',st:'Remove',m:25000,b:'Ol Timez'},
+  {id:89,c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET',loc:'G2',a:'Mobay',t:'',st:'Keep',m:18000,b:'El Rey/Froot/Corneez'},
+  {id:90,c:'C000000441',r:'North West',s:'BEST VALUE SUPERMARKET',loc:'G3',a:'Mobay',t:'',st:'Keep',m:18000,b:'Domino'},
+  {id:91,c:'C000000438',r:'North West',s:'BEST STAR / R & L STOP & SHOP',a:'Hanover',t:'',st:'Keep',m:25000,b:''},
+  {id:92,c:'C000004664',r:'North West',s:'SUPERMARKET MANELLI LIMITED',a:'Mobay',t:'',st:'Keep',m:40000,b:'Domino'},
+  {id:93,c:'C000005480',r:'North West',s:'EXPRESS SUPERMARKET',a:'Mobay',t:'',st:'Remove',m:12000,b:'Domino'},
+  {id:94,c:'C000004401',r:'North West',s:'SIUS SUPERMARKET',loc:'G1',a:'Mobay',t:'',st:'Remove',m:15000,b:'Rhino/Clean&White'},
+  {id:95,c:'C000004401',r:'North West',s:'SIUS SUPERMARKET',loc:'G2',a:'Mobay',t:'',st:'Keep',m:15000,b:'Golden Foods/El Rey'},
+  {id:96,c:'C000004401',r:'North West',s:'SIUS SUPERMARKET',loc:'G3',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {id:97,c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET",loc:'G1',a:'Lucea',t:'',st:'Keep',m:20000,b:'Domino'},
+  {id:98,c:'C000000803',r:'North West',s:"CHERRIE'S SUPERMARKET",loc:'G2',a:'Lucea',t:'',st:'Remove',m:25000,b:'Mixed'},
+  {id:99,c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH',loc:'G1',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Covebay'},
+  {id:100,c:'C000000758',r:'North West',s:'CHAMPION FALMOUTH',loc:'G2',a:'Falmouth',t:'',st:'Keep',m:30000,b:'Domino'},
+  {id:101,c:'C000000440',r:'North West',s:'YUNFENG WHOLESALE',a:'Falmouth',t:'',st:'Remove',m:15000,b:'Cereal'},
+  {id:102,c:'C000000045',r:'North West',s:'348 SUPERMARKET',loc:'G1',a:'Mobay',t:'',st:'Keep',m:15000,b:'Domino'},
+  {id:103,c:'C000000045',r:'North West',s:'348 SUPERMARKET',loc:'G2',a:'Mobay',t:'',st:'Keep',m:20000,b:'McCallums/Amigo'},
+  {id:104,c:'C000000045',r:'North West',s:'348 SUPERMARKET',loc:'G3 · 8ft',a:'Mobay',t:'',st:'Keep',m:15000,b:'Covebay'},
+  {id:105,c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE",loc:'G1',a:'Falmouth',t:'',st:'Keep',m:12000,b:'Domino'},
+  {id:106,c:'C000000836',r:'North West',s:"CHLOE'S WHOLESALE",loc:'G2',a:'Falmouth',t:'',st:'Pending',m:30000,b:''},
+  {id:107,c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING',loc:'G1',a:'Mobay',t:'',st:'Keep',m:25000,b:'Ol Timez'},
+  {id:108,c:'C000003535',r:'North West',s:'ONE DEPOT TOO HOT TRADING',loc:'G2',a:'Mobay',t:'',st:'Remove',m:25000,b:'Amigo/Covebay'},
+  {id:109,c:'C000001888',r:'North West',s:'HEWING WHOLESALE SUPERMARKET',a:'Hopewell',t:'',st:'Pending',m:24000,b:'Cereal Mix'},
+  {id:110,c:'C000000186',r:'North West',s:'ALLEN WHOLESALE',a:'Lucea',t:'',st:'',m:18000,b:''},
+  {id:111,c:'C000002000',r:'North West',s:'I & C SUPERMARKET',a:'Mobay',t:'',st:'Keep',m:15000,b:'McCallums/Golden Foods'},
 ];
 
 const REGIONS = [
@@ -464,6 +527,7 @@ function render(){
       '<div class="tc"><table>' +
         '<thead><tr>' +
           '<th style="min-width:190px">Store</th>' +
+          '<th>Location</th>' +
           '<th>Area</th>' +
           '<th>Type</th>' +
           '<th class="thr">Monthly</th>' +
@@ -507,12 +571,15 @@ function render(){
 
       const tr = document.createElement('tr');
       tr.dataset.store  = g.s.toLowerCase();
+      tr.dataset.loc    = (g.loc||'').toLowerCase();
       tr.dataset.area   = g.a.toLowerCase();
       tr.dataset.status = g.st;
       tr.dataset.region = g.r;
 
       tr.innerHTML =
-        '<td><span class="sn" title="'+g.s+'">'+g.s+'</span><span class="sid">'+g.c+'</span></td>'+
+        '<td><div class="snrow"><button class="pbtn" id="pbtn-'+g.id+'" onclick="openPhotos('+g.id+')" title="Photos">📷<span class="pcnt" id="pc-'+g.id+'" style="display:none"></span></button>'+
+          '<span><span class="sn" title="'+g.s+'">'+g.s+'</span><span class="sid">'+g.c+'</span></span></div></td>'+
+        '<td class="tloc">'+( g.loc||'—' )+'</td>'+
         '<td class="tar">'+g.a+'</td>'+
         '<td class="tty" title="'+(g.t||'')+'">'+( g.t||'—' )+'</td>'+
         '<td class="trt">'+jmd(g.m)+'</td>'+
@@ -552,7 +619,7 @@ function applyF(){
     sec.style.display = (AR==='all'||sec.dataset.region===AR) ? '' : 'none';
   });
   document.querySelectorAll('tbody tr').forEach(function(tr){
-    var ok = (AS==='all'||tr.dataset.status===AS) && (!q||tr.dataset.store.includes(q)||tr.dataset.area.includes(q));
+    var ok = (AS==='all'||tr.dataset.status===AS) && (!q||tr.dataset.store.includes(q)||tr.dataset.loc.includes(q)||tr.dataset.area.includes(q));
     tr.classList.toggle('rh',!ok);
     if(ok) vis++;
   });
@@ -563,8 +630,135 @@ window.addEventListener('scroll',function(){
   document.getElementById('stb').classList.toggle('show',window.scrollY>280);
 });
 
+// ─── PHOTO PANEL ───────────────────────────────────────────
+// Photos live in gondola_photos (gondola_id -> the `id` field on each G row)
+// and the gondola-photos storage bucket. Uses the authenticated `sb` client
+// (from shared/supabase-client.js) rather than the page's own anon SB_URL/KEY
+// fetch, since writes need a signed-in manager/admin/management session —
+// same hybrid pattern CLAUDE.md documents for merch.html.
+let PHOTO_GONDOLA = null;
+
+function openPhotos(id){
+  PHOTO_GONDOLA = G.find(function(g){ return g.id===id; });
+  if(!PHOTO_GONDOLA) return;
+  document.getElementById('pTitle').textContent = PHOTO_GONDOLA.s;
+  document.getElementById('pSub').textContent = PHOTO_GONDOLA.a+' · '+PHOTO_GONDOLA.c;
+  document.getElementById('pGrid').innerHTML = '<div class="pempty">Loading…</div>';
+  document.getElementById('pscrim').classList.add('show');
+  document.getElementById('ppanel').classList.add('show');
+  loadPhotosFor(id);
+}
+
+function closePhotos(){
+  document.getElementById('pscrim').classList.remove('show');
+  document.getElementById('ppanel').classList.remove('show');
+  PHOTO_GONDOLA = null;
+}
+
+async function loadPhotosFor(id){
+  const { data, error } = await sb
+    .from('gondola_photos')
+    .select('id, storage_path, created_at')
+    .eq('gondola_id', id)
+    .order('created_at', { ascending:false });
+  if(error){ document.getElementById('pGrid').innerHTML = '<div class="pempty">Couldn\'t load photos.</div>'; return; }
+  renderPhotoGrid(data||[]);
+}
+
+function photoUrl(path){
+  return sb.storage.from('gondola-photos').getPublicUrl(path).data.publicUrl;
+}
+
+function renderPhotoGrid(rows){
+  const grid = document.getElementById('pGrid');
+  if(!rows.length){ grid.innerHTML = '<div class="pempty">No photos yet.</div>'; return; }
+  grid.innerHTML = rows.map(function(p){
+    const url = photoUrl(p.storage_path);
+    return '<div class="pshot">'+
+      '<img src="'+url+'" alt="" onclick="openLightbox(\''+url+'\')">'+
+      '<button class="pdel" title="Delete" onclick="event.stopPropagation();deletePhoto('+p.id+',\''+p.storage_path+'\')">✕</button>'+
+    '</div>';
+  }).join('');
+}
+
+async function uploadPhotos(fileList){
+  if(!PHOTO_GONDOLA || !fileList.length) return;
+  const gid = PHOTO_GONDOLA.id;
+  const box = document.getElementById('pUpload');
+  box.classList.add('busy');
+  for(const file of fileList){
+    const path = gid+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const { error: upErr } = await sb.storage.from('gondola-photos').upload(path, file);
+    if(upErr){ console.error(upErr); continue; }
+    await sb.from('gondola_photos').insert({
+      gondola_id: gid,
+      customer_id: PHOTO_GONDOLA.c,
+      store_name: PHOTO_GONDOLA.s,
+      storage_path: path
+    });
+  }
+  box.classList.remove('busy');
+  document.getElementById('pFile').value = '';
+  loadPhotosFor(gid);
+  refreshPhotoCount(gid);
+}
+
+async function deletePhoto(photoRowId, storagePath){
+  if(!confirm('Delete this photo?')) return;
+  await sb.storage.from('gondola-photos').remove([storagePath]);
+  await sb.from('gondola_photos').delete().eq('id', photoRowId);
+  if(PHOTO_GONDOLA) loadPhotosFor(PHOTO_GONDOLA.id);
+  if(PHOTO_GONDOLA) refreshPhotoCount(PHOTO_GONDOLA.id);
+}
+
+function openLightbox(url){
+  document.getElementById('plightImg').src = url;
+  document.getElementById('plight').classList.add('show');
+}
+function closeLightbox(e){
+  if(e) e.stopPropagation();
+  document.getElementById('plight').classList.remove('show');
+  document.getElementById('plightImg').src = '';
+}
+
+// Per-row camera badge, loaded once up front so counts show without opening
+// each panel. A single select is cheap at this dataset size (~100s of rows).
+async function preloadPhotoCounts(){
+  const { data, error } = await sb.from('gondola_photos').select('gondola_id');
+  if(error || !data) return;
+  const counts = {};
+  data.forEach(function(row){ counts[row.gondola_id] = (counts[row.gondola_id]||0)+1; });
+  Object.keys(counts).forEach(function(gid){ setPhotoBadge(gid, counts[gid]); });
+}
+
+function refreshPhotoCount(gid){
+  sb.from('gondola_photos').select('id', { count:'exact', head:true }).eq('gondola_id', gid)
+    .then(function(res){ setPhotoBadge(gid, res.count||0); });
+}
+
+function setPhotoBadge(gid, n){
+  const badge = document.getElementById('pc-'+gid);
+  const btn = document.getElementById('pbtn-'+gid);
+  if(!badge || !btn) return;
+  if(n>0){
+    badge.textContent = n>9?'9+':n;
+    badge.style.display = 'flex';
+    btn.classList.add('has');
+  } else {
+    badge.style.display = 'none';
+    btn.classList.remove('has');
+  }
+}
+
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape') return;
+  if(document.getElementById('plight').classList.contains('show')) closeLightbox();
+  else if(document.getElementById('ppanel').classList.contains('show')) closePhotos();
+});
+
 // ─── INIT ──────────────────────────────────────────────────
 loadData();
+preloadPhotoCounts();
 </script>
 </body>
 </html>
