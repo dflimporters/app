@@ -427,6 +427,36 @@ body.dfl-readonly .readonly-note{display:block}
         <div class="stat-box" id="m-pct-box"><div class="stat-lbl">Period achievement</div><div class="stat-val" id="m-pct">–</div></div>
       </div>
 
+      <!-- YOUR COMMISSION — hidden for relief unless they turn out to have a
+           real route (see revealReliefRouteUI()), same as My Stores. -->
+      <div class="merch-card" id="m-comm-card" style="margin-bottom:14px;display:none">
+        <div class="sec-hdr" style="margin-bottom:8px">Your commission</div>
+        <div class="stats-grid">
+          <div class="stat-box"><div class="stat-lbl">At 80%+ target</div><div class="stat-val c-amber" id="m-comm-80">–</div></div>
+          <div class="stat-box"><div class="stat-lbl">At 100%+ target</div><div class="stat-val c-green" id="m-comm-100">–</div></div>
+        </div>
+        <div style="margin-top:10px;text-align:center;background:var(--green-lt);border-radius:8px;padding:10px">
+          <div class="stat-lbl">Commission earned so far</div>
+          <div style="font-size:24px;font-weight:800;color:var(--green)" id="m-comm-earned">–</div>
+        </div>
+      </div>
+
+      <!-- RELIEF INCENTIVE — flat J$500 per completed relief visit, shown to
+           any relief_merchandiser regardless of whether they also have a
+           real route (that's a separate earning stream via m-comm-card). -->
+      <div class="merch-card" id="m-relief-incentive-card" style="margin-bottom:14px;display:none">
+        <div class="sec-hdr" style="margin-bottom:8px">Your relief incentive</div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;color:var(--muted)">Relief visits completed this month</div>
+          <div style="font-size:20px;font-weight:800;color:var(--navy)" id="m-relief-count">0</div>
+        </div>
+        <div style="text-align:center;background:var(--green-lt);border-radius:8px;padding:10px">
+          <div class="stat-lbl">Incentive earned so far</div>
+          <div style="font-size:24px;font-weight:800;color:var(--green)" id="m-relief-earned">$0</div>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">J$500 per completed relief visit</div>
+      </div>
+
       <!-- PRIMARY ACTION BUTTONS -->
       <div id="m-action-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
         <!-- LOG VISIT — primary large button -->
@@ -1286,6 +1316,53 @@ function revealReliefRouteUI(){
   if(grid) grid.style.gridTemplateColumns='1fr 1fr';
 }
 
+// A merchandiser's own commission this period, from merchandiser_summary —
+// same row the admin overview and TL team cards already read. Also fills in
+// the "Stores achieving"/"Period achievement" stat boxes, which had no
+// setter anywhere in the file before this. Self-hides (rather than being
+// tied to isRelief()) when there's no real row — a relief login with a
+// genuine route (e.g. Qewon Campbell, Marsha Stewart) still gets a row here.
+async function loadMyCommission(u){
+  const box=document.getElementById('m-comm-card');
+  const squalEl=document.getElementById('m-squal'), pctEl=document.getElementById('m-pct');
+  try{
+    const rows=await rest(`merchandiser_summary?period=eq.${_curPeriod}&merchandiser_name=eq.${encodeURIComponent(u.full_name)}&select=*`);
+    const m=(rows||[])[0];
+    if(squalEl) squalEl.textContent = m ? (m.stores_qualified||0) : '0';
+    if(pctEl) pctEl.textContent = m ? parseFloat(m.achievement_pct||0).toFixed(1)+'%' : '–';
+    if(!box) return;
+    if(!m || !m.store_count){ box.style.display='none'; return; }
+    box.style.display='block';
+    document.getElementById('m-comm-80').textContent=m.stores_qualified||0;
+    document.getElementById('m-comm-100').textContent=m.stores_100||0;
+    document.getElementById('m-comm-earned').textContent='$'+Math.round(parseFloat(m.commission||0)).toLocaleString();
+  }catch(e){ console.warn('my commission load failed:',e); if(box) box.style.display='none'; }
+}
+
+// Flat per-visit relief incentive — separate from target-based commission
+// above (m-comm-card), which a relief login only earns if they also happen
+// to hold a real route (e.g. Qewon Campbell, Marsha Stewart). This one pays
+// for the work itself: every closed-out visit tagged visit_type='relief'
+// this calendar month, regardless of whose store it was.
+const RELIEF_INCENTIVE_PER_VISIT = 500;
+
+async function loadReliefIncentive(u){
+  const card=document.getElementById('m-relief-incentive-card');
+  if(!card) return;
+  if(!isRelief()){ card.style.display='none'; return; }
+  card.style.display='block';
+  try{
+    const monthStart=_curYear+'-'+String(_curMonthNum).padStart(2,'0')+'-01';
+    const nextMonthNum=_curMonthNum===12?1:_curMonthNum+1;
+    const nextMonthYear=_curMonthNum===12?_curYear+1:_curYear;
+    const nextMonth=nextMonthYear+'-'+String(nextMonthNum).padStart(2,'0')+'-01';
+    const rows=await rest(`merch_visit_log?user_id=eq.${u.id}&visit_type=eq.relief&visit_date=gte.${monthStart}&visit_date=lt.${nextMonth}&clock_out=not.is.null&select=id`);
+    const count=(rows||[]).length;
+    document.getElementById('m-relief-count').textContent=count;
+    document.getElementById('m-relief-earned').textContent='$'+(count*RELIEF_INCENTIVE_PER_VISIT).toLocaleString();
+  }catch(e){ console.warn('relief incentive load failed:',e); }
+}
+
 // ============================================================
 // BOOT — identity from the auth guard, not a PIN
 // ============================================================
@@ -1438,7 +1515,7 @@ async function launchMerch(u){
   // Start geolocation watch
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
-  await Promise.all([loadMyStores(u), loadTodayVisits(u), loadPendingRouteChanges(u)]);
+  await Promise.all([loadMyStores(u), loadTodayVisits(u), loadPendingRouteChanges(u), loadMyCommission(u), loadReliefIncentive(u)]);
   restoreVisitDraft();
 }
 

@@ -877,6 +877,10 @@ async function loadData(rep){
     ]);
     const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
     CUST=Array.isArray(custR)?custR:[];
+    // A store whose credits outweigh its sales for the month shows $0, not a
+    // negative, to match the merch app (monthly_actuals floors at 0). The
+    // rep's own MTD headline stays true net: it reads net_sales_raw.
+    CUST.forEach(x=>{ x.net_sales_raw=+x.net_sales; x.net_sales=Math.max(0,+x.net_sales); });
     ORD=Array.isArray(ordR)&&ordR[0]?ordR[0]:null;
     ORDLIST=Array.isArray(ordListR)?ordListR:[];
     CATMTD=Array.isArray(catR)?catR:[];
@@ -1021,7 +1025,7 @@ function render(s){
   const c=document.getElementById("content");
   // rollups from customer cache (source of truth for the list)
   const totBudget = s? +s.monthly_target : CUST.reduce((a,x)=>a+ +x.monthly_budget,0);
-  const totSales  = s? +s.monthly_actual : CUST.reduce((a,x)=>a+ +x.net_sales,0);
+  const totSales  = s? +s.monthly_actual : CUST.reduce((a,x)=>a+ x.net_sales_raw,0);
   const credits   = CUST.reduce((a,x)=>a+ +x.mtd_credits,0); // negative
   const orders    = CUST.reduce((a,x)=>a+ (+x.order_count||0),0);
   const activeCust = CUST.filter(x=>+x.net_sales>0).length;
@@ -1234,7 +1238,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
 
   const isY = PERIOD==="YTD";
   const bmap = isY ? budget : (mbudget||{});   // YTD: annual budget; MTD: real current-month budget
-  const periodTotal = cache?Number(isY?cache.ytd_total:cache.mtd_total||0):0;
+  const periodTotal = cache?Math.max(0,Number(isY?cache.ytd_total:cache.mtd_total||0)):0; // floor at $0, as the merch app does
   const totBudget=Object.values(bmap).reduce((s,v)=>s+v,0);
   const pct=totBudget>0?Math.round(periodTotal/totBudget*100):0;
   // expected pace: MTD = selling days elapsed this month; YTD = fraction of year elapsed

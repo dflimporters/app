@@ -2531,7 +2531,7 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
     : daysToNext !== null ? 'in ' + daysToNext + 'd' : '';
 
   // Budget vs MTD
-  const mtdTotal    = cache ? Number(cache.mtd_total || 0) : 0;
+  const mtdTotal    = cache ? Math.max(0, Number(cache.mtd_total || 0)) : 0; // floor at $0, as the merch app does
   const totalBudget = Object.values(budget).reduce((s,v) => s+v, 0);
   const pctAchieved = totalBudget > 0 ? Math.round((mtdTotal / totalBudget) * 100) : 0;
   const pctColor    = pctAchieved >= 60 ? '#16a34a' : pctAchieved >= 40 ? '#d97706' : '#dc2626';
