@@ -142,6 +142,7 @@
   }
   .q-text { font-size: 17px; font-weight: 700; color: var(--navy); line-height: 1.4; margin-bottom: 20px; }
   .opt-set { display: flex; flex-direction: column; gap: 9px; margin-bottom: 20px; }
+  .text-answer-wrap { margin-bottom: 20px; }
   .opt-btn {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     padding: 13px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface);
@@ -536,19 +537,25 @@ async function renderPlayView() {
 
   selectedOption = null;
   const total = q.total_questions, answered = q.questions_answered;
-  document.getElementById('view-play').innerHTML = `
-    <div class="progress-label">Question ${answered + 1} of ${total}</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${(answered / total) * 100}%"></div></div>
-    <div class="q-card">
-      <div class="q-text">${escapeHtml(q.question_text)}</div>
-      <div class="opt-set" id="opt-set">
+  const isOpenText = q.question_type === 'open_text';
+  const bodyHtml = isOpenText
+    ? `<div class="text-answer-wrap">
+        <input type="text" class="name-input" id="text-answer-input" placeholder="Type your answer" autocomplete="off" oninput="onTextAnswerInput()">
+      </div>`
+    : `<div class="opt-set" id="opt-set">
         ${['a','b','c','d'].filter(l => q['option_' + l]).map(l => `
           <button class="opt-btn" data-opt="${l}" onclick="selectOption('${l}', this)">
             <span class="opt-letter">${l.toUpperCase()}</span>
             <span>${escapeHtml(q['option_' + l])}</span>
           </button>`).join('')}
-      </div>
-      <button class="btn-primary" id="submit-answer-btn" disabled onclick="submitAnswer(${q.question_id})">Submit</button>
+      </div>`;
+  document.getElementById('view-play').innerHTML = `
+    <div class="progress-label">Question ${answered + 1} of ${total}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(answered / total) * 100}%"></div></div>
+    <div class="q-card">
+      <div class="q-text">${escapeHtml(q.question_text)}</div>
+      ${bodyHtml}
+      <button class="btn-primary" id="submit-answer-btn" disabled onclick="submitAnswer(${q.question_id}, '${q.question_type}')">Submit</button>
     </div>`;
 }
 
@@ -559,15 +566,25 @@ function selectOption(letter, btn) {
   document.getElementById('submit-answer-btn').disabled = false;
 }
 
-async function submitAnswer(questionId) {
-  if (!selectedOption) return;
+function onTextAnswerInput() {
+  const val = document.getElementById('text-answer-input').value.trim();
+  document.getElementById('submit-answer-btn').disabled = !val;
+}
+
+async function submitAnswer(questionId, questionType) {
+  const params = { p_round_id: currentRound.id, p_question_id: questionId, p_player_name: currentPlayer };
+  if (questionType === 'open_text') {
+    const val = document.getElementById('text-answer-input').value.trim();
+    if (!val) return;
+    params.p_response_text = val;
+  } else {
+    if (!selectedOption) return;
+    params.p_selected_option = selectedOption;
+  }
   const btn = document.getElementById('submit-answer-btn');
   btn.disabled = true; btn.textContent = 'Submitting...';
   try {
-    await rpc('submit_answer', {
-      p_round_id: currentRound.id, p_question_id: questionId,
-      p_player_name: currentPlayer, p_selected_option: selectedOption
-    });
+    await rpc('submit_answer', params);
     toast('Answer submitted');
     renderPlayView();
   } catch (e) {
@@ -588,20 +605,33 @@ function resultsHtml(roundTitle, rows) {
 
   rows.forEach(r => {
     html += `<div class="result-card"><div class="result-q">${r.order_index}. ${escapeHtml(r.question_text)}</div>`;
-    ['a','b','c','d'].forEach(l => {
-      const text = r['option_' + l];
-      if (!text) return;
-      const isCorrect = r.correct_option === l;
-      const isMine = r.player_selected === l;
-      let cls = '';
-      if (isCorrect) cls = 'correct';
-      else if (isMine) cls = 'wrong-pick';
-      let tag = '';
-      if (isCorrect) tag = '<span class="result-tag">✓ Correct</span>';
-      else if (isMine) tag = '<span class="result-tag">Your pick</span>';
-      html += `<div class="result-opt ${cls}"><span>${l.toUpperCase()}. ${escapeHtml(text)}</span>${tag}</div>`;
-    });
-    if (r.player_selected === null) html += `<div class="result-opt">No answer submitted</div>`;
+    if (r.question_type === 'open_text') {
+      if (r.player_correct) {
+        html += `<div class="result-opt correct"><span>${escapeHtml(r.player_response_text)}</span><span class="result-tag">✓ Correct</span></div>`;
+      } else {
+        html += `<div class="result-opt correct"><span>${escapeHtml(r.correct_answer_text || '')}</span><span class="result-tag">✓ Correct</span></div>`;
+        if (r.player_response_text !== null) {
+          html += `<div class="result-opt wrong-pick"><span>${escapeHtml(r.player_response_text)}</span><span class="result-tag">Your answer</span></div>`;
+        } else {
+          html += `<div class="result-opt">No answer submitted</div>`;
+        }
+      }
+    } else {
+      ['a','b','c','d'].forEach(l => {
+        const text = r['option_' + l];
+        if (!text) return;
+        const isCorrect = r.correct_option === l;
+        const isMine = r.player_selected === l;
+        let cls = '';
+        if (isCorrect) cls = 'correct';
+        else if (isMine) cls = 'wrong-pick';
+        let tag = '';
+        if (isCorrect) tag = '<span class="result-tag">✓ Correct</span>';
+        else if (isMine) tag = '<span class="result-tag">Your pick</span>';
+        html += `<div class="result-opt ${cls}"><span>${l.toUpperCase()}. ${escapeHtml(text)}</span>${tag}</div>`;
+      });
+      if (r.player_selected === null) html += `<div class="result-opt">No answer submitted</div>`;
+    }
     html += `</div>`;
   });
 
