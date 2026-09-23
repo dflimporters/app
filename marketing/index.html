@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Marketing — DFL HQ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --navy-deep:#0A1230; --navy:#101B42; --navy-light:#1B2C63;
+    --blue:#4C86F7; --blue-strong:#2F63D9; --blue-soft:#E6EDFC;
+    --amber:#D99A34; --amber-strong:#B9822A; --amber-soft:#FBF0DC;
+    --green:#3C8A5B; --green-soft:#E1F0E6;
+    --bg:#EEF1F6; --panel:#FFFFFF; --panel-sunk:#F5F7FA;
+    --ink:#16213F; --ink-soft:#5B6478; --ink-faint:#939AAD; --border:#E4E8F0;
+    --shadow:0 1px 2px rgba(16,27,66,0.05), 0 10px 26px -14px rgba(16,27,66,0.22);
+    --radius-lg:16px; --radius-md:12px; --radius-sm:9px;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,sans-serif; }
+  body { min-height:100%; padding-bottom:50px; }
+  .shell { max-width:1180px; margin:0 auto; padding:0 18px; }
+  .hero { background:radial-gradient(700px 320px at 85% -20%, rgba(76,134,247,0.28), transparent), linear-gradient(135deg,var(--navy-deep),var(--navy) 55%,var(--navy-light)); padding:26px 18px 24px; margin-bottom:20px; }
+  .hero-inner { max-width:1180px; margin:0 auto; }
+  .wordmark { font-family:'Sora',sans-serif; font-weight:800; font-style:italic; font-size:14px; color:#fff; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
+  .wordmark span { color:var(--blue); }
+  .eyebrow { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:11px; font-weight:600; letter-spacing:0.06em; color:var(--amber); }
+  .eyebrow .dash { width:16px; height:2px; background:var(--amber); display:inline-block; }
+  .hero h1 { font-family:'Sora',sans-serif; font-weight:700; font-size:27px; color:#fff; margin:0 0 6px; }
+  .hero h1 .accent { color:var(--blue); }
+  .hero .sub { color:#AFB8D4; font-size:13.5px; max-width:480px; margin-bottom:14px; }
+  .role-badge { display:inline-block; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16); color:#C7CEE6; }
+  .signout { font-size:11px; color:#C7CEE6; text-decoration:underline; cursor:pointer; margin-left:10px; }
+
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); padding:16px; }
+  .panel + .panel { margin-top:14px; }
+  .panel-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap; }
+  .panel-head h2 { font-family:'Sora',sans-serif; font-size:15px; font-weight:700; margin:0; }
+  .panel-head .note { font-size:11px; color:var(--ink-faint); }
+
+  .grid { display:grid; grid-template-columns:1fr 330px; gap:16px; align-items:start; }
+  @media (max-width:880px) { .grid { grid-template-columns:1fr; } }
+
+  .signin-box { max-width:380px; margin:60px auto; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); padding:28px; text-align:center; }
+  .signin-box h2 { font-family:'Sora',sans-serif; font-size:18px; margin:0 0 8px; }
+  .signin-box p { color:var(--ink-soft); font-size:13.5px; margin:0 0 20px; }
+  .ms-btn { background:var(--navy); color:#fff; border:none; border-radius:var(--radius-sm); padding:11px 20px; font-size:14px; font-weight:600; cursor:pointer; width:100%; }
+
+  /* ---- Submission form ---- */
+  .switcher { display:flex; gap:8px; margin-bottom:16px; }
+  .switch-btn { flex:1; padding:11px; border-radius:var(--radius-md); border:1px solid var(--border); background:var(--panel-sunk); color:var(--ink-soft); font-weight:600; font-size:13.5px; cursor:pointer; text-align:center; }
+  .switch-btn.active.donation { background:var(--green-soft); border-color:var(--green); color:var(--green); }
+  .switch-btn.active.promo { background:var(--blue-soft); border-color:var(--blue); color:var(--blue-strong); }
+  .switch-btn.active.gondola { background:var(--amber-soft); border-color:var(--amber); color:var(--amber-strong); }
+  .form-field { margin-bottom:12px; }
+  .form-field label { display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:5px; }
+  .form-field textarea, .form-field input {
+    width:100%; border:1px solid var(--border); background:var(--panel-sunk); border-radius:var(--radius-sm);
+    padding:10px 11px; font-size:14px; color:var(--ink); font-family:'Inter',sans-serif; outline:none;
+  }
+  .form-field textarea { min-height:110px; resize:vertical; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .submit-btn { background:var(--blue); color:#fff; border:none; border-radius:var(--radius-sm); padding:12px; font-size:14px; font-weight:700; cursor:pointer; width:100%; }
+  .submit-note { font-size:11.5px; color:var(--ink-faint); margin-top:8px; text-align:center; }
+  .confirm-box { background:var(--green-soft); border:1px solid var(--green); color:var(--green); border-radius:var(--radius-md); padding:12px; font-size:13.5px; text-align:center; margin-bottom:14px; }
+  .attach-row { display:flex; gap:8px; }
+  .attach-btn { flex:1; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--panel-sunk); color:var(--ink); font-weight:600; font-size:13px; cursor:pointer; }
+  .attach-preview { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--blue-soft); border:1px solid var(--blue); border-radius:var(--radius-sm); padding:8px 11px; margin-top:8px; font-size:12.5px; color:var(--blue-strong); font-weight:600; }
+  .attach-preview button { background:none; border:none; color:var(--blue-strong); cursor:pointer; font-weight:700; }
+
+  /* ---- Request cards (management + manager views) ---- */
+  .req-card { border:1px solid var(--border); border-top:3px solid var(--border); border-radius:var(--radius-md); padding:13px; background:var(--panel); margin-bottom:10px; }
+  .req-card.donation { border-top-color:var(--green); }
+  .req-card.promo { border-top-color:var(--blue); }
+  .req-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:6px; }
+  .req-type { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
+  .req-type.donation { color:var(--green); }
+  .req-type.promo { color:var(--blue-strong); }
+  .req-who { font-size:11.5px; color:var(--ink-faint); }
+  .req-text { font-size:13.5px; color:var(--ink); line-height:1.45; margin-bottom:10px; white-space:pre-wrap; }
+  .req-actions { display:flex; gap:8px; }
+  .req-btn { flex:1; border:none; border-radius:var(--radius-sm); padding:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .req-btn.approve { background:var(--green-soft); color:var(--green); }
+  .req-btn.decline { background:var(--amber-soft); color:var(--amber-strong); }
+  .req-status { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
+  .req-status.pending_review { background:var(--amber-soft); color:var(--amber-strong); }
+  .req-status.approved { background:var(--green-soft); color:var(--green); }
+  .req-status.declined { background:var(--panel-sunk); color:var(--ink-faint); }
+  .empty-note { color:var(--ink-faint); font-size:12.5px; }
+  .req-attachment { margin-bottom:10px; }
+  .req-attachment .attachment-link { font-size:12.5px; color:var(--blue-strong); text-decoration:none; font-weight:600; }
+  .req-attachment .attachment-link:hover { text-decoration:underline; }
+
+  .gondola-row { display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border); }
+  .gondola-row:last-child { border-bottom:none; }
+  .gondola-thumb { width:38px; height:38px; border-radius:8px; object-fit:cover; background:var(--panel-sunk); flex-shrink:0; }
+  .gondola-thumb.placeholder { display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink-faint); }
+  .gondola-info { flex:1; min-width:0; }
+  .gondola-info .gname { font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gondola-info .gmeta { font-size:11.5px; color:var(--ink-faint); }
+  .gondola-status { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+  .gondola-status.done { background:var(--green-soft); color:var(--green); }
+  .gondola-status.missing { background:var(--amber-soft); color:var(--amber-strong); }
+  .gondola-photo-chip { display:inline-flex; align-items:center; gap:5px; background:var(--panel-sunk); border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 9px; font-size:12px; margin:4px 6px 0 0; }
+  .gondola-photo-chip button { background:none; border:none; color:var(--ink-faint); cursor:pointer; font-weight:700; }
+
+  .gondola-summary-panel .stat-tile { padding:12px; }
+  .gondola-summary-panel .stat-tile b { font-size:19px; }
+  .expand-btn { margin-top:12px; width:100%; background:var(--panel-sunk); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; font-size:13px; font-weight:700; color:var(--blue-strong); cursor:pointer; }
+  .expand-btn:hover { background:var(--blue-soft); }
+
+  .modal-scrim { position:fixed; inset:0; background:rgba(10,18,48,0.45); z-index:40; }
+  .modal-panel {
+    position:fixed; z-index:41; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:min(640px, calc(100vw - 32px)); max-height:85vh; background:var(--panel);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow); padding:18px; display:flex; flex-direction:column;
+  }
+  .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .modal-head h2 { font-family:'Sora',sans-serif; font-size:16px; font-weight:700; margin:0; }
+  .modal-close { background:var(--panel-sunk); border:1px solid var(--border); border-radius:8px; width:30px; height:30px; font-size:14px; color:var(--ink-soft); cursor:pointer; }
+  .modal-scroll { overflow-y:auto; flex:1; }
+  @media (max-width:640px) {
+    .modal-panel { width:100vw; height:100vh; max-height:100vh; top:0; left:0; transform:none; border-radius:0; }
+  }
+
+  .stat-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .stat-tile { flex:1; min-width:120px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; box-shadow:var(--shadow); }
+  .stat-tile b { font-family:'Sora',sans-serif; font-size:22px; display:block; }
+  .stat-tile span { font-size:11.5px; color:var(--ink-faint); }
+
+  .week-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  @media (max-width:640px) { .week-strip { grid-template-columns:repeat(2,1fr); } }
+  .day-card { border:1px solid var(--border); border-top:3px solid var(--border); border-radius:var(--radius-md); padding:11px; background:var(--panel-sunk); }
+  .day-card.today { border-top-color:var(--blue); background:var(--blue-soft); }
+  .day-card .dname { font-family:'Sora',sans-serif; font-size:13px; font-weight:700; }
+  .day-card .ditems { margin-top:7px; display:flex; flex-direction:column; gap:4px; }
+  .day-card .ditem { font-size:11.5px; color:var(--ink-soft); line-height:1.4; }
+  .day-card .ditem.tag { color:var(--ink-faint); }
+
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; }
+  .tab, .region-tab { font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer; border:1px solid var(--border); color:var(--ink-soft); background:var(--panel-sunk); user-select:none; }
+  .tab.active, .region-tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+  .ws-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media (max-width:640px) { .ws-grid { grid-template-columns:1fr; } }
+  .ws-card { border:1px solid var(--border); border-top:3px solid var(--border); border-radius:var(--radius-md); padding:13px; background:var(--panel); }
+  .ws-card.active-b { border-top-color:var(--blue); } .ws-card.waiting-b { border-top-color:var(--amber); }
+  .chip { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; margin-bottom:9px; background:var(--blue-soft); }
+  .ws-card .wtitle { font-size:14px; font-weight:700; margin-bottom:4px; }
+  .ws-card .wnext { font-size:12px; color:var(--ink-soft); line-height:1.4; margin-bottom:9px; }
+  .ws-card .wfoot { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .wperson { font-size:11px; color:var(--ink-faint); }
+  .bucket-move { font-size:11px; border:1px solid var(--border); background:var(--panel-sunk); border-radius:var(--radius-sm); padding:3px 6px; }
+  .done-btn { font-size:11px; color:var(--blue-strong); background:none; border:none; cursor:pointer; font-weight:600; }
+
+  .quickadd { display:flex; flex-direction:column; gap:8px; }
+  .quickadd input, .quickadd select { border:1px solid var(--border); background:var(--panel-sunk); border-radius:var(--radius-sm); padding:9px 11px; font-size:13.5px; width:100%; }
+  .quickadd-row { display:flex; gap:8px; } .quickadd-row select { flex:1; }
+  .quickadd button { background:var(--blue); color:#fff; border:none; border-radius:var(--radius-sm); padding:10px; font-size:13px; font-weight:700; cursor:pointer; }
+
+  .checklist { display:flex; flex-direction:column; gap:9px; }
+  .check-item { display:flex; align-items:center; gap:9px; font-size:13px; }
+  .check-item input { width:15px; height:15px; accent-color:var(--blue); }
+  .check-item.done label { color:var(--ink-faint); text-decoration:line-through; }
+  .road-add { display:flex; gap:6px; margin-top:10px; }
+  .road-add input { flex:1; border:1px solid var(--border); background:var(--panel-sunk); border-radius:var(--radius-sm); padding:7px 9px; font-size:12.5px; }
+  .road-add button { background:var(--panel-sunk); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 10px; cursor:pointer; }
+
+  .hidden { display:none !important; }
+  footer.foot { text-align:center; font-size:11px; color:var(--ink-faint); margin-top:24px; }
+
+  .view-toggle { display:flex; gap:8px; margin-bottom:16px; max-width:520px; }
+  .view-toggle .tab { flex:1; text-align:center; padding:9px; border-radius:var(--radius-md); }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="wordmark">DFL <span>IMPORTERS</span></div>
+      <div class="eyebrow"><span class="dash"></span>MARKETING</div>
+      <h1>Hi, <span class="accent" id="userName">there</span></h1>
+      <div class="sub" id="todayLine"></div>
+      <span class="role-badge hidden" id="roleBadge"></span>
+      <span class="signout hidden" id="signoutBtn">Sign out</span>
+    </div>
+  </div>
+
+  <div class="shell">
+
+    <div id="signinScreen" class="signin-box">
+      <h2>Sign in required</h2>
+      <p>This page uses your DFL Microsoft account.</p>
+      <button class="ms-btn" id="msSignIn">Sign in with Microsoft</button>
+    </div>
+
+    <!-- ============ MANAGER/SUBMITTER TOGGLE (Joel only) ============ -->
+    <div id="viewToggle" class="view-toggle hidden">
+      <div class="tab active" data-view="manager">My Dashboard</div>
+      <div class="tab" data-view="submitter">Submit a Request</div>
+    </div>
+
+    <!-- ============ SUBMITTER VIEW ============ -->
+    <div id="submitterView" class="hidden">
+      <div class="panel" style="max-width:520px; margin:0 auto;">
+        <div class="panel-head"><h2>Submit a request</h2></div>
+        <div id="confirmBox" class="confirm-box hidden">Submitted — thanks! Marketing will review it shortly.</div>
+        <div class="switcher">
+          <div class="switch-btn active donation" data-type="donation">Donation request</div>
+          <div class="switch-btn promo" data-type="promo">Promotion request</div>
+          <div class="switch-btn gondola" data-type="gondola">Gondola photo</div>
+        </div>
+
+        <!-- donation / promo fields -->
+        <div id="reqFields">
+          <div class="form-field">
+            <label id="mainLabel">Tell us about the request — who's asking, what for, how much, and by when</label>
+            <textarea id="rawInput" placeholder="e.g. St. Andrew High School is asking for a donation of school supplies for their September fundraiser, need an answer by Oct 5..."></textarea>
+          </div>
+          <div class="form-field">
+            <label>Attach a file or photo (optional)</label>
+            <div class="attach-row">
+              <button type="button" class="attach-btn" id="takePhotoBtn">📷 Take a photo</button>
+              <button type="button" class="attach-btn" id="uploadFileBtn">📎 Upload a file</button>
+            </div>
+            <input type="file" id="attachmentCameraInput" accept="image/*" capture="environment" class="hidden">
+            <input type="file" id="attachmentFileInput" class="hidden"
+              accept=".jpg,.jpeg,.png,.heic,.heif,.pdf,.doc,.docx,image/jpeg,image/png,image/heic,image/heif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <div class="attach-preview hidden" id="attachPreview">
+              <span id="attachPreviewName"></span>
+              <button type="button" id="attachRemoveBtn" title="Remove">✕</button>
+            </div>
+            <div class="submit-note" id="attachmentNote" style="text-align:left; margin-top:4px;">JPG, PNG, HEIC, PDF or Word — up to 15MB.</div>
+          </div>
+        </div>
+
+        <!-- gondola photo fields -->
+        <div id="gondolaFields" class="hidden">
+          <div class="form-field">
+            <label>Which gondola?</label>
+            <select id="gondolaSelect"><option value="">Loading gondola list…</option></select>
+          </div>
+          <div class="form-field">
+            <label>Photo(s)</label>
+            <div class="attach-row">
+              <button type="button" class="attach-btn" id="gondolaTakePhotoBtn">📷 Take a photo</button>
+              <button type="button" class="attach-btn" id="gondolaUploadFileBtn">📎 Upload photo(s)</button>
+            </div>
+            <input type="file" id="gondolaCameraInput" accept="image/*" capture="environment" class="hidden">
+            <input type="file" id="gondolaFileInput" accept="image/*" multiple class="hidden">
+            <div id="gondolaPhotoList"></div>
+            <div class="submit-note" id="gondolaNote" style="text-align:left; margin-top:4px;">JPG, PNG or HEIC — add as many as you like.</div>
+          </div>
+        </div>
+
+        <button class="submit-btn" id="submitReqBtn">Submit request</button>
+        <div class="submit-note" id="submitFooterNote">Written in plain English is fine — marketing will follow up if anything's unclear.</div>
+      </div>
+    </div>
+
+    <!-- ============ MANAGEMENT VIEW (admin/manager roles) ============ -->
+    <div id="managementView" class="hidden">
+      <div class="stat-row">
+        <div class="stat-tile"><b id="mgmtPendingDonations">–</b><span>Pending donation requests</span></div>
+        <div class="stat-tile"><b id="mgmtPendingPromos">–</b><span>Pending promo requests</span></div>
+        <div class="stat-tile"><b id="mgmtApprovedThisMonth">–</b><span>Approved this month</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Recent requests</h2><span class="note">read-only overview</span></div>
+        <div id="mgmtReqList"></div>
+      </div>
+    </div>
+
+    <!-- ============ MANAGER VIEW (Joel) ============ -->
+    <div id="managerView" class="hidden">
+      <div class="panel gondola-summary-panel">
+        <div class="panel-head"><h2>Gondola photo tracker</h2><span class="note">island-wide</span></div>
+        <div class="stat-row" style="margin-bottom:0;">
+          <div class="stat-tile"><b id="gtDone">–</b><span>Photographed</span></div>
+          <div class="stat-tile"><b id="gtTotal">–</b><span>Total gondolas</span></div>
+          <div class="stat-tile"><b id="gtPct">–</b><span>Complete</span></div>
+        </div>
+        <button type="button" class="expand-btn" id="gondolaExpandBtn">View full tracker ↗</button>
+      </div>
+
+      <!-- Full tracker modal -->
+      <div id="gondolaModalScrim" class="modal-scrim hidden"></div>
+      <div id="gondolaModal" class="modal-panel hidden">
+        <div class="modal-head">
+          <h2>Gondola photo tracker</h2>
+          <button type="button" class="modal-close" id="gondolaModalClose">✕</button>
+        </div>
+        <div class="tabs" id="gondolaRegionTabs">
+          <div class="region-tab active" data-region="all">All</div>
+        </div>
+        <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-soft); margin:12px 0; cursor:pointer;">
+          <input type="checkbox" id="gtMissingOnly" style="width:15px; height:15px; accent-color:var(--blue);"> Show only gondolas missing a photo
+        </label>
+        <div id="gondolaTrackerList" class="modal-scroll"></div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <div class="panel-head"><h2>Requests to review</h2><span class="note" id="reqPendingNote"></span></div>
+            <div id="reqList"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>This week</h2><span class="note">fixed weekly rhythm</span></div>
+            <div class="week-strip" id="weekStrip"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2>My workstreams</h2>
+              <div class="tabs">
+                <div class="tab active" data-filter="all">All</div>
+                <div class="tab" data-filter="active">Active</div>
+                <div class="tab" data-filter="recurring">Recurring</div>
+                <div class="tab" data-filter="waiting">Waiting on</div>
+              </div>
+            </div>
+            <div class="ws-grid" id="wsGrid"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <div class="panel-head"><h2>Quick add</h2></div>
+            <div class="quickadd">
+              <input type="text" id="taskInput" placeholder="Add a task…">
+              <div class="quickadd-row">
+                <select id="projectSelect">
+                  <option value="">No project</option>
+                  <option>Gondolas</option><option>Covebay</option><option>Catalogue 2026</option>
+                  <option>Promo Tool</option><option>Labels & Barcodes</option><option>Social</option>
+                  <option>Donations</option><option>Christmas Gifting</option><option>2027 Plan</option>
+                  <option>Research</option><option>Other</option>
+                </select>
+                <select id="bucketSelect">
+                  <option value="inbox">Inbox</option><option value="active">Active</option>
+                  <option value="recurring">Recurring</option><option value="waiting">Waiting on</option>
+                </select>
+              </div>
+              <button type="button" id="addTaskBtn">Add task</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>Thursday road day</h2><span class="note" id="weekOfNote"></span></div>
+            <div class="checklist" id="roadList"></div>
+            <div class="road-add">
+              <input type="text" id="roadInput" placeholder="Add a stop…">
+              <button type="button" id="roadAddBtn">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="foot">DFL HQ · Marketing</footer>
+  </div>
+
+<script>
+  const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const ops = () => sb.schema('ops');
+
+  document.getElementById('todayLine').textContent =
+    new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+
+  function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+  // ---- Auth ----
+  const signinScreen = document.getElementById('signinScreen');
+  const submitterView = document.getElementById('submitterView');
+  const managementView = document.getElementById('managementView');
+  const managerView = document.getElementById('managerView');
+  const roleBadge = document.getElementById('roleBadge');
+  const signoutBtnEl = document.getElementById('signoutBtn');
+  const viewToggle = document.getElementById('viewToggle');
+
+  let isManager = false;
+  viewToggle.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      viewToggle.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (tab.dataset.view === 'submitter') {
+        managerView.classList.add('hidden');
+        submitterView.classList.remove('hidden');
+      } else {
+        submitterView.classList.add('hidden');
+        managerView.classList.remove('hidden');
+      }
+    });
+  });
+
+  document.getElementById('msSignIn').addEventListener('click', () => {
+    sb.auth.signInWithOAuth({ provider:'azure', options:{ redirectTo: window.location.href, scopes:'email' } });
+  });
+  signoutBtnEl.addEventListener('click', () => sb.auth.signOut());
+
+  let currentUser = null;
+
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    if (session) {
+      currentUser = session.user;
+      signinScreen.classList.add('hidden');
+      roleBadge.classList.remove('hidden');
+      signoutBtnEl.classList.remove('hidden');
+      const name = session.user.user_metadata?.full_name || session.user.email || 'there';
+      document.getElementById('userName').textContent = name.split(' ')[0];
+
+      const { data: role, error } = await ops().rpc('current_user_role');
+      if (error) { console.error(error); return; }
+
+      [submitterView, managementView, managerView].forEach(v => v.classList.add('hidden'));
+
+      isManager = role === 'manager';
+      viewToggle.classList.toggle('hidden', !isManager);
+
+      if (role === 'manager') {
+        roleBadge.textContent = 'Marketing Manager';
+        viewToggle.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        viewToggle.querySelector('[data-view="manager"]').classList.add('active');
+        managerView.classList.remove('hidden');
+        initManagerView();
+        initSubmitterView();
+      } else if (role === 'admin') {
+        roleBadge.textContent = 'Management view';
+        managementView.classList.remove('hidden');
+        initManagementView();
+      } else {
+        roleBadge.textContent = 'Submit a request';
+        submitterView.classList.remove('hidden');
+        initSubmitterView();
+      }
+    } else {
+      currentUser = null;
+      signinScreen.classList.remove('hidden');
+      roleBadge.classList.add('hidden');
+      signoutBtnEl.classList.add('hidden');
+      viewToggle.classList.add('hidden');
+      [submitterView, managementView, managerView].forEach(v => v.classList.add('hidden'));
+    }
+  });
+
+  // ============ SUBMITTER VIEW ============
+  let submitType = 'donation';
+  let submitterInitDone = false;
+  function initSubmitterView() {
+    document.querySelectorAll('.switch-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        submitType = btn.dataset.type;
+        const isGondola = submitType === 'gondola';
+        document.getElementById('reqFields').classList.toggle('hidden', isGondola);
+        document.getElementById('gondolaFields').classList.toggle('hidden', !isGondola);
+        document.getElementById('submitFooterNote').classList.toggle('hidden', isGondola);
+        if (submitType === 'donation') {
+          document.getElementById('mainLabel').textContent = "Tell us about the request — who's asking, what for, how much, and by when";
+        } else if (submitType === 'promo') {
+          document.getElementById('mainLabel').textContent = "Describe the promotion — store/account, brand, dates, and what you're asking for";
+        }
+      });
+    });
+    document.getElementById('submitReqBtn').addEventListener('click', () => {
+      if (submitType === 'gondola') submitGondolaPhotos(); else submitRequest();
+    });
+
+    if (submitterInitDone) return;
+    submitterInitDone = true;
+
+    const cameraInput = document.getElementById('attachmentCameraInput');
+    const fileInput = document.getElementById('attachmentFileInput');
+    document.getElementById('takePhotoBtn').addEventListener('click', () => cameraInput.click());
+    document.getElementById('uploadFileBtn').addEventListener('click', () => fileInput.click());
+    cameraInput.addEventListener('change', () => setSelectedAttachment(cameraInput.files[0], fileInput));
+    fileInput.addEventListener('change', () => setSelectedAttachment(fileInput.files[0], cameraInput));
+    document.getElementById('attachRemoveBtn').addEventListener('click', () => {
+      cameraInput.value = ''; fileInput.value = '';
+      setSelectedAttachment(null);
+    });
+
+    initGondolaSubmitFields();
+  }
+
+  const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+  let selectedAttachment = null;
+
+  function setSelectedAttachment(file, otherInputToClear) {
+    if (otherInputToClear) otherInputToClear.value = '';
+    selectedAttachment = file || null;
+    const preview = document.getElementById('attachPreview');
+    const noteEl = document.getElementById('attachmentNote');
+    noteEl.style.color = '';
+    if (!file) {
+      preview.classList.add('hidden');
+      noteEl.textContent = 'JPG, PNG, HEIC, PDF or Word — up to 15MB.';
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      preview.classList.add('hidden');
+      selectedAttachment = null;
+      noteEl.textContent = 'That file is too big — max 15MB.';
+      noteEl.style.color = 'var(--amber-strong)';
+      return;
+    }
+    document.getElementById('attachPreviewName').textContent = file.name;
+    preview.classList.remove('hidden');
+  }
+
+  // ---- Gondola master list ----
+  // gondola-rentals.html is the source of truth for the gondola roster (111 stable-id
+  // rows, per-store region/area/brand). Rather than keep a second copy here that can
+  // drift, this fetches that page and pulls its `const G = [...]` array out at runtime.
+  let gondolaMasterPromise = null;
+  function loadGondolaMaster() {
+    if (!gondolaMasterPromise) {
+      gondolaMasterPromise = fetch('/gondola-rentals.html')
+        .then(r => r.text())
+        .then(html => {
+          const m = html.match(/const G = (\[[\s\S]*?\n\]);/);
+          if (!m) throw new Error('gondola master list not found in gondola-rentals.html');
+          return Function('"use strict"; return ' + m[1])();
+        });
+    }
+    return gondolaMasterPromise;
+  }
+
+  // ---- Gondola photo submission (submitter view) ----
+  let gondolaPhotoFiles = [];
+  function initGondolaSubmitFields() {
+    const gCamera = document.getElementById('gondolaCameraInput');
+    const gFile = document.getElementById('gondolaFileInput');
+    document.getElementById('gondolaTakePhotoBtn').addEventListener('click', () => gCamera.click());
+    document.getElementById('gondolaUploadFileBtn').addEventListener('click', () => gFile.click());
+    gCamera.addEventListener('change', () => {
+      if (gCamera.files[0]) gondolaPhotoFiles.push(gCamera.files[0]);
+      gCamera.value = '';
+      renderGondolaPhotoList();
+    });
+    gFile.addEventListener('change', () => {
+      Array.from(gFile.files).forEach(f => gondolaPhotoFiles.push(f));
+      gFile.value = '';
+      renderGondolaPhotoList();
+    });
+
+    loadGondolaMaster().then(list => {
+      const select = document.getElementById('gondolaSelect');
+      const byRegion = {};
+      list.forEach(g => { (byRegion[g.r] = byRegion[g.r] || []).push(g); });
+      select.innerHTML = '<option value="">Select a store…</option>' +
+        Object.keys(byRegion).sort().map(region => `<optgroup label="${escapeHtml(region)}">` +
+          byRegion[region].map(g => `<option value="${g.id}">${escapeHtml(g.s)}${g.loc ? ' — ' + escapeHtml(g.loc) : ''} (${escapeHtml(g.a)})</option>`).join('') +
+          '</optgroup>').join('');
+    }).catch(err => {
+      console.error(err);
+      document.getElementById('gondolaSelect').innerHTML = '<option value="">Couldn\'t load gondola list</option>';
+    });
+  }
+
+  function renderGondolaPhotoList() {
+    const list = document.getElementById('gondolaPhotoList');
+    list.innerHTML = gondolaPhotoFiles.map((f, i) =>
+      `<span class="gondola-photo-chip">${escapeHtml(f.name)}<button type="button" data-i="${i}">✕</button></span>`).join('');
+    list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      gondolaPhotoFiles.splice(Number(btn.dataset.i), 1);
+      renderGondolaPhotoList();
+    }));
+  }
+
+  async function submitGondolaPhotos() {
+    const select = document.getElementById('gondolaSelect');
+    const gondolaId = Number(select.value);
+    const noteEl = document.getElementById('gondolaNote');
+    if (!gondolaId) { noteEl.textContent = 'Pick a gondola first.'; noteEl.style.color = 'var(--amber-strong)'; return; }
+    if (gondolaPhotoFiles.length === 0) { noteEl.textContent = 'Add at least one photo.'; noteEl.style.color = 'var(--amber-strong)'; return; }
+    const list = await loadGondolaMaster();
+    const gondola = list.find(g => g.id === gondolaId);
+    if (!gondola) return;
+    for (const file of gondolaPhotoFiles) {
+      const path = gondolaId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const { error: upErr } = await sb.storage.from('gondola-photos').upload(path, file);
+      if (upErr) { console.error(upErr); noteEl.textContent = 'Upload failed — please try again.'; noteEl.style.color = 'var(--amber-strong)'; return; }
+      await sb.from('gondola_photos').insert({ gondola_id: gondolaId, customer_id: gondola.c, store_name: gondola.s, storage_path: path });
+    }
+    gondolaPhotoFiles = [];
+    renderGondolaPhotoList();
+    select.value = '';
+    noteEl.textContent = 'JPG, PNG or HEIC — add as many as you like.';
+    noteEl.style.color = '';
+    document.getElementById('confirmBox').textContent = 'Photo(s) saved — thanks!';
+    document.getElementById('confirmBox').classList.remove('hidden');
+    setTimeout(() => {
+      document.getElementById('confirmBox').classList.add('hidden');
+      document.getElementById('confirmBox').textContent = 'Submitted — thanks! Marketing will review it shortly.';
+    }, 4000);
+  }
+
+  function attachmentLinkHtml(r) {
+    if (!r.attachment_path) return '';
+    return `<div class="req-attachment"><a href="#" data-path="${r.attachment_path}" class="attachment-link">📎 ${escapeHtml(r.attachment_name || 'View attachment')}</a></div>`;
+  }
+  function wireAttachmentLinks(container) {
+    container.querySelectorAll('.attachment-link').forEach(a => {
+      a.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const { data, error } = await sb.storage.from('marketing-attachments').createSignedUrl(a.dataset.path, 60);
+        if (error) { console.error(error); return; }
+        window.open(data.signedUrl, '_blank');
+      });
+    });
+  }
+
+  async function uploadAttachment(file) {
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const path = `${currentUser.id}/${submitType}-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('marketing-attachments').upload(path, file, {
+      contentType: file.type || undefined
+    });
+    if (error) throw error;
+    return path;
+  }
+
+  async function submitRequest() {
+    const raw = document.getElementById('rawInput').value.trim();
+    if (!raw) return;
+    const file = selectedAttachment;
+    const noteEl = document.getElementById('attachmentNote');
+    const table = submitType === 'donation' ? 'donation_requests' : 'promo_requests';
+    const row = {
+      requester_email: currentUser.email,
+      requester_name: currentUser.user_metadata?.full_name || currentUser.email,
+      raw_input: raw
+    };
+    if (file) {
+      try {
+        row.attachment_path = await uploadAttachment(file);
+        row.attachment_name = file.name;
+      } catch (err) {
+        console.error(err);
+        noteEl.textContent = 'Upload failed — request was not submitted, please try again.';
+        noteEl.style.color = 'var(--amber-strong)';
+        return;
+      }
+    }
+    const { error } = await ops().from(table).insert(row);
+    if (error) { console.error(error); return; }
+    document.getElementById('rawInput').value = '';
+    document.getElementById('attachmentCameraInput').value = '';
+    document.getElementById('attachmentFileInput').value = '';
+    setSelectedAttachment(null);
+    document.getElementById('confirmBox').classList.remove('hidden');
+    setTimeout(() => document.getElementById('confirmBox').classList.add('hidden'), 4000);
+  }
+
+  // ============ MANAGEMENT VIEW (read-only) ============
+  async function initManagementView() {
+    const [{ data: donations }, { data: promos }] = await Promise.all([
+      ops().from('donation_requests').select('*').order('created_at', { ascending:false }).limit(20),
+      ops().from('promo_requests').select('*').order('created_at', { ascending:false }).limit(20)
+    ]);
+    const all = [...(donations||[]).map(r => ({...r, kind:'donation'})), ...(promos||[]).map(r => ({...r, kind:'promo'}))]
+      .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+    document.getElementById('mgmtPendingDonations').textContent = (donations||[]).filter(r=>r.status==='pending_review').length;
+    document.getElementById('mgmtPendingPromos').textContent = (promos||[]).filter(r=>r.status==='pending_review').length;
+    const thisMonth = new Date().toISOString().slice(0,7);
+    document.getElementById('mgmtApprovedThisMonth').textContent = all.filter(r => r.status==='approved' && (r.reviewed_at||'').slice(0,7)===thisMonth).length;
+
+    const list = document.getElementById('mgmtReqList');
+    if (all.length === 0) { list.innerHTML = '<div class="empty-note">No requests yet.</div>'; return; }
+    list.innerHTML = all.slice(0,15).map(r => `
+      <div class="req-card ${r.kind}">
+        <div class="req-top">
+          <span class="req-type ${r.kind}">${r.kind === 'donation' ? 'Donation' : 'Promotion'}</span>
+          <span class="req-status ${r.status}">${r.status.replace('_',' ')}</span>
+        </div>
+        <div class="req-who">${escapeHtml(r.requester_name || r.requester_email)} · ${new Date(r.created_at).toLocaleDateString()}</div>
+        <div class="req-text">${escapeHtml(r.raw_input)}</div>
+        ${attachmentLinkHtml(r)}
+      </div>`).join('');
+    wireAttachmentLinks(list);
+  }
+
+  // ============ MANAGER VIEW (Joel) ============
+  function initManagerView() {
+    renderWeekStrip();
+    loadRequests();
+    loadTasks();
+    loadRoadStops();
+    initGondolaTracker();
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderTasks();
+      });
+    });
+    document.getElementById('addTaskBtn').addEventListener('click', addTask);
+    document.getElementById('taskInput').addEventListener('keydown', e => { if (e.key==='Enter') addTask(); });
+    document.getElementById('roadAddBtn').addEventListener('click', addRoadStop);
+  }
+
+  function renderWeekStrip() {
+    const WEEK = [
+      { d:'Mon', items:['8:00 Sales call','Planning · recurring ops'] },
+      { d:'Tue', items:['9–11 Head of Dept (HQ)','PM · Covebay deep work'] },
+      { d:'Wed', items:['Deep work — full day','Catalogue 2026'] },
+      { d:'Thu', items:['Road day','In-store branding checks'] },
+      { d:'Fri', items:['8:00 Sales · 9–11 Cat Mgrs','Wrap-up · admin'] },
+    ];
+    const todayIdx = new Date().getDay() - 1;
+    document.getElementById('weekStrip').innerHTML = WEEK.map((w,i) => `
+      <div class="day-card ${i===todayIdx?'today':''}">
+        <div class="dname">${w.d}</div>
+        <div class="ditems"><div class="ditem">${w.items[0]}</div><div class="ditem tag">${w.items[1]}</div></div>
+      </div>`).join('');
+  }
+
+  async function loadRequests() {
+    const [{ data: donations }, { data: promos }] = await Promise.all([
+      ops().from('donation_requests').select('*').eq('status','pending_review').order('created_at', { ascending:false }),
+      ops().from('promo_requests').select('*').eq('status','pending_review').order('created_at', { ascending:false })
+    ]);
+    const all = [...(donations||[]).map(r=>({...r,kind:'donation',table:'donation_requests'})), ...(promos||[]).map(r=>({...r,kind:'promo',table:'promo_requests'}))]
+      .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+    document.getElementById('reqPendingNote').textContent = all.length + ' pending';
+    const list = document.getElementById('reqList');
+    if (all.length === 0) { list.innerHTML = '<div class="empty-note">Nothing waiting on you right now.</div>'; return; }
+    list.innerHTML = all.map(r => `
+      <div class="req-card ${r.kind}">
+        <div class="req-top">
+          <span class="req-type ${r.kind}">${r.kind==='donation'?'Donation':'Promotion'}</span>
+          <span class="req-who">${escapeHtml(r.requester_name || r.requester_email)}</span>
+        </div>
+        <div class="req-text">${escapeHtml(r.raw_input)}</div>
+        ${attachmentLinkHtml(r)}
+        <div class="req-actions">
+          <button class="req-btn approve" data-id="${r.id}" data-table="${r.table}" data-action="approved">Approve</button>
+          <button class="req-btn decline" data-id="${r.id}" data-table="${r.table}" data-action="declined">Decline</button>
+        </div>
+      </div>`).join('');
+    wireAttachmentLinks(list);
+    list.querySelectorAll('.req-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await ops().from(btn.dataset.table).update({
+          status: btn.dataset.action, reviewed_by: currentUser.email, reviewed_at: new Date().toISOString()
+        }).eq('id', btn.dataset.id);
+        loadRequests();
+      });
+    });
+  }
+
+  const BUCKET_LABEL = { active:'Active', recurring:'Recurring', waiting:'Waiting on', inbox:'Inbox' };
+  let tasksCache = []; let currentFilter = 'all';
+  async function loadTasks() {
+    const { data, error } = await ops().from('tasks').select('*').eq('done', false).order('created_at', { ascending:false });
+    if (error) { console.error(error); return; }
+    tasksCache = data || []; renderTasks();
+  }
+  function renderTasks() {
+    const grid = document.getElementById('wsGrid');
+    const items = currentFilter === 'all' ? tasksCache : tasksCache.filter(t => t.bucket === currentFilter);
+    if (items.length === 0) { grid.innerHTML = '<div class="empty-note">Nothing here yet — add a task from the sidebar.</div>'; return; }
+    grid.innerHTML = items.map(t => `
+      <div class="ws-card ${t.bucket==='active'?'active-b':''} ${t.bucket==='waiting'?'waiting-b':''}">
+        <div class="chip">${t.bucket==='waiting'?'⏳':'📌'}</div>
+        <div class="wtitle">${escapeHtml(t.title)}</div>
+        <div class="wnext">${escapeHtml(t.next_action || t.waiting_on || '')}</div>
+        <div class="wfoot">
+          <select class="bucket-move" data-id="${t.id}">
+            ${Object.entries(BUCKET_LABEL).map(([k,v]) => `<option value="${k}" ${k===t.bucket?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <button class="done-btn" data-id="${t.id}">Done</button>
+        </div>
+        <div class="wperson">${escapeHtml(t.project||'')}</div>
+      </div>`).join('');
+    grid.querySelectorAll('.bucket-move').forEach(sel => sel.addEventListener('change', async () => {
+      await ops().from('tasks').update({ bucket: sel.value }).eq('id', sel.dataset.id); loadTasks();
+    }));
+    grid.querySelectorAll('.done-btn').forEach(btn => btn.addEventListener('click', async () => {
+      await ops().from('tasks').update({ done:true, done_at:new Date().toISOString() }).eq('id', btn.dataset.id); loadTasks();
+    }));
+  }
+  async function addTask() {
+    const input = document.getElementById('taskInput');
+    const title = input.value.trim(); if (!title) return;
+    const project = document.getElementById('projectSelect').value || null;
+    const bucket = document.getElementById('bucketSelect').value;
+    const { error } = await ops().from('tasks').insert({ title, project, bucket });
+    if (error) { console.error(error); return; }
+    input.value = ''; loadTasks();
+  }
+
+  function mondayOf(date) { const d = new Date(date); const day = d.getDay(); d.setDate(d.getDate() - day + (day===0?-6:1)); return d.toISOString().slice(0,10); }
+  const weekOf = mondayOf(new Date());
+  async function loadRoadStops() {
+    document.getElementById('weekOfNote').textContent = 'week of ' + weekOf;
+    const { data, error } = await ops().from('road_stops').select('*').eq('week_of', weekOf).order('created_at');
+    if (error) { console.error(error); return; }
+    renderRoadStops(data || []);
+  }
+  function renderRoadStops(rows) {
+    const list = document.getElementById('roadList');
+    if (rows.length === 0) { list.innerHTML = '<div class="empty-note">No stops added for this week yet.</div>'; return; }
+    list.innerHTML = rows.map(r => `
+      <div class="check-item ${r.done?'done':''}">
+        <input type="checkbox" data-id="${r.id}" ${r.done?'checked':''}>
+        <label>${escapeHtml(r.store_name)}${r.note?' — '+escapeHtml(r.note):''}</label>
+      </div>`).join('');
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', async () => {
+      await ops().from('road_stops').update({ done: cb.checked }).eq('id', cb.dataset.id); loadRoadStops();
+    }));
+  }
+  async function addRoadStop() {
+    const input = document.getElementById('roadInput');
+    const val = input.value.trim(); if (!val) return;
+    const { error } = await ops().from('road_stops').insert({ store_name: val, week_of: weekOf });
+    if (error) { console.error(error); return; }
+    input.value = ''; loadRoadStops();
+  }
+
+  // ============ GONDOLA PHOTO TRACKER (manager view) ============
+  let gondolaTrackerData = null; // { list, photosByGondola: Map<id, [{storage_path}, ...]> }
+  let gondolaRegionFilter = 'all';
+  let gondolaMissingOnly = false;
+
+  async function initGondolaTracker() {
+    const [list, { data: photos, error }] = await Promise.all([
+      loadGondolaMaster(),
+      sb.from('gondola_photos').select('gondola_id, storage_path, created_at').order('created_at', { ascending:false })
+    ]);
+    if (error) { console.error(error); return; }
+    const photosByGondola = new Map();
+    (photos || []).forEach(p => {
+      if (!photosByGondola.has(p.gondola_id)) photosByGondola.set(p.gondola_id, []);
+      photosByGondola.get(p.gondola_id).push(p);
+    });
+    gondolaTrackerData = { list, photosByGondola };
+
+    const regions = Array.from(new Set(list.map(g => g.r))).sort();
+    const tabsEl = document.getElementById('gondolaRegionTabs');
+    tabsEl.innerHTML = '<div class="region-tab active" data-region="all">All</div>' +
+      regions.map(r => `<div class="region-tab" data-region="${escapeHtml(r)}">${escapeHtml(r)}</div>`).join('');
+    tabsEl.querySelectorAll('.region-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabsEl.querySelectorAll('.region-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        gondolaRegionFilter = tab.dataset.region;
+        renderGondolaTracker();
+      });
+    });
+    document.getElementById('gtMissingOnly').addEventListener('change', (e) => {
+      gondolaMissingOnly = e.target.checked;
+      renderGondolaTracker();
+    });
+
+    const scrim = document.getElementById('gondolaModalScrim');
+    const modal = document.getElementById('gondolaModal');
+    const openModal = () => { scrim.classList.remove('hidden'); modal.classList.remove('hidden'); };
+    const closeModal = () => { scrim.classList.add('hidden'); modal.classList.add('hidden'); };
+    document.getElementById('gondolaExpandBtn').addEventListener('click', openModal);
+    document.getElementById('gondolaModalClose').addEventListener('click', closeModal);
+    scrim.addEventListener('click', closeModal);
+
+    renderGondolaTracker();
+  }
+
+  function renderGondolaTracker() {
+    if (!gondolaTrackerData) return;
+    const { list, photosByGondola } = gondolaTrackerData;
+    const total = list.length;
+    const done = list.filter(g => photosByGondola.has(g.id)).length;
+    document.getElementById('gtDone').textContent = done;
+    document.getElementById('gtTotal').textContent = total;
+    document.getElementById('gtPct').textContent = total ? Math.round((done / total) * 100) + '%' : '–';
+
+    let rows = gondolaRegionFilter === 'all' ? list : list.filter(g => g.r === gondolaRegionFilter);
+    if (gondolaMissingOnly) rows = rows.filter(g => !photosByGondola.has(g.id));
+
+    const container = document.getElementById('gondolaTrackerList');
+    if (rows.length === 0) { container.innerHTML = '<div class="empty-note">Nothing to show for this filter.</div>'; return; }
+    container.innerHTML = rows.map(g => {
+      const photos = photosByGondola.get(g.id);
+      const hasPhoto = !!photos;
+      const thumb = hasPhoto
+        ? `<img class="gondola-thumb" src="${sb.storage.from('gondola-photos').getPublicUrl(photos[0].storage_path).data.publicUrl}" alt="">`
+        : `<div class="gondola-thumb placeholder">—</div>`;
+      return `<div class="gondola-row">
+        ${thumb}
+        <div class="gondola-info">
+          <div class="gname">${escapeHtml(g.s)}${g.loc ? ' — ' + escapeHtml(g.loc) : ''}</div>
+          <div class="gmeta">${escapeHtml(g.a)} · ${escapeHtml(g.r)}${g.st ? ' · ' + escapeHtml(g.st) : ''}</div>
+        </div>
+        <span class="gondola-status ${hasPhoto ? 'done' : 'missing'}">${hasPhoto ? '📷 ' + photos.length : 'No photo'}</span>
+      </div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
