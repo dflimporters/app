@@ -1285,29 +1285,6 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     </div>
 
     <div class="dcard">
-      <div class="dlbl">Purchase timing</div>
-      <div class="timing">
-        <div><div class="tk">Last order</div><div class="tv">${lastOrder?fmtDate(lastOrder):"Never"}</div><div class="ts">${daysSince!==null?daysSince+"d ago":""}</div></div>
-        <div><div class="tk">Avg frequency</div><div class="tv">${avgFreq}d</div><div class="ts">between orders</div></div>
-        <div class="${(overdue||dueSoon)?'due':''}"><div class="tk">Next due</div><div class="tv" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--ink)'}">${dueTxt}</div><div class="ts" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--mut)'}">${dueSub}</div></div>
-      </div>
-    </div>
-
-    <div class="dcard">
-      <div class="dlbl">Merch activity</div>
-      <div class="timing" style="grid-template-columns:1fr 1fr">
-        <div><div class="tk">Last visit</div><div class="tv">${mv?fmtDate(mv.visit_date):"None yet"}</div><div class="ts">${mv?mvOutcome+" · "+esc(mv.user_name||""):""}</div></div>
-        <div ${msc&&msc.items&&msc.items.length?`onclick="viewCustStockCount()" style="cursor:pointer"`:""}><div class="tk">Last stock count</div><div class="tv" style="${msc&&msc.items&&msc.items.length?'text-decoration:underline':''}">${msc?fmtDate(msc.counted_at):"None yet"}</div><div class="ts">${msc&&msc.items&&msc.items.length?msc.items.length+" SKUs · tap to view":""}</div></div>
-      </div>
-      ${flaggedSkus.length?`<div class="listrow" style="margin-top:8px"><span class="dot reddot"></span><div><div class="lr1" style="color:var(--bad)">⚠ ${flaggedSkus.length} SKU${flaggedSkus.length!==1?'s':''} flagged out of stock</div><div class="lr2">${fmtDate(mr.report_date)} · ${flaggedSkus.slice(0,4).map(esc).join(", ")}${flaggedSkus.length>4?"…":""}</div></div></div>`:""}
-    </div>
-
-    <div class="dcard">
-      <div class="dlbl">🔥 Hot List for this account${hot.length?' ('+hot.length+')':''}</div>
-      ${hot.length?hot.map(r=>{const nm=(r.description||r.inventory_id||'').length>46?(r.description||r.inventory_id).slice(0,43)+"…":(r.description||r.inventory_id);return `<div class="listrow"><span class="dot" style="background:${hotBadgeColor(r.priority_label)}"></span><div style="flex:1;min-width:0"><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.item_class||'')} · ${esc(hotReason(r))}</div></div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;color:${hotBadgeColor(r.priority_label)};background:${hotBadgeBg(r.priority_label)};white-space:nowrap;margin-left:8px">${esc(r.priority_label||'')}</span></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing on the hot list for this account right now.</div>`}
-    </div>
-
-    <div class="dcard">
       <div class="dlbl" style="display:flex;justify-content:space-between;align-items:center">
         <span>2026 Budget vs Actual</span>
         <span class="ptoggle">
@@ -1330,10 +1307,33 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     </div>
 
     <div class="dcard">
+      <div class="dlbl">Purchase timing</div>
+      <div class="timing">
+        <div><div class="tk">Last order</div><div class="tv">${lastOrder?fmtDate(lastOrder):"Never"}</div><div class="ts">${daysSince!==null?daysSince+"d ago":""}</div></div>
+        <div><div class="tk">Avg frequency</div><div class="tv">${avgFreq}d</div><div class="ts">between orders</div></div>
+        <div class="${(overdue||dueSoon)?'due':''}"><div class="tk">Next due</div><div class="tv" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--ink)'}">${dueTxt}</div><div class="ts" style="color:${overdue?'var(--bad)':dueSoon?'#a5760a':'var(--mut)'}">${dueSub}</div></div>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">Merch activity</div>
+      <div class="timing" style="grid-template-columns:1fr 1fr">
+        <div><div class="tk">Last visit</div><div class="tv">${mv?fmtDate(mv.visit_date):"None yet"}</div><div class="ts">${mv?mvOutcome+" · "+esc(mv.user_name||""):""}</div></div>
+        <div ${msc&&msc.items&&msc.items.length?`onclick="viewCustStockCount()" style="cursor:pointer"`:""}><div class="tk">Last stock count</div><div class="tv" style="${msc&&msc.items&&msc.items.length?'text-decoration:underline':''}">${msc?fmtDate(msc.counted_at):"None yet"}</div><div class="ts">${msc&&msc.items&&msc.items.length?msc.items.length+" SKUs · tap to view":""}</div></div>
+      </div>
+      ${flaggedSkus.length?`<div class="listrow" style="margin-top:8px"><span class="dot reddot"></span><div><div class="lr1" style="color:var(--bad)">⚠ ${flaggedSkus.length} SKU${flaggedSkus.length!==1?'s':''} flagged out of stock</div><div class="lr2">${fmtDate(mr.report_date)} · ${flaggedSkus.slice(0,4).map(esc).join(", ")}${flaggedSkus.length>4?"…":""}</div></div></div>`:""}
+    </div>
+
+    <div class="dcard">
       <div class="dlbl">Budget by category · ${isY?'YTD':'MTD'}</div>
       ${catRows.length?`<table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
         ${catRows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
       </tbody></table>`:`<div class="empty" style="padding:16px">No category budget set.</div>`}
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">🔥 Hot List for this account${hot.length?' ('+hot.length+')':''}</div>
+      ${hot.length?hot.map(r=>{const nm=(r.description||r.inventory_id||'').length>46?(r.description||r.inventory_id).slice(0,43)+"…":(r.description||r.inventory_id);return `<div class="listrow"><span class="dot" style="background:${hotBadgeColor(r.priority_label)}"></span><div style="flex:1;min-width:0"><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.item_class||'')} · ${esc(hotReason(r))}</div></div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;color:${hotBadgeColor(r.priority_label)};background:${hotBadgeBg(r.priority_label)};white-space:nowrap;margin-left:8px">${esc(r.priority_label||'')}</span></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing on the hot list for this account right now.</div>`}
     </div>
 
     <div class="dcard">
