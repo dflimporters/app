@@ -66,7 +66,7 @@
   .kpi.warn .l, .kpi.warn .v, .kpi.warn .s { color:var(--warn-text); }
 
   .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  .row { display:grid; grid-template-columns:minmax(0,1.3fr) 70px 60px minmax(0,2.4fr) minmax(0,1.3fr) 130px; gap:12px; align-items:center; padding:11px 16px; border-top:1px solid var(--border); }
+  .row { display:grid; grid-template-columns:minmax(0,1.3fr) 64px 52px 52px minmax(0,2.3fr) minmax(0,1.3fr) 130px; gap:12px; align-items:center; padding:11px 16px; border-top:1px solid var(--border); }
   .row.head { border-top:0; font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; background:#f8fafc; }
   .row.item { cursor:pointer; }
   .row.item:hover { background:#f8fafc; }
@@ -114,7 +114,7 @@
     .row > .c-name { grid-column:1; }
     .row > .c-status { grid-column:2; grid-row:1; justify-self:end; }
     .row > .c-vol { grid-column:1 / -1; }
-    .row > .c-ships, .row > .c-drops { display:none; }
+    .row > .c-ships, .row > .c-drops, .row > .c-fill { display:none; }
     .row > .c-trucks { grid-column:1 / -1; font-size:12.5px; color:var(--text-muted); }
     .row > .c-trucks::before { content:attr(data-m); }
     .detail { padding:4px 8px 10px; }
@@ -171,6 +171,26 @@
   }
   function fmt(n) { return Math.round(n || 0).toLocaleString('en-US'); }
   function vol(r) { return Number(r.shipped_volume) || 0; }
+
+  // Fill: what this shipment carries vs. what the customer was still owed.
+  // Ordered qty covers the whole order, so on a partly-shipped order it would
+  // make every later shipment look short. Instead:
+  //   not yet Completed -> owed = unshipped_qty (still includes this shipment)
+  //   Completed         -> owed = shipped + unshipped_qty (unshipped has
+  //                        already dropped by this shipment's qty)
+  // Null when the order quantities aren't known.
+  function owed(r) {
+    if (r.unshipped_qty == null || r.order_shipped_qty == null) return null;
+    const u = Number(r.unshipped_qty), s = Number(r.order_shipped_qty);
+    return r.status === 'Completed' ? s + u : u;
+  }
+  function shortBy(r) {
+    const o = owed(r);
+    return o == null ? 0 : Math.max(0, o - Number(r.order_shipped_qty));
+  }
+  function fillPct(shipped, owedQty) {
+    return owedQty > 0 ? Math.min(100, Math.round((shipped / owedQty) * 100)) : null;
+  }
 
   function jmDate(offsetDays) {
     const d = new Date(Date.now() + JM_OFFSET_H * 3600e3);
@@ -241,12 +261,15 @@
 
   async function loadData() {
     const today = jmDate(0);
-    const cols = 'shipment_nbr,status,shipment_date,customer_id,customer_name,shipping_zone,ship_via,shipped_volume,shipped_qty,salesperson_name';
+    const cols = 'shipment_nbr,status,shipment_date,customer_id,customer_name,shipping_zone,ship_via,shipped_volume,shipped_qty,salesperson_name,order_type,order_nbr,ordered_qty,unshipped_qty,order_shipped_qty';
+    // Outbound = an Issue that isn't from an RC (return) order. Every RC seen
+    // so far is also a Receipt; checking both guards against one that isn't.
+    const NOT_RC = 'order_type.is.null,order_type.neq.RC';
     const [day, rec, strag, sync] = await Promise.all([
       // A day is ~200 shipments; well under PostgREST's 1000-row cap.
-      sb.from('shipments').select(cols).eq('shipment_date', LB.date).eq('operation', 'Issue').range(0, 999),
-      sb.from('shipments').select('shipment_nbr', { count: 'exact', head: true }).eq('shipment_date', LB.date).eq('operation', 'Receipt'),
-      sb.from('shipments').select(cols).eq('operation', 'Issue').neq('status', 'Completed').lt('shipment_date', today).order('shipment_date'),
+      sb.from('shipments').select(cols).eq('shipment_date', LB.date).eq('operation', 'Issue').or(NOT_RC).range(0, 999),
+      sb.from('shipments').select('shipment_nbr', { count: 'exact', head: true }).eq('shipment_date', LB.date).or('operation.eq.Receipt,order_type.eq.RC'),
+      sb.from('shipments').select(cols).eq('operation', 'Issue').or(NOT_RC).neq('status', 'Completed').lt('shipment_date', today).order('shipment_date'),
       sb.from('shipments').select('synced_at').order('synced_at', { ascending: false }).limit(1),
     ]);
     for (const r of [day, rec, strag, sync]) if (r.error) throw r.error;
@@ -261,7 +284,7 @@
     const m = new Map();
     for (const r of rows) {
       const k = keyFn(r);
-      if (!m.has(k)) m.set(k, { key: k, rows: [], vol: 0, unbVol: 0, unb: 0, done: 0, zero: 0, customers: new Set(), zones: new Set() });
+      if (!m.has(k)) m.set(k, { key: k, rows: [], vol: 0, unbVol: 0, unb: 0, done: 0, zero: 0, customers: new Set(), zones: new Set(), shipped: 0, owed: 0, short: 0 });
       const g = m.get(k);
       g.rows.push(r);
       g.vol += vol(r);
@@ -270,6 +293,9 @@
       if (!vol(r)) g.zero++;
       g.customers.add(r.customer_id || r.shipment_nbr);
       g.zones.add(r.shipping_zone || 'No zone');
+      const o = owed(r);
+      if (o != null) { g.owed += o; g.shipped += Number(r.order_shipped_qty); }
+      if (shortBy(r) > 0) g.short++;
     }
     return [...m.values()].map(g => ({ ...g, drops: g.customers.size })).sort((a, b) => b.vol - a.vol);
   }
@@ -313,11 +339,31 @@
     return `<span class="pill ok">All batched</span>`;
   }
 
+  function fillCell(g) {
+    const p = fillPct(g.shipped, g.owed);
+    if (p == null) return '<span class="num c-fill" style="color:var(--text-dim)">—</span>';
+    const color = p >= 95 ? 'var(--ok-text)' : p >= 85 ? 'var(--warn-text)' : 'var(--bad-text)';
+    return `<span class="num c-fill" style="font-weight:600;color:${color}">${p}%<span class="sub2">${g.short} short</span></span>`;
+  }
+  function fillText(g) {
+    const p = fillPct(g.shipped, g.owed);
+    return p == null ? '' : ` · ${p}% fill`;
+  }
+
+  // "shipped / owed", red when short. The tooltip carries the order detail.
+  function qtyCell(r) {
+    const o = owed(r);
+    if (o == null) return '—';
+    const s = Number(r.order_shipped_qty);
+    const tip = `Order ${r.order_nbr || '?'} · ordered ${fmt(r.ordered_qty)} · owed ${fmt(o)} · shipped ${fmt(s)}`;
+    return `<span title="${esc(tip)}" style="${shortBy(r) ? 'color:var(--bad-text);font-weight:600' : ''}">${fmt(s)} / ${fmt(o)}</span>`;
+  }
+
   function detailTable(rows, groupCol) {
     const sorted = rows.slice().sort((a, b) => (a.ship_via ? 1 : 0) - (b.ship_via ? 1 : 0) || vol(b) - vol(a));
     const otherHead = groupCol === 'zone' ? 'Ship via' : 'Zone';
     return `<div class="detail"><table>
-      <thead><tr><th>Shipment</th><th>Customer</th><th class="r">Volume</th><th>${otherHead}</th><th class="hide-m">Status</th></tr></thead>
+      <thead><tr><th>Shipment</th><th>Customer</th><th class="r">Volume</th><th class="r">Qty</th><th>${otherHead}</th><th class="hide-m">Status</th></tr></thead>
       <tbody>${sorted.map(r => {
         const other = groupCol === 'zone'
           ? (r.ship_via ? esc(r.ship_via) : '<span class="pill warn">Not batched</span>')
@@ -326,6 +372,7 @@
           <td class="num">${esc(r.shipment_nbr)}</td>
           <td>${esc(r.customer_name || r.customer_id)}</td>
           <td class="r num ${vol(r) ? '' : 'zero'}">${vol(r) ? fmt(vol(r)) : '0'}</td>
+          <td class="r num">${qtyCell(r)}</td>
           <td>${other}</td>
           <td class="hide-m">${esc(r.status)}</td></tr>`;
       }).join('')}</tbody></table></div>`;
@@ -333,15 +380,16 @@
 
   function renderZones(zones) {
     const maxVol = Math.max(0, ...zones.map(z => z.vol));
-    const head = `<div class="row head"><span>Zone</span><span>Ships</span><span>Drops</span><span>Volume · batched vs not</span><span>Trucks needed</span><span>Status</span></div>`;
+    const head = `<div class="row head"><span>Zone</span><span>Ships</span><span>Drops</span><span>Fill</span><span>Volume · batched vs not</span><span>Trucks needed</span><span>Status</span></div>`;
     const body = zones.map(z => {
       const open = LB.open === 'z:' + z.key;
       return `<div class="row item ${open ? 'open' : ''}" data-open="z:${esc(z.key)}">
           <span class="name c-name">${esc(z.key)}</span>
           <span class="num c-ships">${z.rows.length}<span class="sub2">${z.done} done</span></span>
           <span class="num c-drops">${z.drops}</span>
+          ${fillCell(z)}
           <span class="c-vol">${volCell(z, maxVol)}</span>
-          <span class="trucks c-trucks" data-m="${z.rows.length} ship${z.rows.length === 1 ? '' : 's'} · ${z.drops} drop${z.drops === 1 ? '' : 's'} · ">${esc(fitLabel(z.fit))}</span>
+          <span class="trucks c-trucks" data-m="${z.rows.length} ship${z.rows.length === 1 ? '' : 's'} · ${z.drops} drop${z.drops === 1 ? '' : 's'}${fillText(z)} · ">${esc(fitLabel(z.fit))}</span>
           <span class="c-status">${statusPill(z)}</span>
         </div>${open ? detailTable(z.rows, 'zone') : ''}`;
     }).join('');
@@ -356,7 +404,7 @@
     const all = unbatched.concat(assigned);
     const maxVol = Math.max(0, ...all.map(t => t.vol));
 
-    const head = `<div class="row head"><span>Trucker (ship via)</span><span>Ships</span><span>Drops</span><span>Volume</span><span>Zones</span><span>Checks</span></div>`;
+    const head = `<div class="row head"><span>Trucker (ship via)</span><span>Ships</span><span>Drops</span><span>Fill</span><span>Volume</span><span>Zones</span><span>Checks</span></div>`;
     const body = all.map(t => {
       const open = LB.open === 't:' + t.key;
       const flags = [];
@@ -371,8 +419,9 @@
           <span class="name c-name">${t.key ? esc(t.key) : 'Not batched'}</span>
           <span class="num c-ships">${t.rows.length}<span class="sub2">${t.done} done</span></span>
           <span class="num c-drops">${t.drops}</span>
+          ${fillCell(t)}
           <span class="c-vol">${volCell(t, maxVol)}</span>
-          <span class="c-trucks" data-m="${t.drops} drop${t.drops === 1 ? '' : 's'} · " style="font-size:12.5px;color:var(--text-muted)">${esc(zones.slice(0, 4).join(', '))}${zones.length > 4 ? ' +' + (zones.length - 4) : ''}</span>
+          <span class="c-trucks" data-m="${t.drops} drop${t.drops === 1 ? '' : 's'}${fillText(t)} · " style="font-size:12.5px;color:var(--text-muted)">${esc(zones.slice(0, 4).join(', '))}${zones.length > 4 ? ' +' + (zones.length - 4) : ''}</span>
           <span class="c-status pills">${flags.join('')}</span>
         </div>${open ? detailTable(t.rows, 'trucker') : ''}`;
     }).join('');
@@ -384,7 +433,7 @@
     const notes = [];
     if (zero.length) notes.push(`<span class="note bad">${zero.length} shipment${zero.length === 1 ? '' : 's'} with 0 volume — check in Acumatica<button data-toggle="zero">${LB.showZero ? 'Hide' : 'Show'}</button></span>`);
     if (LB.stragglers.length) notes.push(`<span class="note">${LB.stragglers.length} still open from earlier dates<button data-toggle="strag">${LB.showStragglers ? 'Hide' : 'Show'}</button></span>`);
-    if (LB.receipts) notes.push(`<span class="note">${LB.receipts} return${LB.receipts === 1 ? '' : 's'} excluded</span>`);
+    if (LB.receipts) notes.push(`<span class="note">${LB.receipts} return${LB.receipts === 1 ? '' : 's'} (RC) excluded</span>`);
     notes.push(`<span class="note">Drops = distinct customers · max ${MAX_DROPS} per truck</span>`);
     document.getElementById('notes').innerHTML = notes.join('');
 
