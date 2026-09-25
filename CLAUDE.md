@@ -174,6 +174,8 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 - **Other**: `rep_followups`, `weekly_reports`, `weekly_report_submissions`, `stock_snapshots`, `specials`, `field_notes`, `rep_visit_log`, `location_test_pings`
 - **Storage buckets**: `Assets` (public), `weekly-reports` (auto-generated sales reports — unrelated to the table above despite the name, see below), `hod-reports` (HOD upload tool, backs `weekly_reports`/`weekly_report_submissions`), `shelf-photos`
 
+**Merch targets follow `budget_2026`.** `refresh_store_targets()` (cron `refresh-store-targets`, :14/:44, just before `daily-merch-summary`) rewrites `store_targets_actual` from the current month onwards: `source='budget_2026_system'` rows get the live budget; `%150k%` sources get `greatest(budget, rule_amount)`; any other source is a fixed merch-only rule and keeps `rule_amount`. Closed months are never touched. To change a store's merch-only rule, edit `rule_amount`/`source`, not `target_amount` — the next refresh overwrites that. `monthly_actuals` floors each store-month at 0; the rep app floors per-customer figures to match but keeps the rep MTD headline as true net.
+
 Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong, check whether the cache is stale before assuming the query is broken.
 
 ### HOD weekly reports vs. the auto-generated weekly-report pipeline — two unrelated systems, same word
