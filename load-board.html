@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Board — DFL Staff Portal</title>
+
+<!--
+  Load board: outbound shipments per shipping zone, their volume, how many
+  trucks each zone needs, and whether a trucker has been assigned.
+
+  Data: public.shipments, a mirror of the Acumatica SO-Shipment GI refreshed
+  every 5 minutes by the sync-shipments edge function; public.truck_types holds
+  each truck size's capacity in DFL volume units.
+
+  Rules (from dispatch):
+    - Batched = ship_via is set. Null ship_via = no trucker assigned yet.
+    - Only operation='Issue' counts. 'Receipt' rows are returns coming back in.
+    - A truck makes at most MAX_DROPS drops. A drop = one customer, so two
+      shipments to the same customer in a zone are one stop.
+    - Trucks needed = best fit per zone: the fewest trucks that satisfy both
+      volume and drops, then the smallest total capacity among those. Zones are
+      planned independently; a real truck may cover two small nearby zones.
+
+  TEMPORARILY UNGUARDED while dispatch tests it: no auth-guard, no side-nav,
+  and requests go out as anon, allowed by the shipments_read_anon and
+  truck_types_read_anon policies. To put it behind sign-in: restore the guard
+  script block (see warehouse.html), add the path to DFL_PAGE_ROLES in
+  /shared/routes.js, and drop both anon policies.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#ffffff; --border:#e2e8f0; --border2:#cbd5e1;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-muted:#64748b; --text-dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --ok:#0f9f6e; --ok-bg:#ecfdf5; --ok-text:#047857;
+    --warn:#f59e0b; --warn-bg:#fffbeb; --warn-text:#b45309;
+    --bad:#dc2626; --bad-bg:#fef2f2; --bad-text:#b91c1c;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; font-size:14px; }
+
+  .page { max-width:1100px; margin:0 auto; padding:24px 20px 60px; }
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  h1 { font-size:22px; font-weight:700; color:var(--navy); letter-spacing:-0.2px; }
+  .sync { font-size:12px; color:var(--text-muted); margin-top:4px; }
+  .sync.stale { color:var(--bad-text); font-weight:600; }
+
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .seg { display:inline-flex; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:3px; }
+  .seg button { border:0; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--text-muted); padding:6px 12px; border-radius:6px; cursor:pointer; }
+  .seg button.on { background:var(--navy); color:#fff; }
+  input[type=date] { font:inherit; font-size:13px; border:1px solid var(--border); border-radius:8px; padding:6px 8px; background:var(--surface); color:var(--text); }
+
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .kpi .l { font-size:12px; color:var(--text-muted); font-weight:500; }
+  .kpi .v { font-size:24px; font-weight:700; color:var(--navy); margin-top:2px; }
+  .kpi .s { font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .kpi.warn { background:var(--warn-bg); border-color:#fde68a; }
+  .kpi.warn .l, .kpi.warn .v, .kpi.warn .s { color:var(--warn-text); }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .row { display:grid; grid-template-columns:minmax(0,1.3fr) 70px 60px minmax(0,2.4fr) minmax(0,1.3fr) 130px; gap:12px; align-items:center; padding:11px 16px; border-top:1px solid var(--border); }
+  .row.head { border-top:0; font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; background:#f8fafc; }
+  .row.item { cursor:pointer; }
+  .row.item:hover { background:#f8fafc; }
+  .row.item.open { background:var(--accent-bg); }
+  .name { font-weight:600; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .name .sub { display:block; font-weight:400; font-size:12px; color:var(--text-muted); white-space:normal; }
+  .num { font-variant-numeric:tabular-nums; }
+  .sub2 { display:block; font-size:11.5px; color:var(--text-dim); }
+  .vol { display:flex; align-items:center; gap:10px; }
+  .bar { flex:1; height:9px; border-radius:5px; background:#eef2f7; overflow:hidden; display:flex; }
+  .bar span { height:100%; }
+  .bar .b { background:var(--ok); } .bar .u { background:var(--warn); }
+  .vol .n { width:52px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+  .trucks { font-size:13px; font-weight:500; }
+  .pill { display:inline-block; font-size:12px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .pill.ok { background:var(--ok-bg); color:var(--ok-text); }
+  .pill.warn { background:var(--warn-bg); color:var(--warn-text); }
+  .pill.bad { background:var(--bad-bg); color:var(--bad-text); }
+  .pill.done { background:#f1f5f9; color:var(--text-muted); }
+  .pills { display:flex; flex-wrap:wrap; gap:4px; }
+
+  .detail { background:#fbfcfe; border-top:1px solid var(--border); padding:6px 16px 12px; }
+  .detail table { width:100%; border-collapse:collapse; font-size:13px; }
+  .detail th { text-align:left; font-size:11.5px; font-weight:600; color:var(--text-muted); padding:8px 8px 6px; }
+  .detail td { padding:6px 8px; border-top:1px solid var(--border); vertical-align:top; }
+  .detail td.r, .detail th.r { text-align:right; }
+  .detail .zero { color:var(--bad-text); font-weight:600; }
+
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text-muted); margin:10px 2px 18px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:5px; }
+  .notes { display:flex; gap:8px; flex-wrap:wrap; }
+  .note { font-size:12.5px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 11px; color:var(--text-muted); }
+  .note.bad { background:var(--bad-bg); border-color:#fecaca; color:var(--bad-text); }
+  .note button { font:inherit; color:var(--accent); background:none; border:0; cursor:pointer; font-weight:600; padding:0 0 0 4px; }
+  .empty, .err { padding:40px 16px; text-align:center; color:var(--text-muted); }
+  .err { color:var(--bad-text); }
+  #extra { margin-top:12px; }
+
+  @media (max-width:640px) {
+    .page { padding:16px 16px 48px; }
+    .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .kpi .v { font-size:21px; }
+    .row.head { display:none; }
+    .row { grid-template-columns:1fr auto; gap:6px 10px; padding:12px 14px; }
+    .row > .c-name { grid-column:1; }
+    .row > .c-status { grid-column:2; grid-row:1; justify-self:end; }
+    .row > .c-vol { grid-column:1 / -1; }
+    .row > .c-ships, .row > .c-drops { display:none; }
+    .row > .c-trucks { grid-column:1 / -1; font-size:12.5px; color:var(--text-muted); }
+    .row > .c-trucks::before { content:attr(data-m); }
+    .detail { padding:4px 8px 10px; }
+    .detail .hide-m { display:none; }
+    .detail td { padding:6px 5px; overflow-wrap:anywhere; font-size:12.5px; }
+    .detail th { padding:8px 5px 6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="top">
+    <div>
+      <h1>Load board</h1>
+      <div class="sync" id="sync">Loading…</div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="daySeg">
+        <button data-day="0" class="on">Today</button>
+        <button data-day="1">Tomorrow</button>
+      </div>
+      <input type="date" id="datePick" aria-label="Pick a date">
+      <div class="seg" id="viewSeg">
+        <button data-view="zone" class="on">By zone</button>
+        <button data-view="trucker">By trucker</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="card" id="board"><div class="empty">Loading shipments…</div></div>
+  <div class="legend" id="legend"></div>
+  <div class="notes" id="notes"></div>
+  <div id="extra"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script>
+  const MAX_DROPS = 10;
+  const REFRESH_MS = 2 * 60 * 1000;
+  const STALE_MIN = 15;
+  const JM_OFFSET_H = -5; // Jamaica, no DST
+
+  const LB = {
+    date: null, view: 'zone', open: null,
+    truckTypes: [], rows: [], receipts: 0, stragglers: [], lastSync: null,
+    showStragglers: false, showZero: false,
+  };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function fmt(n) { return Math.round(n || 0).toLocaleString('en-US'); }
+  function vol(r) { return Number(r.shipped_volume) || 0; }
+
+  function jmDate(offsetDays) {
+    const d = new Date(Date.now() + JM_OFFSET_H * 3600e3);
+    d.setUTCDate(d.getUTCDate() + offsetDays);
+    return d.toISOString().split('T')[0];
+  }
+  function niceDate(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', timeZone:'UTC' });
+  }
+
+  // ------------------------------------------------------------
+  // Best fit: fewest trucks that carry `volume` and make `drops` stops at
+  // MAX_DROPS per truck; among equal counts, the smallest total capacity.
+  // Returns [{ type, count }] largest first, or null if nothing fits.
+  // ------------------------------------------------------------
+  function bestFit(volume, drops) {
+    const types = LB.truckTypes;
+    if (!types.length) return null;
+    const maxCap = types[types.length - 1].capacity_volume;
+    const minK = Math.max(1, Math.ceil(drops / MAX_DROPS), Math.ceil(volume / maxCap));
+
+    for (let k = minK; k <= minK + 20; k++) {
+      let best = null;
+      const counts = new Array(types.length).fill(0);
+      (function walk(i, left, cap) {
+        if (i === types.length - 1) {
+          const total = cap + left * types[i].capacity_volume;
+          if (total >= volume && (!best || total < best.total)) {
+            counts[i] = left;
+            best = { total, counts: counts.slice() };
+          }
+          counts[i] = 0;
+          return;
+        }
+        for (let c = 0; c <= left; c++) {
+          counts[i] = c;
+          walk(i + 1, left - c, cap + c * types[i].capacity_volume);
+        }
+        counts[i] = 0;
+      })(0, k, 0);
+      if (best) {
+        return best.counts
+          .map((count, i) => ({ type: types[i], count }))
+          .filter(x => x.count > 0)
+          .reverse();
+      }
+    }
+    return null;
+  }
+  function fitLabel(fit) {
+    if (!fit) return '—';
+    return fit.map(x => (x.count > 1 ? x.count + ' × ' : '') + x.type.name).join(' + ');
+  }
+  function fitCount(fit) { return fit ? fit.reduce((s, x) => s + x.count, 0) : 0; }
+
+  // ------------------------------------------------------------
+  // Data
+  // ------------------------------------------------------------
+  async function loadTruckTypes() {
+    const { data, error } = await sb.from('truck_types')
+      .select('name, capacity_volume, sort_order')
+      .eq('active', true)
+      .order('capacity_volume', { ascending: true });
+    if (error) throw error;
+    LB.truckTypes = (data || []).map(t => ({ ...t, capacity_volume: Number(t.capacity_volume) }));
+  }
+
+  async function loadData() {
+    const today = jmDate(0);
+    const cols = 'shipment_nbr,status,shipment_date,customer_id,customer_name,shipping_zone,ship_via,shipped_volume,shipped_qty,salesperson_name';
+    const [day, rec, strag, sync] = await Promise.all([
+      // A day is ~200 shipments; well under PostgREST's 1000-row cap.
+      sb.from('shipments').select(cols).eq('shipment_date', LB.date).eq('operation', 'Issue').range(0, 999),
+      sb.from('shipments').select('shipment_nbr', { count: 'exact', head: true }).eq('shipment_date', LB.date).eq('operation', 'Receipt'),
+      sb.from('shipments').select(cols).eq('operation', 'Issue').neq('status', 'Completed').lt('shipment_date', today).order('shipment_date'),
+      sb.from('shipments').select('synced_at').order('synced_at', { ascending: false }).limit(1),
+    ]);
+    for (const r of [day, rec, strag, sync]) if (r.error) throw r.error;
+    LB.rows = day.data || [];
+    LB.receipts = rec.count || 0;
+    LB.stragglers = strag.data || [];
+    LB.lastSync = sync.data && sync.data[0] ? new Date(sync.data[0].synced_at) : null;
+  }
+
+  // Group shipments by a key; drops = distinct customers in the group.
+  function group(rows, keyFn) {
+    const m = new Map();
+    for (const r of rows) {
+      const k = keyFn(r);
+      if (!m.has(k)) m.set(k, { key: k, rows: [], vol: 0, unbVol: 0, unb: 0, done: 0, zero: 0, customers: new Set(), zones: new Set() });
+      const g = m.get(k);
+      g.rows.push(r);
+      g.vol += vol(r);
+      if (!r.ship_via) { g.unb++; g.unbVol += vol(r); }
+      if (r.status === 'Completed') g.done++;
+      if (!vol(r)) g.zero++;
+      g.customers.add(r.customer_id || r.shipment_nbr);
+      g.zones.add(r.shipping_zone || 'No zone');
+    }
+    return [...m.values()].map(g => ({ ...g, drops: g.customers.size })).sort((a, b) => b.vol - a.vol);
+  }
+
+  // ------------------------------------------------------------
+  // Render
+  // ------------------------------------------------------------
+  function renderSync() {
+    const el = document.getElementById('sync');
+    if (!LB.lastSync) { el.textContent = 'Not synced yet'; return; }
+    const mins = Math.round((Date.now() - LB.lastSync.getTime()) / 60000);
+    const when = mins < 1 ? 'just now' : mins + ' min ago';
+    el.textContent = niceDate(LB.date) + ' · Synced from Acumatica ' + when;
+    el.classList.toggle('stale', mins > STALE_MIN);
+    if (mins > STALE_MIN) el.textContent += ' — data may be out of date';
+  }
+
+  function renderKpis(zones) {
+    const rows = LB.rows;
+    const total = rows.reduce((s, r) => s + vol(r), 0);
+    const unb = rows.filter(r => !r.ship_via);
+    const unbVol = unb.reduce((s, r) => s + vol(r), 0);
+    const done = rows.filter(r => r.status === 'Completed').length;
+    const trucks = zones.reduce((s, z) => s + fitCount(z.fit), 0);
+    document.getElementById('kpis').innerHTML = `
+      <div class="kpi"><div class="l">Shipments</div><div class="v num">${fmt(rows.length)}</div><div class="s">${fmt(done)} completed</div></div>
+      <div class="kpi"><div class="l">Volume</div><div class="v num">${fmt(total)}</div><div class="s">across ${zones.length} zone${zones.length === 1 ? '' : 's'}</div></div>
+      <div class="kpi"><div class="l">Trucks needed</div><div class="v num">${fmt(trucks)}</div><div class="s">best fit per zone</div></div>
+      <div class="kpi ${unb.length ? 'warn' : ''}"><div class="l">Not batched</div><div class="v num">${fmt(unb.length)}</div><div class="s">${unb.length ? fmt(unbVol) + ' volume' : 'all assigned'}</div></div>`;
+  }
+
+  function volCell(g, maxVol) {
+    const bw = maxVol ? ((g.vol - g.unbVol) / maxVol) * 100 : 0;
+    const uw = maxVol ? (g.unbVol / maxVol) * 100 : 0;
+    return `<div class="vol"><div class="bar"><span class="b" style="width:${bw}%"></span><span class="u" style="width:${uw}%"></span></div><span class="n">${fmt(g.vol)}</span></div>`;
+  }
+
+  function statusPill(g) {
+    if (g.unb) return `<span class="pill warn">${g.unb} not batched</span>`;
+    if (g.done === g.rows.length) return `<span class="pill done">Completed</span>`;
+    return `<span class="pill ok">All batched</span>`;
+  }
+
+  function detailTable(rows, groupCol) {
+    const sorted = rows.slice().sort((a, b) => (a.ship_via ? 1 : 0) - (b.ship_via ? 1 : 0) || vol(b) - vol(a));
+    const otherHead = groupCol === 'zone' ? 'Ship via' : 'Zone';
+    return `<div class="detail"><table>
+      <thead><tr><th>Shipment</th><th>Customer</th><th class="r">Volume</th><th>${otherHead}</th><th class="hide-m">Status</th></tr></thead>
+      <tbody>${sorted.map(r => {
+        const other = groupCol === 'zone'
+          ? (r.ship_via ? esc(r.ship_via) : '<span class="pill warn">Not batched</span>')
+          : esc(r.shipping_zone || '—');
+        return `<tr>
+          <td class="num">${esc(r.shipment_nbr)}</td>
+          <td>${esc(r.customer_name || r.customer_id)}</td>
+          <td class="r num ${vol(r) ? '' : 'zero'}">${vol(r) ? fmt(vol(r)) : '0'}</td>
+          <td>${other}</td>
+          <td class="hide-m">${esc(r.status)}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+
+  function renderZones(zones) {
+    const maxVol = Math.max(0, ...zones.map(z => z.vol));
+    const head = `<div class="row head"><span>Zone</span><span>Ships</span><span>Drops</span><span>Volume · batched vs not</span><span>Trucks needed</span><span>Status</span></div>`;
+    const body = zones.map(z => {
+      const open = LB.open === 'z:' + z.key;
+      return `<div class="row item ${open ? 'open' : ''}" data-open="z:${esc(z.key)}">
+          <span class="name c-name">${esc(z.key)}</span>
+          <span class="num c-ships">${z.rows.length}<span class="sub2">${z.done} done</span></span>
+          <span class="num c-drops">${z.drops}</span>
+          <span class="c-vol">${volCell(z, maxVol)}</span>
+          <span class="trucks c-trucks" data-m="${z.rows.length} ship${z.rows.length === 1 ? '' : 's'} · ${z.drops} drop${z.drops === 1 ? '' : 's'} · ">${esc(fitLabel(z.fit))}</span>
+          <span class="c-status">${statusPill(z)}</span>
+        </div>${open ? detailTable(z.rows, 'zone') : ''}`;
+    }).join('');
+    return head + body;
+  }
+
+  function renderTruckers() {
+    const maxCap = LB.truckTypes.length ? LB.truckTypes[LB.truckTypes.length - 1] : null;
+    const truckers = group(LB.rows, r => r.ship_via || '');
+    const unbatched = truckers.filter(t => t.key === '');
+    const assigned = truckers.filter(t => t.key !== '');
+    const all = unbatched.concat(assigned);
+    const maxVol = Math.max(0, ...all.map(t => t.vol));
+
+    const head = `<div class="row head"><span>Trucker (ship via)</span><span>Ships</span><span>Drops</span><span>Volume</span><span>Zones</span><span>Checks</span></div>`;
+    const body = all.map(t => {
+      const open = LB.open === 't:' + t.key;
+      const flags = [];
+      if (t.key === '') flags.push('<span class="pill warn">Needs a trucker</span>');
+      else {
+        if (t.drops > MAX_DROPS) flags.push(`<span class="pill bad">${t.drops} drops (max ${MAX_DROPS})</span>`);
+        if (maxCap && t.vol > maxCap.capacity_volume) flags.push(`<span class="pill bad">Over ${esc(maxCap.name)} capacity</span>`);
+        if (!flags.length) flags.push(t.done === t.rows.length ? '<span class="pill done">Completed</span>' : '<span class="pill ok">OK</span>');
+      }
+      const zones = [...t.zones].sort();
+      return `<div class="row item ${open ? 'open' : ''}" data-open="t:${esc(t.key)}">
+          <span class="name c-name">${t.key ? esc(t.key) : 'Not batched'}</span>
+          <span class="num c-ships">${t.rows.length}<span class="sub2">${t.done} done</span></span>
+          <span class="num c-drops">${t.drops}</span>
+          <span class="c-vol">${volCell(t, maxVol)}</span>
+          <span class="c-trucks" data-m="${t.drops} drop${t.drops === 1 ? '' : 's'} · " style="font-size:12.5px;color:var(--text-muted)">${esc(zones.slice(0, 4).join(', '))}${zones.length > 4 ? ' +' + (zones.length - 4) : ''}</span>
+          <span class="c-status pills">${flags.join('')}</span>
+        </div>${open ? detailTable(t.rows, 'trucker') : ''}`;
+    }).join('');
+    return head + body;
+  }
+
+  function renderNotes() {
+    const zero = LB.rows.filter(r => !vol(r));
+    const notes = [];
+    if (zero.length) notes.push(`<span class="note bad">${zero.length} shipment${zero.length === 1 ? '' : 's'} with 0 volume — check in Acumatica<button data-toggle="zero">${LB.showZero ? 'Hide' : 'Show'}</button></span>`);
+    if (LB.stragglers.length) notes.push(`<span class="note">${LB.stragglers.length} still open from earlier dates<button data-toggle="strag">${LB.showStragglers ? 'Hide' : 'Show'}</button></span>`);
+    if (LB.receipts) notes.push(`<span class="note">${LB.receipts} return${LB.receipts === 1 ? '' : 's'} excluded</span>`);
+    notes.push(`<span class="note">Drops = distinct customers · max ${MAX_DROPS} per truck</span>`);
+    document.getElementById('notes').innerHTML = notes.join('');
+
+    const extra = [];
+    if (LB.showZero && zero.length) extra.push(`<div class="card" style="margin-top:10px">${detailTable(zero, 'zone').replace('class="detail"', 'class="detail" style="border-top:0"')}</div>`);
+    if (LB.showStragglers && LB.stragglers.length) {
+      extra.push(`<div class="card" style="margin-top:10px"><div class="detail" style="border-top:0"><table>
+        <thead><tr><th>Date</th><th>Shipment</th><th>Customer</th><th>Zone</th><th class="r">Volume</th><th class="hide-m">Status</th></tr></thead>
+        <tbody>${LB.stragglers.map(r => `<tr><td>${esc(niceDate(r.shipment_date))}</td><td class="num">${esc(r.shipment_nbr)}</td><td>${esc(r.customer_name || r.customer_id)}</td><td>${esc(r.shipping_zone || '—')}</td><td class="r num">${fmt(vol(r))}</td><td class="hide-m">${esc(r.status)}</td></tr>`).join('')}</tbody>
+      </table></div></div>`);
+    }
+    document.getElementById('extra').innerHTML = extra.join('');
+  }
+
+  function render() {
+    renderSync();
+    const zones = group(LB.rows, r => r.shipping_zone || 'No zone');
+    // Zero-volume shipments still need a stop, so they count as drops.
+    zones.forEach(z => { z.fit = bestFit(z.vol, z.drops); });
+    renderKpis(zones);
+
+    const board = document.getElementById('board');
+    if (!LB.rows.length) {
+      board.innerHTML = `<div class="empty">No shipments for ${esc(niceDate(LB.date))} yet.</div>`;
+    } else {
+      board.innerHTML = LB.view === 'zone' ? renderZones(zones) : renderTruckers();
+    }
+
+    document.getElementById('legend').innerHTML = LB.rows.length
+      ? `<span><i style="background:var(--ok)"></i>Batched</span><span><i style="background:var(--warn)"></i>Not batched</span><span>Bar length = volume vs. the biggest ${LB.view === 'zone' ? 'zone' : 'trucker'}</span>` +
+        (LB.view === 'zone' ? `<span>Trucks: ${LB.truckTypes.map(t => esc(t.name) + ' ' + fmt(t.capacity_volume)).join(' · ')}</span>` : '')
+      : '';
+    renderNotes();
+  }
+
+  async function refresh() {
+    try {
+      await loadData();
+      render();
+    } catch (err) {
+      console.error('[load-board]', err);
+      document.getElementById('board').innerHTML = `<div class="err">Couldn't load shipments. ${esc(err.message || err)}</div>`;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Controls
+  // ------------------------------------------------------------
+  function setDate(iso) {
+    LB.date = iso;
+    LB.open = null;
+    document.getElementById('datePick').value = iso;
+    document.querySelectorAll('#daySeg button').forEach(b => b.classList.toggle('on', jmDate(Number(b.dataset.day)) === iso));
+    refresh();
+  }
+
+  document.getElementById('daySeg').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) setDate(jmDate(Number(b.dataset.day)));
+  });
+  document.getElementById('datePick').addEventListener('change', e => { if (e.target.value) setDate(e.target.value); });
+  document.getElementById('viewSeg').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    LB.view = b.dataset.view;
+    LB.open = null;
+    document.querySelectorAll('#viewSeg button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+  document.getElementById('board').addEventListener('click', e => {
+    const row = e.target.closest('.row.item');
+    if (!row) return;
+    LB.open = LB.open === row.dataset.open ? null : row.dataset.open;
+    render();
+  });
+  document.getElementById('notes').addEventListener('click', e => {
+    const b = e.target.closest('button[data-toggle]');
+    if (!b) return;
+    if (b.dataset.toggle === 'zero') LB.showZero = !LB.showZero;
+    else LB.showStragglers = !LB.showStragglers;
+    renderNotes();
+  });
+
+  async function initLoadBoard() {
+    try {
+      await loadTruckTypes();
+    } catch (err) {
+      console.error('[load-board]', err);
+    }
+    setDate(jmDate(0));
+    setInterval(refresh, REFRESH_MS);
+    setInterval(renderSync, 30 * 1000);
+  }
+
+  initLoadBoard();
+</script>
+
+</body>
+</html>
