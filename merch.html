@@ -540,6 +540,17 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- EVENTS & TRAINING — admin-assigned events; sign in as attending. -->
+      <div onclick="openEventsModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">📅</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Events & Training</div>
+          <div style="font-size:10px;color:var(--muted)">See upcoming/past events and sign in as attending</div>
+        </div>
+        <div id="m-events-badge" style="display:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;margin-right:4px">0</div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+
       <!-- PLANOGRAMS -->
       <div onclick="window.location.href='/planograms.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📐</div>
@@ -1010,6 +1021,13 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr">›</div>
     </button>
 
+    <button class="dash-link" onclick="openEventsModal()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">📅</div>
+      <div><div class="dash-link-title">Events & Training</div><div class="dash-link-sub">See upcoming/past events and sign in as attending</div></div>
+      <div id="tl-events-badge" style="display:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;margin-right:6px">0</div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
     <button class="dash-link" onclick="window.location.href='/planograms.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">📐</div>
       <div><div class="dash-link-title">Planograms</div><div class="dash-link-sub">Shelf placement reference, by category</div></div>
@@ -1346,10 +1364,22 @@ async function loadMyCommission(u){
 // this calendar month, regardless of whose store it was.
 const RELIEF_INCENTIVE_PER_VISIT = 500;
 
+// Per explicit instruction (2026-09-24): only Dwayne Granston is a full-time
+// relief merchandiser and earns this per-visit incentive. Everyone else with
+// role='relief_merchandiser' is temporary/on-call cover and still gets the
+// full relief workflow (nationwide store search, visit_type='relief', etc.
+// via isRelief()) — just not this dollar figure. Gating on his roster id
+// rather than role because "who's full-time relief" is a business fact about
+// one specific person, not a role-wide policy.
+const FULL_TIME_RELIEF_REP_ID = '33850590-52c9-4e1e-8053-084aeaf62c22';
+function earnsReliefIncentive(){
+  return !!(cu && cu.id===FULL_TIME_RELIEF_REP_ID);
+}
+
 async function loadReliefIncentive(u){
   const card=document.getElementById('m-relief-incentive-card');
   if(!card) return;
-  if(!isRelief()){ card.style.display='none'; return; }
+  if(!earnsReliefIncentive()){ card.style.display='none'; return; }
   card.style.display='block';
   try{
     const monthStart=_curYear+'-'+String(_curMonthNum).padStart(2,'0')+'-01';
@@ -1373,6 +1403,31 @@ async function loadReliefIncentive(u){
 // `cu` deliberately keeps the OLD field names (full_name, territory, initials)
 // so the ~15 places downstream that read them don't all have to change. It is
 // now built from `reps`, where those columns are named name / area / initials.
+// A one-time celebratory modal shown at boot when reps.pending_promotion_role
+// is set (an admin changed this person's role — see acknowledge_promotion()
+// in the DB). Self-contained inline styling, same reasoning as auth-guard.js's
+// showAccessDenied(): it must render before/independent of this page's own
+// CSS having necessarily loaded correctly. Dismissing calls the RPC that
+// clears the flag on their own reps row, so it only ever shows once.
+function showPromotionBanner(newRole){
+  const label=jobTitleForRole(newRole);
+  const panel=document.createElement('div');
+  panel.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(13,27,62,0.75)';
+  const box=document.createElement('div');
+  box.style.cssText='max-width:340px;width:100%;background:#fff;border-radius:16px;padding:28px 24px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,0.3);font-family:inherit';
+  box.innerHTML=
+    '<div style="font-size:40px;margin-bottom:10px">🎉</div>'+
+    '<div style="font-size:18px;font-weight:800;color:#1B2B5E;margin-bottom:8px">Congratulations!</div>'+
+    '<div style="font-size:14px;color:#444;line-height:1.5;margin-bottom:20px">You\'ve been promoted to <b>'+label+'</b>.</div>'+
+    '<button id="promo-ack-btn" style="width:100%;padding:12px;border:none;border-radius:10px;background:#1B2B5E;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Nice! 🎊</button>';
+  panel.appendChild(box);
+  document.body.appendChild(panel);
+  document.getElementById('promo-ack-btn').addEventListener('click', async ()=>{
+    panel.remove();
+    try{ await restRpc('acknowledge_promotion', {}); }catch(e){ console.warn('acknowledge_promotion failed:',e); }
+  });
+}
+
 function bootError(msg){
   const el=document.getElementById('lerr');
   if(el) el.textContent=msg;
@@ -1388,7 +1443,7 @@ async function startApp(profile){
     // so rep_id can legitimately be null — they get the oversight roster view.
     let rep=null;
     if(profile.rep_id){
-      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id`);
+      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id,pending_promotion_role`);
       rep=rows&&rows[0]?rows[0]:null;
     }
 
@@ -1410,6 +1465,7 @@ async function startApp(profile){
         team_lead_id: rep.team_lead_id || null,
         role: profile.role             // profiles.role is authoritative
       };
+      if(rep.pending_promotion_role) showPromotionBanner(rep.pending_promotion_role);
     }else{
       cu={
         id: null, full_name: profile.full_name || 'DFL Staff',
@@ -1515,7 +1571,7 @@ async function launchMerch(u){
   // Start geolocation watch
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
-  await Promise.all([loadMyStores(u), loadTodayVisits(u), loadPendingRouteChanges(u), loadMyCommission(u), loadReliefIncentive(u)]);
+  await Promise.all([loadMyStores(u), loadTodayVisits(u), loadPendingRouteChanges(u), loadMyCommission(u), loadReliefIncentive(u), loadMyEvents()]);
   restoreVisitDraft();
 }
 
@@ -2252,6 +2308,7 @@ async function loadTLData(u){
     // up front rather than after the early-return for an empty team.
     loadTLIncentive(u, period);
     loadTLOwnCommission(u, period);
+    loadMyEvents(u);
 
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
@@ -2904,6 +2961,66 @@ function renderAdminLeaveDetail(){
         ).join('');
   });
   document.getElementById('leave-detail-list').innerHTML=html;
+}
+
+// ══════════════════════════════════════════════
+// EVENTS & TRAINING — admin-assigned events; sign in (type/confirm your own
+// name) as attending. Read-only list + a self-attested attendance insert,
+// same trust model as merch_stock_reports: the app supplies cu.id/cu.full_name,
+// the DB doesn't second-guess it.
+// ══════════════════════════════════════════════
+let _myEvents=[], _mySignedEventIds=new Set();
+
+async function loadMyEvents(){
+  if(!cu || !cu.id) return;
+  try{
+    const [invRows, attRows] = await Promise.all([
+      rest(`event_invitees?rep_id=eq.${cu.id}&select=event_id,absence_note,events(id,title,description,topics,event_date,event_time,location)`),
+      rest(`event_attendance?rep_id=eq.${cu.id}&select=event_id`)
+    ]);
+    _myEvents=(invRows||[]).filter(r=>r.events).map(r=>r.events).sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||''));
+    _mySignedEventIds=new Set((attRows||[]).map(r=>r.event_id));
+    const unsigned=_myEvents.filter(e=>!_mySignedEventIds.has(e.id)).length;
+    ['m-events-badge','tl-events-badge'].forEach(id=>{
+      const badge=document.getElementById(id);
+      if(!badge) return;
+      if(unsigned>0){ badge.style.display='inline-block'; badge.textContent=unsigned; }
+      else badge.style.display='none';
+    });
+  }catch(e){ console.warn('load my events failed:',e); }
+}
+
+function openEventsModal(){
+  document.getElementById('events-modal').style.display='flex';
+  renderMyEvents();
+}
+function closeEventsModal(){ document.getElementById('events-modal').style.display='none'; }
+
+function renderMyEvents(){
+  const list=document.getElementById('events-modal-list');
+  if(!_myEvents.length){ list.innerHTML='<div class="empty-feed">No events assigned to you yet.</div>'; return; }
+  list.innerHTML=_myEvents.map(ev=>{
+    const signed=_mySignedEventIds.has(ev.id);
+    const topics=(ev.topics||[]).map(t=>'<li>'+escapeHtmlM(t)+'</li>').join('');
+    return '<div class="merch-card" style="margin-bottom:10px">'+
+      '<div style="font-weight:800;font-size:14px;color:var(--navy)">'+escapeHtmlM(ev.title)+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);margin:2px 0 8px">'+escapeHtmlM(ev.event_date)+(ev.event_time?' · '+escapeHtmlM(ev.event_time):'')+(ev.location?' · '+escapeHtmlM(ev.location):'')+'</div>'+
+      (ev.description?'<div style="font-size:12px;color:var(--ink);margin-bottom:6px">'+escapeHtmlM(ev.description)+'</div>':'')+
+      (topics?'<ul style="font-size:11px;color:var(--muted);margin:0 0 10px 16px;padding:0;line-height:1.6">'+topics+'</ul>':'')+
+      (signed
+        ? '<div style="background:var(--green-lt);color:var(--green);font-weight:700;font-size:12px;padding:8px;border-radius:8px;text-align:center">✓ Signed in as attending</div>'
+        : '<button onclick="signEventAttendance(\''+ev.id+'\')" style="width:100%;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:13px;cursor:pointer">Sign in as attending — '+escapeHtmlM(cu.full_name)+'</button>')+
+    '</div>';
+  }).join('');
+}
+
+async function signEventAttendance(eventId){
+  try{
+    await rest('event_attendance',{method:'POST',headers:{'Prefer':'return=minimal'},body:{event_id:eventId, rep_id:cu.id, attended_name:cu.full_name}});
+    _mySignedEventIds.add(eventId);
+    renderMyEvents();
+    loadMyEvents();
+  }catch(e){ alert('Could not sign in: '+(e.message||e)); }
 }
 
 function tlSearchReassign(q){
@@ -6153,6 +6270,15 @@ window.addEventListener('offline', updateLiveDot);
     <button onclick="closeAdminLeaveDetail()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
   </div>
   <div style="flex:1;overflow-y:auto;padding:12px 16px" id="leave-detail-list"><div class="spinner"></div></div>
+</div>
+
+<!-- EVENTS & TRAINING — events assigned by an admin; sign in as attending. -->
+<div id="events-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">📅 Events & Training</div>
+    <button onclick="closeEventsModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px" id="events-modal-list"><div class="spinner"></div></div>
 </div>
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->

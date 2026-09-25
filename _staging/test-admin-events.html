@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><body>
+<iframe id="f" src="/admin/events.html" style="width:100%;height:900px;border:1px solid #ccc"></iframe>
+<script>
+async function waitForFn(win, name){
+  for(let i=0;i<100;i++){
+    try{ if(typeof win[name]==='function') return; }catch(e){}
+    await new Promise(r=>setTimeout(r,50));
+  }
+  throw new Error('timed out waiting for '+name);
+}
+window.onload = async () => {
+  const f = document.getElementById('f');
+  await waitForFn(f.contentWindow, 'loadEvents');
+  const profile = { id:'test-admin', full_name:'Travis Decasseres', role:'admin', salesperson_id:null, rep_id:null, active:true };
+  f.contentDocument.dispatchEvent(new CustomEvent('dfl-auth-ready', { detail: { profile } }));
+};
+</script>
+</body></html>

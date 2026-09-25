@@ -138,6 +138,7 @@ const HRET={...H,Prefer:"return=representation"};
 function esc(s){return(s||"").toString().replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 
 let PROFILE=null, STAFF=null, COVERERS=[], REQUESTS=[];
+let MERCH_LEAVE=[], MERCH_LEAVE_CLASHES=[];
 
 document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
 
@@ -201,10 +202,90 @@ async function init(profile){
       return;
     }
     await loadRequests();
+    await loadMerchLeaveForRep();
     drawList();
   }catch(e){
     app.innerHTML=`<div class="empty">Couldn't load this page. Try again shortly.</div>`;
   }
+}
+
+// ---------- Merchandiser leave visibility ----------
+// A rep can't approve merch/TL leave (that stays in merch.html, gated to
+// team leaders/admins) but wants to know when it's coming — specifically for
+// whoever actually services their own stores, per the confirmed scope:
+// "once the merch does a store for that rep, they need to see the leave
+// request." There's no direct rep->merchandiser link in the data (a
+// merchandiser's team_lead_id always points to a team leader, never a rep),
+// so this resolves it from real store overlap: the rep's own customer book
+// (rep_customer_cache) joined against merchandiser_map to find who covers
+// any of those stores, then reps.name -> id to read leave_requests by id
+// (never by name — see CLAUDE.md gotcha 7 on name-keyed joins).
+async function loadMerchLeaveForRep(){
+  if(!PROFILE || !PROFILE.full_name) return;
+  try{
+    const custRows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(PROFILE.full_name)}&select=customer_id`,{headers:H}).then(r=>r.json());
+    const custIds = [...new Set((Array.isArray(custRows)?custRows:[]).map(r=>r.customer_id).filter(Boolean))];
+    if(!custIds.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
+
+    const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=in.(${custIds.map(id=>encodeURIComponent(id)).join(',')})&select=merchandiser_name`,{headers:H}).then(r=>r.json());
+    const names = [...new Set((Array.isArray(mapRows)?mapRows:[]).map(r=>r.merchandiser_name).filter(Boolean))];
+    if(!names.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
+
+    const repRows = await fetch(`${SB_URL}/rest/v1/reps?name=in.(${names.map(n=>encodeURIComponent(n)).join(',')})&select=id,name`,{headers:H}).then(r=>r.json());
+    const ids = [...new Set((Array.isArray(repRows)?repRows:[]).map(r=>r.id).filter(Boolean))];
+    if(!ids.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
+
+    const today = new Date().toISOString().slice(0,10);
+    const rows = await fetch(`${SB_URL}/rest/v1/leave_requests?requester_id=in.(${ids.join(',')})&status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`,{headers:H}).then(r=>r.json());
+    MERCH_LEAVE = Array.isArray(rows) ? rows : [];
+    MERCH_LEAVE_CLASHES = computeMerchLeaveClashes(MERCH_LEAVE, REQUESTS);
+  }catch(e){
+    console.warn('merch leave load failed:', e);
+    MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[];
+  }
+}
+
+function leaveRangesOverlap(aFrom,aTo,bFrom,bTo){ return aFrom<=bTo && bFrom<=aTo; }
+
+// Two kinds of clash surfaced together: two of the rep's merchandisers both
+// out at once, or a merchandiser out during the rep's own submitted leave —
+// either way it's a coverage gap the rep should know about before it happens.
+function computeMerchLeaveClashes(merchRows, ownRows){
+  const clashes=[];
+  for(let i=0;i<merchRows.length;i++){
+    for(let j=i+1;j<merchRows.length;j++){
+      const a=merchRows[i], b=merchRows[j];
+      if(a.requester_id===b.requester_id) continue;
+      if(leaveRangesOverlap(a.from_date,a.to_date,b.from_date,b.to_date)) clashes.push({a,b});
+    }
+  }
+  (ownRows||[]).forEach(own=>{
+    merchRows.forEach(m=>{
+      if(leaveRangesOverlap(own.start_date,own.end_date,m.from_date,m.to_date)){
+        clashes.push({a:{requester_name:(PROFILE.full_name||'You')+' (you)', from_date:own.start_date, to_date:own.end_date}, b:m});
+      }
+    });
+  });
+  return clashes;
+}
+
+function renderMerchLeaveSection(){
+  if(!MERCH_LEAVE.length) return '';
+  let html = `<div class="secthdr"><h2>Merchandiser leave</h2><span class="cnt">${MERCH_LEAVE.length} upcoming</span></div>`;
+  if(MERCH_LEAVE_CLASHES.length){
+    html += `<div class="badbox" style="margin-bottom:10px">⚠️ ${MERCH_LEAVE_CLASHES.length} overlapping leave clash${MERCH_LEAVE_CLASHES.length===1?'':'es'}: ` +
+      MERCH_LEAVE_CLASHES.map(c=>`${esc(c.a.requester_name)} &amp; ${esc(c.b.requester_name)} (${esc(c.a.from_date)}–${esc(c.a.to_date)} / ${esc(c.b.from_date)}–${esc(c.b.to_date)})`).join('; ') +
+      `</div>`;
+  }
+  html += MERCH_LEAVE.map(r=>`<div class="cust">
+      <div class="crow1">
+        <div><div class="cname">${esc(r.requester_name)}</div><div class="cid">${esc(r.job_title||r.requester_role||'')}</div></div>
+        <div style="font-size:11px;font-weight:700;color:${r.status==='approved'?'var(--good)':'var(--warn)'}">${r.status==='approved'?'✅ Approved':'⏳ Pending'}</div>
+      </div>
+      <div class="cmeta"><span>${esc(r.from_date)} → ${esc(r.to_date)}</span><span>${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</span></div>
+      ${r.covering_name?`<div class="cmeta" style="margin-top:4px"><span>🔄 Covered by <b>${esc(r.covering_name)}</b>${r.covering_phone?' · '+esc(r.covering_phone):''}</span><span></span></div>`:''}
+    </div>`).join('');
+  return html;
 }
 
 async function loadRequests(){
@@ -222,6 +303,7 @@ function statusBadge(rec){
 function drawList(){
   const app=document.getElementById('app');
   app.innerHTML = `
+    ${renderMerchLeaveSection()}
     <div class="secthdr"><h2>Your leave requests</h2><span class="cnt">${esc(STAFF.name)} · ${esc(STAFF.territory||'')}</span></div>
     ${REQUESTS.length ? REQUESTS.map(r=>{
         const b=statusBadge(r);
