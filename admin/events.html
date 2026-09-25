@@ -157,7 +157,17 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  function showMsg(text, kind) { const m = el('msg'); m.textContent = text; m.className = 'msg show ' + kind; }
+  // The form is long (title through the 47-name invitee checklist), so by the
+  // time someone reaches the "Create event" button at the bottom, the #msg
+  // box up near the top is off-screen — a validation error or "Not
+  // authorised" would render but look exactly like nothing happened. Scroll
+  // it into view every time so it's never silently missed.
+  function showMsg(text, kind) {
+    const m = el('msg');
+    m.textContent = text;
+    m.className = 'msg show ' + kind;
+    m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
   function clearMsg() { el('msg').className = 'msg'; }
 
   const INVITEE_ROLES = ['merchandiser','relief_merchandiser','tl_merch','team_leader','rep'];
