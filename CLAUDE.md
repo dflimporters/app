@@ -85,6 +85,8 @@ It no-ops when framed, on the assumption the parent already passed. Prefer simpl
 
 Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `relief_merchandiser`, `warehouse`, `management`, `pending`. One role per person. `admin` and `manager` see the same things for now, except `/admin/**`, which is admin-only. `management` is a read-only executive role (Mark Decasseres, Heather Walker-Boyd, Kyle Decasseres) that only lands on the Morning Brief — it's not a superset or subset of `manager`.
 
+**Display name vs. role code (as of 2026-09-24):** the `merchandiser` role is now branded "Brand Ambassador" everywhere it's shown to a user (merch app labels, admin dropdowns, the events feature, the management merch dashboard, training docs) — `tl_merch` displays as "Team Leader + Brand Ambassador". Only the **display text** changed; the role codes (`merchandiser`, `relief_merchandiser`, `tl_merch`) are untouched in the DB, routes.js, RPCs and every table/column name — renaming those is a much bigger, deliberately deferred task (same shape as the `reps`→`staff` rename noted below). Don't assume a grep for "Brand Ambassador" will find the role logic — it won't; grep for `merchandiser`.
+
 | Role | Lands on | Sees Sales/Merch switcher |
 |---|---|---|
 | `rep` | `/index.html` | No |
@@ -107,6 +109,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `/pending.html` | pending | Holding page; lets them set their own name via `set_pending_name()` |
 | `/admin/index.html` | admin | Admin landing |
 | `/admin/approvals.html` | admin | Approve pending sign-ups |
+| `/admin/events.html` | manager, admin | Create/assign team events & training, gated by `is_manager()`. Deliberate exception to "`/admin/**` is admin-only" (below) — linked from `hub.html`, not from `admin/index.html`. Merch/TL view+sign-in for their own assigned events lives in `merch.html` itself. |
 | `/management/**` | manager, admin | Shell + 5 embedded dashboards, all individually guarded |
 | `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
 | `/weekly-reports.html`, `/report-upload.html`, `/report-viewer.html` | manager, admin, management, rep_management | HOD report tool — tabbed shell (View/Upload) over two independently-guarded pages. Departments upload PDF/HTML as-is into the `hod-reports` bucket; no AI parsing. Writes gated by `can_manage_weekly_reports()`, not `is_manager()` — see Database section below. **Not** the same system as the auto-generated reports in the `weekly-reports` bucket. |
@@ -172,6 +175,8 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 - **Other**: `rep_followups`, `weekly_reports`, `weekly_report_submissions`, `stock_snapshots`, `specials`, `field_notes`, `rep_visit_log`, `location_test_pings`
 - **Storage buckets**: `Assets` (public), `weekly-reports` (auto-generated sales reports — unrelated to the table above despite the name, see below), `hod-reports` (HOD upload tool, backs `weekly_reports`/`weekly_report_submissions`), `shelf-photos`
 
+**Merch targets follow `budget_2026`.** `refresh_store_targets()` (cron `refresh-store-targets`, :14/:44, just before `daily-merch-summary`) rewrites `store_targets_actual` from the current month onwards: `source='budget_2026_system'` rows get the live budget; `%150k%` sources get `greatest(budget, rule_amount)`; any other source is a fixed merch-only rule and keeps `rule_amount`. Closed months are never touched. To change a store's merch-only rule, edit `rule_amount`/`source`, not `target_amount` — the next refresh overwrites that. `monthly_actuals` floors each store-month at 0; the rep app floors per-customer figures to match but keeps the rep MTD headline as true net.
+
 Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong, check whether the cache is stale before assuming the query is broken.
 
 ### HOD weekly reports vs. the auto-generated weekly-report pipeline — two unrelated systems, same word
@@ -191,7 +196,7 @@ Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong,
 Every guarded page uses `shared/auth-guard.js` and takes its allow-list from `DFL_PAGE_ROLES` in `shared/routes.js`. There are no per-section auth mechanisms left.
 
 - **`management/**`** — `manager`, `admin`. The old `MGMT_PASSWORD` hardcoded plaintext gate is gone, along with the gap it left: `management/index.html` still loads each dashboard in an iframe tab panel, but **all eight of those files now carry the guard themselves**, so they're protected when opened directly too. The guard no-ops when framed, so embedding still works.
-- **`admin/**`** — `admin`.
+- **`admin/**`** — `admin`, except `admin/events.html` which is `manager`+`admin` (see Pages table).
 - **`login.html`** loads `routes.js` only, never the guard — guarding the sign-in page would be circular.
 - Genuinely unguarded, on purpose: `rep-weekly-plan.html` (iframe-embedded only) and `field-intel.html` (deliberately standalone).
 
@@ -255,5 +260,6 @@ The rep and merch apps use their own palettes and fonts intentionally. Unifying 
 - **`REP_ZONES` / `REP_STORES`** in `rep-weekly-plan.html` are large hardcoded name-keyed JS objects, now stale. Fixing needs a real data model plus current territory assignments.
 - **The weekly-plan rep dropdown** is fetched live from `reps`, but any logged-in user can still submit as any rep.
 - **`field_notes`** has Acumatica sync columns, 0 rows, no owner. Candidate for deletion after confirmation.
-- **`pin` column** is vestigial across `reps`.
+- **`reps.pin`, described in earlier docs as vestigial, no longer exists** — the column was dropped at some point after that note was written. Don't assume other "vestigial but still there" notes here are still accurate either; verify against `information_schema.columns` before relying on one.
 - **Legacy anon JWTs** in several files (gotcha 8).
+- **The 9am "haven't logged in" SMS nudge is built but not yet live.** Edge function `send-daily-checkin-sms` + cron `daily-checkin-sms-nudge` (`0 14 * * *` UTC = 9am Jamaica) are deployed and scheduled, gated on three Supabase secrets that don't exist yet: `twilio_account_sid`, `twilio_auth_token`, `twilio_from_number`. Without them the function fails soft (200, `skipped:true`) and does nothing — safe to leave scheduled. "Haven't logged in" = no `merch_visit_log` row for today, resolved via `get_daily_checkin_targets()` (covers `merchandiser`/`tl_merch`/`team_leader`, not `relief_merchandiser`) since `reps.phone` is sparse — most field staff's real number only lives on `auth.users.phone`, which that RPC falls back to.
