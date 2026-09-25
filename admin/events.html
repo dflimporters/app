@@ -62,10 +62,22 @@
   .btn-primary:hover { background:#1d4ed8; }
   .btn-primary:disabled { opacity:0.5; cursor:default; }
 
-  .msg { font-size:13px; padding:11px 14px; border-radius:8px; margin-bottom:16px; line-height:1.5; display:none; }
-  .msg.show { display:block; }
-  .msg.error { background:var(--red-bg); color:var(--red); }
-  .msg.success { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); }
+  /* Fixed to the bottom of the viewport, not inline in page flow — a long
+     form (title through a 47-name checklist) meant an inline message up top
+     could render off-screen from wherever the user actually was when they
+     clicked, which looked exactly like the click doing nothing. Fixed
+     positioning is visible immediately regardless of scroll position. */
+  .msg {
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    max-width:calc(100% - 32px); width:480px; box-sizing:border-box;
+    font-size:13.5px; font-weight:600; padding:13px 16px; border-radius:10px; line-height:1.5;
+    box-shadow:0 8px 24px rgba(0,0,0,0.18); z-index:1000;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+  }
+  .msg.show { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .msg.error { background:var(--red); color:#fff; }
+  .msg.success { background:var(--green); color:#fff; }
+  .field.required label::after { content:' *'; color:var(--red); }
 
   .ev-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; box-shadow:var(--shadow); margin-bottom:12px; }
   .ev-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
@@ -110,13 +122,17 @@
   <div class="msg" id="msg"></div>
 
   <div class="card">
-    <h2>New event</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin-bottom:0" id="form-mode-label">New event</h2>
+      <button type="button" id="cancel-edit-btn" onclick="cancelEdit()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--text-muted);cursor:pointer">Cancel edit</button>
+    </div>
+    <form id="event-form">
     <div class="row2">
-      <div class="field"><label>Title</label><input type="text" id="f-title" placeholder="e.g. St Elizabeth Team Meeting"></div>
+      <div class="field required"><label>Title</label><input type="text" id="f-title" required placeholder="e.g. St Elizabeth Team Meeting"></div>
       <div class="field"><label>Location</label><input type="text" id="f-location" placeholder="e.g. Grego's"></div>
     </div>
     <div class="row2">
-      <div class="field"><label>Date</label><input type="date" id="f-date"></div>
+      <div class="field required"><label>Date</label><input type="date" id="f-date" required></div>
       <div class="field"><label>Time</label><input type="text" id="f-time" placeholder="e.g. 12:30 PM"></div>
     </div>
     <div class="field"><label>Description</label><textarea id="f-desc" placeholder="Optional summary"></textarea></div>
@@ -133,7 +149,8 @@
       <div class="invitee-groups" id="invitee-groups"><div class="spin"></div></div>
       <div class="hint" id="invitee-count">0 selected</div>
     </div>
-    <button class="btn-primary" id="create-btn" onclick="createEvent()">Create event</button>
+    <button class="btn-primary" type="submit" id="create-btn">Create event</button>
+    </form>
   </div>
 
   <h2 style="font-size:15px;margin-bottom:12px">Existing events</h2>
@@ -157,16 +174,17 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  // The form is long (title through the 47-name invitee checklist), so by the
-  // time someone reaches the "Create event" button at the bottom, the #msg
-  // box up near the top is off-screen — a validation error or "Not
-  // authorised" would render but look exactly like nothing happened. Scroll
-  // it into view every time so it's never silently missed.
+  // Fixed to the viewport bottom (see .msg CSS) rather than scrolled into
+  // view — the form is long (title through a 47-name checklist), so a
+  // message anchored in page flow could render off-screen from wherever the
+  // user actually was, which looked exactly like the click doing nothing.
+  let msgTimer = null;
   function showMsg(text, kind) {
+    clearTimeout(msgTimer);
     const m = el('msg');
     m.textContent = text;
     m.className = 'msg show ' + kind;
-    m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (kind === 'success') msgTimer = setTimeout(clearMsg, 3500);
   }
   function clearMsg() { el('msg').className = 'msg'; }
 
@@ -204,18 +222,60 @@
     el('invitee-count').textContent = n + ' selected';
   }
 
-  async function createEvent() {
+  // null while creating a new event; the event id while editing an existing
+  // one (set by editEvent(), cleared by cancelEdit() or a successful save).
+  let EDITING_EVENT_ID = null;
+  let CURRENT_EVENTS = [];
+
+  function resetForm() {
+    ['f-title','f-location','f-time','f-desc','f-topics'].forEach(id => el(id).value = '');
+    el('f-date').value = '';
+    toggleAllInvitees(false);
+    EDITING_EVENT_ID = null;
+    el('create-btn').textContent = 'Create event';
+    el('cancel-edit-btn').style.display = 'none';
+    el('form-mode-label').textContent = 'New event';
+  }
+
+  function editEvent(id) {
+    const ev = CURRENT_EVENTS.find(e => e.id === id);
+    if (!ev) return;
+    EDITING_EVENT_ID = id;
+    el('f-title').value = ev.title || '';
+    el('f-location').value = ev.location || '';
+    el('f-date').value = ev.event_date || '';
+    el('f-time').value = ev.event_time || '';
+    el('f-desc').value = ev.description || '';
+    el('f-topics').value = (ev.topics || []).join('\n');
+    const inviteeIds = new Set((ev.event_invitees || []).map(inv => inv.rep_id));
+    document.querySelectorAll('.invitee-cb').forEach(cb => { cb.checked = inviteeIds.has(cb.value); });
+    updateInviteeCount();
+    el('create-btn').textContent = 'Save changes';
+    el('cancel-edit-btn').style.display = '';
+    el('form-mode-label').textContent = 'Editing: ' + ev.title;
+    el('event-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function cancelEdit() { resetForm(); }
+
+  el('event-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
     clearMsg();
     const title = el('f-title').value.trim();
     const date = el('f-date').value;
+    // Belt and braces — the inputs are marked `required` so the browser's
+    // own validation should already have stopped a submit with either empty,
+    // but a directly-triggered submit (e.g. Enter in a field) can skip that.
     if (!title || !date) { showMsg('Title and date are required.', 'error'); return; }
     const topics = el('f-topics').value.split('\n').map(s => s.trim()).filter(Boolean);
     const invitees = [...document.querySelectorAll('.invitee-cb:checked')].map(cb => cb.value);
+    const editingId = EDITING_EVENT_ID;
 
     const btn = el('create-btn');
-    btn.disabled = true; btn.textContent = 'Creating…';
+    btn.disabled = true; btn.textContent = editingId ? 'Saving…' : 'Creating…';
     try {
-      const { error } = await sb.rpc('admin_create_event', {
+      const rpcName = editingId ? 'admin_update_event' : 'admin_create_event';
+      const params = {
         p_title: title,
         p_description: el('f-desc').value.trim() || null,
         p_topics: topics,
@@ -223,19 +283,20 @@
         p_event_time: el('f-time').value.trim() || null,
         p_location: el('f-location').value.trim() || null,
         p_invitee_rep_ids: invitees
-      });
+      };
+      if (editingId) params.p_event_id = editingId;
+      const { error } = await sb.rpc(rpcName, params);
       if (error) throw error;
-      showMsg('Event created.', 'success');
-      ['f-title','f-location','f-time','f-desc','f-topics'].forEach(id => el(id).value = '');
-      el('f-date').value = '';
-      toggleAllInvitees(false);
+      showMsg(editingId ? 'Event updated.' : 'Event created.', 'success');
+      resetForm();
       loadEvents();
     } catch (e) {
-      showMsg('Could not create event: ' + (e.message || e), 'error');
-    } finally {
-      btn.disabled = false; btn.textContent = 'Create event';
+      showMsg((editingId ? 'Could not save event: ' : 'Could not create event: ') + (e.message || e), 'error');
+      btn.disabled = false; btn.textContent = editingId ? 'Save changes' : 'Create event';
+      return;
     }
-  }
+    btn.disabled = false;
+  });
 
   async function loadEvents() {
     const wrap = el('events-list');
@@ -244,6 +305,7 @@
         .select('*, event_invitees(*), event_attendance(*)')
         .order('event_date', { ascending: false });
       if (error) throw error;
+      CURRENT_EVENTS = data || [];
       if (!data || !data.length) { wrap.innerHTML = '<div class="empty">No events yet.</div>'; return; }
       wrap.innerHTML = data.map(ev => {
         const invitees = ev.event_invitees || [];
@@ -262,7 +324,10 @@
           '<div class="ev-top">' +
             '<div><div class="ev-title">' + escapeHtml(ev.title) + '</div>' +
             '<div class="ev-meta">' + escapeHtml(ev.event_date) + (ev.event_time ? ' · ' + escapeHtml(ev.event_time) : '') + (ev.location ? ' · ' + escapeHtml(ev.location) : '') + '</div></div>' +
-            '<button class="btn-del" onclick="deleteEvent(\'' + ev.id + '\')">Delete</button>' +
+            '<div style="display:flex;gap:6px;flex-shrink:0">' +
+              '<button class="btn-del" style="color:var(--accent);border-color:var(--accent-bg);background:var(--accent-bg)" onclick="editEvent(\'' + ev.id + '\')">Edit</button>' +
+              '<button class="btn-del" onclick="deleteEvent(\'' + ev.id + '\')">Delete</button>' +
+            '</div>' +
           '</div>' +
           (ev.description ? '<div class="ev-meta" style="margin-top:6px">' + escapeHtml(ev.description) + '</div>' : '') +
           topicsHtml +
