@@ -109,6 +109,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `/pending.html` | pending | Holding page; lets them set their own name via `set_pending_name()` |
 | `/admin/index.html` | admin | Admin landing |
 | `/admin/approvals.html` | admin | Approve pending sign-ups |
+| `/admin/events.html` | manager, admin | Create/assign team events & training, gated by `is_manager()`. Deliberate exception to "`/admin/**` is admin-only" (below) — linked from `hub.html`, not from `admin/index.html`. Merch/TL view+sign-in for their own assigned events lives in `merch.html` itself. |
 | `/management/**` | manager, admin | Shell + 5 embedded dashboards, all individually guarded |
 | `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
 | `/weekly-reports.html`, `/report-upload.html`, `/report-viewer.html` | manager, admin, management, rep_management | HOD report tool — tabbed shell (View/Upload) over two independently-guarded pages. Departments upload PDF/HTML as-is into the `hod-reports` bucket; no AI parsing. Writes gated by `can_manage_weekly_reports()`, not `is_manager()` — see Database section below. **Not** the same system as the auto-generated reports in the `weekly-reports` bucket. |
@@ -195,7 +196,7 @@ Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong,
 Every guarded page uses `shared/auth-guard.js` and takes its allow-list from `DFL_PAGE_ROLES` in `shared/routes.js`. There are no per-section auth mechanisms left.
 
 - **`management/**`** — `manager`, `admin`. The old `MGMT_PASSWORD` hardcoded plaintext gate is gone, along with the gap it left: `management/index.html` still loads each dashboard in an iframe tab panel, but **all eight of those files now carry the guard themselves**, so they're protected when opened directly too. The guard no-ops when framed, so embedding still works.
-- **`admin/**`** — `admin`.
+- **`admin/**`** — `admin`, except `admin/events.html` which is `manager`+`admin` (see Pages table).
 - **`login.html`** loads `routes.js` only, never the guard — guarding the sign-in page would be circular.
 - Genuinely unguarded, on purpose: `rep-weekly-plan.html` (iframe-embedded only) and `field-intel.html` (deliberately standalone).
 

@@ -12,7 +12,8 @@ async function waitForFn(win, name){
 window.onload = async () => {
   const f = document.getElementById('f');
   await waitForFn(f.contentWindow, 'loadEvents');
-  const profile = { id:'test-admin', full_name:'Travis Decasseres', role:'admin', salesperson_id:null, rep_id:null, active:true };
+  const params = new URLSearchParams(location.search);
+  const profile = { id:'test-admin', full_name:'Travis Decasseres', role:params.get('role')||'admin', salesperson_id:null, rep_id:null, active:true };
   f.contentDocument.dispatchEvent(new CustomEvent('dfl-auth-ready', { detail: { profile } }));
 };
 </script>
