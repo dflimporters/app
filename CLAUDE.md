@@ -85,6 +85,8 @@ It no-ops when framed, on the assumption the parent already passed. Prefer simpl
 
 Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `relief_merchandiser`, `warehouse`, `management`, `pending`. One role per person. `admin` and `manager` see the same things for now, except `/admin/**`, which is admin-only. `management` is a read-only executive role (Mark Decasseres, Heather Walker-Boyd, Kyle Decasseres) that only lands on the Morning Brief — it's not a superset or subset of `manager`.
 
+**Display name vs. role code (as of 2026-09-24):** the `merchandiser` role is now branded "Brand Ambassador" everywhere it's shown to a user (merch app labels, admin dropdowns, the events feature, the management merch dashboard, training docs) — `tl_merch` displays as "Team Leader + Brand Ambassador". Only the **display text** changed; the role codes (`merchandiser`, `relief_merchandiser`, `tl_merch`) are untouched in the DB, routes.js, RPCs and every table/column name — renaming those is a much bigger, deliberately deferred task (same shape as the `reps`→`staff` rename noted below). Don't assume a grep for "Brand Ambassador" will find the role logic — it won't; grep for `merchandiser`.
+
 | Role | Lands on | Sees Sales/Merch switcher |
 |---|---|---|
 | `rep` | `/index.html` | No |

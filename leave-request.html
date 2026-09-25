@@ -271,7 +271,7 @@ function computeMerchLeaveClashes(merchRows, ownRows){
 
 function renderMerchLeaveSection(){
   if(!MERCH_LEAVE.length) return '';
-  let html = `<div class="secthdr"><h2>Merchandiser leave</h2><span class="cnt">${MERCH_LEAVE.length} upcoming</span></div>`;
+  let html = `<div class="secthdr"><h2>Brand Ambassador leave</h2><span class="cnt">${MERCH_LEAVE.length} upcoming</span></div>`;
   if(MERCH_LEAVE_CLASHES.length){
     html += `<div class="badbox" style="margin-bottom:10px">⚠️ ${MERCH_LEAVE_CLASHES.length} overlapping leave clash${MERCH_LEAVE_CLASHES.length===1?'':'es'}: ` +
       MERCH_LEAVE_CLASHES.map(c=>`${esc(c.a.requester_name)} &amp; ${esc(c.b.requester_name)} (${esc(c.a.from_date)}–${esc(c.a.to_date)} / ${esc(c.b.from_date)}–${esc(c.b.to_date)})`).join('; ') +
@@ -458,7 +458,7 @@ function drawStep2(rec){
           <input type="date" id="f-notifyby" value="${esc(rec.key_accounts_notify_by||'')}">
         </div>
         <div class="field">
-          <label>Will brief merchandisers by</label>
+          <label>Will brief brand ambassadors by</label>
           <input type="date" id="f-briefby" value="${esc(rec.merchandiser_brief_by||'')}">
         </div>
       </div>
@@ -499,7 +499,7 @@ async function submitStep2(){
   if(KEYSTORES.length && missingStore){ err.textContent='Every key/chain store needs a proposed covering rep.'; err.style.display='block'; return; }
   if(!KEYSTORES.length && (!fallbackEl || !fallbackEl.value)){ err.textContent='Pick who is covering you.'; err.style.display='block'; return; }
   if(!discussedEl){ err.textContent='Choose one of the three discussion options.'; err.style.display='block'; return; }
-  if(!notifyBy || !briefBy){ err.textContent='Give a target date for both Key Account notification and merchandiser briefing.'; err.style.display='block'; return; }
+  if(!notifyBy || !briefBy){ err.textContent='Give a target date for both Key Account notification and brand ambassador briefing.'; err.style.display='block'; return; }
   err.style.display='none';
 
   const key_stores = KEYSTORES.map(s=>{

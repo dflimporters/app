@@ -221,8 +221,8 @@ tbody tr.clickable{cursor:pointer}
   <div class="header-brand">
     <div class="logo-img"><img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL"></div>
     <div>
-      <div class="header-title">DFL Importers — Merchandiser Dashboard</div>
-      <div class="header-sub" id="headerSub">2026 · MERCHANDISER COMMISSION TRACKER</div>
+      <div class="header-title">DFL Importers — Brand Ambassador Dashboard</div>
+      <div class="header-sub" id="headerSub">2026 · BRAND AMBASSADOR COMMISSION TRACKER</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px">
@@ -242,7 +242,7 @@ tbody tr.clickable{cursor:pointer}
 
 <!-- MAIN TABS -->
 <div class="main-tabs" id="mainTabs">
-  <div class="main-tab active" id="navMerch" onclick="showMerch()">📊 Merchandiser Commission</div>
+  <div class="main-tab active" id="navMerch" onclick="showMerch()">📊 Brand Ambassador Commission</div>
   <div class="main-tab" id="navTL" onclick="showTL()">🏆 Team Leader Incentive</div>
   <div class="main-tab" id="navPayroll" onclick="showPayroll()">💰 HR Payroll</div>
   <div class="main-tab" id="navVisits" onclick="showVisits()">📍 Visit Log</div>
@@ -269,7 +269,7 @@ tbody tr.clickable{cursor:pointer}
 <div id="merchSection">
   <div class="layout">
     <aside class="sidebar">
-      <div class="sidebar-section">All Merchandisers</div>
+      <div class="sidebar-section">All Brand Ambassadors</div>
       <div class="sidebar-item active" onclick="selectMerch('ALL')" id="sb-ALL">
         <span class="merch-name" style="color:#fff;font-weight:700">All Stores</span>
         <span class="badge bx" id="badge-ALL">—</span>
@@ -350,7 +350,7 @@ tbody tr.clickable{cursor:pointer}
 <div id="visitsSection" style="display:none">
   <div class="stats-bar" style="padding:16px 22px 0">
     <div class="stats-strip">
-      <div class="stat-chip"><div class="val" id="v-logged">—</div><div class="lbl">Merchandisers Logged</div></div>
+      <div class="stat-chip"><div class="val" id="v-logged">—</div><div class="lbl">Brand Ambassadors Logged</div></div>
       <div class="stat-chip"><div class="val" id="v-total">—</div><div class="lbl">Total Roster</div></div>
       <div class="stat-chip green"><div class="val" id="v-visits">—</div><div class="lbl">Visits This Period</div></div>
       <div class="stat-chip amber"><div class="val" id="v-relief">—</div><div class="lbl">Relief Coverage Visits</div></div>
@@ -362,7 +362,7 @@ tbody tr.clickable{cursor:pointer}
     <div class="topbar" style="border-radius:9px 9px 0 0;border:1px solid var(--border);border-bottom:none">
       <div class="search-wrap" style="max-width:260px">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="visitSearch" placeholder="Search merchandiser or store…" oninput="renderVisitTable()">
+        <input type="text" id="visitSearch" placeholder="Search brand ambassador or store…" oninput="renderVisitTable()">
       </div>
       <select id="visitTypeFilter" onchange="renderVisitTable()" style="width:160px;padding-left:9px">
         <option value="">All visit types</option>
@@ -374,7 +374,7 @@ tbody tr.clickable{cursor:pointer}
     <div class="table-wrap" style="border-radius:0 0 9px 9px">
       <table>
         <thead><tr>
-          <th>Date</th><th>Merchandiser</th><th>Store</th><th>Outcome</th><th>Type</th><th>Location</th>
+          <th>Date</th><th>Brand Ambassador</th><th>Store</th><th>Outcome</th><th>Type</th><th>Location</th>
         </tr></thead>
         <tbody id="visitTableBody"></tbody>
       </table>
@@ -846,7 +846,7 @@ function renderTable(){
           <tr>
             <th onclick="sortBy('customer_id')" class="${sortCol==='customer_id'?'sort-'+(sortDir>0?'asc':'desc'):''}">Customer ID</th>
             <th onclick="sortBy('customer_name')" class="${sortCol==='customer_name'?'sort-'+(sortDir>0?'asc':'desc'):''}">Store Name</th>
-            ${showMerch?`<th onclick="sortBy('merchandiser')">Merchandiser</th>`:''}
+            ${showMerch?`<th onclick="sortBy('merchandiser')">Brand Ambassador</th>`:''}
             <th onclick="sortBy('target')" style="text-align:right">Target</th>
             <th onclick="sortBy('actual')" style="text-align:right">Actual</th>
             <th onclick="sortBy('pct')">Achievement</th>
@@ -1107,7 +1107,7 @@ async function refreshFromDB(){
 function runSync(){ openModal(); }
 
 function exportCSV(){
-  const rows=[['Customer ID','Store Name','Merchandiser','Target','Actual','Achievement %','Commission','Status']];
+  const rows=[['Customer ID','Store Name','Brand Ambassador','Target','Actual','Achievement %','Commission','Status']];
   filteredRows.forEach(r=>rows.push([r.customer_id,r.customer_name,r.merchandiser,r.target.toFixed(0),r.actual.toFixed(0),(r.pct*100).toFixed(1)+'%',r.commission.toFixed(2),r.status]));
   const csv=rows.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=`DFL_${currentPeriod}_${selectedMerch==='ALL'?'AllStores':selectedMerch.replace(/\s+/g,'_')}.csv`; a.click();
@@ -1211,7 +1211,7 @@ function buildTLCard(tl, res, storeData){
     </div>`;
   }).join('');
   const subtitle = tl.acting ? (tl.actingFor ? `Acting TL · shares credit with ${tl.actingFor}` : 'Acting TL · own team') : tl.region;
-  return `<div class="tl-card ${cls}"><div class="tl-head"><div><div class="tl-tname">${tl.name}</div><div class="tl-region ${cls}">${subtitle}</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">${fmtComm(res.earn)}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">${res.totalStores}</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">${res.s100}</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">${res.s80}</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:${pc}">${pct}%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">${fmtComm(res.earn)}</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Merchandiser</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>${rows}<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">${res.totalStores}</div><div class="tl-mtot-v" style="color:var(--amber)">${res.s80}</div><div class="tl-mtot-v" style="color:var(--green)">${res.s100}</div><div class="tl-mtot-v" style="color:${pc}">${pct}%</div><div class="tl-mtot-e">${fmtComm(res.earn)}</div></div></div>`;
+  return `<div class="tl-card ${cls}"><div class="tl-head"><div><div class="tl-tname">${tl.name}</div><div class="tl-region ${cls}">${subtitle}</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">${fmtComm(res.earn)}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">${res.totalStores}</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">${res.s100}</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">${res.s80}</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:${pc}">${pct}%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">${fmtComm(res.earn)}</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Brand Ambassador</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>${rows}<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">${res.totalStores}</div><div class="tl-mtot-v" style="color:var(--amber)">${res.s80}</div><div class="tl-mtot-v" style="color:var(--green)">${res.s100}</div><div class="tl-mtot-v" style="color:${pc}">${pct}%</div><div class="tl-mtot-e">${fmtComm(res.earn)}</div></div></div>`;
 }
 
 function exportTLCSV(){
@@ -1302,13 +1302,13 @@ function renderPayroll(){
         <div style="display:grid;grid-template-columns:3fr 2fr;gap:0;overflow:auto;flex:1;min-height:0">
           <div style="border-right:1px solid #e5e0d8;overflow:auto">
             <div style="background:#2F5DBF;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10">
-              <span style="font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:.8px">📦 MERCHANDISER COMMISSION</span>
+              <span style="font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:.8px">📦 BRAND AMBASSADOR COMMISSION</span>
               <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:#bfdbfe">${fmt$(totalMerchComm)}</span>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:11px">
               <thead style="background:#f8f7f5;position:sticky;top:33px;z-index:9"><tr>
                 <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">#</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">MERCHANDISER</th>
+                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">BRAND AMBASSADOR</th>
                 <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:center;font-weight:500">QUAL</th>
                 <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;font-weight:500">ATTAINMENT</th>
                 <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:right;font-weight:500">TARGET</th>
@@ -1364,7 +1364,7 @@ function renderPayroll(){
 
 function exportPayrollCSV(){
   const summaries = storeRows.length ? null : null; // uses last-rendered DOM data via re-fetch for simplicity
-  toast('Use the Merchandiser Commission tab\'s CSV export for line-level detail — this button exports the summary shown.', '');
+  toast('Use the Brand Ambassador Commission tab\'s CSV export for line-level detail — this button exports the summary shown.', '');
   const rows = Array.from(document.querySelectorAll('#payrollContent table')).map(t => {
     return Array.from(t.querySelectorAll('tr')).map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.textContent.trim()));
   });
@@ -1530,7 +1530,7 @@ function openVisitDetail(id){
 function closeVisitDetail(){ document.getElementById('visit-detail-modal').classList.remove('open'); }
 
 function exportVisitsCSV(){
-  const rows=[['Date','Time','Merchandiser','Store','Outcome','Type','Latitude','Longitude']];
+  const rows=[['Date','Time','Brand Ambassador','Store','Outcome','Type','Latitude','Longitude']];
   (visitRows||[]).forEach(r=>rows.push([r.visit_date, r.clock_in?new Date(r.clock_in).toLocaleTimeString():'', r.user_name||'', r.store_name||r.customer_id, r.outcome||'', r.visit_type||'regular', r.latitude||'', r.longitude||'']));
   const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=`DFL_VisitLog_${currentPeriod}.csv`; a.click();
@@ -1670,11 +1670,11 @@ function setMainTab(tab){
   document.getElementById('visitsSection').style.display = tab==='visits' ? 'block' : 'none';
   document.getElementById('evalsSection').style.display = tab==='evals' ? 'block' : 'none';
 }
-function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').classList.add('active'); document.getElementById('headerSub').textContent='2026 · MERCHANDISER COMMISSION TRACKER'; if(!storeRows.length) loadData(); }
+function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR COMMISSION TRACKER'; if(!storeRows.length) loadData(); }
 function showTL(){ setMainTab('tl'); document.getElementById('navTL').classList.add('active'); document.getElementById('headerSub').textContent='2026 · TEAM LEADER INCENTIVE'; renderTLSection(); }
 function showPayroll(){ setMainTab('payroll'); document.getElementById('navPayroll').classList.add('active'); document.getElementById('headerSub').textContent='2026 · HR PAYROLL · CONFIDENTIAL'; renderPayroll(); }
 function showVisits(){ setMainTab('visits'); document.getElementById('navVisits').classList.add('active'); document.getElementById('headerSub').textContent='2026 · VISIT LOG'; loadVisits(); setTimeout(()=>{ if(visitMapInstance) visitMapInstance.invalidateSize(); },50); }
-function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').classList.add('active'); document.getElementById('headerSub').textContent='2026 · MERCHANDISER EVALUATIONS'; if(!evalRows.length) loadEvals(); }
+function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR EVALUATIONS'; if(!evalRows.length) loadEvals(); }
 
 // ── BOOT ──
 loadStaticRefs().then(loadData);
@@ -1682,7 +1682,7 @@ loadStaticRefs().then(loadData);
 
 <!-- Auth. The guard no-ops when framed, so embedding in management/index.html is unaffected. -->
 <script>
-window.DFL_PAGE_TITLE = 'Merchandiser Dashboard';
+window.DFL_PAGE_TITLE = 'Brand Ambassador Dashboard';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
