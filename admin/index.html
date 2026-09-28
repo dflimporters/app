@@ -71,6 +71,14 @@
       <span id="pendingPill" style="display:none;background:rgba(255,255,255,0.25);
             font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px"></span>
     </a>
+    <!-- Shown only to price approvers (Scott), not every admin. -->
+    <a href="/admin/price-approvals.html" id="priceApprovalsBtn" style="display:none;align-items:center;gap:8px;
+       background:var(--accent);color:#fff;text-decoration:none;font-size:13px;
+       font-weight:600;padding:11px 20px;border-radius:8px;margin-top:10px">
+      💲 Price Approvals
+      <span id="pricePendingPill" style="display:none;background:rgba(255,255,255,0.25);
+            font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px"></span>
+    </a>
   </div>
 </div>
 
@@ -92,6 +100,20 @@
       if (error || !data || !data.length) return;
       const pill = document.getElementById('pendingPill');
       pill.textContent = data.length;
+      pill.style.display = '';
+    } catch (e) { /* nicety only */ }
+  });
+  // Price Approvals: only for price approvers, with a count of pending requests.
+  document.addEventListener('dfl-auth-ready', async () => {
+    try {
+      const { data: ok } = await sb.rpc('is_price_approver');
+      if (!ok) return;
+      document.getElementById('priceApprovalsBtn').style.display = 'inline-flex';
+      const { count } = await sb.from('price_change_requests')
+        .select('id', { count: 'exact', head: true }).eq('status', 'pending');
+      if (!count) return;
+      const pill = document.getElementById('pricePendingPill');
+      pill.textContent = count;
       pill.style.display = '';
     } catch (e) { /* nicety only */ }
   });

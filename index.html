@@ -636,6 +636,7 @@ const MORE_PAGES = [
   { key:'leave-request', title:'Going on Leave', sub:'Submit a leave request & coverage plan', icon:'🌴', src:'leave-request.html', topLevel:true },
   { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
   { key:'specials-upload', title:'Upload Specials', sub:'Add & manage deals and flyers', icon:'📤', src:'specials-upload.html', managerOnly:true, topLevel:true },
+  { key:'price-requests', title:'Price Requests', sub:'Ask for a lower price & track decisions', icon:'💲', src:'price-requests.html', cmOnly:true, topLevel:true },
   // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
   { key:'morning-brief', title:'Morning Brief', sub:'MTD sales dashboard', icon:'☀️', src:'morning-brief.html', repManagementOnly:true, topLevel:true },
   { key:'budget-explorer', title:'Budget Explorer', sub:'Budget vs actuals', icon:'💰', src:'budget-explorer.html', repManagementOnly:true, topLevel:true },
@@ -646,7 +647,8 @@ function goMore(){ switchTab('more'); showMoreLauncher(); }
 
 function buildMoreLauncher(){
   const pages = MORE_PAGES.filter(p =>
-    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER));
+    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER) &&
+    (!p.cmOnly || IS_MANAGER || IS_REP_MANAGEMENT));
   document.getElementById('launchGrid').innerHTML = pages.map(p => `
     <button class="launch-card" onclick="openMorePage('${p.key}')">
       <span class="launch-ico">${p.icon}</span>
