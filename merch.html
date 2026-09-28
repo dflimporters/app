@@ -921,7 +921,7 @@ body.dfl-readonly .readonly-note{display:block}
         <div class="stat-lbl">Total incentive earned</div>
         <div style="font-size:24px;font-weight:800;color:var(--green)" id="tl-inc-earn">–</div>
       </div>
-      <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">J$250/store @80%+, J$500/store @100%+</div>
+      <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">J$250/store @80%+, J$1,000/store @100%+</div>
     </div>
 
     <!-- Only shown for tl_merch (a team leader who also merchandises their
@@ -2202,8 +2202,8 @@ async function launchTLMerch(u){
 // calcIncentiveByStores() exactly. Keep the two in sync if the incentive
 // rules change; this is the one piece of business logic duplicated between
 // the two files rather than shared, since they're separate static pages.
-const TL_RATE_80 = 250;   // J$ per store at >=80% of target
-const TL_RATE_100 = 500;  // J$ per store at >=100% of target
+const TL_RATE_80 = 250;    // J$ per store at >=80% of target
+const TL_RATE_100 = 1000;  // J$ per store at >=100% of target (2026-09-28: raised from 500)
 
 function tlOwnTeamFor(rep, merchByLeaderId){
   return [...new Set([rep.name, ...(merchByLeaderId[rep.id]||[])])];
