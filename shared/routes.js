@@ -94,6 +94,14 @@ const DFL_PAGE_ROLES = {
   '/debrief.html':          ['admin', 'manager', 'rep', 'rep_management'],
   '/customer.html':         ['admin', 'manager', 'rep', 'rep_management'],
 
+  // ---- Price change requests ----
+  // Who may SUBMIT is enforced again in Postgres by can_request_price(), which
+  // must list the same roles. The approval page admits any admin here, but the
+  // data and decisions are limited to public.price_approvers (Scott) —
+  // is_price_approver() — because Travis is also an admin and must not approve.
+  '/price-requests.html':        ['admin', 'manager', 'rep_management'],
+  '/admin/price-approvals.html': ['admin'],
+
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in
   // management/index.html (MGMT_PASSWORD), while the eight dashboards it embeds

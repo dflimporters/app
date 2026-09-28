@@ -581,6 +581,12 @@ let merchNames = [];      // distinct merchandiser names with at least one assig
 let regionByMerch = {};   // merchandiser name -> reps.area
 let repByName = {};       // reps.name -> reps row (role, area, active, team_lead_id, id)
 let teamLeaderRoster = []; // built by buildTeamLeaderRoster()
+// Every team_leader/tl_merch name, company-wide — a TL's (or acting TL's)
+// own personally-merchandised stores already pay out through their own
+// merch commission (merchandiser_summary), so they must never ALSO count
+// toward a per-store TL incentive, whether it's their own solo total or
+// rolled into a formal TL's shared pool (see incentiveNamesFor() below).
+let tlNameSet = new Set();
 
 const fmt = n => !n||n==0?'—':'$'+Math.round(n).toLocaleString();
 const fmtM = n => !n?'—': n>=1e6?'$'+(n/1e6).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'K':'$'+Math.round(n);
@@ -623,6 +629,7 @@ async function loadStaticRefs(){
 // as whoever they themselves report to, not their own distinct sub-team).
 function buildTeamLeaderRoster(repsRows){
   const byId = {}; repsRows.forEach(r => byId[r.id]=r);
+  tlNameSet = new Set(repsRows.filter(r => r.role==='team_leader'||r.role==='tl_merch').map(r => r.name));
   const merchByLeaderId = {}; // team_lead_id -> [merchandiser/relief names reporting directly]
   const dualsByLeaderId = {}; // team_lead_id -> [tl_merch reps reporting to this formal TL]
   repsRows.forEach(r => {
@@ -672,6 +679,16 @@ function buildTeamLeaderRoster(repsRows){
     }
   });
   return roster.sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+// tl.merchandisers keeps every name (including the TL's/acting TL's own,
+// and any sharing dual's own) for coverage tracking (the "unassigned"
+// check below reads it as-is) and roster identity. This strips out anyone
+// who is themselves a team_leader/tl_merch before the incentive $ figure
+// is ever computed — their own stores already pay through their personal
+// merch commission and must not also count here.
+function incentiveNamesFor(tl){
+  return tl.merchandisers.filter(n => !tlNameSet.has(n));
 }
 
 function populateRegionFilter(){
@@ -1170,7 +1187,7 @@ function renderTLSection(){
 
   let totalEarn=0, totalS80=0, totalS100=0;
   grid.innerHTML = list.map(tl => {
-    const storeIds = storeIdsForMerchList(tl.merchandisers);
+    const storeIds = storeIdsForMerchList(incentiveNamesFor(tl));
     const res = calcIncentiveByStores(storeIds, storeData);
     totalEarn+=res.earn; totalS80+=res.s80; totalS100+=res.s100;
     return buildTLCard(tl, res, storeData);
@@ -1197,7 +1214,7 @@ function buildTLCard(tl, res, storeData){
   const cls = tl.acting ? 'acting' : (tl.region.toLowerCase().includes('west')?'west':tl.region.toLowerCase().includes('kingston')?'kgn':tl.region.toLowerCase().includes('south central')?'sc':tl.region.toLowerCase().includes('elizabeth')?'steliz':'');
   const pct = res.totalStores>0 ? Math.round(((res.s80+res.s100)/res.totalStores)*100) : 0;
   const pc = pct>=80?'var(--green)':pct>=50?'var(--amber)':'var(--red)';
-  const rows = tl.merchandisers.map(name => {
+  const rows = incentiveNamesFor(tl).map(name => {
     const storeIds = storeIdsForMerchList([name]);
     const r = calcIncentiveByStores(storeIds, storeData);
     const merchPct = r.totalStores>0 ? Math.round(((r.s80+r.s100)/r.totalStores)*100) : 0;
@@ -1219,7 +1236,7 @@ function exportTLCSV(){
   storeRows.forEach(r => { storeData[r.customer_id] = { target_amount: r.target, actual_amount: r.actual }; });
   const rows=[['Team Leader','Region','Stores','100%+','80-99%','Incentive (J$)','Period']];
   teamLeaderRoster.forEach(tl=>{
-    const res = calcIncentiveByStores(storeIdsForMerchList(tl.merchandisers), storeData);
+    const res = calcIncentiveByStores(storeIdsForMerchList(incentiveNamesFor(tl)), storeData);
     rows.push([tl.name+(tl.acting?' (acting)':''),tl.region,res.totalStores,res.s100,res.s80,res.earn.toFixed(2),MONTHS[currentPeriod]||currentPeriod]);
   });
   const csv=rows.map(r=>r.map(v=>'"'+v+'"').join(',')).join('\n');
@@ -1250,7 +1267,7 @@ function renderPayroll(){
       rows.forEach(r => { storeData[r.customer_id] = { target_amount: r.target!==undefined?r.target:r.target_amount, actual_amount: r.actual!==undefined?r.actual:r.actual_amount }; });
 
       const tlData = teamLeaderRoster.map(tl => {
-        const res = calcIncentiveByStores(storeIdsForMerchList(tl.merchandisers), storeData);
+        const res = calcIncentiveByStores(storeIdsForMerchList(incentiveNamesFor(tl)), storeData);
         return { name: tl.name+(tl.acting?' (acting)':''), territory: tl.region, s80:res.s80, s100:res.s100, earn:res.earn };
       });
       const totalTL = tlData.reduce((s,t)=>s+(t.earn||0),0);

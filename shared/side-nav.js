@@ -57,6 +57,10 @@
   const TOPBAR_H   = 52;    // px — mobile only
   const BREAKPOINT = 768;   // px — rail at/above, drawer below
 
+  // Set by approverCheck() near the bottom. Declared up here because boot()
+  // renders before that part of the file runs (a later `let` would throw).
+  let isPriceApprover = false;
+
   const LOGO = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png';
 
   // ------------------------------------------------------------
@@ -93,7 +97,8 @@
       group: 'Tools',
       items: [
         { label: 'Specials & Flyers', href: '/specials.html',        icon: '🎯' },
-        { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' }
+        { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' },
+        { label: 'Price Requests',    href: '/price-requests.html',  icon: '💲' }
       ]
     },
     {
@@ -120,7 +125,10 @@
       tone: 'gold',
       items: [
         { label: 'Admin Panel',    href: '/admin/',               icon: '🔐' },
-        { label: 'User Approvals', href: '/admin/approvals.html', icon: '👤' }
+        { label: 'User Approvals', href: '/admin/approvals.html', icon: '👤' },
+        // approverOnly: routes.js admits every admin, but only people in
+        // public.price_approvers can use it — see approverCheck() below.
+        { label: 'Price Approvals', href: '/admin/price-approvals.html', icon: '💲', approverOnly: true }
       ]
     },
     {
@@ -544,6 +552,7 @@
   // routes.js whether this role could actually open the href — so the rail
   // shows exactly what the guard would let through, by construction.
   function visible(item, role) {
+    if (item.approverOnly && !isPriceApprover) return false;
     if (item.roles) {
       if (!role) return false;                  // no role known — hide gated
       return item.roles.indexOf(role) !== -1;
@@ -780,7 +789,21 @@
     if (!document.body) return;
     injectCss();
     render(e.detail.profile);
+    approverCheck(e.detail.profile);
   });
+
+  // Price Approvals is shown only to people in public.price_approvers. Asked
+  // once, only for admins (the only role the page admits), then re-rendered.
+  // Failure just leaves the link hidden — the page and RLS enforce it anyway.
+  function approverCheck(profile) {
+    if (!profile || profile.role !== 'admin' || typeof sb === 'undefined' || !sb.rpc) return;
+    sb.rpc('is_price_approver').then(function (res) {
+      if (res && res.data === true && !isPriceApprover) {
+        isPriceApprover = true;
+        render(profile);
+      }
+    }, function () {});
+  }
 
   // Escape closes the mobile drawer.
   document.addEventListener('keydown', function (e) {

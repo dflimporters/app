@@ -2246,6 +2246,15 @@ async function loadTLIncentive(u, period){
     }
     if(!names){ card.style.display='none'; return; }
 
+    // A TL's/acting TL's own personally-merchandised stores already pay
+    // through their own merch commission (m-comm-card, from
+    // merchandiser_summary) — strip out anyone who is themselves a
+    // team_leader/tl_merch before turning `names` into storeIds, so those
+    // same stores never also count toward this per-store incentive. Mirrors
+    // management/merch-dashboard.html's incentiveNamesFor() — keep in sync.
+    const tlNameSet=new Set((repsRows||[]).filter(function(r){ return r.role==='team_leader'||r.role==='tl_merch'; }).map(function(r){ return r.name; }));
+    names = names.filter(function(n){ return !tlNameSet.has(n); });
+
     const nameSet=new Set(names);
     const storeIds=(mapRows||[]).filter(function(r){ return nameSet.has(r.merchandiser_name); }).map(function(r){ return r.customer_id; });
     if(!storeIds.length){ card.style.display='none'; return; }
