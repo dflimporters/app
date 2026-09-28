@@ -1,7 +1,7 @@
 {
   "name": "DFL Field App — Merchandising",
   "short_name": "DFL Merch",
-  "description": "DFL Importers merchandiser field app",
+  "description": "DFL Importers brand ambassador field app",
   "start_url": "https://dflhq.com/merch.html",
   "scope": "https://dflhq.com/",
   "display": "standalone",
