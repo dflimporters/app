@@ -563,7 +563,7 @@ const REAL_TARGET_MONTHS = (()=>{
 // from merchandiser_map / reps instead of hardcoded JS objects.
 const COMMISSION_RATE = 0.0025;   // 0.25% of actual, for stores >=80% of target — matches calculate_merchandiser_summary() in the DB
 const TL_RATE_80 = 250;           // J$ per store at >=80%
-const TL_RATE_100 = 500;          // J$ per store at >=100%
+const TL_RATE_100 = 1000;         // J$ per store at >=100% (2026-09-28: raised from 500)
 
 let activeTab = 'merch';
 let storeRows=[], filteredRows=[], selectedMerch='ALL', currentPeriod=(()=>{
