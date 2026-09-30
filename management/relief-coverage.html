@@ -316,6 +316,8 @@ function buildPeriods(){const by={};
       totalDays:rs.reduce((a,r)=>a+(r.days||0),0),paidDays:pay.reduce((a,r)=>a+(r.days||0),0),payCount:pay.length,paidCount:paid,
       imported:rs.some(r=>r.imported),locked:rs.filter(r=>r.paymentId).map(r=>r.date),
       text:key(rs.map(r=>[r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).join(" "))})})}
+// "$4,000 × 10 days = $40,000" so the total can be checked at a glance
+const payCalc=(rate,days)=>`<div class="tiny mono" style="margin-top:4px">${money(rate)} × ${fmtNum(days)} day${days===1?"":"s"} = <b>${money(rate*days)}</b></div>`;
 const distinct=(p,f)=>[...new Set(p.rows.map(r=>r[f]).filter(Boolean))];
 const canEditCov=p=>S.isAdmin||p.rows.every(r=>!r.imported&&!r.paymentId);
 
@@ -343,7 +345,7 @@ function renderCov(){
     const pay=p.payCount?(p.paidCount===p.payCount?`<span class="pill p-ok">On pay run</span>`:p.paidCount?`<span class="pill p-info">${p.paidCount} of ${p.payCount} paid</span>`:`<span class="pill p-warn">Unpaid</span>`):(p.imported?`<span class="pill p-mute">Imported</span>`:`<span class="pill p-mute">Not paid</span>`);
     const statuses=distinct(p,"status").map(pillStatus).join(" ");
     const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
-    return `<tr><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td>${pay}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    return `<tr><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
     <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
@@ -369,7 +371,7 @@ function renderPay(){
     if(p.payDate!==last){last=p.payDate;const g=list.filter(x=>x.payDate===last);
       html+=`<tr class="group"><td>Pay date ${fmtLong(last)}</td><td class="num">${fmtNum(g.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(g.reduce((a,x)=>a+x.days*x.rate,0))}</td><td colspan="8" class="tiny">${g.length} payment${g.length>1?"s":""}</td></tr>`}
     const r=rosterByKey(p.relief),bank=r?S.bank[r._id]:"";
-    html+=`<tr><td class="nowrap"><b>${esc(p.relief)}</b>${p.source==="import"?`<div class="tiny muted">Imported from Excel</div>`:""}</td><td class="num">${fmtNum(p.days)}</td><td class="num">${money(p.rate)}</td><td class="num"><b>${money(p.days*p.rate)}</b></td>
+    html+=`<tr><td class="nowrap"><b>${esc(p.relief)}</b>${p.source==="import"?`<div class="tiny muted">Imported from Excel</div>`:""}</td><td class="num">${fmtNum(p.days)}</td><td class="num">${money(p.rate)}</td><td class="num"><b>${money(p.days*p.rate)}</b><div class="tiny muted">${money(p.rate)} × ${fmtNum(p.days)}</div></td>
     <td class="wrap tiny">${esc(p.datesCovered)}</td><td class="tiny">${esc(p.covering)}</td><td class="tiny">${esc(p.reason)}</td><td>${p.verified?`<span class="pill p-ok">Yes</span>`:`<span class="pill p-mute">No</span>`}</td><td class="tiny nowrap">${esc(p.approvedBy)}</td>
     <td>${S.isAdmin?`<select data-pstat="${p._id}" aria-label="Status for ${esc(p.relief)}">${PAYSTAT.map(s=>`<option ${s===p.status?"selected":""}>${s}</option>`).join("")}</select>`:pillStatus(p.status)}${p.notes?`<div class="tiny muted" style="margin-top:4px;max-width:220px">${esc(p.notes)}</div>`:""}</td>
     ${S.isAdmin?`<td><div class="bank">${esc(bank||"—")}</div></td>`:""}
@@ -516,7 +518,7 @@ $("run-preview").onclick=()=>{const run=buildPreview();const out=$("run-out");
   if(!run.length){out.innerHTML=`<p class="hint">No unpaid relief days between ${fmtLong($("run-from").value)} and ${fmtLong($("run-to").value)}.</p>`;return}
   const tot=run.reduce((a,x)=>a+x.total,0);
   out.innerHTML=`<div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Rate</th><th class="num">Total</th><th>Dates</th><th>Covering for</th></tr></thead><tbody>
-  ${run.map(x=>`<tr><td><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}</td><td class="num">${fmtNum(x.days)}</td><td class="num">${money(x.rate)}</td><td class="num">${money(x.total)}</td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td></tr>`).join("")}
+  ${run.map(x=>`<tr><td><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}</td><td class="num">${fmtNum(x.days)}</td><td class="num">${money(x.rate)}</td><td class="num"><b>${money(x.total)}</b><div class="tiny muted">${money(x.rate)} × ${fmtNum(x.days)}</div></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td></tr>`).join("")}
   <tr class="group"><td>Total</td><td class="num">${fmtNum(run.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(tot)}</td><td colspan="2"></td></tr></tbody></table></div>
   <div class="foot"><span class="msg" id="run-msg"></span><button class="btn primary" id="run-create">Create ${run.length} payment${run.length>1?"s":""} for ${fmtLong($("run-date").value)}</button></div>`;
   $("run-create").onclick=async()=>{const btn=$("run-create");btn.disabled=true;const pd=$("run-date").value||today();
