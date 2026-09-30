@@ -96,6 +96,7 @@ tr.group td{background:var(--accent-soft);font-weight:700;border-top:2px solid v
 td select{min-width:118px;width:auto}
 tr.group td:first-child{white-space:nowrap}
 .linkbtn{background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
+input.inl{width:84px;text-align:right;padding:4px 6px;font-family:var(--f-mono);font-size:.82rem}
 .sel-col{width:34px;text-align:center}
 .sel-col input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
 tr.picked td{background:var(--accent-soft)}
@@ -380,7 +381,7 @@ function renderPay(){
     if(p.payDate!==last){last=p.payDate;const g=list.filter(x=>x.payDate===last);
       html+=`<tr class="group"><td>Pay date ${fmtLong(last)}</td><td class="num">${fmtNum(g.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(g.reduce((a,x)=>a+x.days*x.rate,0))}</td><td colspan="8" class="tiny">${g.length} payment${g.length>1?"s":""}</td></tr>`}
     const r=rosterByKey(p.relief),bank=r?S.bank[r._id]:"";
-    html+=`<tr><td class="nowrap"><b>${esc(p.relief)}</b>${p.source==="import"?`<div class="tiny muted">Imported from Excel</div>`:""}</td><td class="num">${fmtNum(p.days)}</td><td class="num">${money(p.rate)}</td><td class="num"><b>${money(p.days*p.rate)}</b><div class="tiny muted">${money(p.rate)} × ${fmtNum(p.days)}</div></td>
+    html+=`<tr><td class="nowrap"><b>${esc(p.relief)}</b>${p.source==="import"?`<div class="tiny muted">Imported from Excel</div>`:""}</td><td class="num">${S.isAdmin?`<input type="number" class="inl" step="0.5" min="0" data-pedit="days" data-id="${p._id}" value="${fmtNum(p.days)}" aria-label="Days for ${esc(p.relief)}">`:fmtNum(p.days)}</td><td class="num">${S.isAdmin?`<input type="number" class="inl" step="500" min="0" data-pedit="rate" data-id="${p._id}" value="${p.rate}" aria-label="Daily rate for ${esc(p.relief)}">`:money(p.rate)}</td><td class="num"><b>${money(p.days*p.rate)}</b><div class="tiny muted">${money(p.rate)} × ${fmtNum(p.days)}</div></td>
     <td class="wrap tiny">${esc(p.datesCovered)}</td><td class="tiny">${esc(p.covering)}</td><td class="tiny">${esc(p.reason)}</td><td>${p.verified?`<span class="pill p-ok">Yes</span>`:`<span class="pill p-mute">No</span>`}</td><td class="tiny nowrap">${esc(p.approvedBy)}</td>
     <td>${S.isAdmin?`<select data-pstat="${p._id}" aria-label="Status for ${esc(p.relief)}">${PAYSTAT.map(s=>`<option ${s===p.status?"selected":""}>${s}</option>`).join("")}</select>`:pillStatus(p.status)}${p.notes?`<div class="tiny muted" style="margin-top:4px;max-width:220px">${esc(p.notes)}</div>`:""}</td>
     ${S.isAdmin?`<td><div class="bank">${esc(bank||"—")}</div></td>`:""}
@@ -512,6 +513,13 @@ document.addEventListener("click",e=>{
   if(t.dataset.editPay)payForm(S.pay.find(r=>r._id===t.dataset.editPay));
   if(t.dataset.editTeam)teamForm(S.roster.find(r=>r._id===t.dataset.editTeam));
 });
+// inline Days / Rate on a payment line (admins)
+document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.dataset.pedit)return;
+  const p=S.pay.find(x=>x._id===t.dataset.id);if(!p)return;const f=t.dataset.pedit,v=Number(t.value);
+  if(!(v>=0)||t.value===""){t.value=f==="days"?fmtNum(p.days):p.rate;toast("Enter a number, 0 or more");return}
+  if(v===p[f])return;
+  try{await must(sb.from("relief_payments").update({[f]:v}).eq("id",p._id));p[f]=v;toast(`${p.relief}: ${money(p.rate)} × ${fmtNum(p.days)} = ${money(p.rate*p.days)}`);render()}
+  catch(err){t.value=f==="days"?fmtNum(p.days):p.rate;toast(errText(err))}});
 document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.dataset.pstat)return;
   try{await must(sb.from("relief_payments").update({status:t.value}).eq("id",t.dataset.pstat));const p=S.pay.find(x=>x._id===t.dataset.pstat);if(p)p.status=t.value;toast("Marked "+t.value);render()}catch(err){toast(errText(err))}});
 
@@ -560,15 +568,28 @@ $("cov-selrun").onclick=()=>{const rows=selRows();if(!rows.length){toast("Nothin
   const bankPill=x=>{const r=rosterByKey(x.relief),b=r&&S.bank[r._id];return b?`<span class="pill p-ok">On file</span>`:`<span class="pill p-bad">Missing</span>`};
   const missing=run.filter(x=>{const r=rosterByKey(x.relief);return!(r&&S.bank[r._id])});
   openModal(`<h3>Build pay run from ${S.sel.size} selected period${S.sel.size>1?"s":""}</h3>
-  <div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Rate × days</th><th class="num">Total</th><th>Dates</th><th>Covering for</th><th>Banking</th></tr></thead><tbody>
-  ${run.map(x=>`<tr><td class="nowrap"><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}</td><td class="num">${fmtNum(x.days)}</td><td class="num">${money(x.rate)} × ${fmtNum(x.days)}</td><td class="num"><b>${money(x.total)}</b></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td><td>${bankPill(x)}</td></tr>`).join("")}
-  <tr class="group"><td>Total</td><td class="num">${fmtNum(run.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(tot)}</td><td colspan="3"></td></tr></tbody></table></div>
+  <p class="hint tiny" style="margin:0">Days and rate start from the log and each person's daily rate. Change them here if this run should pay something different.</p>
+  <div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Daily rate</th><th class="num">Total</th><th>Dates</th><th>Covering for</th><th>Banking</th></tr></thead><tbody>
+  ${run.map((x,i)=>`<tr><td class="nowrap"><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}<div class="tiny muted">${fmtNum(x.days)} day${x.days===1?"":"s"} logged</div></td><td class="num"><input type="number" class="inl" step="0.5" min="0" data-rd="${i}" value="${fmtNum(x.days)}" aria-label="Days for ${esc(x.relief)}"></td><td class="num"><input type="number" class="inl" step="500" min="0" data-rr="${i}" value="${x.rate}" aria-label="Daily rate for ${esc(x.relief)}"></td><td class="num"><b data-rt="${i}"></b><div class="tiny muted" data-rx="${i}"></div></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td><td>${bankPill(x)}</td></tr>`).join("")}
+  <tr class="group"><td>Total</td><td class="num" id="sr-days"></td><td></td><td class="num" id="sr-tot"></td><td colspan="3"></td></tr></tbody></table></div>
   ${missing.length?`<div class="notice">No banking on file for ${esc(missing.map(x=>x.relief).join(", "))}. Add it under <b>Relief team</b> so it shows on the HR sheet.</div>`:""}
   <div class="bar"><label class="f">Pay date<input type="date" id="sr-date" value="${today()}"></label></div>
   <div class="foot"><span class="msg" id="sr-msg"></span><button class="btn" id="sr-cancel">Cancel</button><button class="btn primary" id="sr-go">Create ${run.length} payment${run.length>1?"s":""}</button></div>`,
   ()=>{$("sr-cancel").onclick=closeModal;
-    $("sr-go").onclick=async()=>{const btn=$("sr-go"),pd=$("sr-date").value||today();btn.disabled=true;
+    const box=$("modal-root");
+    const cur=i=>({days:Number(box.querySelector(`[data-rd="${i}"]`).value)||0,rate:Number(box.querySelector(`[data-rr="${i}"]`).value)||0});
+    function recalc(){let d=0,t=0;run.forEach((x,i)=>{const c=cur(i);d+=c.days;t+=c.days*c.rate;
+      box.querySelector(`[data-rt="${i}"]`).textContent=money(c.days*c.rate);box.querySelector(`[data-rx="${i}"]`).textContent=`${money(c.rate)} × ${fmtNum(c.days)}`});
+      $("sr-days").textContent=fmtNum(d);$("sr-tot").textContent=money(t)}
+    box.querySelectorAll("[data-rd],[data-rr]").forEach(el=>el.addEventListener("input",recalc));recalc();
+    $("sr-go").onclick=async()=>{const btn=$("sr-go"),pd=$("sr-date").value||today();
+      if(run.some((x,i)=>{const c=cur(i);return c.days<0||c.rate<0})){$("sr-msg").textContent="Days and rate can't be negative.";return}
+      btn.disabled=true;
       try{const made=await must(sb.rpc("relief_create_pay_run_selected",{p_ids:rows.map(r=>r._id),p_pay_date:pd}));
+        // the database pays logged days × roster rate; apply any changes made in this preview
+        for(const m of made||[]){const i=run.findIndex(x=>key(x.relief)===key(m.relief_name));if(i<0)continue;const c=cur(i),patch={};
+          if(c.days!==Number(m.days))patch.days=c.days;if(c.rate!==Number(m.rate))patch.rate=c.rate;
+          if(Object.keys(patch).length)await must(sb.from("relief_payments").update(patch).eq("id",m.id))}
         S.sel.clear();payBatchTouched=true;await loadAll();
         const ids=new Set((made||[]).map(m=>m.id));
         $("modal-root").querySelector(".modal").innerHTML=`<h3>${ids.size} payment${ids.size===1?"":"s"} created</h3>
