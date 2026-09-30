@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<title>DFL · Price Approvals</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  Price Approvals — the Head of Sales' side of /price-requests.html.
+
+  Access is NOT the admin role alone: the guard admits any admin (routes.js),
+  but the data belongs only to people in public.price_approvers (today: Scott).
+  Travis is also an admin and deliberately cannot approve. Everyone else sees a
+  locked panel, and RLS returns them no rows anyway; decide_price_request()
+  re-checks is_price_approver() server-side. Decisions email the requester via
+  the price-request-email edge function (kind 'decision').
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:18px}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+input{font:14px var(--bf);color:var(--ink);background:#fff;border:1px solid #CBD3E1;border-radius:6px;padding:9px 10px;height:42px}
+input:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+input::placeholder{color:#B3BBCC;opacity:1}
+.btn{font:700 12.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;border:0;border-radius:6px;padding:11px 18px;cursor:pointer;background:var(--blue);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.g{background:var(--green)}.btn.a{background:var(--amber)}.btn.r{background:var(--red)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chip{font:600 12px var(--hf);border:1px solid #CBD3E1;background:#fff;color:var(--ink2);border-radius:14px;padding:5px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.chip .n{opacity:.7;margin-left:4px}
+.cards{display:grid;gap:10px}
+.req{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.req.pending{border-left:4px solid var(--amber)}
+.req>summary{list-style:none;cursor:pointer;padding:14px 18px;border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.req>summary::-webkit-details-marker{display:none}
+.req>summary:hover{background:#F7F9FC}
+.req[open]>summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0}
+.req .t{font:700 14.5px var(--hf);flex:1 1 280px}
+.req .t small{display:block;font:400 12px var(--bf);color:var(--ink3);margin-top:2px}
+.quick{display:flex;gap:12px;font:700 13px var(--hf);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:560px){.quick{order:3;flex-basis:100%}}
+.chev{font:700 18px var(--hf);color:var(--ink3);transition:transform .15s;line-height:1}
+.req[open] .chev{transform:rotate(90deg)}
+.req-b{padding:14px 20px 18px;display:grid;gap:12px}
+.pill{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.07em;border-radius:10px;padding:3px 9px;white-space:nowrap}
+.pill.pending{background:var(--amber-t);color:var(--amber)}
+.pill.approved{background:var(--green-t);color:var(--green)}
+.pill.rejected{background:var(--red-t);color:var(--red)}
+.pill.discuss{background:var(--blue-t);color:var(--blue)}
+.why{font-size:13px;color:var(--ink2);background:#F7F9FC;border-radius:6px;padding:10px 12px}
+.why b{font-family:var(--hf);color:var(--ink)}
+.rtable{border-top:1px solid var(--line)}
+.imp-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.imp-row:last-of-type{border-bottom:0}
+.imp-row .k{color:var(--ink2);font-size:14px}
+.imp-row .k small{display:block;font-size:11.5px;color:var(--ink3)}
+.imp-row .v{font:700 15px var(--hf);text-align:right}
+.rup-h{display:flex;justify-content:space-between;font:600 13px var(--hf);color:var(--ink2)}
+.bar{height:8px;background:#EEF1F6;border-radius:4px;position:relative;margin:8px 0 4px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:4px}
+.bar .be{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.barlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)}
+.verdict{border-radius:6px;padding:12px 14px;font-size:13px}
+.verdict b{font-family:var(--hf);display:block;margin-bottom:2px}
+.verdict.good{background:var(--green-t);color:#11683A}
+.verdict.bad{background:var(--red-t);color:#A32626}
+.verdict.neutral{background:var(--blue-t);color:#27509E}
+.decision{font-size:13px;color:var(--ink2)}
+.decide{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:14px}
+.decide input{flex:1 1 220px;width:auto}
+.dmsg{font-size:12.5px;color:var(--red);flex-basis:100%}
+.empty,.locked{color:var(--ink3);text-align:center;padding:40px 10px;background:var(--card);border:1px dashed var(--line);border-radius:8px}
+.locked{color:var(--ink2)}
+.locked b{display:block;font:700 16px var(--hf);color:var(--ink);margin-bottom:4px}
+.note{font-size:12px;color:var(--ink3);margin-top:12px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1 class="ptitle" style="margin-bottom:16px">Price Approvals</h1>
+
+  <div id="locked" class="locked hidden"><b>Only Scott can approve price requests</b>This page is limited to the Head of Sales.</div>
+
+  <div id="main" class="hidden">
+    <div class="strip">
+      <div class="kpi"><div class="l">Awaiting decision</div><div class="v warn" id="kPending">–</div></div>
+      <div class="kpi"><div class="l">Approved this month</div><div class="v" id="kApproved">–</div></div>
+      <div class="kpi"><div class="l">Avg discount requested</div><div class="v" id="kDisc">–</div></div>
+      <div class="kpi"><div class="l">Projected extra GP / month (approved)</div><div class="v" id="kGP">–</div></div>
+    </div>
+    <div class="filters" id="filters">
+      <button class="chip" data-f="pending" aria-pressed="true">Awaiting decision</button>
+      <button class="chip" data-f="discuss" aria-pressed="false">To discuss</button>
+      <button class="chip" data-f="approved" aria-pressed="false">Approved</button>
+      <button class="chip" data-f="rejected" aria-pressed="false">Rejected</button>
+      <button class="chip" data-f="all" aria-pressed="false">All</button>
+    </div>
+    <div class="cards" id="cards"><div class="empty">Loading requests…</div></div>
+    <p class="note">Prices and costs are year-to-date averages from invoiced sales (INV lines, USD accounts excluded). Each Category Manager sees only their own requests.</p>
+  </div>
+</div>
+
+<script>window.DFL_PAGE_TITLE = 'Price Approvals';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+(function () {
+const $ = id => document.getElementById(id);
+const J = n => (n<0?"−":"") + "J$" + Math.abs(n).toLocaleString("en-JM",{maximumFractionDigits:0});
+const J2 = n => "J$" + Number(n).toLocaleString("en-JM",{minimumFractionDigits:2,maximumFractionDigits:2});
+const P = (n,d=1) => (n<0?"−":"") + Math.abs(n*100).toFixed(d) + "%";
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const today = iso(new Date());
+const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("en-JM",{day:"numeric",month:"short",year:"numeric"}) : "";
+
+let ROWS = [], filter = "pending", started = false;
+const openSet = new Set(), noteDraft = {};
+const deepLink = (location.hash || "").slice(1);
+if (deepLink) openSet.add(deepLink);
+
+function fromRow(x){
+  return {curPrice:+x.current_price,cost:+x.landed_cost,newPrice:+x.proposed_price,compPrice:+x.competitor_price,curUnits:+x.current_units,extraUnits:+x.extra_units};
+}
+function impact(r){
+  const {curPrice:p0,cost:c,newPrice:p1,curUnits:u0,extraUnits:du,compPrice:cp} = r;
+  const o = { disc:(p1-p0)/p0, gp0:(p0-c)/p0, gp1:(p1-c)/p1 };
+  o.comp = cp>0 ? (p1-cp)/cp : null;
+  o.be = p1>c ? (p0-c)/(p1-c) - 1 : null;
+  o.up = u0>0 ? du/u0 : null;
+  o.rev = (u0+du)*p1 - u0*p0;
+  o.gpchg = (u0+du)*(p1-c) - u0*(p0-c);
+  return o;
+}
+function verdictOf(o, r){
+  if (r.newPrice<=r.cost) return ["bad","Sells below cost","Every extra unit loses money at this price."];
+  if (o.gpchg>=0) return ["good","Adds gross profit",`Projected uplift clears the ${o.be!=null?P(o.be,0):"–"} needed to break even.`];
+  return ["bad","Loses gross profit",`Needs ${o.be!=null?P(o.be,0):"more"} extra volume to break even; the request projects ${o.up!=null?P(o.up,0):"less"}.`];
+}
+function trow(k,v,color,hint){
+  const d = document.createElement("div"); d.className = "imp-row";
+  const ks = document.createElement("span"); ks.className = "k"; ks.textContent = k;
+  if (hint){ const s = document.createElement("small"); s.textContent = hint; ks.append(s); }
+  const vs = document.createElement("span"); vs.className = "v"; vs.textContent = v; if (color) vs.style.color = color;
+  d.append(ks, vs); return d;
+}
+
+$("filters").addEventListener("click", e=>{
+  const b = e.target.closest(".chip"); if (!b) return;
+  filter = b.dataset.f;
+  for (const c of $("filters").children) c.setAttribute("aria-pressed", c===b);
+  render();
+});
+
+async function load(){
+  const { data, error } = await sb.from("price_change_requests").select("*").order("created_at", { ascending:false }).limit(1000);
+  if (error){ $("cards").innerHTML = '<div class="empty">Couldn\'t load requests. Refresh to try again.</div>'; return; }
+  ROWS = data || [];
+  if (deepLink){
+    const hit = ROWS.find(x=>x.id===deepLink);
+    if (hit && hit.status!=="pending"){ filter = "all"; for (const c of $("filters").children) c.setAttribute("aria-pressed", c.dataset.f==="all"); }
+  }
+  render();
+  if (deepLink){ const el = document.getElementById("r_"+deepLink); if (el) el.scrollIntoView({block:"start"}); }
+}
+
+function render(){
+  const pend = ROWS.filter(x=>x.status==="pending");
+  const mon = today.slice(0,7);
+  const appr = ROWS.filter(x=>x.status==="approved");
+  $("kPending").textContent = pend.length;
+  $("kApproved").textContent = appr.filter(x=>(x.decided_at||"").slice(0,7)===mon).length;
+  const ds = pend.map(x=>impact(fromRow(x)).disc);
+  $("kDisc").textContent = ds.length ? P(-ds.reduce((a,b)=>a+b,0)/ds.length) : "–";
+  $("kGP").textContent = appr.length ? J(appr.map(x=>impact(fromRow(x)).gpchg).reduce((a,b)=>a+b,0)) : "–";
+  const counts = {all:ROWS.length}; for (const x of ROWS) counts[x.status] = (counts[x.status]||0)+1;
+  for (const c of $("filters").children){
+    let n = c.querySelector(".n"); if (!n){ n = document.createElement("span"); n.className = "n"; c.append(n); }
+    n.textContent = counts[c.dataset.f] || 0;
+  }
+
+  const list = ROWS.filter(x=> filter==="all" || x.status===filter);
+  const box = $("cards"); box.textContent = "";
+  if (!list.length){ const e=document.createElement("div"); e.className="empty"; e.textContent = filter==="pending" ? "Nothing waiting for a decision." : "No requests here."; box.append(e); return; }
+  for (const x of list){
+    const r = fromRow(x), o = impact(r), st = x.status;
+    const c = document.createElement("details"); c.className = "req " + (st==="pending"?"pending":""); c.id = "r_"+x.id;
+    c.open = openSet.has(x.id);
+    c.addEventListener("toggle", ()=>{ c.open ? openSet.add(x.id) : openSet.delete(x.id); });
+    const h = document.createElement("summary");
+    const t = document.createElement("div"); t.className="t";
+    t.textContent = x.sku_description ? `${x.sku} · ${x.sku_description}` : x.sku;
+    const sm = document.createElement("small");
+    sm.textContent = `${x.scope==="all" ? "All customers" : x.customer} · requested by ${x.requester_name || "Someone"} · ${fmtDate((x.created_at||"").slice(0,10))}`;
+    t.append(sm);
+    const quick = document.createElement("span"); quick.className = "quick";
+    const qd = document.createElement("span"); qd.textContent = P(o.disc); qd.style.color = "var(--amber)"; qd.title = "Discount vs current price";
+    const qg = document.createElement("span"); qg.textContent = J(o.gpchg) + " GP/mo"; qg.title = "Extra gross profit a month";
+    qg.style.color = o.gpchg>=0 ? "var(--green)" : "var(--red)";
+    quick.append(qd, qg);
+    const pill = document.createElement("span"); pill.className="pill "+st; pill.textContent = st==="discuss" ? "To discuss" : st;
+    const chev = document.createElement("span"); chev.className = "chev"; chev.setAttribute("aria-hidden","true"); chev.textContent = "›";
+    h.append(t,quick,pill,chev);
+
+    const body = document.createElement("div"); body.className = "req-b";
+    const why = document.createElement("div"); why.className="why";
+    const wb = document.createElement("b"); wb.textContent = x.reason + ". ";
+    why.append(wb, document.createTextNode(x.explanation || ""));
+    const tbl = document.createElement("div"); tbl.className = "rtable";
+    const gap = o.comp==null ? "Not given" : o.comp>0 ? P(o.comp)+" above" : o.comp<0 ? P(-o.comp)+" below" : "Level";
+    const u = n => Math.round(n).toLocaleString();
+    tbl.append(
+      trow("Price: current → proposed", `${J2(r.curPrice)} → ${J2(r.newPrice)}`),
+      trow("Discount vs current price", P(o.disc), "var(--amber)"),
+      trow(`Competitor price (${x.competitor_name})`, J2(r.compPrice)),
+      trow("Gap to competitor after change", gap),
+      trow("GP % now → new", `${P(o.gp0)} → ${P(o.gp1)}`, o.gp1<0.25 ? "var(--red)" : ""),
+      trow("Units a month: today → projected", `${u(r.curUnits)} → ${u(r.curUnits+r.extraUnits)}`),
+      trow("Extra revenue a month", J(o.rev), "", "Sales after the change minus sales today"),
+      trow("Extra gross profit a month", J(o.gpchg), o.gpchg>=0?"var(--green)":"var(--red)", "What DFL actually gains after paying for the discount"),
+      trow("Runs", `${fmtDate(x.start_date)} – ${x.end_date?fmtDate(x.end_date):"permanent"}`)
+    );
+    const upWrap = document.createElement("div");
+    const scale = Math.max(1, (o.be||0)*1.5, (o.up||0)*1.1);
+    const col = o.gpchg>=0 ? "var(--green)" : "var(--red)";
+    upWrap.innerHTML = `<div class="rup-h"><span>Volume uplift projected</span><span></span></div>
+      <div class="bar"><i style="width:${o.up!=null?Math.min(100,o.up/scale*100):0}%;background:${col}"></i>${o.be!=null?`<span class="be" style="left:${Math.min(99.5,o.be/scale*100)}%"></span>`:""}</div>
+      <div class="barlbl"><span>0%</span><span></span></div>`;
+    upWrap.querySelector(".rup-h span:last-child").textContent = o.up!=null ? "+"+P(o.up,0) : "–";
+    upWrap.querySelector(".barlbl span:last-child").textContent = "Break-even uplift: " + (o.be!=null ? "+"+P(o.be,0) : "–");
+    const [vc,vh,vb] = verdictOf(o,r);
+    const ver = document.createElement("div"); ver.className = "verdict " + vc;
+    const vbh = document.createElement("b"); vbh.textContent = vh; ver.append(vbh, document.createTextNode(vb));
+    body.append(why,tbl,upWrap,ver);
+    if (st!=="pending"){
+      const d = document.createElement("div"); d.className="decision";
+      d.textContent = `Decided ${fmtDate((x.decided_at||"").slice(0,10))}${x.decision_note ? ": " + x.decision_note : ""}`;
+      body.append(d);
+    }
+    const d = document.createElement("div"); d.className="decide";
+    const inp = document.createElement("input"); inp.placeholder = "Note to the Category Manager (optional)"; inp.id = "n_"+x.id;
+    inp.value = noteDraft[x.id] ?? x.decision_note ?? "";
+    inp.addEventListener("input", ()=>{ noteDraft[x.id] = inp.value; });
+    const dmsg = document.createElement("div"); dmsg.className = "dmsg";
+    const mk = (label,cls,status)=>{ const b=document.createElement("button"); b.className="btn "+cls; b.type="button"; b.textContent=label; b.onclick=()=>decide(x.id,status,inp.value.trim(),d,dmsg); return b; };
+    d.append(inp, mk("Approve","g","approved"), mk("Discuss","a","discuss"), mk("Reject","r","rejected"), dmsg);
+    body.append(d);
+    c.append(h,body);
+    box.append(c);
+  }
+}
+
+async function decide(id, status, note, wrap, dmsg){
+  const btns = wrap.querySelectorAll("button"); btns.forEach(b=>b.disabled=true);
+  dmsg.textContent = "";
+  const { error } = await sb.rpc("decide_price_request", { p_id:id, p_status:status, p_note:note || null });
+  if (error){ dmsg.textContent = "Not saved: " + error.message; btns.forEach(b=>b.disabled=false); return; }
+  openSet.delete(id); delete noteDraft[id];
+  // Tell the Category Manager. Never blocks the decision itself.
+  sb.functions.invoke("price-request-email", { body: { request_id:id, kind:"decision" } }).catch(()=>{});
+  await load();
+}
+
+async function init(){
+  if (started) return; started = true;
+  const { data: ok, error } = await sb.rpc("is_price_approver");
+  if (error || !ok){ $("locked").classList.remove("hidden"); return; }
+  $("main").classList.remove("hidden");
+  load();
+}
+document.addEventListener("dfl-auth-ready", init);
+if (window.DFL_PROFILE) init();
+})();
+</script>
+</body>
+</html>

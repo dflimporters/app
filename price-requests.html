@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<title>DFL · Price Requests</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  Price Requests — Category Managers ask for any price below our current
+  average selling price. Only the Head of Sales approves, on
+  /admin/price-approvals.html.
+
+  Data: price_change_requests (RLS: a user reads only their own rows; insert
+  only for admin/manager/rep_management via can_request_price(); no client
+  update/delete — decisions go through decide_price_request()), and
+  price_request_sku_cache (YTD avg price/cost per SKU, refreshed nightly by
+  cron refresh-price-request-skus). New requests trigger the
+  price-request-email edge function (kind 'new').
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --lever:#FFF8D6; --lever-b:#E9D77A;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1080px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.tabs button{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;line-height:18px;text-align:center}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:20px}
+.panel h2{font:700 13px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);margin:0 0 4px}
+.panel .sub{color:var(--ink3);font-size:12.5px;margin:0 0 16px}
+fieldset{border:0;padding:0;margin:0 0 18px;display:grid;gap:12px}
+legend{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);padding:0;margin-bottom:10px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+@media (max-width:640px){.row{grid-template-columns:1fr}}
+label{display:grid;gap:5px;font:600 12px var(--hf);color:var(--ink2)}
+label small,.lbl small{font:400 11.5px var(--bf);color:var(--ink3)}
+.row>label,.row>.lbl{align-content:end}
+input,select,textarea{font:14px var(--bf);color:var(--ink);background:#fff;border:1px solid #CBD3E1;border-radius:6px;padding:9px 10px;width:100%}
+input:not([type="radio"]),select,.dp-btn{height:42px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+input::placeholder,textarea::placeholder{color:#B3BBCC;opacity:1;font-weight:400}
+input.lever{background:var(--lever);border-color:var(--lever-b)}
+input.auto{background:#F0F3F8;color:var(--ink2)}
+textarea{min-height:64px;resize:vertical}
+.rq{color:var(--red);font-weight:700}
+.invalid{border-color:var(--red)!important;box-shadow:0 0 0 2px var(--red-t)}
+.readonly{height:42px;display:flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#F0F3F8;color:var(--ink2);font:14px var(--bf)}
+.seg{display:flex;border:1px solid #CBD3E1;border-radius:6px;overflow:hidden}
+.seg label{flex:1;display:block;cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg span{display:block;text-align:center;padding:9px 6px;font:600 12.5px var(--hf);color:var(--ink2)}
+.seg input:checked+span{background:var(--blue);color:#fff}
+.seg input:focus-visible+span{outline:2px solid var(--navy);outline-offset:-2px}
+.skuinfo{font-size:12px;color:var(--ink3);margin-top:-4px}
+.btn{font:700 12.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;border:0;border-radius:6px;padding:11px 18px;cursor:pointer;background:var(--blue);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--ink2);border:1px solid #CBD3E1}
+.msg{font-size:13px;margin-top:10px}
+.msg.err{color:var(--red)}.msg.ok{color:var(--green)}
+.lbl{display:grid;gap:5px;font:600 12px var(--hf);color:var(--ink2)}
+/* date picker */
+.dp{position:relative}
+.dp-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;font:14px var(--bf);color:var(--ink);background:#fff;border:1px solid #CBD3E1;border-radius:6px;padding:9px 10px;cursor:pointer;text-align:left}
+.dp-btn.dp-none{color:var(--ink3)}
+.dp-btn svg{flex:none;color:var(--blue)}
+.dp-pop{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:272px;max-width:calc(100vw - 32px);background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(13,27,62,.14);padding:12px}
+.dp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font:700 13px var(--hf)}
+.dp-head button{background:none;border:0;font:700 16px var(--hf);color:var(--ink2);cursor:pointer;width:30px;height:30px;border-radius:6px}
+.dp-head button:hover{background:var(--blue-t)}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.dp-grid .wd{font:600 10px var(--hf);color:var(--ink3);text-transform:uppercase;padding:4px 0}
+.dp-grid button{font:500 13px var(--hf);font-variant-numeric:tabular-nums;border:0;background:none;color:var(--ink);height:32px;border-radius:6px;cursor:pointer}
+.dp-grid button:hover{background:var(--blue-t)}
+.dp-grid button.today{box-shadow:inset 0 0 0 1px var(--blue)}
+.dp-grid button.sel{background:var(--blue);color:#fff}
+.dp-grid button:disabled{color:#C9CFDB;cursor:not-allowed;background:none}
+.dp-foot{display:flex;justify-content:space-between;margin-top:8px}
+.dp-foot button{font:600 12px var(--hf);color:var(--blue);background:none;border:0;cursor:pointer;padding:4px 2px}
+/* impact */
+.impact{position:sticky;top:12px}
+.imp-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.imp-row:last-of-type{border-bottom:0}
+.imp-row .k{color:var(--ink2);font-size:13px}
+.imp-row .k small{display:block;font-size:11.5px;color:var(--ink3)}
+.imp-row .v{font:700 14px var(--hf);text-align:right}
+.verdict{margin-top:14px;border-radius:6px;padding:12px 14px;font-size:13px}
+.verdict b{font-family:var(--hf);display:block;margin-bottom:2px}
+.verdict.good{background:var(--green-t);color:#11683A}
+.verdict.bad{background:var(--red-t);color:#A32626}
+.verdict.neutral{background:var(--blue-t);color:#27509E}
+.bar{height:8px;background:#EEF1F6;border-radius:4px;position:relative;margin:8px 0 4px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:4px}
+.bar .be{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.barlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3)}
+.note{font-size:12px;color:var(--ink3);margin-top:12px}
+/* request list */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chip{font:600 12px var(--hf);border:1px solid #CBD3E1;background:#fff;color:var(--ink2);border-radius:14px;padding:5px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.cards{display:grid;gap:10px;max-width:760px}
+.req{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.req.pending{border-left:4px solid var(--amber)}
+.req>summary{list-style:none;cursor:pointer;padding:14px 18px;border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.req>summary::-webkit-details-marker{display:none}
+.req>summary:hover{background:#F7F9FC}
+.req[open]>summary{border-bottom:1px solid var(--line);border-radius:8px 8px 0 0}
+.req .t{font:700 14.5px var(--hf);flex:1 1 280px}
+.req .t small{display:block;font:400 12px var(--bf);color:var(--ink3);margin-top:2px}
+.quick{display:flex;gap:12px;font:700 13px var(--hf);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:560px){.quick{order:3;flex-basis:100%}}
+.chev{font:700 18px var(--hf);color:var(--ink3);transition:transform .15s;line-height:1}
+.req[open] .chev{transform:rotate(90deg)}
+.req-b{padding:14px 20px 18px;display:grid;gap:12px}
+.pill{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.07em;border-radius:10px;padding:3px 9px;white-space:nowrap}
+.pill.pending{background:var(--amber-t);color:var(--amber)}
+.pill.approved{background:var(--green-t);color:var(--green)}
+.pill.rejected{background:var(--red-t);color:var(--red)}
+.pill.discuss{background:var(--blue-t);color:var(--blue)}
+.why{font-size:13px;color:var(--ink2);background:#F7F9FC;border-radius:6px;padding:10px 12px}
+.why b{font-family:var(--hf);color:var(--ink)}
+.rtable{border-top:1px solid var(--line)}
+.rtable .imp-row{border-bottom:1px solid var(--line)}
+.rtable .imp-row .k{font-size:14px}
+.rtable .imp-row .v{font-size:15px}
+.rup-h{display:flex;justify-content:space-between;font:600 13px var(--hf);color:var(--ink2)}
+.req .verdict{margin-top:0}
+.decision{font-size:13px;color:var(--ink);background:#F7F9FC;border-radius:6px;padding:10px 12px}
+.decision b{font-family:var(--hf)}
+.empty{color:var(--ink3);text-align:center;padding:40px 10px;background:var(--card);border:1px dashed var(--line);border-radius:8px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1 class="ptitle">Price Requests</h1>
+  <p class="psub">For any price reduction outside of the regular deals sheet, please put your request here.</p>
+
+  <div class="strip">
+    <div class="kpi"><div class="l">My requests awaiting decision</div><div class="v warn" id="kPending">–</div></div>
+    <div class="kpi"><div class="l">My approvals this month</div><div class="v" id="kApproved">–</div></div>
+    <div class="kpi"><div class="l">Avg discount requested</div><div class="v" id="kDisc">–</div></div>
+    <div class="kpi"><div class="l">My projected extra GP / month (approved)</div><div class="v" id="kGP">–</div></div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabNew" aria-selected="true">New request</button>
+    <button role="tab" id="tabMine" aria-selected="false">My requests<span class="badge" id="badge" hidden>0</span></button>
+  </div>
+
+  <section id="viewNew">
+   <div class="grid">
+    <form class="panel" id="form" novalidate>
+     <h2>Request a lower price</h2>
+     <p class="sub">Takes about 3 minutes. Fields marked <span class="rq">*</span> are required.</p>
+
+     <fieldset>
+      <legend>What and who</legend>
+      <div class="lbl"><span>Requested by</span><div class="readonly" id="requester">–</div></div>
+      <label>SKU
+        <input id="sku" list="skuList" placeholder="Type a code or product name" autocomplete="off">
+        <datalist id="skuList"></datalist>
+      </label>
+      <div class="skuinfo" id="skuInfo">Loading the SKU price list…</div>
+      <div>
+        <div style="font:600 12px var(--hf);color:var(--ink2);margin-bottom:5px">Who is the price for?</div>
+        <div class="seg" role="radiogroup">
+          <label><input type="radio" name="scope" id="scopeCust" value="customer" checked><span>One customer</span></label>
+          <label><input type="radio" name="scope" id="scopeAll" value="all"><span>All customers</span></label>
+        </div>
+      </div>
+      <label id="custWrap">Customer name / code
+        <input id="customer" placeholder="e.g. Progressive Grocers – Portmore">
+      </label>
+     </fieldset>
+
+     <fieldset>
+      <legend>Prices (J$ per selling unit)</legend>
+      <div class="row">
+        <label>Our current avg selling price <small>Prefilled from DFL YTD sales data</small>
+          <input id="curPrice" class="auto" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <label>Landed cost <small>Prefilled from DFL YTD sales data</small>
+          <input id="cost" class="auto" type="number" step="0.01" min="0" inputmode="decimal"></label>
+      </div>
+      <div class="row">
+        <label>Competitor
+          <input id="compName" placeholder="e.g. Hi-Lo own brand, Wisynco"></label>
+        <label>Competitor's price
+          <input id="compPrice" type="number" step="0.01" min="0" inputmode="decimal"></label>
+      </div>
+      <label>Proposed new price
+        <input id="newPrice" class="lever" type="number" step="0.01" min="0" inputmode="decimal"></label>
+     </fieldset>
+
+     <fieldset>
+      <legend>Why</legend>
+      <label>Reason
+        <select id="reason">
+          <option value="">Choose one</option>
+          <option>Promotion</option>
+          <option>Clear stock</option>
+          <option>Grow penetration</option>
+          <option>Match competitor</option>
+          <option>Win back customer</option>
+          <option>Other</option>
+        </select></label>
+      <label>Explain reason briefly (1–2 lines)
+        <textarea id="note" rows="2" placeholder="e.g. Hi-Lo is running this at J$4,200 on shelf; we lose the facing unless we get closer."></textarea></label>
+      <div class="row">
+        <div class="lbl"><span id="startLbl">Start date</span>
+          <div class="dp"><button type="button" class="dp-btn" id="startBtn" aria-labelledby="startLbl startBtn" aria-haspopup="dialog"></button><input type="hidden" id="start"></div></div>
+        <div class="lbl"><span id="endLbl">End date <small>Leave as "No end date" only for a permanent change</small></span>
+          <div class="dp"><button type="button" class="dp-btn" id="endBtn" aria-labelledby="endLbl endBtn" aria-haspopup="dialog"></button><input type="hidden" id="end"></div></div>
+      </div>
+     </fieldset>
+
+     <fieldset>
+      <legend>What you expect it to deliver</legend>
+      <div class="row">
+        <label>Units a month today <small id="unitsHint">Enter this customer's monthly units</small>
+          <input id="curUnits" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label>Extra units a month you expect
+          <input id="extraUnits" class="lever" type="number" step="1" min="0" inputmode="numeric"></label>
+      </div>
+     </fieldset>
+
+     <div style="display:flex;gap:10px;flex-wrap:wrap">
+       <button class="btn" id="submit" type="submit">Send for approval</button>
+       <button class="btn ghost" id="reset" type="button">Clear</button>
+     </div>
+     <div class="msg" id="formMsg" role="status"></div>
+    </form>
+
+    <aside class="panel impact" aria-live="polite">
+     <h2>Impact check</h2>
+     <p class="sub">Updates as you type.</p>
+     <div class="imp-row"><span class="k">Discount vs current price</span><span class="v" id="iDisc">–</span></div>
+     <div class="imp-row"><span class="k">Gap to competitor after change</span><span class="v" id="iComp">–</span></div>
+     <div class="imp-row"><span class="k">GP % now → new</span><span class="v" id="iGP">–</span></div>
+     <div class="imp-row"><span class="k">Extra revenue a month<small>Sales after the change minus sales today</small></span><span class="v" id="iRev">–</span></div>
+     <div class="imp-row"><span class="k">Extra gross profit a month<small>What DFL actually gains after paying for the discount</small></span><span class="v" id="iGPchg">–</span></div>
+     <p class="note" style="margin:6px 0 0">All amounts are full Jamaican dollars, not thousands.</p>
+     <div style="margin-top:12px">
+       <div style="display:flex;justify-content:space-between;font:600 12px var(--hf);color:var(--ink2)"><span>Volume uplift you project</span><span id="iUp">–</span></div>
+       <div class="bar"><i id="upBar" style="width:0;background:var(--blue)"></i><span class="be" id="beMark" style="left:0" hidden></span></div>
+       <div class="barlbl"><span>0%</span><span id="iBE">Break-even uplift: –</span></div>
+     </div>
+     <div class="verdict neutral" id="verdict"><b>Waiting for numbers</b>Enter a SKU, a new price and the volume you expect.</div>
+    </aside>
+   </div>
+  </section>
+
+  <section id="viewMine" class="hidden">
+    <div class="filters" id="filters">
+      <button class="chip" data-f="all" aria-pressed="true">All</button>
+      <button class="chip" data-f="pending" aria-pressed="false">Awaiting decision</button>
+      <button class="chip" data-f="discuss" aria-pressed="false">To discuss</button>
+      <button class="chip" data-f="approved" aria-pressed="false">Approved</button>
+      <button class="chip" data-f="rejected" aria-pressed="false">Rejected</button>
+    </div>
+    <div class="cards" id="cards"><div class="empty">Loading your requests…</div></div>
+    <p class="note">You see only the requests you sent. Scott is the only one who can approve, reject or mark a request for discussion.</p>
+  </section>
+</div>
+
+<script>window.DFL_PAGE_TITLE = 'Price Requests';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+// Wrapped so nothing here collides with the shared scripts' globals.
+(function () {
+const $ = id => document.getElementById(id);
+const J = n => (n<0?"−":"") + "J$" + Math.abs(n).toLocaleString("en-JM",{maximumFractionDigits:0});
+const J2 = n => "J$" + Number(n).toLocaleString("en-JM",{minimumFractionDigits:2,maximumFractionDigits:2});
+const P = (n,d=1) => (n<0?"−":"") + Math.abs(n*100).toFixed(d) + "%";
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : null; };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const today = iso(new Date());
+const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("en-JM",{day:"numeric",month:"short",year:"numeric"}) : "";
+
+let PROFILE = null, SKUS = new Map(), ROWS = [], filter = "all";
+const openSet = new Set();
+
+/* ---------- tabs ---------- */
+function show(which){
+  $("tabNew").setAttribute("aria-selected", which==="new");
+  $("tabMine").setAttribute("aria-selected", which==="mine");
+  $("viewNew").classList.toggle("hidden", which!=="new");
+  $("viewMine").classList.toggle("hidden", which!=="mine");
+  if (which==="mine") loadMine();
+}
+$("tabNew").onclick = () => show("new");
+$("tabMine").onclick = () => show("mine");
+
+/* ---------- SKU reference (PostgREST caps a response at 1,000 rows, so page it) ---------- */
+async function loadSkus(){
+  const rows = [];
+  for (let from = 0; ; from += 1000){
+    const { data, error } = await sb.from("price_request_sku_cache")
+      .select("sku,description,item_class,avg_price,avg_cost,units_per_month,revenue_per_month")
+      .order("revenue_per_month", { ascending:false }).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < 1000) break;
+  }
+  const frag = document.createDocumentFragment();
+  for (const r of rows){
+    const key = r.sku + " — " + (r.description || "");
+    SKUS.set(key, { code:r.sku, desc:r.description||"", cls:r.item_class||"", price:+r.avg_price, cost:+r.avg_cost, units:+r.units_per_month, rev:+r.revenue_per_month });
+    const o = document.createElement("option"); o.value = key; frag.appendChild(o);
+  }
+  $("skuList").appendChild(frag);
+  $("skuInfo").textContent = "Pick a SKU and its current price and cost fill in automatically.";
+}
+
+function currentSku(){ return SKUS.get($("sku").value.trim()) || null; }
+function scope(){ return $("scopeAll").checked ? "all" : "customer"; }
+
+function onSku(){
+  const s = currentSku();
+  if (s){
+    $("curPrice").value = s.price; $("cost").value = s.cost;
+    $("curPrice").classList.remove("invalid"); $("cost").classList.remove("invalid");
+    $("skuInfo").textContent = `${s.cls} · GP ${P((s.price-s.cost)/s.price)} · ${Math.round(s.units).toLocaleString()} units / ${J(s.rev)} a month across all customers`;
+    if (scope()==="all") $("curUnits").value = Math.round(s.units);
+  }
+  calc();
+}
+$("sku").addEventListener("change", onSku);
+$("sku").addEventListener("input", ()=>{ if (currentSku()) onSku(); });
+for (const r of ["scopeCust","scopeAll"]) $(r).addEventListener("change", ()=>{
+  const all = scope()==="all";
+  $("custWrap").classList.toggle("hidden", all);
+  $("unitsHint").textContent = all ? "Prefilled from DFL YTD sales data" : "Enter this customer's monthly units";
+  const s = currentSku();
+  $("curUnits").value = all && s ? Math.round(s.units) : "";
+  calc();
+});
+for (const id of ["curPrice","cost","compPrice","newPrice","curUnits","extraUnits"]) $(id).addEventListener("input", calc);
+
+/* ---------- impact maths ---------- */
+function impact(r){
+  const {curPrice:p0,cost:c,newPrice:p1,curUnits:u0,extraUnits:du,compPrice:cp} = r;
+  const o = {};
+  if (p0>0 && p1!=null) o.disc = (p1-p0)/p0;
+  if (cp>0 && p1!=null) o.comp = (p1-cp)/cp;
+  if (p0>0 && c!=null) o.gp0 = (p0-c)/p0;
+  if (p1>0 && c!=null) o.gp1 = (p1-c)/p1;
+  if (p0>0 && p1!=null && c!=null && p1>c) o.be = (p0-c)/(p1-c) - 1;
+  if (u0!=null && du!=null){
+    if (u0>0) o.up = du/u0;
+    if (p0>0 && p1!=null) o.rev = (u0+du)*p1 - u0*p0;
+    if (p0>0 && p1!=null && c!=null) o.gpchg = (u0+du)*(p1-c) - u0*(p0-c);
+  }
+  return o;
+}
+function verdictOf(o, r){
+  if (r.newPrice!=null && r.cost!=null && r.newPrice<=r.cost) return ["bad","Sells below cost","Every extra unit loses money at this price."];
+  if (o.gpchg==null) return ["neutral","Waiting for numbers","Enter a SKU, a new price and the volume you expect."];
+  if (o.gpchg>=0) return ["good","Adds gross profit",`Projected uplift clears the ${o.be!=null?P(o.be,0):"–"} needed to break even.`];
+  return ["bad","Loses gross profit",`Needs ${o.be!=null?P(o.be,0):"more"} extra volume to break even; the request projects ${o.up!=null?P(o.up,0):"less"}.`];
+}
+function readForm(){
+  return {curPrice:num("curPrice"),cost:num("cost"),newPrice:num("newPrice"),compPrice:num("compPrice"),curUnits:num("curUnits"),extraUnits:num("extraUnits")};
+}
+function fromRow(x){
+  return {curPrice:+x.current_price,cost:+x.landed_cost,newPrice:+x.proposed_price,compPrice:+x.competitor_price,curUnits:+x.current_units,extraUnits:+x.extra_units};
+}
+function calc(){
+  const r = readForm(), o = impact(r);
+  $("iDisc").textContent = o.disc!=null ? P(o.disc) : "–";
+  $("iDisc").style.color = o.disc<0 ? "var(--amber)" : "";
+  $("iComp").textContent = o.comp!=null ? (o.comp>0 ? P(o.comp)+" above" : o.comp<0 ? P(-o.comp)+" below" : "Level") : "–";
+  $("iGP").textContent = o.gp0!=null ? P(o.gp0) + " → " + (o.gp1!=null?P(o.gp1):"–") : "–";
+  $("iRev").textContent = o.rev!=null ? J(o.rev) : "–";
+  $("iGPchg").textContent = o.gpchg!=null ? J(o.gpchg) : "–";
+  $("iGPchg").style.color = o.gpchg==null ? "" : o.gpchg>=0 ? "var(--green)" : "var(--red)";
+  $("iUp").textContent = o.up!=null ? "+" + P(o.up,0) : "–";
+  const scale = Math.max(1, (o.be||0)*1.5, (o.up||0)*1.1);
+  $("upBar").style.width = o.up!=null ? Math.min(100, o.up/scale*100) + "%" : "0";
+  $("upBar").style.background = o.gpchg==null ? "var(--blue)" : o.gpchg>=0 ? "var(--green)" : "var(--red)";
+  if (o.be!=null){ $("beMark").hidden=false; $("beMark").style.left = Math.min(99.5,o.be/scale*100)+"%"; $("iBE").textContent = "Break-even uplift: +" + P(o.be,0); }
+  else { $("beMark").hidden=true; $("iBE").textContent = "Break-even uplift: –"; }
+  const [cls,head,body] = verdictOf(o,r);
+  const v = $("verdict"); v.className = "verdict " + cls; v.textContent = "";
+  const b = document.createElement("b"); b.textContent = head; v.append(b, document.createTextNode(body));
+}
+
+/* ---------- calendar picker ---------- */
+const CAL = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+const pickers = [];
+function datePicker(id, {emptyText, allowClear, minFrom}){
+  const inp = $(id), btn = $(id+"Btn"), pop = document.createElement("div");
+  pop.className = "dp-pop"; pop.hidden = true; pop.setAttribute("role","dialog"); btn.parentNode.append(pop);
+  let view;
+  const label = () => { btn.innerHTML = "<span></span>" + CAL; btn.firstChild.textContent = inp.value ? fmtDate(inp.value) : emptyText; btn.classList.toggle("dp-none", !inp.value); };
+  const close = () => { pop.hidden = true; };
+  const pick = v => { inp.value = v; label(); btn.classList.remove("invalid"); close(); btn.focus(); pickers.forEach(p=>p.onChange && p.onChange()); };
+  function draw(){
+    const y = view.getFullYear(), m = view.getMonth();
+    const min = minFrom ? $(minFrom).value : "";
+    pop.textContent = "";
+    const head = document.createElement("div"); head.className = "dp-head";
+    const prev = document.createElement("button"); prev.type="button"; prev.textContent="‹"; prev.setAttribute("aria-label","Previous month");
+    const next = document.createElement("button"); next.type="button"; next.textContent="›"; next.setAttribute("aria-label","Next month");
+    const t = document.createElement("span"); t.textContent = view.toLocaleDateString("en-JM",{month:"long",year:"numeric"});
+    prev.onclick = () => { view = new Date(y, m-1, 1); draw(); };
+    next.onclick = () => { view = new Date(y, m+1, 1); draw(); };
+    head.append(prev,t,next);
+    const grid = document.createElement("div"); grid.className = "dp-grid";
+    for (const w of ["Su","Mo","Tu","We","Th","Fr","Sa"]){ const s=document.createElement("span"); s.className="wd"; s.textContent=w; grid.append(s); }
+    const first = new Date(y,m,1).getDay(), days = new Date(y,m+1,0).getDate();
+    for (let i=0;i<first;i++) grid.append(document.createElement("span"));
+    for (let d=1; d<=days; d++){
+      const v = iso(new Date(y,m,d)), b = document.createElement("button");
+      b.type="button"; b.textContent=d; b.setAttribute("aria-label", fmtDate(v));
+      if (v===today) b.classList.add("today");
+      if (v===inp.value) b.classList.add("sel");
+      if (min && v<min) b.disabled = true;
+      b.onclick = () => pick(v);
+      grid.append(b);
+    }
+    const foot = document.createElement("div"); foot.className = "dp-foot";
+    const tb = document.createElement("button"); tb.type="button"; tb.textContent="Today"; tb.onclick=()=>pick(today);
+    foot.append(tb);
+    if (allowClear){ const cb=document.createElement("button"); cb.type="button"; cb.textContent="No end date"; cb.onclick=()=>pick(""); foot.append(cb); }
+    pop.append(head,grid,foot);
+  }
+  btn.onclick = () => {
+    if (!pop.hidden) return close();
+    pickers.forEach(p=>p.close());
+    const base = inp.value || (minFrom && $(minFrom).value) || today;
+    const d = new Date(base+"T12:00:00"); view = new Date(d.getFullYear(), d.getMonth(), 1);
+    draw(); pop.hidden = false;
+  };
+  const api = {label, close, pop, btn};
+  pickers.push(api); label();
+  return api;
+}
+document.addEventListener("click", e => { for (const p of pickers) if (!p.pop.hidden && !p.pop.contains(e.target) && !p.btn.contains(e.target)) p.close(); });
+document.addEventListener("keydown", e => { if (e.key==="Escape") pickers.forEach(p=>p.close()); });
+
+/* ---------- required fields ---------- */
+const REQUIRED = [["sku","SKU"],["customer","customer"],["curPrice","current price"],["cost","landed cost"],
+  ["compName","competitor"],["compPrice","competitor's price"],["newPrice","proposed price"],["reason","reason"],["note","explanation"],
+  ["start","start date"],["curUnits","units a month today"],["extraUnits","extra units expected"]];
+for (const [id] of REQUIRED){
+  const el = $(id), host = (id==="start" ? $("startLbl") : el.closest("label"));
+  const first = host && [...host.childNodes].find(n => n.nodeType===3 && n.textContent.trim());
+  if (first){ const s = document.createElement("span"); s.className = "rq"; s.textContent = " *"; s.setAttribute("aria-hidden","true");
+    if (host.tagName==="LABEL"){ const w = document.createElement("span"); first.replaceWith(w); w.append(document.createTextNode(first.textContent.trim()), s); }
+    else first.after(s); }
+  el.required = true;
+  el.addEventListener("input", ()=> el.classList.remove("invalid"));
+  el.addEventListener("change", ()=> el.classList.remove("invalid"));
+}
+$("start").value = today;
+const dpStart = datePicker("start", {emptyText:"Pick a start date"});
+const dpEnd = datePicker("end", {emptyText:"No end date (permanent)", allowClear:true, minFrom:"start"});
+dpStart.onChange = () => { if ($("end").value && $("end").value < $("start").value){ $("end").value=""; dpEnd.label(); } };
+function msg(t,cls){ $("formMsg").textContent = t; $("formMsg").className = "msg " + (cls||""); }
+
+/* ---------- submit ---------- */
+$("form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const r = readForm(), s = currentSku();
+  const skuText = $("sku").value.trim();
+  const miss = [];
+  for (const [id,name] of REQUIRED){
+    if (id==="customer" && scope()!=="customer") continue;
+    const el = $(id), empty = !el.value.trim();
+    (id==="start" ? $("startBtn") : el).classList.toggle("invalid", empty);
+    if (empty) miss.push(name);
+  }
+  if (miss.length){ const first = document.querySelector(".invalid"); if (first) first.focus(); return msg("Please fill in: " + miss.join(", ") + ".", "err"); }
+  if (r.newPrice >= r.curPrice) return msg("The proposed price is not below the current average, so it doesn't need approval.", "err");
+  if ($("end").value && $("end").value < $("start").value) return msg("The end date is before the start date.", "err");
+
+  const row = {
+    scope: scope(), customer: scope()==="customer" ? $("customer").value.trim() : null,
+    sku: s ? s.code : skuText.split(" — ")[0], sku_description: s ? s.desc : skuText, item_class: s ? s.cls : null,
+    current_price: r.curPrice, landed_cost: r.cost, competitor_name: $("compName").value.trim(), competitor_price: r.compPrice,
+    proposed_price: r.newPrice, reason: $("reason").value, explanation: $("note").value.trim(),
+    start_date: $("start").value, end_date: $("end").value || null,
+    current_units: r.curUnits, extra_units: r.extraUnits
+  };
+  $("submit").disabled = true;
+  try {
+    const { data, error } = await sb.from("price_change_requests").insert(row).select("id").single();
+    if (error) throw error;
+    // The email is a nicety: a failed send must never lose the request.
+    let emailed = false;
+    try {
+      const res = await sb.functions.invoke("price-request-email", { body: { request_id: data.id, kind: "new" } });
+      emailed = !res.error && res.data && res.data.ok;
+    } catch (_) {}
+    msg(emailed ? "Sent. Scott has been emailed and will review it." : "Sent. It's in Scott's approval queue.", "ok");
+    clearForm(false);
+  } catch(err){
+    const perm = err && (err.code === "42501" || /row-level security/i.test(err.message || ""));
+    msg(perm ? "Your account isn't set up to send price requests. Ask Scott to check your portal role." : "That didn't send: " + (err && err.message || "check your connection and try again."), "err");
+  } finally { $("submit").disabled = false; }
+});
+function clearForm(clearMsg=true){
+  for (const id of ["sku","customer","curPrice","cost","compName","compPrice","newPrice","note","end","curUnits","extraUnits"]) $(id).value="";
+  $("reason").value=""; $("start").value=today; dpStart.label(); dpEnd.label();
+  $("skuInfo").textContent = "Pick a SKU and its current price and cost fill in automatically.";
+  if (clearMsg) msg("");
+  calc();
+}
+$("reset").onclick = () => clearForm();
+
+/* ---------- my requests ---------- */
+$("filters").addEventListener("click", e=>{
+  const b = e.target.closest(".chip"); if (!b) return;
+  filter = b.dataset.f;
+  for (const c of $("filters").children) c.setAttribute("aria-pressed", c===b);
+  render();
+});
+function trow(k,v,color,hint){
+  const d = document.createElement("div"); d.className = "imp-row";
+  const ks = document.createElement("span"); ks.className = "k"; ks.textContent = k;
+  if (hint){ const s = document.createElement("small"); s.textContent = hint; ks.append(s); }
+  const vs = document.createElement("span"); vs.className = "v"; vs.textContent = v; if (color) vs.style.color = color;
+  d.append(ks, vs); return d;
+}
+async function loadMine(){
+  if (!PROFILE) return;
+  const { data, error } = await sb.from("price_change_requests").select("*")
+    .eq("requested_by", PROFILE.id).order("created_at", { ascending:false }).limit(500);
+  if (error){ $("cards").innerHTML = '<div class="empty">Couldn\'t load your requests. Refresh to try again.</div>'; return; }
+  ROWS = data || [];
+  render();
+}
+function render(){
+  const pend = ROWS.filter(x=>x.status==="pending");
+  const mon = today.slice(0,7);
+  const appr = ROWS.filter(x=>x.status==="approved");
+  $("kPending").textContent = pend.length;
+  $("kApproved").textContent = appr.filter(x=>(x.decided_at||"").slice(0,7)===mon).length;
+  const ds = pend.map(x=>impact(fromRow(x)).disc).filter(v=>v!=null);
+  $("kDisc").textContent = ds.length ? P(-ds.reduce((a,b)=>a+b,0)/ds.length) : "–";
+  $("kGP").textContent = appr.length ? J(appr.map(x=>impact(fromRow(x)).gpchg||0).reduce((a,b)=>a+b,0)) : "–";
+  const decided = ROWS.filter(x=>x.status!=="pending" && x.decided_at && (Date.now()-new Date(x.decided_at))<7*864e5).length;
+  $("badge").hidden = !decided; $("badge").textContent = decided; $("badge").title = "Decisions in the last 7 days";
+
+  const list = ROWS.filter(x=> filter==="all" || x.status===filter);
+  const box = $("cards"); box.textContent = "";
+  if (!list.length){ const e=document.createElement("div"); e.className="empty"; e.textContent = !ROWS.length ? "You haven't sent any requests yet." : "No requests here."; box.append(e); return; }
+  for (const x of list){
+    const r = fromRow(x), o = impact(r), st = x.status;
+    const c = document.createElement("details"); c.className = "req " + (st==="pending"?"pending":"");
+    c.open = openSet.has(x.id);
+    c.addEventListener("toggle", ()=>{ c.open ? openSet.add(x.id) : openSet.delete(x.id); });
+    const h = document.createElement("summary");
+    const t = document.createElement("div"); t.className="t";
+    t.textContent = x.sku_description ? `${x.sku} · ${x.sku_description}` : x.sku;
+    const sm = document.createElement("small");
+    sm.textContent = `${x.scope==="all" ? "All customers" : x.customer} · sent ${fmtDate((x.created_at||"").slice(0,10))}`;
+    t.append(sm);
+    const quick = document.createElement("span"); quick.className = "quick";
+    const qd = document.createElement("span"); qd.textContent = o.disc!=null ? P(o.disc) : "–"; qd.style.color = "var(--amber)"; qd.title = "Discount vs current price";
+    const qg = document.createElement("span"); qg.textContent = o.gpchg!=null ? J(o.gpchg) + " GP/mo" : "–"; qg.title = "Extra gross profit a month";
+    if (o.gpchg!=null) qg.style.color = o.gpchg>=0 ? "var(--green)" : "var(--red)";
+    quick.append(qd, qg);
+    const pill = document.createElement("span"); pill.className="pill "+st; pill.textContent = st==="discuss" ? "To discuss" : st==="pending" ? "Awaiting decision" : st;
+    const chev = document.createElement("span"); chev.className = "chev"; chev.setAttribute("aria-hidden","true"); chev.textContent = "›";
+    h.append(t,quick,pill,chev);
+
+    const body = document.createElement("div"); body.className = "req-b";
+    if (st!=="pending"){
+      const d = document.createElement("div"); d.className="decision";
+      const b = document.createElement("b"); b.textContent = (st==="discuss" ? "Scott would like to discuss" : "Scott's decision: " + st) + ` (${fmtDate((x.decided_at||"").slice(0,10))})`;
+      d.append(b);
+      if (x.decision_note){ d.append(document.createElement("br"), document.createTextNode(x.decision_note)); }
+      body.append(d);
+    }
+    const why = document.createElement("div"); why.className="why";
+    const wb = document.createElement("b"); wb.textContent = x.reason + ". ";
+    why.append(wb, document.createTextNode(x.explanation || ""));
+    const tbl = document.createElement("div"); tbl.className = "rtable";
+    const gap = o.comp==null ? "Not given" : o.comp>0 ? P(o.comp)+" above" : o.comp<0 ? P(-o.comp)+" below" : "Level";
+    const u = n => Math.round(n).toLocaleString();
+    tbl.append(
+      trow("Price: current → proposed", `${J2(r.curPrice)} → ${J2(r.newPrice)}`),
+      trow("Discount vs current price", o.disc!=null?P(o.disc):"–", "var(--amber)"),
+      trow(`Competitor price (${x.competitor_name})`, J2(r.compPrice)),
+      trow("Gap to competitor after change", gap),
+      trow("GP % now → new", `${P(o.gp0)} → ${P(o.gp1)}`, o.gp1<0.25 ? "var(--red)" : ""),
+      trow("Units a month: today → projected", `${u(r.curUnits)} → ${u(r.curUnits+r.extraUnits)}`),
+      trow("Extra revenue a month", J(o.rev), "", "Sales after the change minus sales today"),
+      trow("Extra gross profit a month", J(o.gpchg), o.gpchg>=0?"var(--green)":"var(--red)", "What DFL actually gains after paying for the discount"),
+      trow("Runs", `${fmtDate(x.start_date)} – ${x.end_date?fmtDate(x.end_date):"permanent"}`)
+    );
+    const [vc,vh,vb] = verdictOf(o,r);
+    const ver = document.createElement("div"); ver.className = "verdict " + vc;
+    const vbh = document.createElement("b"); vbh.textContent = vh; ver.append(vbh, document.createTextNode(vb));
+    body.append(why,tbl,ver);
+    c.append(h,body);
+    box.append(c);
+  }
+}
+
+/* ---------- boot ---------- */
+calc();
+async function init(profile){
+  if (PROFILE) return;
+  PROFILE = profile;
+  $("requester").textContent = PROFILE.full_name || "You";
+  try { await loadSkus(); onSku(); }
+  catch (_) { $("skuInfo").textContent = "The price list didn't load. Type the SKU and enter the prices yourself."; }
+  if (location.hash === "#mine") show("mine"); else loadMine();
+}
+document.addEventListener("dfl-auth-ready", (e) => init(e.detail.profile));
+if (window.DFL_PROFILE) init(window.DFL_PROFILE);
+})();
+</script>
+</body>
+</html>

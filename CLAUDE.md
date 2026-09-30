@@ -113,6 +113,8 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `/management/**` | manager, admin | Shell + 5 embedded dashboards, all individually guarded |
 | `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
 | `/weekly-reports.html`, `/report-upload.html`, `/report-viewer.html` | manager, admin, management, rep_management | HOD report tool — tabbed shell (View/Upload) over two independently-guarded pages. Departments upload PDF/HTML as-is into the `hod-reports` bucket; no AI parsing. Writes gated by `can_manage_weekly_reports()`, not `is_manager()` — see Database section below. **Not** the same system as the auto-generated reports in the `weekly-reports` bucket. |
+| `/price-requests.html` | admin, manager, rep_management | Category Managers request any price below the YTD avg selling price; "My requests" shows only their own. Linked from the rail's Tools group and the rep app's More tab (`cmOnly`). |
+| `/admin/price-approvals.html` | admin (page) / **price approvers only** (data) | Head of Sales approves/discusses/rejects. Every admin passes the guard, but only `price_approvers` members (Scott) get data — Travis is an admin and must NOT approve. Rail link is `approverOnly`. |
 | `/specials.html`, `/specials-upload.html`, `/rep-weekly-plan.html`, `/field-intel.html` | varies | `rep-weekly-plan.html` is iframe-embedded and has no guard |
 
 ## Two parallel Supabase access patterns — check which one a page uses before editing
@@ -187,6 +189,13 @@ Most `*_cache` / `*_summary` tables are precomputed. If a dashboard looks wrong,
 - **The `weekly-reports` bucket is a different, unrelated system.** Cron jobs `generate-weekly-hod-report` (Mondays) and `generate-month-end-report` (1st of the month) call edge functions of the same name, which read the `*_cache` analytics tables (`morning_brief_cache`, `cat_summary_cache`, `kam_cust_cache`, `backorder_weekly_log`, `sales_orders`, …) and write auto-generated HTML sales reports (`latest.html`, `{YYYYMM}/{date}-weekly-report.html`, `month-end/...`). `view-weekly-report` re-serves those files with a correct `Content-Type` for sharing outside the browser — Storage forces `text/plain` on publicly-served `.html` otherwise, an anti-XSS measure that isn't overridable per-file. Something external (an "EA Command Centre" referenced in that function's comments, likely Scott Chambers' own tool) polls `latest.html`. **Don't delete or repoint anything in `weekly-reports` without checking who's consuming it** — the two systems only ever coincidentally shared a bucket name, until the HOD tool was moved onto its own bucket on 2026-09-08.
 - **`can_manage_weekly_reports()`** (admin, manager, management, rep_management) gates every HOD-report write — both tables and the `hod-reports` bucket. It exists because `is_manager()` (admin, manager only) excludes `management`/`rep_management`, the roles most real department heads carry. See gotcha 12 for how these two predicates have already drifted apart once.
 
+### Price change requests
+
+- **`price_change_requests`** — RLS: select own rows or `is_price_approver()`; insert only when `can_request_price()` (admin, manager, rep_management — keep in step with `DFL_PAGE_ROLES['/price-requests.html']`). No update/delete policies; decisions only via `decide_price_request(p_id, p_status, p_note)`. A `BEFORE INSERT` trigger forces `requested_by`/`requester_name` from the session and `status='pending'`.
+- **`price_approvers`** — who may decide (Scott). RLS on, no policies. Add a row to grant approval; do not gate on the `admin` role.
+- **`price_request_sku_cache`** — YTD (Jan 1 → end of last full month) avg price/cost/units per SKU, rebuilt by `refresh_price_request_sku_cache()` via cron `refresh-price-request-skus` (07:30 UTC). >1,000 rows, so the page pages through it.
+- **Edge function `price-request-email`** — `kind:'new'` emails approvers (requester-only, once, `notified_at`); `kind:'decision'` emails the requester (approver-only, once per decision, `decision_notified_at`). Uses the Resend key from `get_secret('resend_api_key')`.
+
 ### RLS note for merch tables
 
 `merch_visit_log`, `merch_stock_reports`, `merch_stock_counts`, `merchandiser_summary`, `merchandiser_map`, `store_targets_actual` and the `shelf-photos` bucket each carry **both** an `anon` policy (for the older raw-fetch dashboards) and an `authenticated` policy (for `merch.html`). Both are permissive (`USING true`) — they mirror the pre-existing posture rather than tightening it. Don't delete the `anon` ones; `management/` still depends on them.
@@ -254,6 +263,7 @@ The rep and merch apps use their own palettes and fonts intentionally. Unifying 
 ## Known issues / deferred (don't action without asking)
 
 - **`reps` has RLS disabled** — whole roster readable with the anon key.
+- **Resend has no verified domain.** Emails send from `onboarding@resend.dev`, which Resend only delivers to the account owner (travis@dflimporters.com) — confirmed 2026-09-28 with a 403. So `send-leave-approval-email` (to hr@) and `price-request-email` don't reach their recipients until `dflimporters.com` is verified in Resend and the `from` addresses are switched to that domain.
 - **`shelf-photos` has no DELETE policy** — "remove photo" fails silently.
 - **Name-keyed joins and RPCs** (gotcha 7) — the largest remaining source of silent breakage.
 - **A newly created merchandiser has no stores.** Assignments live in `merchandiser_map` / `store_targets_actual`, keyed by name; creating a roster row grants access but leaves the app empty until those are added.
