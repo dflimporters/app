@@ -96,6 +96,11 @@ tr.group td{background:var(--accent-soft);font-weight:700;border-top:2px solid v
 td select{min-width:118px;width:auto}
 tr.group td:first-child{white-space:nowrap}
 .linkbtn{background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
+.paycalc{margin-top:5px;display:flex;flex-direction:column;gap:1px;font-family:var(--f-mono);white-space:nowrap}
+.paycalc b{font-size:.92rem}
+.paycalc span{font-size:.74rem;color:var(--muted)}
+#sec-coverage td.wrap{min-width:130px;max-width:240px}
+#sec-coverage td,#sec-coverage th{padding:8px 8px}
 input.inl{width:84px;text-align:right;padding:4px 6px;font-family:var(--f-mono);font-size:.82rem}
 .sel-col{width:34px;text-align:center}
 .sel-col input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
@@ -325,7 +330,7 @@ function buildPeriods(){const by={};
       imported:rs.some(r=>r.imported),locked:rs.filter(r=>r.paymentId).map(r=>r.date),
       text:key(rs.map(r=>[r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).join(" "))})})}
 // "$4,000 × 10 days = $40,000" so the total can be checked at a glance
-const payCalc=(rate,days)=>`<div class="tiny mono" style="margin-top:4px">${money(rate)} × ${fmtNum(days)} day${days===1?"":"s"} = <b>${money(rate*days)}</b></div>`;
+const payCalc=(rate,days)=>`<div class="paycalc"><b>${money(rate*days)}</b><span>${money(rate)} × ${fmtNum(days)} day${days===1?"":"s"}</span></div>`;
 const bankTag=n=>{const r=rosterByKey(n);return `<div style="margin-top:4px">${r&&S.bank[r._id]?`<span class="pill p-ok">Bank on file</span>`:`<span class="pill p-bad">No bank details</span>`}</div>`};
 const distinct=(p,f)=>[...new Set(p.rows.map(r=>r[f]).filter(Boolean))];
 const canEditCov=p=>S.isAdmin||p.rows.every(r=>!r.imported&&!r.paymentId);
@@ -356,7 +361,7 @@ function renderCov(){
     const statuses=distinct(p,"status").map(pillStatus).join(" ");
     const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
     const can=payableRows(p).length>0,on=S.sel.has(p._id);
-    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td>${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td>${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td>${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
     <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
