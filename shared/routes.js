@@ -105,6 +105,7 @@ const DFL_PAGE_ROLES = {
   '/management/category-intel.html':        ['manager', 'admin'],
   '/management/key-account-management.html':['manager', 'admin'],
   '/management/merch-dashboard.html':       ['manager', 'admin'],
+  '/management/relief-coverage.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
   '/management/fleet.html':                 ['manager', 'admin'],
