@@ -96,6 +96,11 @@ tr.group td{background:var(--accent-soft);font-weight:700;border-top:2px solid v
 td select{min-width:118px;width:auto}
 tr.group td:first-child{white-space:nowrap}
 .linkbtn{background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
+.sel-col{width:34px;text-align:center}
+.sel-col input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
+tr.picked td{background:var(--accent-soft)}
+.selbar{position:sticky;top:44px;z-index:4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-weight:600}
+.selbar span{margin-right:auto}
 .dp{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
 .dp-head{display:flex;align-items:center;justify-content:space-between}
 .dp-title{font:700 .95rem var(--f-display)}
@@ -144,9 +149,10 @@ tr.group td:first-child{white-space:nowrap}
       <label class="f grow">Search<input id="cov-q" type="search" placeholder="Store, merchandiser, note…"></label>
       <button class="btn primary" id="cov-add">+ Log coverage</button>
     </div>
+    <div class="selbar" id="cov-selbar" hidden><span id="cov-selsum"></span><button class="btn sm" id="cov-selclear">Clear</button><button class="btn primary" id="cov-selrun">Build pay run</button></div>
     <div class="tbl"><table>
-      <thead><tr><th>Date</th><th>Region</th><th>Stores</th><th>Absent</th><th>Reason</th><th>Type</th><th>Relief</th><th>Status</th><th class="num">Days</th><th>Pay</th><th>Notes</th><th></th></tr></thead>
-      <tbody id="cov-body"><tr><td colspan="12" class="empty">Loading coverage entries…</td></tr></tbody>
+      <thead><tr><th class="sel-col"><input type="checkbox" id="cov-all" aria-label="Select every unpaid period shown"></th><th>Dates</th><th>Region</th><th>Stores</th><th>Absent</th><th>Reason</th><th>Type</th><th>Relief</th><th>Status</th><th class="num">Days</th><th>Pay</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="cov-body"><tr><td colspan="13" class="empty">Loading coverage entries…</td></tr></tbody>
     </table></div>
   </section>
 
@@ -167,6 +173,7 @@ tr.group td:first-child{white-space:nowrap}
       <label class="f">Pay date<select id="pay-batch"></select></label>
       <label class="f">Status<select id="pay-status"><option value="">All</option><option>Pending</option><option>Approved</option><option>Paid</option></select></label>
       <label class="f grow">Search<input id="pay-q" type="search" placeholder="Name, store, reason…"></label>
+      <button class="btn" id="pay-hr">HR pay sheet</button>
       <button class="btn" id="pay-export">Export CSV</button>
       <button class="btn" id="pay-add">+ Manual payment</button>
     </div>
@@ -210,7 +217,7 @@ const PAYSTAT=["Pending","Approved","Paid"];
 // `sb` is the shared portal client (/shared/supabase-client.js), so this page uses
 // the same session as the rest of dflhq.com, and as its parent when framed.
 const FRAMED=window.self!==window.top;
-const S={canWrite:false,isAdmin:false,cov:[],pay:[],roster:[],bank:{},loaded:false};
+const S={canWrite:false,isAdmin:false,cov:[],pay:[],roster:[],bank:{},loaded:false,sel:new Set()};
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const key=n=>String(n||"").trim().replace(/\s+/g," ").toLowerCase();
@@ -298,9 +305,9 @@ $("pay-batch").addEventListener("change",()=>payBatchTouched=true);
 
 /* ---------- render ---------- */
 function render(){
-  document.querySelectorAll(".bank-col").forEach(e=>e.hidden=!S.isAdmin);
+  document.querySelectorAll(".bank-col,.sel-col").forEach(e=>e.hidden=!S.isAdmin);
   $("cov-add").hidden=!S.canWrite;
-  ["run-panel","pay-add","team-add"].forEach(id=>$(id).hidden=!S.isAdmin);
+  ["run-panel","pay-add","team-add","pay-hr"].forEach(id=>$(id).hidden=!S.isAdmin);
   if(!S.loaded)return;
   if(tab==="coverage")renderCov();else if(tab==="pay")renderPay();else renderTeam()}
 /* ---------- coverage periods ----------
@@ -339,13 +346,15 @@ function renderCov(){
   $("cov-kpis").innerHTML=[["Coverage periods",n],["Fully covered",n?Math.round(cv/n*100)+"%":"—"],["With partial days",stat("Partial")],["With uncovered days",stat("Not Covered")],["Paid relief days",fmtNum(paidDays)],["Days not yet on a pay run",fmtNum(unbilled)]]
     .map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   const body=$("cov-body");
-  if(!list.length){body.innerHTML=`<tr><td colspan="12" class="empty">No coverage periods match these filters. Use <b>+ Log coverage</b> to record who is covering an absent merchandiser.</td></tr>`;return}
+  S.covView=list;updSel();
+  if(!list.length){body.innerHTML=`<tr><td colspan="13" class="empty">No coverage periods match these filters. Use <b>+ Log coverage</b> to record who is covering an absent merchandiser.</td></tr>`;return}
   const multi=(p,f,sep)=>esc(distinct(p,f).join(sep));
   body.innerHTML=list.map(p=>{const s=p.shared;
     const pay=p.payCount?(p.paidCount===p.payCount?`<span class="pill p-ok">On pay run</span>`:p.paidCount?`<span class="pill p-info">${p.paidCount} of ${p.payCount} paid</span>`:`<span class="pill p-warn">Unpaid</span>`):(p.imported?`<span class="pill p-mute">Imported</span>`:`<span class="pill p-mute">Not paid</span>`);
     const statuses=distinct(p,"status").map(pillStatus).join(" ");
     const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
-    return `<tr><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    const can=payableRows(p).length>0,on=S.sel.has(p._id);
+    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
     <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
@@ -510,8 +519,14 @@ document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.
 function runDefaults(){const un=S.cov.filter(r=>r.payable&&!r.paymentId).map(r=>r.date).sort();
   if(!$("run-from").value)$("run-from").value=un[0]||addDays(today(),-13);
   if(!$("run-to").value)$("run-to").value=today();if(!$("run-date").value)$("run-date").value=today()}
-function buildPreview(){const a=$("run-from").value,b=$("run-to").value;const groups={};
-  for(const r of S.cov){if(!r.payable||r.paymentId||r.imported||!r.relief||r.date<a||r.date>b)continue;const k=key(r.relief);(groups[k]||(groups[k]={relief:r.relief,items:[]})).items.push(r)}
+// A day can go on a pay run when it's paid relief, not already paid, not an Excel import, and has a name.
+// (Same rule as relief_create_pay_run / relief_create_pay_run_selected in the database.)
+const payableRow=r=>r.payable&&!r.paymentId&&!r.imported&&!!r.relief;
+function payableRows(p){return p.rows.filter(payableRow)}
+function buildPreview(){const a=$("run-from").value,b=$("run-to").value;
+  return groupRun(S.cov.filter(r=>payableRow(r)&&r.date>=a&&r.date<=b))}
+function groupRun(rows){const groups={};
+  for(const r of rows){const k=key(r.relief);(groups[k]||(groups[k]={relief:r.relief,items:[]})).items.push(r)}
   return Object.values(groups).map(g=>{const days=g.items.reduce((s,x)=>s+(x.days||0),0),rate=rateFor(g.relief),ro=rosterByKey(g.relief);
     return{relief:ro?ro.name:g.relief,days,rate,total:days*rate,datesCovered:compressDates(g.items.map(x=>x.date)),covering:[...new Set(g.items.map(x=>x.absent).filter(Boolean))].join(", "),known:!!ro}}).sort((x,y)=>x.relief.localeCompare(y.relief))}
 $("run-preview").onclick=()=>{const run=buildPreview();const out=$("run-out");
@@ -525,6 +540,78 @@ $("run-preview").onclick=()=>{const run=buildPreview();const out=$("run-out");
     try{const made=await must(sb.rpc("relief_create_pay_run",{p_from:$("run-from").value,p_to:$("run-to").value,p_pay_date:pd}));
       out.innerHTML="";payBatchTouched=true;await loadAll();$("pay-batch").value=pd;render();toast((made?made.length:0)+" payments created")}
     catch(err){btn.disabled=false;$("run-msg").textContent=errText(err)}}};
+
+/* ---------- pick periods in the log -> pay run ---------- */
+function selRows(){return (S.periods||[]).filter(p=>S.sel.has(p._id)).flatMap(payableRows)}
+function updSel(){
+  // drop anything that has since been paid or deleted
+  const ok=new Set((S.periods||[]).filter(p=>payableRows(p).length).map(p=>p._id));[...S.sel].forEach(id=>{if(!ok.has(id))S.sel.delete(id)});
+  const rows=selRows(),run=groupRun(rows),bar=$("cov-selbar");
+  bar.hidden=!S.isAdmin||!S.sel.size;
+  $("cov-selsum").textContent=`${S.sel.size} period${S.sel.size>1?"s":""} selected · ${fmtNum(rows.reduce((a,r)=>a+(r.days||0),0))} days · ${run.length} ${run.length===1?"person":"people"} · ${money(run.reduce((a,x)=>a+x.total,0))}`;
+  const vis=(S.covView||[]).filter(p=>payableRows(p).length),all=$("cov-all");
+  all.checked=vis.length>0&&vis.every(p=>S.sel.has(p._id));all.indeterminate=!all.checked&&vis.some(p=>S.sel.has(p._id));all.disabled=!vis.length}
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset&&t.dataset.sel){t.checked?S.sel.add(t.dataset.sel):S.sel.delete(t.dataset.sel);t.closest("tr").classList.toggle("picked",t.checked);updSel()}
+  if(t.id==="cov-all"){(S.covView||[]).filter(p=>payableRows(p).length).forEach(p=>t.checked?S.sel.add(p._id):S.sel.delete(p._id));renderCov()}});
+$("cov-selclear").onclick=()=>{S.sel.clear();renderCov()};
+$("cov-selrun").onclick=()=>{const rows=selRows();if(!rows.length){toast("Nothing selected to pay");return}
+  const run=groupRun(rows),tot=run.reduce((a,x)=>a+x.total,0);
+  const bankPill=x=>{const r=rosterByKey(x.relief),b=r&&S.bank[r._id];return b?`<span class="pill p-ok">On file</span>`:`<span class="pill p-bad">Missing</span>`};
+  const missing=run.filter(x=>{const r=rosterByKey(x.relief);return!(r&&S.bank[r._id])});
+  openModal(`<h3>Build pay run from ${S.sel.size} selected period${S.sel.size>1?"s":""}</h3>
+  <div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Rate × days</th><th class="num">Total</th><th>Dates</th><th>Covering for</th><th>Banking</th></tr></thead><tbody>
+  ${run.map(x=>`<tr><td class="nowrap"><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}</td><td class="num">${fmtNum(x.days)}</td><td class="num">${money(x.rate)} × ${fmtNum(x.days)}</td><td class="num"><b>${money(x.total)}</b></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td><td>${bankPill(x)}</td></tr>`).join("")}
+  <tr class="group"><td>Total</td><td class="num">${fmtNum(run.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(tot)}</td><td colspan="3"></td></tr></tbody></table></div>
+  ${missing.length?`<div class="notice">No banking on file for ${esc(missing.map(x=>x.relief).join(", "))}. Add it under <b>Relief team</b> so it shows on the HR sheet.</div>`:""}
+  <div class="bar"><label class="f">Pay date<input type="date" id="sr-date" value="${today()}"></label></div>
+  <div class="foot"><span class="msg" id="sr-msg"></span><button class="btn" id="sr-cancel">Cancel</button><button class="btn primary" id="sr-go">Create ${run.length} payment${run.length>1?"s":""}</button></div>`,
+  ()=>{$("sr-cancel").onclick=closeModal;
+    $("sr-go").onclick=async()=>{const btn=$("sr-go"),pd=$("sr-date").value||today();btn.disabled=true;
+      try{const made=await must(sb.rpc("relief_create_pay_run_selected",{p_ids:rows.map(r=>r._id),p_pay_date:pd}));
+        S.sel.clear();payBatchTouched=true;await loadAll();
+        const ids=new Set((made||[]).map(m=>m.id));
+        $("modal-root").querySelector(".modal").innerHTML=`<h3>${ids.size} payment${ids.size===1?"":"s"} created</h3>
+          <p class="hint">They're on the pay date ${fmtLong(pd)} as Pending. Open the HR pay sheet to print it or save it as a PDF and send it to HR.</p>
+          <div class="foot"><button class="btn" id="sr-done">Done</button><button class="btn primary" id="sr-hr">Open HR pay sheet</button></div>`;
+        $("sr-done").onclick=()=>{closeModal();setTab("pay");$("pay-batch").value=pd;render()};
+        $("sr-hr").onclick=()=>{hrSheet(S.pay.filter(p=>ids.has(p._id)),pd);closeModal();setTab("pay");$("pay-batch").value=pd;render()};
+      }catch(err){btn.disabled=false;$("sr-msg").textContent=errText(err)}}})};
+
+/* ---------- HR pay sheet: printable page with banking, rate × days and sign-off ---------- */
+function hrSheet(list,payDate){
+  if(!list.length){toast("No payments to put on the sheet");return}
+  if(!S.isAdmin){toast("Only admins can see banking details");return}
+  list=[...list].sort((a,b)=>a.payDate.localeCompare(b.payDate)||a.relief.localeCompare(b.relief));
+  const dates=[...new Set(list.map(p=>p.payDate))],tot=list.reduce((a,p)=>a+p.days*p.rate,0),days=list.reduce((a,p)=>a+p.days,0);
+  const bankOf=p=>{const r=rosterByKey(p.relief);return r?S.bank[r._id]||"":""};
+  const who=$("who").textContent||"";
+  const w=window.open("","_blank");if(!w){toast("Allow pop-ups for this site to open the HR sheet");return}
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relief pay sheet ${esc(dates.map(fmtLong).join(", "))}</title>
+<style>
+body{font:13px/1.4 "Segoe UI",Arial,sans-serif;color:#111;margin:24px;background:#fff}
+h1{font-size:18px;margin:0 0 2px}.sub{color:#555;margin:0 0 14px}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#eef2f1;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bank{white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px}.miss{color:#b3261e;font-weight:700}
+tfoot td{font-weight:700;background:#f6f6f6}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:40px}.sign div{border-top:1px solid #333;padding-top:4px;font-size:12px;color:#444}
+.conf{margin-top:18px;font-size:11px;color:#8a1c1c}.tools{margin-bottom:16px}
+.tools button{font:600 13px inherit;padding:7px 14px;border:1px solid #0d5c63;background:#0d5c63;color:#fff;border-radius:6px;cursor:pointer}
+@media print{.tools{display:none}body{margin:10mm}@page{size:landscape}}
+</style></head><body>
+<div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div>
+<h1>DFL Importers &amp; Distributors: Relief Merchandiser Pay Sheet</h1>
+<p class="sub">Pay date: <b>${esc(dates.map(fmtLong).join(", "))}</b> · ${list.length} payment${list.length>1?"s":""} · ${fmtNum(days)} days · Prepared ${esc(fmtLong(today()))}${who?` by ${esc(who)}`:""}</p>
+<table><thead><tr><th>#</th><th>Relief merchandiser</th><th>Banking details</th><th>Dates covered</th><th>Covering for / reason</th><th class="n">Days</th><th class="n">Daily rate</th><th class="n">Amount</th><th>Status</th></tr></thead><tbody>
+${list.map((p,i)=>{const b=bankOf(p);return `<tr><td>${i+1}</td><td><b>${esc(p.relief)}</b></td><td class="bank">${b?esc(b):`<span class="miss">Not on file</span>`}</td><td>${esc(p.datesCovered)}</td><td>${esc([p.covering,p.reason].filter(Boolean).join(" · "))}</td><td class="n">${fmtNum(p.days)}</td><td class="n">${money(p.rate)}</td><td class="n"><b>${money(p.days*p.rate)}</b><br><span style="color:#666;font-size:11px">${money(p.rate)} × ${fmtNum(p.days)}</span></td><td>${esc(p.status)}</td></tr>`}).join("")}
+</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${fmtNum(days)}</td><td></td><td class="n">${money(tot)}</td><td></td></tr></tfoot></table>
+<div class="sign"><div>Prepared by</div><div>Approved by</div><div>Date</div></div>
+<p class="conf">Confidential: contains banking details. For HR / payroll use only.</p>
+</body></html>`);
+  w.document.close()}
+$("pay-hr").onclick=()=>hrSheet(S.payView||[],$("pay-batch").value);
 
 /* ---------- payment form ---------- */
 function payForm(p){
