@@ -96,6 +96,19 @@ tr.group td{background:var(--accent-soft);font-weight:700;border-top:2px solid v
 td select{min-width:118px;width:auto}
 tr.group td:first-child{white-space:nowrap}
 .linkbtn{background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
+.dp{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
+.dp-head{display:flex;align-items:center;justify-content:space-between}
+.dp-title{font:700 .95rem var(--f-display)}
+.dp-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dp-grid .dow{font-size:.7rem;font-weight:700;text-align:center;color:var(--muted);text-transform:uppercase}
+.dp-grid button{font:600 .88rem var(--f-body);padding:8px 0;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);cursor:pointer;font-variant-numeric:tabular-nums}
+.dp-grid button.wkend:not(.on){color:var(--muted)}
+.dp-grid button.today{border-color:var(--accent)}
+.dp-grid button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.dp-grid button.lock{background:var(--ok-soft);color:var(--ok);border-color:var(--ok);cursor:not-allowed}
+.dp-range{gap:8px}
+.dp-range label.f{flex:1 1 130px}
+.dp-range .checks{gap:10px;align-self:center}
 </style>
 
 <div class="wrap">
@@ -226,7 +239,7 @@ function errText(e){const m=(e&&e.message)||"";if(/row-level security|permission
 async function must(p){const r=await p;if(r.error)throw r.error;return r.data}
 
 /* ---------- row mapping ---------- */
-const mapCov=r=>({_id:r.id,date:r.date,region:r.region,stores:r.stores,absent:r.absent,reason:r.reason,type:r.coverage_type,relief:r.relief_name,contact:r.contact,supervisor:r.supervisor,status:r.status,days:Number(r.days),payable:r.payable,notes:r.notes,paymentId:r.payment_id,imported:r.imported});
+const mapCov=r=>({_id:r.id,date:r.date,region:r.region,stores:r.stores,absent:r.absent,reason:r.reason,type:r.coverage_type,relief:r.relief_name,contact:r.contact,supervisor:r.supervisor,status:r.status,days:Number(r.days),payable:r.payable,notes:r.notes,paymentId:r.payment_id,imported:r.imported,period:r.period_id});
 const mapPay=r=>({_id:r.id,payDate:r.pay_date,relief:r.relief_name,rosterId:r.roster_id,days:Number(r.days),rate:Number(r.rate),datesCovered:r.dates_covered,covering:r.covering,reason:r.reason,stores:r.stores,approvedBy:r.approved_by,verified:r.verified,status:r.status,notes:r.notes,source:r.source});
 const mapRos=r=>({_id:r.id,name:r.name,phone:r.phone,region:r.region,rate:Number(r.daily_rate),active:r.active});
 async function selectAll(table,order){let out=[],from=0;const size=1000;
@@ -290,29 +303,48 @@ function render(){
   ["run-panel","pay-add","team-add"].forEach(id=>$(id).hidden=!S.isAdmin);
   if(!S.loaded)return;
   if(tab==="coverage")renderCov();else if(tab==="pay")renderPay();else renderTeam()}
-const canEditCov=r=>S.isAdmin||(!r.imported&&!r.paymentId);
+/* ---------- coverage periods ----------
+   The database keeps one row per covered day (that's what pay runs count), and
+   rows logged together share a period_id. The log shows and edits a period as one line. */
+const COV_FIELDS=["region","stores","absent","reason","type","relief","contact","supervisor","status","days","payable","notes"];
+function buildPeriods(){const by={};
+  for(const r of S.cov)(by[r.period]||(by[r.period]={_id:r.period,rows:[]})).rows.push(r);
+  return Object.values(by).map(p=>{const rs=p.rows.sort((a,b)=>a.date.localeCompare(b.date));
+    const shared={};COV_FIELDS.forEach(f=>{const vs=[...new Set(rs.map(r=>r[f]))];shared[f]=vs.length===1?vs[0]:undefined}); // undefined = varies by day
+    const pay=rs.filter(r=>r.payable),paid=pay.filter(r=>r.paymentId).length;
+    return Object.assign(p,{shared,dates:rs.map(r=>r.date),from:rs[0].date,to:rs[rs.length-1].date,
+      totalDays:rs.reduce((a,r)=>a+(r.days||0),0),paidDays:pay.reduce((a,r)=>a+(r.days||0),0),payCount:pay.length,paidCount:paid,
+      imported:rs.some(r=>r.imported),locked:rs.filter(r=>r.paymentId).map(r=>r.date),
+      text:key(rs.map(r=>[r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).join(" "))})})}
+const distinct=(p,f)=>[...new Set(p.rows.map(r=>r[f]).filter(Boolean))];
+const canEditCov=p=>S.isAdmin||p.rows.every(r=>!r.imported&&!r.paymentId);
 
 function renderCov(){
-  const rows=S.cov;
+  const rows=S.cov;S.periods=buildPeriods();
   const months=[...new Set(rows.map(r=>r.date.slice(0,7)).concat(today().slice(0,7)))].sort().reverse();
   const sel=$("cov-month"),cur=sel.value;
   sel.innerHTML=`<option value="">All months</option>`+months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");
   sel.value=covMonthTouched?cur:(rows.some(r=>r.date.startsWith(today().slice(0,7)))?today().slice(0,7):(months.find(m=>rows.some(r=>r.date.startsWith(m)))||""));
   const m=sel.value,rg=$("cov-region").value,st=$("cov-status").value,q=key($("cov-q").value);
-  let list=rows.filter(r=>(!m||r.date.startsWith(m))&&(!rg||r.region===rg)&&(!st||r.status===st));
-  if(q)list=list.filter(r=>key([r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).includes(q));
-  list.sort((a,b)=>b.date.localeCompare(a.date)||(a.region||"").localeCompare(b.region||""));
-  const n=list.length,cv=list.filter(r=>r.status==="Covered").length,pt=list.filter(r=>r.status==="Partial").length,nc=list.filter(r=>r.status==="Not Covered").length;
-  const paidDays=list.filter(r=>r.payable).reduce((a,r)=>a+(r.days||0),0);
+  let list=S.periods.filter(p=>(!m||p.dates.some(d=>d.startsWith(m)))&&(!rg||p.rows.some(r=>r.region===rg))&&(!st||p.rows.some(r=>r.status===st)));
+  if(q)list=list.filter(p=>p.text.includes(q));
+  list.sort((a,b)=>b.from.localeCompare(a.from)||b.to.localeCompare(a.to)||(a.shared.region||"").localeCompare(b.shared.region||""));
+  // day counts for the KPIs only count days inside the chosen month
+  const inM=r=>!m||r.date.startsWith(m);
+  const n=list.length,stat=s=>list.filter(p=>p.rows.some(r=>inM(r)&&r.status===s)).length,cv=list.filter(p=>p.rows.filter(inM).every(r=>r.status==="Covered")).length;
+  const paidDays=list.reduce((a,p)=>a+p.rows.filter(r=>inM(r)&&r.payable).reduce((x,r)=>x+(r.days||0),0),0);
   const unbilled=S.cov.filter(r=>r.payable&&!r.paymentId).reduce((a,r)=>a+(r.days||0),0);
-  $("cov-kpis").innerHTML=[["Entries",n],["Covered",n?Math.round(cv/n*100)+"%":"—"],["Partial",pt],["Not covered",nc],["Paid relief days",fmtNum(paidDays)],["Days not yet on a pay run",fmtNum(unbilled)]]
+  $("cov-kpis").innerHTML=[["Coverage periods",n],["Fully covered",n?Math.round(cv/n*100)+"%":"—"],["With partial days",stat("Partial")],["With uncovered days",stat("Not Covered")],["Paid relief days",fmtNum(paidDays)],["Days not yet on a pay run",fmtNum(unbilled)]]
     .map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   const body=$("cov-body");
-  if(!list.length){body.innerHTML=`<tr><td colspan="12" class="empty">No coverage entries match these filters. Use <b>+ Log coverage</b> to record who is covering an absent merchandiser.</td></tr>`;return}
-  body.innerHTML=list.map(r=>{
-    const pay=r.payable?(r.paymentId?`<span class="pill p-ok">On pay run</span>`:`<span class="pill p-warn">Unpaid</span>`):(r.imported?`<span class="pill p-mute">Imported</span>`:`<span class="pill p-mute">Not paid</span>`);
-    return `<tr><td class="nowrap">${fmtDate(r.date)}</td><td class="nowrap">${esc(r.region)}</td><td class="wrap">${esc(r.stores)}</td><td class="nowrap">${esc(r.absent)}</td><td>${esc(r.reason)}</td><td class="nowrap">${esc(r.type)}</td><td class="nowrap">${esc(r.relief)}${r.contact?`<div class="tiny muted mono">${esc(r.contact)}</div>`:""}</td><td>${pillStatus(r.status)}</td><td class="num">${r.payable?fmtNum(r.days):""}</td><td>${pay}</td><td class="wrap tiny">${esc(r.notes)}${r.supervisor?`<div class="muted">Supervisor: ${esc(r.supervisor)}</div>`:""}</td>
-    <td>${canEditCov(r)?`<button class="btn sm" data-edit-cov="${r._id}">Edit</button>`:""}</td></tr>`}).join("");
+  if(!list.length){body.innerHTML=`<tr><td colspan="12" class="empty">No coverage periods match these filters. Use <b>+ Log coverage</b> to record who is covering an absent merchandiser.</td></tr>`;return}
+  const multi=(p,f,sep)=>esc(distinct(p,f).join(sep));
+  body.innerHTML=list.map(p=>{const s=p.shared;
+    const pay=p.payCount?(p.paidCount===p.payCount?`<span class="pill p-ok">On pay run</span>`:p.paidCount?`<span class="pill p-info">${p.paidCount} of ${p.payCount} paid</span>`:`<span class="pill p-warn">Unpaid</span>`):(p.imported?`<span class="pill p-mute">Imported</span>`:`<span class="pill p-mute">Not paid</span>`);
+    const statuses=distinct(p,"status").map(pillStatus).join(" ");
+    const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
+    return `<tr><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td>${pay}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
 function renderPay(){
@@ -367,60 +399,105 @@ function rosterList(){return `<datalist id="dl-roster">${S.roster.filter(r=>r.ac
 function confirmBtn(btn,label){if(btn.dataset.sure!=="1"){btn.dataset.sure="1";btn.textContent=label;return false}return true}
 
 /* ---------- coverage form ---------- */
-function covForm(r){
-  const e=r||{date:today(),region:"",type:"Relief Assigned",status:"Covered",days:1,payable:true};
-  openModal(`<h3>${r?"Edit coverage entry":"Log coverage"}</h3>
+// Form field -> row key -> column. When a period's days disagree on a field (imported
+// data often does), the form shows "varies" and leaves each day's value alone unless changed.
+const KEEP="__keep";
+const CF=[["c-region","region","region","sel"],["c-stores","stores","stores"],["c-absent","absent","absent"],["c-reason","reason","reason","sel"],["c-type","type","coverage_type","sel"],
+  ["c-status","status","status","sel"],["c-relief","relief","relief_name"],["c-contact","contact","contact"],["c-sup","supervisor","supervisor"],["c-days","days","days","sel"],["c-pay","payable","payable","chk"],["c-notes","notes","notes"]];
+const VARIES_PH="Varies by day. Leave blank to keep";
+function selOpts(arr,v,varies,blank){const list=arr.map(x=>Array.isArray(x)?x:[x,x]);
+  if(!varies&&v!=null&&v!==""&&!list.some(([x])=>String(x)===String(v)))list.push([v,v]); // keep odd imported values instead of silently changing them
+  return (varies?`<option value="${KEEP}" selected>Varies by day (keep)</option>`:"")+(blank!=null||(!varies&&v==="")?`<option value="" ${!varies&&(v===""||v==null)?"selected":""}>${esc(blank||"—")}</option>`:"")
+    +list.map(([x,l])=>`<option value="${esc(x)}" ${!varies&&String(x)===String(v)?"selected":""}>${esc(l)}</option>`).join("")}
+
+function covForm(p){
+  const e=p?p.shared:{region:"",type:"Relief Assigned",status:"Covered",days:1,payable:true};
+  const V=k=>p&&e[k]===undefined; // varies across the period's days
+  const txt=(id,k,extra)=>`<input id="${id}" value="${V(k)?"":esc(e[k])}" ${V(k)?`placeholder="${VARIES_PH}"`:extra||""}>`;
+  openModal(`<h3>${p?"Edit coverage period":"Log coverage"}</h3>
   <div class="grid">
-    <label class="f">${r?"Date":"From date"}<input type="date" id="c-date" value="${esc(e.date)}"></label>
-    ${r?"":`<label class="f">To date (optional)<input type="date" id="c-to"></label>`}
-    <label class="f">Region<select id="c-region">${opts(REGIONS,e.region,"Choose…")}</select></label>
-    <label class="f full">Stores<input id="c-stores" value="${esc(e.stores)}" placeholder="e.g. Hilo Manor Park, Low Price"></label>
-    <label class="f">Absent merchandiser<input id="c-absent" value="${esc(e.absent)}"></label>
-    <label class="f">Reason for absence<select id="c-reason">${opts(REASONS,e.reason,"—")}</select></label>
-    <label class="f">Coverage type<select id="c-type">${opts(TYPES,e.type)}</select></label>
-    <label class="f">Coverage status<select id="c-status">${opts(STATUSES,e.status)}</select></label>
-    <label class="f">Relief merchandiser<input id="c-relief" list="dl-roster" value="${esc(e.relief)}" autocomplete="off"></label>
-    <label class="f">Relief contact<input id="c-contact" value="${esc(e.contact)}"></label>
-    <label class="f">Supervisor / TL<input id="c-sup" value="${esc(e.supervisor)}"></label>
-    <label class="f">Days per entry<select id="c-days">${[1,0.5].map(x=>`<option value="${x}" ${Number(e.days)===x?"selected":""}>${x===1?"Full day":"Half day"}</option>`).join("")}</select></label>
-    <div class="full checks">
-      <label><input type="checkbox" id="c-pay" ${e.payable?"checked":""}> Paid relief (counts toward pay runs)</label>
-      ${r?"":`<label><input type="checkbox" id="c-sat"> Include Saturdays</label><label><input type="checkbox" id="c-sun"> Include Sundays</label>`}
-    </div>
-    <label class="f full">Notes<textarea id="c-notes">${esc(e.notes)}</textarea></label>
+    <div class="full"><div class="f" style="margin-bottom:6px">Dates covered</div><div class="dp" id="dp"></div></div>
+    <label class="f">Region<select id="c-region">${selOpts(REGIONS,e.region,V("region"),p?null:"Choose…")}</select></label>
+    <label class="f full">Stores${txt("c-stores","stores",'placeholder="e.g. Hilo Manor Park, Low Price"')}</label>
+    <label class="f">Absent merchandiser${txt("c-absent","absent")}</label>
+    <label class="f">Reason for absence<select id="c-reason">${selOpts(REASONS,e.reason,V("reason"),"—")}</select></label>
+    <label class="f">Coverage type<select id="c-type">${selOpts(TYPES,e.type,V("type"))}</select></label>
+    <label class="f">Coverage status<select id="c-status">${selOpts(STATUSES,e.status,V("status"))}</select></label>
+    <label class="f">Relief merchandiser<input id="c-relief" list="dl-roster" value="${V("relief")?"":esc(e.relief)}" ${V("relief")?`placeholder="${VARIES_PH}"`:""} autocomplete="off"></label>
+    <label class="f">Relief contact${txt("c-contact","contact")}</label>
+    <label class="f">Supervisor / TL${txt("c-sup","supervisor")}</label>
+    <label class="f">Each day counts as<select id="c-days">${selOpts([[1,"Full day"],[0.5,"Half day"]],e.days,V("days"))}</select></label>
+    <div class="full checks"><label><input type="checkbox" id="c-pay" ${e.payable?"checked":""}> Paid relief (counts toward pay runs)</label></div>
+    <label class="f full">Notes<textarea id="c-notes" ${V("notes")?`placeholder="${VARIES_PH}"`:""}>${V("notes")?"":esc(e.notes)}</textarea></label>
   </div>${rosterList()}
   <div class="foot"><span class="msg" id="c-msg"></span>
-    ${r&&!r.paymentId?`<button class="btn danger" id="c-del">Delete</button>`:""}
-    <button class="btn" id="c-cancel">Cancel</button><button class="btn primary" id="c-save">${r?"Save changes":"Save"}</button></div>`,
+    ${p&&!p.locked.length?`<button class="btn danger" id="c-del">Delete period</button>`:""}
+    <button class="btn" id="c-cancel">Cancel</button><button class="btn primary" id="c-save">Save</button></div>`,
   ()=>{
+    if(V("payable"))$("c-pay").indeterminate=true;
+    const pick=datePicker($("dp"),p?p.dates:[],p?p.locked:[],n=>{$("c-save").textContent=n?`Save ${n} day${n>1?"s":""}`:"Save"});
     $("c-cancel").onclick=closeModal;
     $("c-relief").addEventListener("change",()=>{const x=rosterByKey($("c-relief").value);if(x&&x.phone&&!$("c-contact").value)$("c-contact").value=x.phone});
-    $("c-type").addEventListener("change",()=>{$("c-pay").checked=$("c-type").value==="Relief Assigned"});
-    function dates(){const a=$("c-date").value,to=$("c-to")&&$("c-to").value,b=to||a;if(!a)return[];if(!to)return[a];
-      const out=[];let d=a,guard=0;while(d<=b&&guard++<120){const w=parse(d).getDay();if((w>0&&w<6)||(w===6&&$("c-sat").checked)||(w===0&&$("c-sun").checked))out.push(d);d=addDays(d,1)}return out}
-    function updCount(){if(r)return;const n=dates().length;$("c-save").textContent=n>1?`Save ${n} entries`:"Save"}
-    ["c-sat","c-sun","c-date","c-to"].forEach(id=>$(id)&&$(id).addEventListener("change",updCount));
-    if($("c-del"))$("c-del").onclick=async()=>{if(!confirmBtn($("c-del"),"Tap again to delete"))return;
-      try{await must(sb.from("relief_coverage").delete().eq("id",r._id));closeModal();toast("Entry deleted");loadAll()}catch(err){$("c-msg").textContent=errText(err)}};
-    $("c-save").onclick=async()=>{
-      const base={region:$("c-region").value,stores:$("c-stores").value.trim(),absent:$("c-absent").value.trim(),reason:$("c-reason").value,coverage_type:$("c-type").value,status:$("c-status").value,
-        relief_name:$("c-relief").value.trim().replace(/\s+/g," "),contact:$("c-contact").value.trim(),supervisor:$("c-sup").value.trim(),days:Number($("c-days").value),payable:$("c-pay").checked,notes:$("c-notes").value.trim()};
-      if(!$("c-date").value){$("c-msg").textContent="Pick a date.";return}
-      if(!base.region){$("c-msg").textContent="Choose a region.";return}
-      if(base.payable&&!base.relief_name){$("c-msg").textContent="Paid relief needs a relief merchandiser name.";return}
+    $("c-type").addEventListener("change",()=>{if($("c-type").value!==KEEP){$("c-pay").indeterminate=false;$("c-pay").checked=$("c-type").value==="Relief Assigned"}});
+    if($("c-del"))$("c-del").onclick=async()=>{if(!confirmBtn($("c-del"),`Tap again to delete ${p.rows.length} day${p.rows.length>1?"s":""}`))return;
+      try{await must(sb.from("relief_coverage").delete().eq("period_id",p._id));closeModal();toast("Coverage period deleted");loadAll()}catch(err){$("c-msg").textContent=errText(err)}};
+    function read([id,k,col,kind]){const el=$(id);
+      if(kind==="chk")return el.indeterminate?KEEP:el.checked;
+      let v=el.value;if(kind==="sel")return v===KEEP?KEEP:(k==="days"?Number(v):v);
+      v=v.trim();if(k==="relief")v=v.replace(/\s+/g," ");return V(k)&&v===""?KEEP:v}
+    $("c-save").onclick=async()=>{const msg=t=>$("c-msg").textContent=t;
+      const ds=pick.dates();if(!ds.length)return msg("Pick at least one date.");
+      const val={};CF.forEach(f=>val[f[2]]=read(f));
+      if(val.region==="")return msg("Choose a region.");
+      if(val.payable===true&&val.relief_name==="")return msg("Paid relief needs a relief merchandiser name.");
       const btn=$("c-save");btn.disabled=true;
       try{
-        if(r){await must(sb.from("relief_coverage").update(Object.assign(base,{date:$("c-date").value})).eq("id",r._id))}
-        else{const ds=dates();if(!ds.length){$("c-msg").textContent="No days in that range with the chosen weekend settings.";btn.disabled=false;return}
-          await must(sb.from("relief_coverage").insert(ds.map(d=>Object.assign({},base,{date:d}))))}
-        closeModal();toast(r?"Entry updated":"Coverage saved");loadAll()
-      }catch(err){btn.disabled=false;$("c-msg").textContent=errText(err)}};
-    updCount();
+        if(!p){const pid=crypto.randomUUID();await must(sb.from("relief_coverage").insert(ds.map(d=>Object.assign({},val,{date:d,period_id:pid}))))}
+        else{const sel=new Set(ds),removed=p.rows.filter(r=>!sel.has(r.date)),kept=p.rows.filter(r=>sel.has(r.date)),added=ds.filter(d=>!p.dates.includes(d));
+          const patch={};CF.forEach(([id,k,col])=>{if(val[col]!==KEEP&&String(val[col])!==String(e[k]))patch[col]=val[col]});
+          const src=kept[kept.length-1]||p.rows[p.rows.length-1],tmpl={};CF.forEach(([id,k,col])=>tmpl[col]=val[col]===KEEP?src[k]:val[col]);
+          if(removed.length)await must(sb.from("relief_coverage").delete().in("id",removed.map(r=>r._id)));
+          if(kept.length&&Object.keys(patch).length)await must(sb.from("relief_coverage").update(patch).in("id",kept.map(r=>r._id)));
+          if(added.length)await must(sb.from("relief_coverage").insert(added.map(d=>Object.assign({},tmpl,{date:d,period_id:p._id}))))}
+        closeModal();toast(p?"Coverage period updated":`Coverage saved: ${ds.length} day${ds.length>1?"s":""}`);loadAll()
+      }catch(err){btn.disabled=false;msg(errText(err))}};
   })}
+
+/* ---------- multi-date picker: tap any number of days, or add a range ---------- */
+function datePicker(el,initial,locked,onChange){
+  const sel=new Set(initial),lock=new Set(locked);
+  let view=(initial.length?initial[initial.length-1]:today()).slice(0,7);
+  el.innerHTML=`<div class="dp-head"><button type="button" class="btn sm" data-dp="-1" aria-label="Previous month">‹</button><b class="dp-title"></b><button type="button" class="btn sm" data-dp="1" aria-label="Next month">›</button></div>
+    <div class="dp-grid"></div>
+    <div class="dp-range bar"><label class="f">Add range from<input type="date" class="dp-from"></label><label class="f">to<input type="date" class="dp-to"></label>
+      <div class="checks"><label><input type="checkbox" class="dp-sat"> Sat</label><label><input type="checkbox" class="dp-sun"> Sun</label></div>
+      <button type="button" class="btn sm" data-dp="add">Add</button><button type="button" class="btn sm" data-dp="clear">Clear</button></div>
+    <div class="tiny muted dp-sum"></div>`;
+  const q=c=>el.querySelector(c);
+  function draw(){const [y,m]=view.split("-").map(Number),first=new Date(y,m-1,1),n=new Date(y,m,0).getDate();
+    q(".dp-title").textContent=MON[m-1]+" "+y;
+    let h=DOW.map(d=>`<span class="dow">${d.slice(0,2)}</span>`).join("")+"<span></span>".repeat(first.getDay());
+    for(let d=1;d<=n;d++){const s=view+"-"+String(d).padStart(2,"0"),w=new Date(y,m-1,d).getDay();
+      h+=`<button type="button" data-day="${s}" class="${sel.has(s)?"on":""} ${lock.has(s)?"lock":""} ${w===0||w===6?"wkend":""} ${s===today()?"today":""}" aria-pressed="${sel.has(s)}" ${lock.has(s)?'title="On a pay run"':""}>${d}</button>`}
+    q(".dp-grid").innerHTML=h;
+    const ds=[...sel].sort();q(".dp-sum").textContent=ds.length?`${ds.length} day${ds.length>1?"s":""}: ${compressDates(ds)}`+(lock.size?` · ${lock.size} on a pay run (locked)`:""):"Tap the days covered. They don't need to be in a row.";
+    onChange(ds.length)}
+  el.addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;
+    if(b.dataset.day){const s=b.dataset.day;if(lock.has(s)){toast("That day is already on a pay run");return}sel.has(s)?sel.delete(s):sel.add(s);return draw()}
+    const a=b.dataset.dp;
+    if(a==="-1"||a==="1"){const [y,m]=view.split("-").map(Number),d=new Date(y,m-1+Number(a),1);view=iso(d).slice(0,7);return draw()}
+    if(a==="clear"){[...sel].forEach(s=>{if(!lock.has(s))sel.delete(s)});return draw()}
+    if(a==="add"){const f=q(".dp-from").value,t=q(".dp-to").value||f;if(!f){toast("Pick a start date");return}
+      if(t<f){toast("The end date is before the start");return}
+      let d=f,g=0;while(d<=t&&g++<370){const w=parse(d).getDay();if((w>0&&w<6)||(w===6&&q(".dp-sat").checked)||(w===0&&q(".dp-sun").checked))sel.add(d);d=addDays(d,1)}
+      if(f===t)sel.add(f); // a single picked day is always added, even a weekend
+      view=f.slice(0,7);return draw()}});
+  draw();
+  return {dates:()=>[...sel].sort()}}
 $("cov-add").onclick=()=>covForm(null);
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-edit-cov],[data-edit-pay],[data-edit-team]");if(!t)return;
-  if(t.dataset.editCov)covForm(S.cov.find(r=>r._id===t.dataset.editCov));
+  if(t.dataset.editCov)covForm((S.periods||[]).find(p=>p._id===t.dataset.editCov));
   if(t.dataset.editPay)payForm(S.pay.find(r=>r._id===t.dataset.editPay));
   if(t.dataset.editTeam)teamForm(S.roster.find(r=>r._id===t.dataset.editTeam));
 });
