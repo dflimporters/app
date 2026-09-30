@@ -1287,16 +1287,13 @@ const POSITION_LABEL = {
   tl_merch: 'Team Leader + Brand Ambassador'
 };
 let payrollRows = [];      // payable, on the active roster
-let payrollReview = [];    // not on the active roster / placeholder names — excluded from total
 let payrollShowBreakdown = false;
 
+// Only people on the active roster are paid. Names that aren't (the "Unassigned"
+// store-map placeholder, people who've left) are dropped from the HR payroll
+// entirely: they were never in the total, and HR asked not to see them.
 function splitPayroll(rows){
-  const payable = [], review = [];
-  rows.forEach(r => {
-    if(!(parseFloat(r.total_payable) > 0)) return;
-    (r.role==='unknown' || r.person_name==='Unassigned' ? review : payable).push(r);
-  });
-  return { payable, review };
+  return rows.filter(r => parseFloat(r.total_payable) > 0 && r.role!=='unknown' && r.person_name!=='Unassigned');
 }
 
 function renderPayroll(){
@@ -1309,8 +1306,8 @@ function renderPayroll(){
   sb.rpc('get_merch_payroll', { p_period: period }).then(({ data, error }) => {
     if(error) throw error;
     if(period !== currentPeriod) return; // month switched mid-load
-    const { payable, review } = splitPayroll(data||[]);
-    payrollRows = payable; payrollReview = review;
+    const payable = splitPayroll(data||[]);
+    payrollRows = payable;
 
     const n  = v => parseFloat(v||0);
     const j$ = v => 'J$' + n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1331,13 +1328,6 @@ function renderPayroll(){
         ${td(j$(r.total_payable),'right','font-family:var(--mono);font-size:12px;font-weight:700;color:#15803d')}
       </tr>`).join('');
 
-    const reviewHtml = review.length ? `
-      <div style="margin:18px 28px 0;border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:12px 16px">
-        <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:#92400e;letter-spacing:.8px;margin-bottom:6px">⚠ NEEDS REVIEW BEFORE PAYMENT — NOT INCLUDED IN THE TOTAL ABOVE</div>
-        <div style="font-size:11px;color:#78350f;margin-bottom:8px">Commission is sitting on these names, but they aren't on the active roster (left the company, renamed, or a placeholder in the store map). Confirm with HR before paying.</div>
-        ${review.map(r=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #fde68a"><span>${r.person_name}</span><span style="font-family:var(--mono)">${j$(r.total_payable)}</span></div>`).join('')}
-      </div>` : '';
-
     pc.innerHTML = `
       <div style="background:#1a1a2e;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;flex-shrink:0">
         <div>
@@ -1347,7 +1337,8 @@ function renderPayroll(){
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button onclick="togglePayrollBreakdown()" style="background:transparent;color:#cbd5e1;border:1px solid #475569;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">${payrollShowBreakdown?'Hide':'Show'} breakdown</button>
-          <button onclick="exportPayrollCSV()" style="background:#2F5DBF;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">⬇ CSV for HR</button>
+          <button onclick="exportPayrollCSV()" style="background:transparent;color:#cbd5e1;border:1px solid #475569;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">⬇ CSV</button>
+          <button onclick="exportPayrollPDF()" style="background:#2F5DBF;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">⬇ PDF for HR</button>
         </div>
       </div>
       <div style="overflow:auto;flex:1;min-height:0;padding-bottom:24px">
@@ -1367,7 +1358,6 @@ function renderPayroll(){
             </tr>
           </tbody>
         </table>
-        ${reviewHtml}
         <div style="margin:18px 28px 0;padding:8px 14px;background:#fef9ec;border:1px solid #fde68a;border-radius:6px">
           <p style="font-family:var(--mono);font-size:8px;color:#92400e;letter-spacing:.4px;margin:0;line-height:1.6">⚠️ CONFIDENTIAL · HR USE ONLY · Amount payable = Brand Ambassador commission + Team Leader incentive + relief incentive, per person ·
           BA: ${(COMM_RATE_80*100).toFixed(2)}% of sales at 80–99% of target; at 100%+ ${(COMM_RATE_100_BASE*100).toFixed(1)}% of target + ${(COMM_RATE_100_OVER*100).toFixed(2)}% of sales above target ·
@@ -1392,15 +1382,50 @@ function exportPayrollCSV(){
   const rows = [['Name','Position','Amount Payable (J$)','BA Commission (J$)','TL Incentive (J$)','Relief Incentive (J$)','Period']];
   payrollRows.forEach(r => rows.push([r.person_name, POSITION_LABEL[r.role]||r.role, m(r.total_payable), m(r.ba_commission), m(r.tl_incentive), m(r.relief_incentive), MONTHS[currentPeriod]||currentPeriod]));
   rows.push(['TOTAL','',m(payrollRows.reduce((s,r)=>s+parseFloat(r.total_payable||0),0)),'','','','']);
-  if(payrollReview.length){
-    rows.push([]); rows.push(['NEEDS REVIEW - not included in total']);
-    payrollReview.forEach(r => rows.push([r.person_name,'Not on active roster',m(r.total_payable),m(r.ba_commission),m(r.tl_incentive),m(r.relief_incentive),MONTHS[currentPeriod]||currentPeriod]));
-  }
   const csv = rows.map(r=>r.map(q).join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='DFL_Merch_Commission_TL_Incentive_'+currentPeriod+'.csv';
   a.click();
+}
+
+// Printable HR sheet; the browser's print dialog saves it as a PDF.
+function exportPayrollPDF(){
+  if(!payrollRows.length){ toast('Nothing to export for this period',''); return; }
+  const esc = v => String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const n = v => parseFloat(v||0);
+  const j$ = v => 'J$' + n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const sum = k => payrollRows.reduce((s,r)=>s+n(r[k]),0);
+  const label = MONTHS[currentPeriod]||currentPeriod;
+  const who = (window.DFL_PROFILE && window.DFL_PROFILE.full_name) || '';
+  const w = window.open('', '_blank');
+  if(!w){ toast('Allow pop-ups for this site to export the PDF',''); return; }
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DFL Merch Commission and TL Incentive ${esc(label)}</title>
+<style>
+body{font:12px/1.4 "Segoe UI",Arial,sans-serif;color:#111;margin:24px;background:#fff}
+h1{font-size:18px;margin:0 0 2px}.sub{color:#555;margin:0 0 14px}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:6px 8px;text-align:left}
+th{background:#eef1f6;font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.amt{font-weight:700}tfoot td{font-weight:700;background:#f4f4f4}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:40px}.sign div{border-top:1px solid #333;padding-top:4px;font-size:11px;color:#444}
+.note{margin-top:16px;font-size:10px;color:#555;line-height:1.5}.conf{color:#8a1c1c;font-weight:700}
+.tools{margin-bottom:16px}.tools button{font:600 13px inherit;padding:7px 14px;border:0;background:#2F5DBF;color:#fff;border-radius:6px;cursor:pointer}
+@media print{.tools{display:none}body{margin:10mm}}
+</style></head><body>
+<div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div>
+<h1>DFL Importers &amp; Distributors: Merch Commission and TL Incentive</h1>
+<p class="sub">Period: <b>${esc(label)}</b> · ${payrollRows.length} people · Prepared ${esc(new Date().toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}))}${who?` by ${esc(who)}`:''}</p>
+<table><thead><tr><th>#</th><th>Name</th><th>Position</th><th class="n">BA commission</th><th class="n">TL incentive</th><th class="n">Relief</th><th class="n">Amount payable</th></tr></thead><tbody>
+${payrollRows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.person_name)}</td><td>${esc(POSITION_LABEL[r.role]||r.role)}</td><td class="n">${j$(r.ba_commission)}</td><td class="n">${j$(r.tl_incentive)}</td><td class="n">${j$(r.relief_incentive)}</td><td class="n amt">${j$(r.total_payable)}</td></tr>`).join('')}
+</tbody><tfoot><tr><td colspan="3">Total · ${payrollRows.length} people</td><td class="n">${j$(sum('ba_commission'))}</td><td class="n">${j$(sum('tl_incentive'))}</td><td class="n">${j$(sum('relief_incentive'))}</td><td class="n">${j$(sum('total_payable'))}</td></tr></tfoot></table>
+<div class="sign"><div>Prepared by</div><div>Approved by</div><div>Date</div></div>
+<p class="note"><span class="conf">Confidential: HR use only.</span> Amount payable = Brand Ambassador commission + Team Leader incentive + relief incentive, per person.
+BA: ${(COMM_RATE_80*100).toFixed(2)}% of sales at 80–99% of target; at 100%+ ${(COMM_RATE_100_BASE*100).toFixed(1)}% of target + ${(COMM_RATE_100_OVER*100).toFixed(2)}% of sales above target.
+TL: J$${TL_RATE_80}/store at 80–99%, J$${TL_RATE_100.toLocaleString()}/store at 100%+ (TL's own stores excluded). Relief: J$500 per completed relief visit.</p>
+</body></html>`);
+  w.document.close();
 }
 
 // ══════════════════════════════════════════════
