@@ -326,6 +326,7 @@ function buildPeriods(){const by={};
       text:key(rs.map(r=>[r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).join(" "))})})}
 // "$4,000 × 10 days = $40,000" so the total can be checked at a glance
 const payCalc=(rate,days)=>`<div class="tiny mono" style="margin-top:4px">${money(rate)} × ${fmtNum(days)} day${days===1?"":"s"} = <b>${money(rate*days)}</b></div>`;
+const bankTag=n=>{const r=rosterByKey(n);return `<div style="margin-top:4px">${r&&S.bank[r._id]?`<span class="pill p-ok">Bank on file</span>`:`<span class="pill p-bad">No bank details</span>`}</div>`};
 const distinct=(p,f)=>[...new Set(p.rows.map(r=>r[f]).filter(Boolean))];
 const canEditCov=p=>S.isAdmin||p.rows.every(r=>!r.imported&&!r.paymentId);
 
@@ -355,7 +356,7 @@ function renderCov(){
     const statuses=distinct(p,"status").map(pillStatus).join(" ");
     const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
     const can=payableRows(p).length>0,on=S.sel.has(p._id);
-    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td class="nowrap">${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td class="nowrap">${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td class="nowrap">${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
     <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
@@ -696,7 +697,13 @@ function teamForm(r){const e=r||{rate:4000,active:true};
       const id=r?r._id:(key(name).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"m")+"-"+Date.now().toString(36).slice(-4);
       const data={id,name,phone:$("t-phone").value.trim(),region:$("t-region").value,daily_rate:Number($("t-rate").value)||0,active:$("t-active").checked};
       const bank=$("t-bank").value.trim();$("t-save").disabled=true;
-      try{await must(sb.from("relief_roster").upsert(data));if(bank!==(S.bank[id]||""))await must(sb.from("relief_bank").upsert({roster_id:id,details:bank}));closeModal();toast("Saved");loadAll()}
+      try{await must(sb.from("relief_roster").upsert(data));if(bank!==(S.bank[id]||""))await must(sb.from("relief_bank").upsert({roster_id:id,details:bank}));
+        // the log links to the team by name, so carry a rename across, and fill in any blank regions
+        const names=[...new Set([r&&r.name,name].filter(Boolean))],mine=S.cov.filter(c=>names.some(n=>key(n)===key(c.relief)));
+        const renamed=mine.filter(c=>c.relief!==name).map(c=>c._id),noRegion=mine.filter(c=>!c.region&&!c.paymentId).map(c=>c._id);
+        if(renamed.length)await must(sb.from("relief_coverage").update({relief_name:name}).in("id",renamed));
+        if(data.region&&noRegion.length)await must(sb.from("relief_coverage").update({region:data.region}).in("id",noRegion));
+        closeModal();toast(noRegion.length&&data.region?`Saved. ${noRegion.length} logged day${noRegion.length>1?"s":""} set to ${data.region}`:"Saved");loadAll()}
       catch(err){$("t-save").disabled=false;$("t-msg").textContent=errText(err)}}})}
 $("team-add").onclick=()=>teamForm(null);
 
