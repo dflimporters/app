@@ -247,6 +247,7 @@ tbody tr.clickable{cursor:pointer}
   <div class="main-tab" id="navPayroll" onclick="showPayroll()">💰 HR Payroll</div>
   <div class="main-tab" id="navVisits" onclick="showVisits()">📍 Visit Log</div>
   <div class="main-tab" id="navEvals" onclick="showEvals()">📋 Evaluations</div>
+  <div class="main-tab" id="navRelief" onclick="showRelief()">🔁 Relief Coverage</div>
 </div>
 
 <!-- MONTH TABS -->
@@ -423,6 +424,12 @@ tbody tr.clickable{cursor:pointer}
   </div>
 </div>
 
+<!-- RELIEF COVERAGE — its own page (coverage log, pay runs, relief team), embedded.
+     src is set on first open so it doesn't load until someone clicks the tab. -->
+<div id="reliefSection" style="display:none">
+  <iframe id="reliefFrame" title="Relief Coverage" style="display:block;width:100%;height:calc(100vh - 100px);border:0;background:#f3f5f4"></iframe>
+</div>
+
 <!-- EVALUATION DETAIL MODAL -->
 <div class="modal-overlay" id="eval-detail-modal" onclick="if(event.target===this)closeEvalDetail()">
   <div class="modal" style="width:600px;max-height:90vh;overflow-y:auto">
@@ -561,7 +568,18 @@ const REAL_TARGET_MONTHS = (()=>{
 // Incentive rates — the only "magic numbers" left; everything else (who's
 // assigned where, who leads whom, per-store commission share) now comes live
 // from merchandiser_map / reps instead of hardcoded JS objects.
-const COMMISSION_RATE = 0.0025;   // 0.25% of actual, for stores >=80% of target — matches calculate_merchandiser_summary() in the DB
+// Brand Ambassador commission, per store — matches calculate_merchandiser_summary() in the DB:
+//   80–99% of target: 0.25% of actual
+//   100%+ of target:  0.5% of target + 0.75% of whatever's sold above target
+const COMM_RATE_80 = 0.0025;
+const COMM_RATE_100_BASE = 0.005;
+const COMM_RATE_100_OVER = 0.0075;
+function storeCommission(target, actual){
+  if(!(target>0)) return 0;
+  if(actual>=target) return target*COMM_RATE_100_BASE + (actual-target)*COMM_RATE_100_OVER;
+  if(actual>=target*0.8) return actual*COMM_RATE_80;
+  return 0;
+}
 const TL_RATE_80 = 250;           // J$ per store at >=80%
 const TL_RATE_100 = 1000;         // J$ per store at >=100% (2026-09-28: raised from 500)
 
@@ -576,7 +594,8 @@ let sortCol=null, sortDir=1;
 
 // ── LIVE REFERENCE DATA (replaces MERCH_MAP / REGION_MAP / TEAM_LEADERS / SHARED_STORES / ROUTE_ONLY_STOPS) ──
 // Fetched once at boot, not per month-tab switch — this is the whole fix.
-let mapByCid = {};        // customer_id -> { merchandiser_name, commission_share }
+let mapByCid = {};        // customer_id -> { merchandiser_name, commission_share } (last assignment wins — lookup only)
+let mapAssignments = [];  // every merchandiser_map row; a shared store has two (0.5 each), so iterate THIS for money
 let merchNames = [];      // distinct merchandiser names with at least one assigned store
 let regionByMerch = {};   // merchandiser name -> reps.area
 let repByName = {};       // reps.name -> reps row (role, area, active, team_lead_id, id)
@@ -608,8 +627,12 @@ async function loadStaticRefs(){
     supa(`reps?select=id,name,role,area,active,team_lead_id,acting_tl_shares_credit&active=eq.true`)
   ]);
   mapByCid = {};
+  mapAssignments = [];
   const nameSet = new Set();
-  (mapRows||[]).forEach(r => { mapByCid[r.customer_id] = { merchandiser_name: r.merchandiser_name, commission_share: r.commission_share==null?1:parseFloat(r.commission_share) }; nameSet.add(r.merchandiser_name); });
+  (mapRows||[]).forEach(r => {
+    const a = { customer_id: r.customer_id, merchandiser_name: r.merchandiser_name, commission_share: r.commission_share==null?1:parseFloat(r.commission_share) };
+    mapByCid[r.customer_id] = a; mapAssignments.push(a); nameSet.add(r.merchandiser_name);
+  });
   merchNames = [...nameSet].sort();
 
   repByName = {};
@@ -723,16 +746,18 @@ function processRows(raw){
   raw.forEach(r => { byId[r.customer_id] = r; });
 
   const rows = [];
-  // Iterate the LIVE merchandiser_map (mapByCid), not a hardcoded object —
+  // Iterate the LIVE merchandiser_map, not a hardcoded object —
   // commission_share (1.0 normal / 0.5 shared / 0.0 route-only-no-commission)
-  // already carries what SHARED_STORES/ROUTE_ONLY_STOPS used to fake.
-  Object.entries(mapByCid).forEach(([cid, m]) => {
+  // already carries what SHARED_STORES/ROUTE_ONLY_STOPS used to fake. One row
+  // per assignment, so both halves of a shared store show (and get paid).
+  mapAssignments.forEach(m => {
+    const cid = m.customer_id;
     const r = byId[cid] || {};
     const share = m.commission_share;
     const target = (parseFloat(r.target_amount)||0) * share;
     const actual = (parseFloat(r.actual_amount)||0) * share;
     const pct = target>0 ? actual/target : 0;
-    const commission = pct>=0.8 ? actual*COMMISSION_RATE : 0;
+    const commission = storeCommission(target, actual);
     const name = (r.customer_name && r.customer_name !== cid ? r.customer_name : null) || cid;
     rows.push({
       customer_id: cid,
@@ -1158,7 +1183,8 @@ document.querySelectorAll('.month-tab').forEach(tab=>{
 // from mapByCid instead of a hardcoded array.
 function storeIdsForMerchList(names){
   const set = new Set(names);
-  return Object.keys(mapByCid).filter(cid => set.has(mapByCid[cid].merchandiser_name));
+  // All assignments, deduped — a store shared across two names still counts once.
+  return [...new Set(mapAssignments.filter(a => set.has(a.merchandiser_name)).map(a => a.customer_id))];
 }
 
 function calcIncentiveByStores(storeIds, storeData){
@@ -1249,6 +1275,30 @@ function exportTLCSV(){
 // ══════════════════════════════════════════════
 // HR PAYROLL
 // ══════════════════════════════════════════════
+// One row per PERSON from get_merch_payroll() — Brand Ambassador commission,
+// TL incentive and relief incentive already rolled into a single
+// total_payable, so HR submits one figure per person. The same RPC feeds the
+// monthly "Merch Commission and TL Incentive" email (send-merch-payroll-email),
+// so what's on screen is exactly what gets emailed.
+const POSITION_LABEL = {
+  merchandiser: 'Brand Ambassador',
+  relief_merchandiser: 'Relief Brand Ambassador',
+  team_leader: 'Team Leader',
+  tl_merch: 'Team Leader + Brand Ambassador'
+};
+let payrollRows = [];      // payable, on the active roster
+let payrollReview = [];    // not on the active roster / placeholder names — excluded from total
+let payrollShowBreakdown = false;
+
+function splitPayroll(rows){
+  const payable = [], review = [];
+  rows.forEach(r => {
+    if(!(parseFloat(r.total_payable) > 0)) return;
+    (r.role==='unknown' || r.person_name==='Unassigned' ? review : payable).push(r);
+  });
+  return { payable, review };
+}
+
 function renderPayroll(){
   const pc = document.getElementById('payrollContent');
   pc.innerHTML = '<div style="padding:20px;color:#6b7a99;font-family:var(--mono);font-size:11px">Loading payroll data...</div>';
@@ -1256,139 +1306,100 @@ function renderPayroll(){
   const period = currentPeriod;
   const label  = MONTHS[period]||period;
 
-  Promise.all([
-    supa(`merchandiser_summary?period=eq.${period}&select=merchandiser_name,store_count,stores_qualified,stores_100,total_target,total_actual,achievement_pct,commission&order=merchandiser_name`),
-    storeRows.length ? Promise.resolve(storeRows) : supa(`merch_store_dashboard?period=eq.${period}&select=customer_id,customer_name,target_amount,actual_amount&limit=9999`).then(raw=>{ processRows(raw||[]); return storeRows; })
-  ]).then(([summaries, rows]) => {
-      const totalMerchComm = (summaries||[]).reduce((s,d)=>s+parseFloat(d.commission||0),0);
-      const paid = (summaries||[]).filter(d=>parseFloat(d.commission||0)>0).length;
+  sb.rpc('get_merch_payroll', { p_period: period }).then(({ data, error }) => {
+    if(error) throw error;
+    if(period !== currentPeriod) return; // month switched mid-load
+    const { payable, review } = splitPayroll(data||[]);
+    payrollRows = payable; payrollReview = review;
 
-      const storeData = {};
-      rows.forEach(r => { storeData[r.customer_id] = { target_amount: r.target!==undefined?r.target:r.target_amount, actual_amount: r.actual!==undefined?r.actual:r.actual_amount }; });
+    const n  = v => parseFloat(v||0);
+    const j$ = v => 'J$' + n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    const dash = v => n(v) > 0 ? j$(v) : '<span style="color:#d1cfc4">—</span>';
+    const grand = payable.reduce((s,r)=>s+n(r.total_payable),0);
+    const sum = k => payable.reduce((s,r)=>s+n(r[k]),0);
+    const bd = payrollShowBreakdown ? '' : 'display:none;';
+    const th = (t,align='left',extra='') => `<th style="padding:7px 12px;font-family:var(--mono);font-size:9px;color:#6b7280;text-align:${align};font-weight:600;letter-spacing:.5px;${extra}">${t}</th>`;
+    const td = (v,align='left',extra='') => `<td style="padding:7px 12px;text-align:${align};${extra}">${v}</td>`;
 
-      const tlData = teamLeaderRoster.map(tl => {
-        const res = calcIncentiveByStores(storeIdsForMerchList(incentiveNamesFor(tl)), storeData);
-        return { name: tl.name+(tl.acting?' (acting)':''), territory: tl.region, s80:res.s80, s100:res.s100, earn:res.earn };
-      });
-      const totalTL = tlData.reduce((s,t)=>s+(t.earn||0),0);
-      const grand   = totalMerchComm + totalTL;
+    const body = payable.map((r,i) => `<tr style="border-bottom:1px solid #f0ede8">
+        ${td(i+1,'left','font-family:var(--mono);font-size:10px;color:#9ca3af')}
+        ${td(r.person_name,'left','font-size:12px;font-weight:600;color:#1a1a2e')}
+        ${td(POSITION_LABEL[r.role]||r.role,'left','font-size:11px;color:#6b7280')}
+        ${td(dash(r.ba_commission),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
+        ${td(dash(r.tl_incentive),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
+        ${td(dash(r.relief_incentive),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
+        ${td(j$(r.total_payable),'right','font-family:var(--mono);font-size:12px;font-weight:700;color:#15803d')}
+      </tr>`).join('');
 
-      const fmt$ = n => !n||n==0?'—':'J$'+Math.round(n).toLocaleString();
+    const reviewHtml = review.length ? `
+      <div style="margin:18px 28px 0;border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:12px 16px">
+        <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:#92400e;letter-spacing:.8px;margin-bottom:6px">⚠ NEEDS REVIEW BEFORE PAYMENT — NOT INCLUDED IN THE TOTAL ABOVE</div>
+        <div style="font-size:11px;color:#78350f;margin-bottom:8px">Commission is sitting on these names, but they aren't on the active roster (left the company, renamed, or a placeholder in the store map). Confirm with HR before paying.</div>
+        ${review.map(r=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #fde68a"><span>${r.person_name}</span><span style="font-family:var(--mono)">${j$(r.total_payable)}</span></div>`).join('')}
+      </div>` : '';
 
-      const mRows = (summaries||[]).map((d,i)=>{
-        const comm = parseFloat(d.commission||0);
-        const pct  = parseFloat(d.achievement_pct||0);
-        const bar  = `<div style="display:flex;align-items:center;gap:5px"><div style="width:60px;height:5px;background:#e5e0d8;border-radius:3px"><div style="height:100%;border-radius:3px;background:${pct>=100?'#15803d':pct>=80?'#2563eb':'#dc2626'};width:${Math.min(pct,100)}%"></div></div><span style="font-size:9px;font-family:var(--mono)">${pct.toFixed(1)}%</span></div>`;
-        return `<tr style="background:${comm<=0?'#fafaf9':'#fff'};border-bottom:1px solid #f0ede8">
-          <td style="padding:5px 10px;font-family:var(--mono);font-size:9px;color:#9ca3af">${i+1}</td>
-          <td style="padding:5px 10px;font-size:11px;font-weight:${comm>0?600:400};color:${comm>0?'#1a1a2e':'#9ca3af'}">${d.merchandiser_name}</td>
-          <td style="padding:5px 10px;text-align:center;font-family:var(--mono);font-size:10px;color:#6b7280">${d.stores_qualified}/${d.store_count}</td>
-          <td style="padding:5px 10px">${bar}</td>
-          <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:10px;color:#6b7280">${fmt$(parseFloat(d.total_target||0))}</td>
-          <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:10px;color:#374151">${fmt$(parseFloat(d.total_actual||0))}</td>
-          <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:${comm>0?'#15803d':'#d1cfc4'}">${comm>0?fmt$(comm):'—'}</td>
-        </tr>`;
-      }).join('');
-
-      const tlRows = tlData.map(tl => {
-        const e = tl.earn||0;
-        return `<tr style="background:${e<=0?'#fafaf9':'#fff'};border-bottom:1px solid #f0ede8">
-          <td style="padding:5px 10px;font-size:11px;font-weight:${e>0?600:400};color:${e>0?'#92400e':'#9ca3af'}">${tl.name}</td>
-          <td style="padding:5px 10px;font-size:10px;color:#6b7280;font-family:var(--mono);font-size:9px">${tl.territory}</td>
-          <td style="padding:5px 10px;text-align:center;font-family:var(--mono);font-size:11px;color:#15803d;font-weight:700">${tl.s100||0}</td>
-          <td style="padding:5px 10px;text-align:center;font-family:var(--mono);font-size:11px;color:#d97706;font-weight:700">${tl.s80||0}</td>
-          <td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:${e>0?'#92400e':'#d1cfc4'}">${e>0?fmt$(e):'—'}</td>
-        </tr>`;
-      }).join('');
-
-      pc.innerHTML = `
-        <div style="background:#1a1a2e;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-          <div>
-            <div style="font-family:var(--mono);font-size:9px;color:#8a9ab5;letter-spacing:1px;margin-bottom:5px">💰 ${label} — TOTAL PAYROLL OBLIGATION</div>
-            <div style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fbbf24">${fmt$(grand)}</div>
-          </div>
-          <div style="display:flex;gap:28px;align-items:center">
-            <div style="text-align:right"><div style="font-family:var(--mono);font-size:16px;color:#4ade80;font-weight:700">${fmt$(totalMerchComm)}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:2px">MERCH COMMISSION</div></div>
-            <div style="width:1px;background:#2d2d44;height:36px"></div>
-            <div style="text-align:right"><div style="font-family:var(--mono);font-size:16px;color:#f59e0b;font-weight:700">${fmt$(totalTL)}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:2px">TL INCENTIVE</div></div>
-            <div style="width:1px;background:#2d2d44;height:36px"></div>
-            <div style="text-align:right"><div style="font-family:var(--mono);font-size:16px;color:#fff;font-weight:700">${paid}/${(summaries||[]).length}</div><div style="font-family:var(--mono);font-size:8px;color:#6b7a99;letter-spacing:1px;margin-top:2px">MERCH PAYABLE</div></div>
-            <button onclick="exportPayrollCSV()" style="background:#2F5DBF;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px;margin-left:8px">⬇ CSV</button>
-          </div>
+    pc.innerHTML = `
+      <div style="background:#1a1a2e;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;flex-shrink:0">
+        <div>
+          <div style="font-family:var(--mono);font-size:9px;color:#8a9ab5;letter-spacing:1px;margin-bottom:5px">💰 ${label} — MERCH COMMISSION &amp; TL INCENTIVE · HR SUBMISSION</div>
+          <div style="font-family:var(--mono);font-size:28px;font-weight:900;color:#fbbf24">${j$(grand)}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:#8a9ab5;margin-top:4px">${payable.length} people payable · one amount per person</div>
         </div>
-        <div style="display:grid;grid-template-columns:3fr 2fr;gap:0;overflow:auto;flex:1;min-height:0">
-          <div style="border-right:1px solid #e5e0d8;overflow:auto">
-            <div style="background:#2F5DBF;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10">
-              <span style="font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:.8px">📦 BRAND AMBASSADOR COMMISSION</span>
-              <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:#bfdbfe">${fmt$(totalMerchComm)}</span>
-            </div>
-            <table style="width:100%;border-collapse:collapse;font-size:11px">
-              <thead style="background:#f8f7f5;position:sticky;top:33px;z-index:9"><tr>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">#</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">BRAND AMBASSADOR</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:center;font-weight:500">QUAL</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;font-weight:500">ATTAINMENT</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:right;font-weight:500">TARGET</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:right;font-weight:500">ACTUAL</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:right;font-weight:500">COMMISSION</th>
-              </tr></thead>
-              <tbody>${mRows}
-                <tr style="background:#2F5DBF">
-                  <td colspan="3" style="padding:6px 10px;font-family:var(--mono);font-size:9px;font-weight:700;color:#fff">TOTAL · ${paid} payable</td>
-                  <td></td>
-                  <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:10px;font-weight:700;color:#bfdbfe">${fmt$((summaries||[]).reduce((s,d)=>s+parseFloat(d.total_target||0),0))}</td>
-                  <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:10px;font-weight:700;color:#bfdbfe">${fmt$((summaries||[]).reduce((s,d)=>s+parseFloat(d.total_actual||0),0))}</td>
-                  <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:#4ade80">${fmt$(totalMerchComm)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div style="overflow:auto;display:flex;flex-direction:column">
-            <div style="background:#7c3aed;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10">
-              <span style="font-family:var(--mono);font-size:9px;color:#fff;letter-spacing:.8px">🏆 TEAM LEADER INCENTIVE</span>
-              <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:#ddd6fe">${fmt$(totalTL)}</span>
-            </div>
-            <table style="width:100%;border-collapse:collapse;font-size:11px">
-              <thead style="background:#f8f7f5;position:sticky;top:33px;z-index:9"><tr>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">TEAM LEADER</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:left;font-weight:500">TERRITORY</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#15803d;text-align:center;font-weight:500">100%+</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#d97706;text-align:center;font-weight:500">80–99%</th>
-                <th style="padding:5px 10px;font-family:var(--mono);font-size:8px;color:#9ca3af;text-align:right;font-weight:500">INCENTIVE</th>
-              </tr></thead>
-              <tbody>${tlRows}
-                <tr style="background:#7c3aed">
-                  <td colspan="4" style="padding:6px 10px;font-family:var(--mono);font-size:9px;font-weight:700;color:#fff">TOTAL · ${tlData.length} TLs</td>
-                  <td style="padding:6px 10px;text-align:right;font-family:var(--mono);font-size:11px;font-weight:700;color:#fde68a">${fmt$(totalTL)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div style="margin-top:auto">
-              <div style="background:#1a1a2e;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-                <span style="font-family:var(--mono);font-size:8px;color:#8a9ab5;letter-spacing:.8px">GRAND TOTAL PAYROLL OBLIGATION</span>
-                <span style="font-family:var(--mono);font-size:14px;font-weight:900;color:#fbbf24">${fmt$(grand)}</span>
-              </div>
-              <div style="padding:8px 14px;background:#fef9ec;border-top:1px solid #fde68a">
-                <p style="font-family:var(--mono);font-size:8px;color:#92400e;letter-spacing:.4px;margin:0">⚠️ CONFIDENTIAL · HR USE ONLY · ${(COMMISSION_RATE*100).toFixed(2)}% on qualifying sales ≥80% target · TL: J$${TL_RATE_80}/store @80%+, J$${TL_RATE_100}/store @100%+</p>
-              </div>
-            </div>
-          </div>
-        </div>`;
-    }).catch(err => {
-      pc.innerHTML = `<div style="padding:20px;color:#dc2626;font-family:var(--mono);font-size:11px">Error loading payroll: ${err.message}</div>`;
-    });
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="togglePayrollBreakdown()" style="background:transparent;color:#cbd5e1;border:1px solid #475569;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">${payrollShowBreakdown?'Hide':'Show'} breakdown</button>
+          <button onclick="exportPayrollCSV()" style="background:#2F5DBF;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px">⬇ CSV for HR</button>
+        </div>
+      </div>
+      <div style="overflow:auto;flex:1;min-height:0;padding-bottom:24px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;background:#fff">
+          <thead style="background:#f8f7f5;position:sticky;top:0;z-index:9"><tr>
+            ${th('#')}${th('NAME')}${th('POSITION')}
+            ${th('BA COMMISSION','right',bd)}${th('TL INCENTIVE','right',bd)}${th('RELIEF','right',bd)}
+            ${th('AMOUNT PAYABLE','right','color:#15803d')}
+          </tr></thead>
+          <tbody>${body || '<tr><td colspan="7" style="padding:20px;color:#9ca3af">Nothing payable for this period.</td></tr>'}
+            <tr style="background:#1a1a2e">
+              <td colspan="3" style="padding:8px 12px;font-family:var(--mono);font-size:9px;font-weight:700;color:#fff">TOTAL · ${payable.length} people</td>
+              ${td(j$(sum('ba_commission')),'right',bd+'font-family:var(--mono);font-size:10px;color:#cbd5e1')}
+              ${td(j$(sum('tl_incentive')),'right',bd+'font-family:var(--mono);font-size:10px;color:#cbd5e1')}
+              ${td(j$(sum('relief_incentive')),'right',bd+'font-family:var(--mono);font-size:10px;color:#cbd5e1')}
+              ${td(j$(grand),'right','font-family:var(--mono);font-size:13px;font-weight:900;color:#fbbf24')}
+            </tr>
+          </tbody>
+        </table>
+        ${reviewHtml}
+        <div style="margin:18px 28px 0;padding:8px 14px;background:#fef9ec;border:1px solid #fde68a;border-radius:6px">
+          <p style="font-family:var(--mono);font-size:8px;color:#92400e;letter-spacing:.4px;margin:0;line-height:1.6">⚠️ CONFIDENTIAL · HR USE ONLY · Amount payable = Brand Ambassador commission + Team Leader incentive + relief incentive, per person ·
+          BA: ${(COMM_RATE_80*100).toFixed(2)}% of sales at 80–99% of target; at 100%+ ${(COMM_RATE_100_BASE*100).toFixed(1)}% of target + ${(COMM_RATE_100_OVER*100).toFixed(2)}% of sales above target ·
+          TL: J$${TL_RATE_80}/store @80–99%, J$${TL_RATE_100.toLocaleString()}/store @100%+ (TL's own stores excluded — paid via their own commission) ·
+          Relief: J$500 per completed relief visit (full-time relief only) · Emailed automatically on the 1st of each month.</p>
+        </div>
+      </div>`;
+  }).catch(err => {
+    pc.innerHTML = `<div style="padding:20px;color:#dc2626;font-family:var(--mono);font-size:11px">Error loading payroll: ${err.message}</div>`;
+  });
+}
+
+function togglePayrollBreakdown(){
+  payrollShowBreakdown = !payrollShowBreakdown;
+  renderPayroll();
 }
 
 function exportPayrollCSV(){
-  const summaries = storeRows.length ? null : null; // uses last-rendered DOM data via re-fetch for simplicity
-  toast('Use the Brand Ambassador Commission tab\'s CSV export for line-level detail — this button exports the summary shown.', '');
-  const rows = Array.from(document.querySelectorAll('#payrollContent table')).map(t => {
-    return Array.from(t.querySelectorAll('tr')).map(tr => Array.from(tr.querySelectorAll('th,td')).map(td => td.textContent.trim()));
-  });
-  const csv = rows.map(table => table.map(r=>r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(',')).join('\n')).join('\n\n');
+  if(!payrollRows.length){ toast('Nothing to export for this period',''); return; }
+  const q = v => '"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const m = v => parseFloat(v||0).toFixed(2);
+  const rows = [['Name','Position','Amount Payable (J$)','BA Commission (J$)','TL Incentive (J$)','Relief Incentive (J$)','Period']];
+  payrollRows.forEach(r => rows.push([r.person_name, POSITION_LABEL[r.role]||r.role, m(r.total_payable), m(r.ba_commission), m(r.tl_incentive), m(r.relief_incentive), MONTHS[currentPeriod]||currentPeriod]));
+  rows.push(['TOTAL','',m(payrollRows.reduce((s,r)=>s+parseFloat(r.total_payable||0),0)),'','','','']);
+  if(payrollReview.length){
+    rows.push([]); rows.push(['NEEDS REVIEW - not included in total']);
+    payrollReview.forEach(r => rows.push([r.person_name,'Not on active roster',m(r.total_payable),m(r.ba_commission),m(r.tl_incentive),m(r.relief_incentive),MONTHS[currentPeriod]||currentPeriod]));
+  }
+  const csv = rows.map(r=>r.map(q).join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='DFL_Payroll_'+currentPeriod+'.csv';
+  a.download='DFL_Merch_Commission_TL_Incentive_'+currentPeriod+'.csv';
   a.click();
 }
 
@@ -1680,18 +1691,21 @@ function exportEvalsCSV(){
 // ══════════════════════════════════════════════
 function setMainTab(tab){
   activeTab = tab;
-  ['navMerch','navTL','navPayroll','navVisits','navEvals'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['navMerch','navTL','navPayroll','navVisits','navEvals','navRelief'].forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('merchSection').style.display = tab==='merch' ? 'block' : 'none';
   document.getElementById('tlSection').style.display = tab==='tl' ? 'block' : 'none';
   document.getElementById('payrollSection').style.display = tab==='payroll' ? 'flex' : 'none';
   document.getElementById('visitsSection').style.display = tab==='visits' ? 'block' : 'none';
   document.getElementById('evalsSection').style.display = tab==='evals' ? 'block' : 'none';
+  document.getElementById('reliefSection').style.display = tab==='relief' ? 'block' : 'none';
+  document.getElementById('monthTabs').style.display = tab==='relief' ? 'none' : ''; // relief has its own date filters
 }
 function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR COMMISSION TRACKER'; if(!storeRows.length) loadData(); }
 function showTL(){ setMainTab('tl'); document.getElementById('navTL').classList.add('active'); document.getElementById('headerSub').textContent='2026 · TEAM LEADER INCENTIVE'; renderTLSection(); }
 function showPayroll(){ setMainTab('payroll'); document.getElementById('navPayroll').classList.add('active'); document.getElementById('headerSub').textContent='2026 · HR PAYROLL · CONFIDENTIAL'; renderPayroll(); }
 function showVisits(){ setMainTab('visits'); document.getElementById('navVisits').classList.add('active'); document.getElementById('headerSub').textContent='2026 · VISIT LOG'; loadVisits(); setTimeout(()=>{ if(visitMapInstance) visitMapInstance.invalidateSize(); },50); }
 function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR EVALUATIONS'; if(!evalRows.length) loadEvals(); }
+function showRelief(){ setMainTab('relief'); document.getElementById('navRelief').classList.add('active'); document.getElementById('headerSub').textContent='2026 · RELIEF COVERAGE & PAY'; const f=document.getElementById('reliefFrame'); if(!f.getAttribute('src')) f.src='/management/relief-coverage.html'; }
 
 // ── BOOT ──
 loadStaticRefs().then(loadData);
