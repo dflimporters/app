@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Hide until the guard confirms a signed-in manager/admin. Must be the FIRST
+     style rule. Reveals immediately when framed, so the Relief Coverage tab in
+     merch-dashboard.html still works. -->
+<style>body { visibility: hidden; }</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DFL Relief Coverage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: field-ops console — sticky tab bar, summary strip, then a dense working table per tab */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8ecea; --line:#d3dad7; --fg:#15201d; --muted:#5b6a65;
+  --accent:#0d5c63; --accent-fg:#ffffff; --accent-soft:#d9ecec;
+  --ok:#1f7a45; --ok-soft:#dcf1e3; --warn:#9a6200; --warn-soft:#f8ecd2; --bad:#b3261e; --bad-soft:#f9dedb; --info:#3f4fa0; --info-soft:#e2e5f6;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif; --f-body:"Source Sans 3","Segoe UI",system-ui,sans-serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#172020; --sunk:#1e2927; --line:#2c3a37; --fg:#e4ebe8; --muted:#94a59f;
+  --accent:#5cc2c9; --accent-fg:#06292c; --accent-soft:#16393c;
+  --ok:#6fd49a; --ok-soft:#173a26; --warn:#e7b65a; --warn-soft:#3b2e12; --bad:#f08b83; --bad-soft:#44201d; --info:#a3b0f2; --info-soft:#262c4d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#172020; --sunk:#1e2927; --line:#2c3a37; --fg:#e4ebe8; --muted:#94a59f;
+  --accent:#5cc2c9; --accent-fg:#06292c; --accent-soft:#16393c;
+  --ok:#6fd49a; --ok-soft:#173a26; --warn:#e7b65a; --warn-soft:#3b2e12; --bad:#f08b83; --bad-soft:#44201d; --info:#a3b0f2; --info-soft:#262c4d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--f-body)}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:18px 60px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font:800 1.55rem/1.1 var(--f-display);letter-spacing:-.01em;margin:0;text-wrap:balance}
+h1 small{display:block;font:600 .72rem/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.sync{font-size:.82rem;color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;margin-top:16px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav.tabs button{font:700 .92rem var(--f-display);background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+section.tab{padding-top:16px;display:flex;flex-direction:column;gap:14px}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kpi b{display:block;font:700 1.35rem/1.15 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi span{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.bar .grow{flex:1 1 180px;min-width:0}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:.75rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+input,select,textarea{font:inherit;font-size:.93rem;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px;min-width:0;width:100%}
+textarea{min-height:64px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{font:700 .88rem var(--f-body);border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 13px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:4px 8px;font-size:.8rem}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel h2{font:700 1.02rem var(--f-display);margin:0}
+.panel p.hint{margin:0;color:var(--muted);font-size:.88rem;max-width:70ch}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{font:600 .72rem var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;background:var(--sunk);position:sticky;top:0;white-space:nowrap}
+td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:.82rem;white-space:nowrap}
+td.wrap{min-width:180px;max-width:320px}
+td.nowrap{white-space:nowrap}
+tr.group td{background:var(--accent-soft);font-weight:700;border-top:2px solid var(--accent)}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-info{background:var(--info-soft);color:var(--info)} .p-mute{background:var(--sunk);color:var(--muted)}
+.muted{color:var(--muted)} .tiny{font-size:.78rem}
+.mono{font-family:var(--f-mono);font-size:.82rem}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.bank{font-family:var(--f-mono);font-size:.78rem;white-space:pre-wrap;max-width:260px}
+.acts{display:flex;gap:4px;flex-wrap:nowrap}
+.modal-bg{position:fixed;inset:0;background:rgba(10,20,18,.5);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px;z-index:20;overflow-y:auto}
+.modal{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;width:min(720px,100%);padding:18px;display:flex;flex-direction:column;gap:14px}
+.modal h3{font:700 1.15rem var(--f-display);margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.grid .full{grid-column:1/-1}
+.checks{display:flex;flex-wrap:wrap;gap:14px;font-size:.9rem}
+.checks label{display:flex;gap:6px;align-items:center}
+.checks input{width:auto}
+.foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.foot .msg{margin-right:auto;font-size:.85rem;color:var(--bad)}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-weight:600;font-size:.9rem;z-index:30}
+.notice{background:var(--warn-soft);color:var(--fg);border:1px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:.9rem}
+@media (prefers-reduced-motion:no-preference){.btn{transition:border-color .15s}}
+</style>
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+.login{max-width:400px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.login h2{font:800 1.3rem var(--f-display);margin:0}
+.login p{margin:0;color:var(--muted);font-size:.9rem}
+.userbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+td select{min-width:118px;width:auto}
+tr.group td:first-child{white-space:nowrap}
+.linkbtn{background:none;border:0;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
+.paycalc{margin-top:5px;display:flex;flex-direction:column;gap:1px;font-family:var(--f-mono);white-space:nowrap}
+.paycalc b{font-size:.92rem}
+.paycalc span{font-size:.74rem;color:var(--muted)}
+#sec-coverage td.wrap{min-width:130px;max-width:240px}
+#sec-coverage td,#sec-coverage th{padding:8px 8px}
+input.inl{width:84px;text-align:right;padding:4px 6px;font-family:var(--f-mono);font-size:.82rem}
+.sel-col{width:34px;text-align:center}
+.sel-col input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
+tr.picked td{background:var(--accent-soft)}
+.selbar{position:sticky;top:44px;z-index:4;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-weight:600}
+.selbar span{margin-right:auto}
+.dp{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--sunk)}
+.dp-head{display:flex;align-items:center;justify-content:space-between}
+.dp-title{font:700 .95rem var(--f-display)}
+.dp-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dp-grid .dow{font-size:.7rem;font-weight:700;text-align:center;color:var(--muted);text-transform:uppercase}
+.dp-grid button{font:600 .88rem var(--f-body);padding:8px 0;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);cursor:pointer;font-variant-numeric:tabular-nums}
+.dp-grid button.wkend:not(.on){color:var(--muted)}
+.dp-grid button.today{border-color:var(--accent)}
+.dp-grid button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.dp-grid button.lock{background:var(--ok-soft);color:var(--ok);border-color:var(--ok);cursor:not-allowed}
+.dp-range{gap:8px}
+.dp-range label.f{flex:1 1 130px}
+.dp-range .checks{gap:10px;align-self:center}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1><small>DFL Field Merchandising</small>Relief Coverage &amp; Pay</h1>
+    <div class="userbar"><span id="sync">Connecting…</span><span id="who" hidden></span><button class="linkbtn" id="refresh" hidden>Refresh</button><button class="linkbtn" id="signout" hidden>Sign out</button></div>
+  </header>
+
+  <!-- SIGN IN -->
+  <form class="login" id="login" hidden>
+    <h2>Sign in</h2>
+    <p>Use your DFL platform email and password.</p>
+    <label class="f">Email<input type="email" id="l-email" autocomplete="username" required></label>
+    <label class="f">Password<input type="password" id="l-pass" autocomplete="current-password"></label>
+    <div class="foot"><span class="msg" id="l-msg"></span><button type="button" class="btn" id="l-link">Email me a sign-in link</button><button type="submit" class="btn primary" id="l-go">Sign in</button></div>
+  </form>
+
+  <div id="notice" class="notice" hidden style="margin-top:14px"></div>
+
+  <div id="app" hidden>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-coverage" aria-selected="true" data-tab="coverage">Coverage log</button>
+    <button role="tab" id="tab-pay" aria-selected="false" data-tab="pay">Pay runs</button>
+    <button role="tab" id="tab-team" aria-selected="false" data-tab="team">Relief team</button>
+  </nav>
+
+  <section class="tab" id="sec-coverage">
+    <div class="strip" id="cov-kpis"></div>
+    <div class="bar">
+      <label class="f">Month<select id="cov-month"></select></label>
+      <label class="f">Region<select id="cov-region"><option value="">All regions</option></select></label>
+      <label class="f">Status<select id="cov-status"><option value="">All statuses</option></select></label>
+      <label class="f grow">Search<input id="cov-q" type="search" placeholder="Store, merchandiser, note…"></label>
+      <button class="btn primary" id="cov-add">+ Log coverage</button>
+    </div>
+    <div class="selbar" id="cov-selbar" hidden><span id="cov-selsum"></span><button class="btn sm" id="cov-selclear">Clear</button><button class="btn primary" id="cov-selrun">Build pay run</button></div>
+    <div class="tbl"><table>
+      <thead><tr><th class="sel-col"><input type="checkbox" id="cov-all" aria-label="Select every unpaid period shown"></th><th>Dates</th><th>Region</th><th>Stores</th><th>Absent</th><th>Reason</th><th>Type</th><th>Relief</th><th>Status</th><th class="num">Days</th><th>Pay</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="cov-body"><tr><td colspan="13" class="empty">Loading coverage entries…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="tab" id="sec-pay" hidden>
+    <div class="strip" id="pay-kpis"></div>
+    <div class="panel" id="run-panel">
+      <h2>Build a pay run from the log</h2>
+      <p class="hint">Adds up every paid relief day in the date range that isn't already on a payment, one line per relief merchandiser, at their daily rate. Check the preview, then create the payments. They start as Pending until you approve them.</p>
+      <div class="bar">
+        <label class="f">Days from<input type="date" id="run-from"></label>
+        <label class="f">Days to<input type="date" id="run-to"></label>
+        <label class="f">Pay date<input type="date" id="run-date"></label>
+        <button class="btn" id="run-preview">Preview</button>
+      </div>
+      <div id="run-out"></div>
+    </div>
+    <div class="bar">
+      <label class="f">Pay date<select id="pay-batch"></select></label>
+      <label class="f">Status<select id="pay-status"><option value="">All</option><option>Pending</option><option>Approved</option><option>Paid</option></select></label>
+      <label class="f grow">Search<input id="pay-q" type="search" placeholder="Name, store, reason…"></label>
+      <button class="btn" id="pay-hr">HR pay sheet</button>
+      <button class="btn" id="pay-export">Export CSV</button>
+      <button class="btn" id="pay-add">+ Manual payment</button>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Rate</th><th class="num">Total</th><th>Dates covered</th><th>Covering for</th><th>Reason</th><th>Verified</th><th>Approved by</th><th>Status</th><th class="bank-col">Banking</th><th></th></tr></thead>
+      <tbody id="pay-body"><tr><td colspan="12" class="empty">Loading payments…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="tab" id="sec-team" hidden>
+    <div class="bar">
+      <label class="f grow">Search<input id="team-q" type="search" placeholder="Name or phone"></label>
+      <label class="f">Show<select id="team-show"><option value="active">Active</option><option value="all">All</option></select></label>
+      <button class="btn primary" id="team-add">+ Add relief merchandiser</button>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Name</th><th>Phone</th><th>Region</th><th class="num">Daily rate</th><th class="num">Days paid</th><th class="num">Total paid</th><th>Last pay date</th><th class="bank-col">Banking</th><th></th></tr></thead>
+      <tbody id="team-body"><tr><td colspan="9" class="empty">Loading relief team…</td></tr></tbody>
+    </table></div>
+  </section>
+  </div>
+</div>
+<div id="modal-root"></div>
+
+<!-- Auth. The guard no-ops when framed, so embedding in merch-dashboard.html is unaffected. -->
+<script>window.DFL_PAGE_TITLE = 'Relief Coverage';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+(function(){
+/* ---------- config ---------- */
+const LOG_ROLES=["admin","management","manager","team_leader","tl_merch"]; // must match relief_can_log() in the database
+const REGIONS=["North East","North West","South Central","South East","South West"];
+const TYPES=["Relief Assigned","Route Split","Internal Coverage","Delayed Visit","No Coverage"];
+const STATUSES=["Covered","Partial","Not Covered"];
+const REASONS=["Vacation Leave","Sick Leave","Emergency Leave","Backfill for resignation","Training","Absent","Other"];
+const PAYSTAT=["Pending","Approved","Paid"];
+
+// `sb` is the shared portal client (/shared/supabase-client.js), so this page uses
+// the same session as the rest of dflhq.com, and as its parent when framed.
+const FRAMED=window.self!==window.top;
+const S={canWrite:false,isAdmin:false,cov:[],pay:[],roster:[],bank:{},loaded:false,sel:new Set()};
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const key=n=>String(n||"").trim().replace(/\s+/g," ").toLowerCase();
+const money=n=>"$"+Math.round(n||0).toLocaleString("en-US");
+const fmtNum=n=>{n=Number(n)||0;return Number.isInteger(n)?String(n):String(Math.round(n*100)/100)};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function today(){return iso(new Date())}
+function parse(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return iso(d)}
+function fmtDate(s){if(!s)return"";const d=parse(s);return DOW[d.getDay()]+" "+d.getDate()+" "+MON[d.getMonth()]}
+function fmtLong(s){if(!s)return"—";const d=parse(s);return d.getDate()+" "+MON[d.getMonth()]+" "+d.getFullYear()}
+function monthLabel(m){const [y,mo]=m.split("-");return MON[+mo-1]+" "+y}
+function compressDates(list){const ds=[...new Set(list)].sort();const out=[];let i=0;
+  while(i<ds.length){let j=i;while(j+1<ds.length&&addDays(ds[j],1)===ds[j+1])j++;const a=parse(ds[i]),b=parse(ds[j]);
+    out.push(i===j?MON[a.getMonth()]+" "+a.getDate():MON[a.getMonth()]+" "+a.getDate()+"–"+(a.getMonth()===b.getMonth()?"":MON[b.getMonth()]+" ")+b.getDate());i=j+1}
+  return out.join(", ")}
+function toast(t){const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
+function pillStatus(s){const c={"Covered":"p-ok","Partial":"p-warn","Not Covered":"p-bad","Pending":"p-warn","Approved":"p-info","Paid":"p-ok"}[s]||"p-mute";return s?`<span class="pill ${c}">${esc(s)}</span>`:""}
+function notice(t){const n=$("notice");n.hidden=!t;n.textContent=t||""}
+function rosterByKey(n){return S.roster.find(r=>key(r.name)===key(n))}
+function rateFor(n){const r=rosterByKey(n);return r&&r.rate?Number(r.rate):4000}
+function errText(e){const m=(e&&e.message)||"";if(/row-level security|permission|42501|Only admins/i.test(m))return"You don't have permission to make that change.";
+  if(/relief_roster_name_key|duplicate key/i.test(m))return"That name is already on the relief team.";if(/Failed to fetch|NetworkError/i.test(m))return"Couldn't reach the server. Check your connection and try again.";return m||"Couldn't save. Try again."}
+async function must(p){const r=await p;if(r.error)throw r.error;return r.data}
+
+/* ---------- row mapping ---------- */
+const mapCov=r=>({_id:r.id,date:r.date,region:r.region,stores:r.stores,absent:r.absent,reason:r.reason,type:r.coverage_type,relief:r.relief_name,contact:r.contact,supervisor:r.supervisor,status:r.status,days:Number(r.days),payable:r.payable,notes:r.notes,paymentId:r.payment_id,imported:r.imported,period:r.period_id});
+const mapPay=r=>({_id:r.id,payDate:r.pay_date,relief:r.relief_name,rosterId:r.roster_id,days:Number(r.days),rate:Number(r.rate),datesCovered:r.dates_covered,covering:r.covering,reason:r.reason,stores:r.stores,approvedBy:r.approved_by,verified:r.verified,status:r.status,notes:r.notes,source:r.source});
+const mapRos=r=>({_id:r.id,name:r.name,phone:r.phone,region:r.region,rate:Number(r.daily_rate),active:r.active});
+async function selectAll(table,order){let out=[],from=0;const size=1000;
+  for(;;){const {data,error}=await sb.from(table).select("*").order(order,{ascending:false}).order("id").range(from,from+size-1);if(error)throw error;out=out.concat(data);if(data.length<size)break;from+=size}
+  return out}
+async function loadAll(){
+  $("sync").textContent="Loading…";
+  try{
+    const [c,p,r]=await Promise.all([selectAll("relief_coverage","date"),selectAll("relief_payments","pay_date"),must(sb.from("relief_roster").select("*").order("name"))]);
+    S.cov=c.map(mapCov);S.pay=p.map(mapPay);S.roster=r.map(mapRos);
+    if(S.isAdmin){const b=await must(sb.from("relief_bank").select("roster_id,details"));S.bank={};b.forEach(x=>S.bank[x.roster_id]=x.details||"")}
+    S.loaded=true;notice("");$("sync").textContent="Updated "+new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});render();runDefaults();
+  }catch(e){$("sync").textContent="Not loaded";notice("Couldn't load the tracker: "+errText(e))}
+}
+
+/* ---------- auth ---------- */
+$("login").addEventListener("submit",async e=>{e.preventDefault();const email=$("l-email").value.trim(),pw=$("l-pass").value;$("l-msg").textContent="";
+  if(!pw){$("l-msg").textContent="Enter your password, or use the sign-in link.";return}
+  $("l-go").disabled=true;const {error}=await sb.auth.signInWithPassword({email,password:pw});$("l-go").disabled=false;
+  if(error)$("l-msg").textContent=/invalid/i.test(error.message)?"That email and password don't match.":error.message});
+$("l-link").onclick=async()=>{const email=$("l-email").value.trim();if(!email){$("l-msg").textContent="Enter your email first.";return}
+  const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.href.split("#")[0]}});
+  $("l-msg").style.color=error?"":"var(--ok)";$("l-msg").textContent=error?error.message:"Check your email for the sign-in link."};
+$("signout").onclick=async()=>{await sb.auth.signOut()};
+$("refresh").onclick=loadAll;
+let bootedFor="__none__";
+sb.auth.onAuthStateChange((_ev,session)=>{setTimeout(()=>onSession(session),0)});
+async function onSession(session){
+  const uid=(session&&session.user&&session.user.id)||null;
+  if(uid===bootedFor)return;bootedFor=uid||null;
+  if(!uid){$("app").hidden=true;$("login").hidden=false;["who","signout","refresh"].forEach(i=>$(i).hidden=true);$("sync").textContent="Signed out";notice("");return}
+  $("login").hidden=true;$("sync").textContent="Checking access…";
+  const {data:prof}=await sb.from("profiles").select("full_name,role,active").eq("id",uid).maybeSingle();
+  const role=prof&&prof.active!==false?prof.role:null;
+  $("who").hidden=false;$("who").textContent=(prof&&prof.full_name)||session.user.email;$("signout").hidden=FRAMED; // signing out here would sign the whole portal out
+  if(!role||!LOG_ROLES.includes(role)){$("app").hidden=true;$("sync").textContent="";notice("Your account doesn't have access to the relief tracker. Ask an admin to give you a Team Leader, manager or admin role.");return}
+  S.isAdmin=role==="admin";S.canWrite=true;$("app").hidden=false;$("refresh").hidden=false;loadAll();
+}
+
+/* ---------- tabs ---------- */
+let tab="coverage";
+try{const t=localStorage.getItem("dfl-relief-tab");if(t)tab=t}catch(e){}
+if(["#coverage","#pay","#team"].includes(location.hash))tab=location.hash.slice(1);
+document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+function setTab(t){tab=t;try{localStorage.setItem("dfl-relief-tab",t)}catch(e){}
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  ["coverage","pay","team"].forEach(x=>$("sec-"+x).hidden=x!==t);render()}
+
+REGIONS.forEach(r=>$("cov-region").insertAdjacentHTML("beforeend",`<option>${r}</option>`));
+STATUSES.forEach(r=>$("cov-status").insertAdjacentHTML("beforeend",`<option>${r}</option>`));
+["cov-month","cov-region","cov-status","pay-batch","pay-status","team-show"].forEach(id=>$(id).addEventListener("change",render));
+let qt;["cov-q","pay-q","team-q"].forEach(id=>$(id).addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(render,150)}));
+let covMonthTouched=false,payBatchTouched=false;
+$("cov-month").addEventListener("change",()=>covMonthTouched=true);
+$("pay-batch").addEventListener("change",()=>payBatchTouched=true);
+
+/* ---------- render ---------- */
+function render(){
+  document.querySelectorAll(".bank-col,.sel-col").forEach(e=>e.hidden=!S.isAdmin);
+  $("cov-add").hidden=!S.canWrite;
+  ["run-panel","pay-add","team-add","pay-hr"].forEach(id=>$(id).hidden=!S.isAdmin);
+  if(!S.loaded)return;
+  if(tab==="coverage")renderCov();else if(tab==="pay")renderPay();else renderTeam()}
+/* ---------- coverage periods ----------
+   The database keeps one row per covered day (that's what pay runs count), and
+   rows logged together share a period_id. The log shows and edits a period as one line. */
+const COV_FIELDS=["region","stores","absent","reason","type","relief","contact","supervisor","status","days","payable","notes"];
+function buildPeriods(){const by={};
+  for(const r of S.cov)(by[r.period]||(by[r.period]={_id:r.period,rows:[]})).rows.push(r);
+  return Object.values(by).map(p=>{const rs=p.rows.sort((a,b)=>a.date.localeCompare(b.date));
+    const shared={};COV_FIELDS.forEach(f=>{const vs=[...new Set(rs.map(r=>r[f]))];shared[f]=vs.length===1?vs[0]:undefined}); // undefined = varies by day
+    const pay=rs.filter(r=>r.payable),paid=pay.filter(r=>r.paymentId).length;
+    return Object.assign(p,{shared,dates:rs.map(r=>r.date),from:rs[0].date,to:rs[rs.length-1].date,
+      totalDays:rs.reduce((a,r)=>a+(r.days||0),0),paidDays:pay.reduce((a,r)=>a+(r.days||0),0),payCount:pay.length,paidCount:paid,
+      imported:rs.some(r=>r.imported),locked:rs.filter(r=>r.paymentId).map(r=>r.date),
+      text:key(rs.map(r=>[r.stores,r.absent,r.relief,r.notes,r.supervisor,r.reason].join(" ")).join(" "))})})}
+// "$4,000 × 10 days = $40,000" so the total can be checked at a glance
+const payCalc=(rate,days)=>`<div class="paycalc"><b>${money(rate*days)}</b><span>${money(rate)} × ${fmtNum(days)} day${days===1?"":"s"}</span></div>`;
+const bankTag=n=>{const r=rosterByKey(n);return `<div style="margin-top:4px">${r&&S.bank[r._id]?`<span class="pill p-ok">Bank on file</span>`:`<span class="pill p-bad">No bank details</span>`}</div>`};
+const distinct=(p,f)=>[...new Set(p.rows.map(r=>r[f]).filter(Boolean))];
+const canEditCov=p=>S.isAdmin||p.rows.every(r=>!r.imported&&!r.paymentId);
+
+function renderCov(){
+  const rows=S.cov;S.periods=buildPeriods();
+  const months=[...new Set(rows.map(r=>r.date.slice(0,7)).concat(today().slice(0,7)))].sort().reverse();
+  const sel=$("cov-month"),cur=sel.value;
+  sel.innerHTML=`<option value="">All months</option>`+months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");
+  sel.value=covMonthTouched?cur:(rows.some(r=>r.date.startsWith(today().slice(0,7)))?today().slice(0,7):(months.find(m=>rows.some(r=>r.date.startsWith(m)))||""));
+  const m=sel.value,rg=$("cov-region").value,st=$("cov-status").value,q=key($("cov-q").value);
+  let list=S.periods.filter(p=>(!m||p.dates.some(d=>d.startsWith(m)))&&(!rg||p.rows.some(r=>r.region===rg))&&(!st||p.rows.some(r=>r.status===st)));
+  if(q)list=list.filter(p=>p.text.includes(q));
+  list.sort((a,b)=>b.from.localeCompare(a.from)||b.to.localeCompare(a.to)||(a.shared.region||"").localeCompare(b.shared.region||""));
+  // day counts for the KPIs only count days inside the chosen month
+  const inM=r=>!m||r.date.startsWith(m);
+  const n=list.length,stat=s=>list.filter(p=>p.rows.some(r=>inM(r)&&r.status===s)).length,cv=list.filter(p=>p.rows.filter(inM).every(r=>r.status==="Covered")).length;
+  const paidDays=list.reduce((a,p)=>a+p.rows.filter(r=>inM(r)&&r.payable).reduce((x,r)=>x+(r.days||0),0),0);
+  const unbilled=S.cov.filter(r=>r.payable&&!r.paymentId).reduce((a,r)=>a+(r.days||0),0);
+  $("cov-kpis").innerHTML=[["Coverage periods",n],["Fully covered",n?Math.round(cv/n*100)+"%":"—"],["With partial days",stat("Partial")],["With uncovered days",stat("Not Covered")],["Paid relief days",fmtNum(paidDays)],["Days not yet on a pay run",fmtNum(unbilled)]]
+    .map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  const body=$("cov-body");
+  S.covView=list;updSel();
+  if(!list.length){body.innerHTML=`<tr><td colspan="13" class="empty">No coverage periods match these filters. Use <b>+ Log coverage</b> to record who is covering an absent merchandiser.</td></tr>`;return}
+  const multi=(p,f,sep)=>esc(distinct(p,f).join(sep));
+  body.innerHTML=list.map(p=>{const s=p.shared;
+    const pay=p.payCount?(p.paidCount===p.payCount?`<span class="pill p-ok">On pay run</span>`:p.paidCount?`<span class="pill p-info">${p.paidCount} of ${p.payCount} paid</span>`:`<span class="pill p-warn">Unpaid</span>`):(p.imported?`<span class="pill p-mute">Imported</span>`:`<span class="pill p-mute">Not paid</span>`);
+    const statuses=distinct(p,"status").map(pillStatus).join(" ");
+    const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
+    const can=payableRows(p).length>0,on=S.sel.has(p._id);
+    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td>${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td>${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td>${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
+}
+
+function renderPay(){
+  const rows=S.pay;
+  const batches=[...new Set(rows.map(p=>p.payDate))].sort().reverse();
+  const sel=$("pay-batch"),cur=sel.value;
+  sel.innerHTML=`<option value="">All pay dates</option>`+batches.map(b=>`<option value="${b}">${fmtLong(b)}</option>`).join("");
+  sel.value=payBatchTouched&&(cur===""||batches.includes(cur))?cur:(batches[0]||"");
+  const b=sel.value,st=$("pay-status").value,q=key($("pay-q").value);
+  let list=rows.filter(p=>(!b||p.payDate===b)&&(!st||p.status===st));
+  if(q)list=list.filter(p=>key([p.relief,p.stores,p.reason,p.covering,p.notes,p.datesCovered].join(" ")).includes(q));
+  list.sort((a,c)=>c.payDate.localeCompare(a.payDate)||a.relief.localeCompare(c.relief));
+  S.payView=list;
+  const tot=list.reduce((a,p)=>a+p.days*p.rate,0),days=list.reduce((a,p)=>a+p.days,0);
+  const pend=rows.filter(p=>p.status==="Pending");
+  $("pay-kpis").innerHTML=[["Payments shown",list.length],["Days shown",fmtNum(days)],["Total shown",money(tot)],["Pending (all dates)",pend.length+" · "+money(pend.reduce((a,p)=>a+p.days*p.rate,0))]]
+    .map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  const body=$("pay-body");
+  if(!list.length){body.innerHTML=`<tr><td colspan="12" class="empty">No payments match these filters.${S.isAdmin?" Build a pay run above from the logged relief days.":""}</td></tr>`;return}
+  let html="",last=null;
+  for(const p of list){
+    if(p.payDate!==last){last=p.payDate;const g=list.filter(x=>x.payDate===last);
+      html+=`<tr class="group"><td>Pay date ${fmtLong(last)}</td><td class="num">${fmtNum(g.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(g.reduce((a,x)=>a+x.days*x.rate,0))}</td><td colspan="8" class="tiny">${g.length} payment${g.length>1?"s":""}</td></tr>`}
+    const r=rosterByKey(p.relief),bank=r?S.bank[r._id]:"";
+    html+=`<tr><td class="nowrap"><b>${esc(p.relief)}</b>${p.source==="import"?`<div class="tiny muted">Imported from Excel</div>`:""}</td><td class="num">${S.isAdmin?`<input type="number" class="inl" step="0.5" min="0" data-pedit="days" data-id="${p._id}" value="${fmtNum(p.days)}" aria-label="Days for ${esc(p.relief)}">`:fmtNum(p.days)}</td><td class="num">${S.isAdmin?`<input type="number" class="inl" step="500" min="0" data-pedit="rate" data-id="${p._id}" value="${p.rate}" aria-label="Daily rate for ${esc(p.relief)}">`:money(p.rate)}</td><td class="num"><b>${money(p.days*p.rate)}</b><div class="tiny muted">${money(p.rate)} × ${fmtNum(p.days)}</div></td>
+    <td class="wrap tiny">${esc(p.datesCovered)}</td><td class="tiny">${esc(p.covering)}</td><td class="tiny">${esc(p.reason)}</td><td>${p.verified?`<span class="pill p-ok">Yes</span>`:`<span class="pill p-mute">No</span>`}</td><td class="tiny nowrap">${esc(p.approvedBy)}</td>
+    <td>${S.isAdmin?`<select data-pstat="${p._id}" aria-label="Status for ${esc(p.relief)}">${PAYSTAT.map(s=>`<option ${s===p.status?"selected":""}>${s}</option>`).join("")}</select>`:pillStatus(p.status)}${p.notes?`<div class="tiny muted" style="margin-top:4px;max-width:220px">${esc(p.notes)}</div>`:""}</td>
+    ${S.isAdmin?`<td><div class="bank">${esc(bank||"—")}</div></td>`:""}
+    <td>${S.isAdmin?`<button class="btn sm" data-edit-pay="${p._id}">Edit</button>`:""}</td></tr>`}
+  body.innerHTML=html;
+}
+
+function renderTeam(){
+  const q=key($("team-q").value),show=$("team-show").value;
+  const stats={};for(const p of S.pay){const k=key(p.relief);const s=stats[k]||(stats[k]={days:0,total:0,last:""});s.days+=p.days;s.total+=p.days*p.rate;if(p.payDate>s.last)s.last=p.payDate}
+  const list=S.roster.filter(r=>(show==="all"||r.active!==false)&&(!q||key(r.name+" "+r.phone).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
+  const body=$("team-body");
+  if(!list.length){body.innerHTML=`<tr><td colspan="9" class="empty">No relief merchandisers match.${S.isAdmin?" Use <b>+ Add relief merchandiser</b> to set up their phone, rate and banking details.":""}</td></tr>`;return}
+  body.innerHTML=list.map(r=>{const s=stats[key(r.name)]||{days:0,total:0,last:""};
+    return `<tr><td class="nowrap"><b>${esc(r.name)}</b>${r.active===false?` <span class="pill p-mute">Inactive</span>`:""}</td><td class="mono nowrap">${esc(r.phone||"—")}</td><td class="nowrap">${esc(r.region||"—")}</td><td class="num">${money(r.rate)}</td><td class="num">${fmtNum(s.days)}</td><td class="num">${money(s.total)}</td><td class="nowrap">${s.last?fmtLong(s.last):"—"}</td>
+    ${S.isAdmin?`<td><div class="bank">${esc(S.bank[r._id]||"—")}</div></td>`:""}<td>${S.isAdmin?`<button class="btn sm" data-edit-team="${r._id}">Edit</button>`:""}</td></tr>`}).join("");
+}
+
+/* ---------- modal ---------- */
+function openModal(html,onMount){const root=$("modal-root");root.innerHTML=`<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const bg=root.firstChild;bg.addEventListener("click",e=>{if(e.target===bg)closeModal()});
+  document.addEventListener("keydown",escClose);onMount&&onMount(bg);const f=bg.querySelector("input,select,textarea");f&&f.focus()}
+function escClose(e){if(e.key==="Escape")closeModal()}
+function closeModal(){$("modal-root").innerHTML="";document.removeEventListener("keydown",escClose)}
+const opts=(arr,v,blank)=>(blank?`<option value="">${blank}</option>`:"")+arr.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+function rosterList(){return `<datalist id="dl-roster">${S.roster.filter(r=>r.active!==false).map(r=>`<option value="${esc(r.name)}">`).join("")}</datalist>`}
+function confirmBtn(btn,label){if(btn.dataset.sure!=="1"){btn.dataset.sure="1";btn.textContent=label;return false}return true}
+
+/* ---------- coverage form ---------- */
+// Form field -> row key -> column. When a period's days disagree on a field (imported
+// data often does), the form shows "varies" and leaves each day's value alone unless changed.
+const KEEP="__keep";
+const CF=[["c-region","region","region","sel"],["c-stores","stores","stores"],["c-absent","absent","absent"],["c-reason","reason","reason","sel"],["c-type","type","coverage_type","sel"],
+  ["c-status","status","status","sel"],["c-relief","relief","relief_name"],["c-contact","contact","contact"],["c-sup","supervisor","supervisor"],["c-days","days","days","sel"],["c-pay","payable","payable","chk"],["c-notes","notes","notes"]];
+const VARIES_PH="Varies by day. Leave blank to keep";
+function selOpts(arr,v,varies,blank){const list=arr.map(x=>Array.isArray(x)?x:[x,x]);
+  if(!varies&&v!=null&&v!==""&&!list.some(([x])=>String(x)===String(v)))list.push([v,v]); // keep odd imported values instead of silently changing them
+  return (varies?`<option value="${KEEP}" selected>Varies by day (keep)</option>`:"")+(blank!=null||(!varies&&v==="")?`<option value="" ${!varies&&(v===""||v==null)?"selected":""}>${esc(blank||"—")}</option>`:"")
+    +list.map(([x,l])=>`<option value="${esc(x)}" ${!varies&&String(x)===String(v)?"selected":""}>${esc(l)}</option>`).join("")}
+
+function covForm(p){
+  const e=p?p.shared:{region:"",type:"Relief Assigned",status:"Covered",days:1,payable:true};
+  const V=k=>p&&e[k]===undefined; // varies across the period's days
+  const txt=(id,k,extra)=>`<input id="${id}" value="${V(k)?"":esc(e[k])}" ${V(k)?`placeholder="${VARIES_PH}"`:extra||""}>`;
+  openModal(`<h3>${p?"Edit coverage period":"Log coverage"}</h3>
+  <div class="grid">
+    <div class="full"><div class="f" style="margin-bottom:6px">Dates covered</div><div class="dp" id="dp"></div></div>
+    <label class="f">Region<select id="c-region">${selOpts(REGIONS,e.region,V("region"),p?null:"Choose…")}</select></label>
+    <label class="f full">Stores${txt("c-stores","stores",'placeholder="e.g. Hilo Manor Park, Low Price"')}</label>
+    <label class="f">Absent merchandiser${txt("c-absent","absent")}</label>
+    <label class="f">Reason for absence<select id="c-reason">${selOpts(REASONS,e.reason,V("reason"),"—")}</select></label>
+    <label class="f">Coverage type<select id="c-type">${selOpts(TYPES,e.type,V("type"))}</select></label>
+    <label class="f">Coverage status<select id="c-status">${selOpts(STATUSES,e.status,V("status"))}</select></label>
+    <label class="f">Relief merchandiser<input id="c-relief" list="dl-roster" value="${V("relief")?"":esc(e.relief)}" ${V("relief")?`placeholder="${VARIES_PH}"`:""} autocomplete="off"></label>
+    <label class="f">Relief contact${txt("c-contact","contact")}</label>
+    <label class="f">Supervisor / TL${txt("c-sup","supervisor")}</label>
+    <label class="f">Each day counts as<select id="c-days">${selOpts([[1,"Full day"],[0.5,"Half day"]],e.days,V("days"))}</select></label>
+    <div class="full checks"><label><input type="checkbox" id="c-pay" ${e.payable?"checked":""}> Paid relief (counts toward pay runs)</label></div>
+    <label class="f full">Notes<textarea id="c-notes" ${V("notes")?`placeholder="${VARIES_PH}"`:""}>${V("notes")?"":esc(e.notes)}</textarea></label>
+  </div>${rosterList()}
+  <div class="foot"><span class="msg" id="c-msg"></span>
+    ${p&&!p.locked.length?`<button class="btn danger" id="c-del">Delete period</button>`:""}
+    <button class="btn" id="c-cancel">Cancel</button><button class="btn primary" id="c-save">Save</button></div>`,
+  ()=>{
+    if(V("payable"))$("c-pay").indeterminate=true;
+    const pick=datePicker($("dp"),p?p.dates:[],p?p.locked:[],n=>{$("c-save").textContent=n?`Save ${n} day${n>1?"s":""}`:"Save"});
+    $("c-cancel").onclick=closeModal;
+    $("c-relief").addEventListener("change",()=>{const x=rosterByKey($("c-relief").value);if(x&&x.phone&&!$("c-contact").value)$("c-contact").value=x.phone});
+    $("c-type").addEventListener("change",()=>{if($("c-type").value!==KEEP){$("c-pay").indeterminate=false;$("c-pay").checked=$("c-type").value==="Relief Assigned"}});
+    if($("c-del"))$("c-del").onclick=async()=>{if(!confirmBtn($("c-del"),`Tap again to delete ${p.rows.length} day${p.rows.length>1?"s":""}`))return;
+      try{await must(sb.from("relief_coverage").delete().eq("period_id",p._id));closeModal();toast("Coverage period deleted");loadAll()}catch(err){$("c-msg").textContent=errText(err)}};
+    function read([id,k,col,kind]){const el=$(id);
+      if(kind==="chk")return el.indeterminate?KEEP:el.checked;
+      let v=el.value;if(kind==="sel")return v===KEEP?KEEP:(k==="days"?Number(v):v);
+      v=v.trim();if(k==="relief")v=v.replace(/\s+/g," ");return V(k)&&v===""?KEEP:v}
+    $("c-save").onclick=async()=>{const msg=t=>$("c-msg").textContent=t;
+      const ds=pick.dates();if(!ds.length)return msg("Pick at least one date.");
+      const val={};CF.forEach(f=>val[f[2]]=read(f));
+      if(val.region==="")return msg("Choose a region.");
+      if(val.payable===true&&val.relief_name==="")return msg("Paid relief needs a relief merchandiser name.");
+      const btn=$("c-save");btn.disabled=true;
+      try{
+        if(!p){const pid=crypto.randomUUID();await must(sb.from("relief_coverage").insert(ds.map(d=>Object.assign({},val,{date:d,period_id:pid}))))}
+        else{const sel=new Set(ds),removed=p.rows.filter(r=>!sel.has(r.date)),kept=p.rows.filter(r=>sel.has(r.date)),added=ds.filter(d=>!p.dates.includes(d));
+          const patch={};CF.forEach(([id,k,col])=>{if(val[col]!==KEEP&&String(val[col])!==String(e[k]))patch[col]=val[col]});
+          const src=kept[kept.length-1]||p.rows[p.rows.length-1],tmpl={};CF.forEach(([id,k,col])=>tmpl[col]=val[col]===KEEP?src[k]:val[col]);
+          if(removed.length)await must(sb.from("relief_coverage").delete().in("id",removed.map(r=>r._id)));
+          if(kept.length&&Object.keys(patch).length)await must(sb.from("relief_coverage").update(patch).in("id",kept.map(r=>r._id)));
+          if(added.length)await must(sb.from("relief_coverage").insert(added.map(d=>Object.assign({},tmpl,{date:d,period_id:p._id}))))}
+        closeModal();toast(p?"Coverage period updated":`Coverage saved: ${ds.length} day${ds.length>1?"s":""}`);loadAll()
+      }catch(err){btn.disabled=false;msg(errText(err))}};
+  })}
+
+/* ---------- multi-date picker: tap any number of days, or add a range ---------- */
+function datePicker(el,initial,locked,onChange){
+  const sel=new Set(initial),lock=new Set(locked);
+  let view=(initial.length?initial[initial.length-1]:today()).slice(0,7);
+  el.innerHTML=`<div class="dp-head"><button type="button" class="btn sm" data-dp="-1" aria-label="Previous month">‹</button><b class="dp-title"></b><button type="button" class="btn sm" data-dp="1" aria-label="Next month">›</button></div>
+    <div class="dp-grid"></div>
+    <div class="dp-range bar"><label class="f">Add range from<input type="date" class="dp-from"></label><label class="f">to<input type="date" class="dp-to"></label>
+      <div class="checks"><label><input type="checkbox" class="dp-sat"> Sat</label><label><input type="checkbox" class="dp-sun"> Sun</label></div>
+      <button type="button" class="btn sm" data-dp="add">Add</button><button type="button" class="btn sm" data-dp="clear">Clear</button></div>
+    <div class="tiny muted dp-sum"></div>`;
+  const q=c=>el.querySelector(c);
+  function draw(){const [y,m]=view.split("-").map(Number),first=new Date(y,m-1,1),n=new Date(y,m,0).getDate();
+    q(".dp-title").textContent=MON[m-1]+" "+y;
+    let h=DOW.map(d=>`<span class="dow">${d.slice(0,2)}</span>`).join("")+"<span></span>".repeat(first.getDay());
+    for(let d=1;d<=n;d++){const s=view+"-"+String(d).padStart(2,"0"),w=new Date(y,m-1,d).getDay();
+      h+=`<button type="button" data-day="${s}" class="${sel.has(s)?"on":""} ${lock.has(s)?"lock":""} ${w===0||w===6?"wkend":""} ${s===today()?"today":""}" aria-pressed="${sel.has(s)}" ${lock.has(s)?'title="On a pay run"':""}>${d}</button>`}
+    q(".dp-grid").innerHTML=h;
+    const ds=[...sel].sort();q(".dp-sum").textContent=ds.length?`${ds.length} day${ds.length>1?"s":""}: ${compressDates(ds)}`+(lock.size?` · ${lock.size} on a pay run (locked)`:""):"Tap the days covered. They don't need to be in a row.";
+    onChange(ds.length)}
+  el.addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;
+    if(b.dataset.day){const s=b.dataset.day;if(lock.has(s)){toast("That day is already on a pay run");return}sel.has(s)?sel.delete(s):sel.add(s);return draw()}
+    const a=b.dataset.dp;
+    if(a==="-1"||a==="1"){const [y,m]=view.split("-").map(Number),d=new Date(y,m-1+Number(a),1);view=iso(d).slice(0,7);return draw()}
+    if(a==="clear"){[...sel].forEach(s=>{if(!lock.has(s))sel.delete(s)});return draw()}
+    if(a==="add"){const f=q(".dp-from").value,t=q(".dp-to").value||f;if(!f){toast("Pick a start date");return}
+      if(t<f){toast("The end date is before the start");return}
+      let d=f,g=0;while(d<=t&&g++<370){const w=parse(d).getDay();if((w>0&&w<6)||(w===6&&q(".dp-sat").checked)||(w===0&&q(".dp-sun").checked))sel.add(d);d=addDays(d,1)}
+      if(f===t)sel.add(f); // a single picked day is always added, even a weekend
+      view=f.slice(0,7);return draw()}});
+  draw();
+  return {dates:()=>[...sel].sort()}}
+$("cov-add").onclick=()=>covForm(null);
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-edit-cov],[data-edit-pay],[data-edit-team]");if(!t)return;
+  if(t.dataset.editCov)covForm((S.periods||[]).find(p=>p._id===t.dataset.editCov));
+  if(t.dataset.editPay)payForm(S.pay.find(r=>r._id===t.dataset.editPay));
+  if(t.dataset.editTeam)teamForm(S.roster.find(r=>r._id===t.dataset.editTeam));
+});
+// inline Days / Rate on a payment line (admins)
+document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.dataset.pedit)return;
+  const p=S.pay.find(x=>x._id===t.dataset.id);if(!p)return;const f=t.dataset.pedit,v=Number(t.value);
+  if(!(v>=0)||t.value===""){t.value=f==="days"?fmtNum(p.days):p.rate;toast("Enter a number, 0 or more");return}
+  if(v===p[f])return;
+  try{await must(sb.from("relief_payments").update({[f]:v}).eq("id",p._id));p[f]=v;toast(`${p.relief}: ${money(p.rate)} × ${fmtNum(p.days)} = ${money(p.rate*p.days)}`);render()}
+  catch(err){t.value=f==="days"?fmtNum(p.days):p.rate;toast(errText(err))}});
+document.addEventListener("change",async e=>{const t=e.target;if(!t.dataset||!t.dataset.pstat)return;
+  try{await must(sb.from("relief_payments").update({status:t.value}).eq("id",t.dataset.pstat));const p=S.pay.find(x=>x._id===t.dataset.pstat);if(p)p.status=t.value;toast("Marked "+t.value);render()}catch(err){toast(errText(err))}});
+
+/* ---------- pay run ---------- */
+function runDefaults(){const un=S.cov.filter(r=>r.payable&&!r.paymentId).map(r=>r.date).sort();
+  if(!$("run-from").value)$("run-from").value=un[0]||addDays(today(),-13);
+  if(!$("run-to").value)$("run-to").value=today();if(!$("run-date").value)$("run-date").value=today()}
+// A day can go on a pay run when it's paid relief, not already paid, not an Excel import, and has a name.
+// (Same rule as relief_create_pay_run / relief_create_pay_run_selected in the database.)
+const payableRow=r=>r.payable&&!r.paymentId&&!r.imported&&!!r.relief;
+function payableRows(p){return p.rows.filter(payableRow)}
+function buildPreview(){const a=$("run-from").value,b=$("run-to").value;
+  return groupRun(S.cov.filter(r=>payableRow(r)&&r.date>=a&&r.date<=b))}
+function groupRun(rows){const groups={};
+  for(const r of rows){const k=key(r.relief);(groups[k]||(groups[k]={relief:r.relief,items:[]})).items.push(r)}
+  return Object.values(groups).map(g=>{const days=g.items.reduce((s,x)=>s+(x.days||0),0),rate=rateFor(g.relief),ro=rosterByKey(g.relief);
+    return{relief:ro?ro.name:g.relief,days,rate,total:days*rate,datesCovered:compressDates(g.items.map(x=>x.date)),covering:[...new Set(g.items.map(x=>x.absent).filter(Boolean))].join(", "),known:!!ro}}).sort((x,y)=>x.relief.localeCompare(y.relief))}
+$("run-preview").onclick=()=>{const run=buildPreview();const out=$("run-out");
+  if(!run.length){out.innerHTML=`<p class="hint">No unpaid relief days between ${fmtLong($("run-from").value)} and ${fmtLong($("run-to").value)}.</p>`;return}
+  const tot=run.reduce((a,x)=>a+x.total,0);
+  out.innerHTML=`<div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Rate</th><th class="num">Total</th><th>Dates</th><th>Covering for</th></tr></thead><tbody>
+  ${run.map(x=>`<tr><td><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}</td><td class="num">${fmtNum(x.days)}</td><td class="num">${money(x.rate)}</td><td class="num"><b>${money(x.total)}</b><div class="tiny muted">${money(x.rate)} × ${fmtNum(x.days)}</div></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td></tr>`).join("")}
+  <tr class="group"><td>Total</td><td class="num">${fmtNum(run.reduce((a,x)=>a+x.days,0))}</td><td></td><td class="num">${money(tot)}</td><td colspan="2"></td></tr></tbody></table></div>
+  <div class="foot"><span class="msg" id="run-msg"></span><button class="btn primary" id="run-create">Create ${run.length} payment${run.length>1?"s":""} for ${fmtLong($("run-date").value)}</button></div>`;
+  $("run-create").onclick=async()=>{const btn=$("run-create");btn.disabled=true;const pd=$("run-date").value||today();
+    try{const made=await must(sb.rpc("relief_create_pay_run",{p_from:$("run-from").value,p_to:$("run-to").value,p_pay_date:pd}));
+      out.innerHTML="";payBatchTouched=true;await loadAll();$("pay-batch").value=pd;render();toast((made?made.length:0)+" payments created")}
+    catch(err){btn.disabled=false;$("run-msg").textContent=errText(err)}}};
+
+/* ---------- pick periods in the log -> pay run ---------- */
+function selRows(){return (S.periods||[]).filter(p=>S.sel.has(p._id)).flatMap(payableRows)}
+function updSel(){
+  // drop anything that has since been paid or deleted
+  const ok=new Set((S.periods||[]).filter(p=>payableRows(p).length).map(p=>p._id));[...S.sel].forEach(id=>{if(!ok.has(id))S.sel.delete(id)});
+  const rows=selRows(),run=groupRun(rows),bar=$("cov-selbar");
+  bar.hidden=!S.isAdmin||!S.sel.size;
+  $("cov-selsum").textContent=`${S.sel.size} period${S.sel.size>1?"s":""} selected · ${fmtNum(rows.reduce((a,r)=>a+(r.days||0),0))} days · ${run.length} ${run.length===1?"person":"people"} · ${money(run.reduce((a,x)=>a+x.total,0))}`;
+  const vis=(S.covView||[]).filter(p=>payableRows(p).length),all=$("cov-all");
+  all.checked=vis.length>0&&vis.every(p=>S.sel.has(p._id));all.indeterminate=!all.checked&&vis.some(p=>S.sel.has(p._id));all.disabled=!vis.length}
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset&&t.dataset.sel){t.checked?S.sel.add(t.dataset.sel):S.sel.delete(t.dataset.sel);t.closest("tr").classList.toggle("picked",t.checked);updSel()}
+  if(t.id==="cov-all"){(S.covView||[]).filter(p=>payableRows(p).length).forEach(p=>t.checked?S.sel.add(p._id):S.sel.delete(p._id));renderCov()}});
+$("cov-selclear").onclick=()=>{S.sel.clear();renderCov()};
+$("cov-selrun").onclick=()=>{const rows=selRows();if(!rows.length){toast("Nothing selected to pay");return}
+  const run=groupRun(rows),tot=run.reduce((a,x)=>a+x.total,0);
+  const bankPill=x=>{const r=rosterByKey(x.relief),b=r&&S.bank[r._id];return b?`<span class="pill p-ok">On file</span>`:`<span class="pill p-bad">Missing</span>`};
+  const missing=run.filter(x=>{const r=rosterByKey(x.relief);return!(r&&S.bank[r._id])});
+  openModal(`<h3>Build pay run from ${S.sel.size} selected period${S.sel.size>1?"s":""}</h3>
+  <p class="hint tiny" style="margin:0">Days and rate start from the log and each person's daily rate. Change them here if this run should pay something different.</p>
+  <div class="tbl"><table><thead><tr><th>Relief merchandiser</th><th class="num">Days</th><th class="num">Daily rate</th><th class="num">Total</th><th>Dates</th><th>Covering for</th><th>Banking</th></tr></thead><tbody>
+  ${run.map((x,i)=>`<tr><td class="nowrap"><b>${esc(x.relief)}</b>${x.known?"":` <span class="pill p-warn">Not on relief team</span>`}<div class="tiny muted">${fmtNum(x.days)} day${x.days===1?"":"s"} logged</div></td><td class="num"><input type="number" class="inl" step="0.5" min="0" data-rd="${i}" value="${fmtNum(x.days)}" aria-label="Days for ${esc(x.relief)}"></td><td class="num"><input type="number" class="inl" step="500" min="0" data-rr="${i}" value="${x.rate}" aria-label="Daily rate for ${esc(x.relief)}"></td><td class="num"><b data-rt="${i}"></b><div class="tiny muted" data-rx="${i}"></div></td><td class="tiny">${esc(x.datesCovered)}</td><td class="tiny">${esc(x.covering)}</td><td>${bankPill(x)}</td></tr>`).join("")}
+  <tr class="group"><td>Total</td><td class="num" id="sr-days"></td><td></td><td class="num" id="sr-tot"></td><td colspan="3"></td></tr></tbody></table></div>
+  ${missing.length?`<div class="notice">No banking on file for ${esc(missing.map(x=>x.relief).join(", "))}. Add it under <b>Relief team</b> so it shows on the HR sheet.</div>`:""}
+  <div class="bar"><label class="f">Pay date<input type="date" id="sr-date" value="${today()}"></label></div>
+  <div class="foot"><span class="msg" id="sr-msg"></span><button class="btn" id="sr-cancel">Cancel</button><button class="btn primary" id="sr-go">Create ${run.length} payment${run.length>1?"s":""}</button></div>`,
+  ()=>{$("sr-cancel").onclick=closeModal;
+    const box=$("modal-root");
+    const cur=i=>({days:Number(box.querySelector(`[data-rd="${i}"]`).value)||0,rate:Number(box.querySelector(`[data-rr="${i}"]`).value)||0});
+    function recalc(){let d=0,t=0;run.forEach((x,i)=>{const c=cur(i);d+=c.days;t+=c.days*c.rate;
+      box.querySelector(`[data-rt="${i}"]`).textContent=money(c.days*c.rate);box.querySelector(`[data-rx="${i}"]`).textContent=`${money(c.rate)} × ${fmtNum(c.days)}`});
+      $("sr-days").textContent=fmtNum(d);$("sr-tot").textContent=money(t)}
+    box.querySelectorAll("[data-rd],[data-rr]").forEach(el=>el.addEventListener("input",recalc));recalc();
+    $("sr-go").onclick=async()=>{const btn=$("sr-go"),pd=$("sr-date").value||today();
+      if(run.some((x,i)=>{const c=cur(i);return c.days<0||c.rate<0})){$("sr-msg").textContent="Days and rate can't be negative.";return}
+      btn.disabled=true;
+      try{const made=await must(sb.rpc("relief_create_pay_run_selected",{p_ids:rows.map(r=>r._id),p_pay_date:pd}));
+        // the database pays logged days × roster rate; apply any changes made in this preview
+        for(const m of made||[]){const i=run.findIndex(x=>key(x.relief)===key(m.relief_name));if(i<0)continue;const c=cur(i),patch={};
+          if(c.days!==Number(m.days))patch.days=c.days;if(c.rate!==Number(m.rate))patch.rate=c.rate;
+          if(Object.keys(patch).length)await must(sb.from("relief_payments").update(patch).eq("id",m.id))}
+        S.sel.clear();payBatchTouched=true;await loadAll();
+        const ids=new Set((made||[]).map(m=>m.id));
+        $("modal-root").querySelector(".modal").innerHTML=`<h3>${ids.size} payment${ids.size===1?"":"s"} created</h3>
+          <p class="hint">They're on the pay date ${fmtLong(pd)} as Pending. Open the HR pay sheet to print it or save it as a PDF and send it to HR.</p>
+          <div class="foot"><button class="btn" id="sr-done">Done</button><button class="btn primary" id="sr-hr">Open HR pay sheet</button></div>`;
+        $("sr-done").onclick=()=>{closeModal();setTab("pay");$("pay-batch").value=pd;render()};
+        $("sr-hr").onclick=()=>{hrSheet(S.pay.filter(p=>ids.has(p._id)),pd);closeModal();setTab("pay");$("pay-batch").value=pd;render()};
+      }catch(err){btn.disabled=false;$("sr-msg").textContent=errText(err)}}})};
+
+/* ---------- HR pay sheet: printable page with banking, rate × days and sign-off ---------- */
+function hrSheet(list,payDate){
+  if(!list.length){toast("No payments to put on the sheet");return}
+  if(!S.isAdmin){toast("Only admins can see banking details");return}
+  list=[...list].sort((a,b)=>a.payDate.localeCompare(b.payDate)||a.relief.localeCompare(b.relief));
+  const dates=[...new Set(list.map(p=>p.payDate))],tot=list.reduce((a,p)=>a+p.days*p.rate,0),days=list.reduce((a,p)=>a+p.days,0);
+  const bankOf=p=>{const r=rosterByKey(p.relief);return r?S.bank[r._id]||"":""};
+  const who=$("who").textContent||"";
+  const w=window.open("","_blank");if(!w){toast("Allow pop-ups for this site to open the HR sheet");return}
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relief pay sheet ${esc(dates.map(fmtLong).join(", "))}</title>
+<style>
+body{font:13px/1.4 "Segoe UI",Arial,sans-serif;color:#111;margin:24px;background:#fff}
+h1{font-size:18px;margin:0 0 2px}.sub{color:#555;margin:0 0 14px}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#eef2f1;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bank{white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px}.miss{color:#b3261e;font-weight:700}
+tfoot td{font-weight:700;background:#f6f6f6}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:40px}.sign div{border-top:1px solid #333;padding-top:4px;font-size:12px;color:#444}
+.conf{margin-top:18px;font-size:11px;color:#8a1c1c}.tools{margin-bottom:16px}
+.tools button{font:600 13px inherit;padding:7px 14px;border:1px solid #0d5c63;background:#0d5c63;color:#fff;border-radius:6px;cursor:pointer}
+@media print{.tools{display:none}body{margin:10mm}@page{size:landscape}}
+</style></head><body>
+<div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div>
+<h1>DFL Importers &amp; Distributors: Relief Merchandiser Pay Sheet</h1>
+<p class="sub">Pay date: <b>${esc(dates.map(fmtLong).join(", "))}</b> · ${list.length} payment${list.length>1?"s":""} · ${fmtNum(days)} days · Prepared ${esc(fmtLong(today()))}${who?` by ${esc(who)}`:""}</p>
+<table><thead><tr><th>#</th><th>Relief merchandiser</th><th>Banking details</th><th>Dates covered</th><th>Covering for / reason</th><th class="n">Days</th><th class="n">Daily rate</th><th class="n">Amount</th><th>Status</th></tr></thead><tbody>
+${list.map((p,i)=>{const b=bankOf(p);return `<tr><td>${i+1}</td><td><b>${esc(p.relief)}</b></td><td class="bank">${b?esc(b):`<span class="miss">Not on file</span>`}</td><td>${esc(p.datesCovered)}</td><td>${esc([p.covering,p.reason].filter(Boolean).join(" · "))}</td><td class="n">${fmtNum(p.days)}</td><td class="n">${money(p.rate)}</td><td class="n"><b>${money(p.days*p.rate)}</b><br><span style="color:#666;font-size:11px">${money(p.rate)} × ${fmtNum(p.days)}</span></td><td>${esc(p.status)}</td></tr>`}).join("")}
+</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${fmtNum(days)}</td><td></td><td class="n">${money(tot)}</td><td></td></tr></tfoot></table>
+<div class="sign"><div>Prepared by</div><div>Approved by</div><div>Date</div></div>
+<p class="conf">Confidential: contains banking details. For HR / payroll use only.</p>
+</body></html>`);
+  w.document.close()}
+$("pay-hr").onclick=()=>hrSheet(S.payView||[],$("pay-batch").value);
+
+/* ---------- payment form ---------- */
+function payForm(p){
+  const e=p||{payDate:today(),days:1,rate:4000,status:"Pending",verified:false};
+  const linked=p?S.cov.filter(c=>c.paymentId===p._id).length:0;
+  openModal(`<h3>${p?"Edit payment":"Manual payment"}</h3>
+  ${linked?`<p class="hint tiny muted" style="margin:0">Built from ${linked} log entr${linked>1?"ies":"y"}. Changing days here overrides the log count. Deleting it puts those days back as unpaid.</p>`:""}
+  <div class="grid">
+    <label class="f">Relief merchandiser<input id="p-name" list="dl-roster" value="${esc(e.relief)}" autocomplete="off"></label>
+    <label class="f">Pay date<input type="date" id="p-date" value="${esc(e.payDate)}"></label>
+    <label class="f">Days worked<input type="number" step="0.5" min="0" id="p-days" value="${esc(e.days)}"></label>
+    <label class="f">Daily rate (JMD)<input type="number" step="500" min="0" id="p-rate" value="${esc(e.rate)}"></label>
+    <label class="f full">Dates covered<input id="p-dates" value="${esc(e.datesCovered)}" placeholder="e.g. Sept 21–25"></label>
+    <label class="f">Covering for<input id="p-cov" value="${esc(e.covering)}"></label>
+    <label class="f">Reason<input id="p-reason" value="${esc(e.reason)}"></label>
+    <label class="f full">Stores covered<input id="p-stores" value="${esc(e.stores)}"></label>
+    <label class="f">Approved by<input id="p-appr" value="${esc(e.approvedBy)}"></label>
+    <label class="f">Status<select id="p-status">${opts(PAYSTAT,e.status)}</select></label>
+    <div class="full checks"><label><input type="checkbox" id="p-ver" ${e.verified?"checked":""}> Attendance verified</label></div>
+    <label class="f full">Notes<textarea id="p-notes">${esc(e.notes)}</textarea></label>
+    <div class="full kpi"><b id="p-total"></b><span>Total pay</span></div>
+  </div>${rosterList()}
+  <div class="foot"><span class="msg" id="p-msg"></span>${p?`<button class="btn danger" id="p-del">Delete</button>`:""}<button class="btn" id="p-cancel">Cancel</button><button class="btn primary" id="p-save">Save</button></div>`,
+  ()=>{const tot=()=>$("p-total").textContent=money((Number($("p-days").value)||0)*(Number($("p-rate").value)||0));tot();
+    ["p-days","p-rate"].forEach(id=>$(id).addEventListener("input",tot));
+    $("p-name").addEventListener("change",()=>{if(!p){$("p-rate").value=rateFor($("p-name").value);tot()}});
+    $("p-cancel").onclick=closeModal;
+    if(p)$("p-del").onclick=async()=>{if(!confirmBtn($("p-del"),"Tap again to delete"))return;
+      try{await must(sb.from("relief_payments").delete().eq("id",p._id));closeModal();toast(linked?"Payment deleted. Its log days are unpaid again.":"Payment deleted");loadAll()}catch(err){$("p-msg").textContent=errText(err)}};
+    $("p-save").onclick=async()=>{const name=$("p-name").value.trim().replace(/\s+/g," ");if(!name){$("p-msg").textContent="Enter the relief merchandiser.";return}
+      const ro=rosterByKey(name);
+      const data={relief_name:ro?ro.name:name,roster_id:ro?ro._id:null,pay_date:$("p-date").value||today(),days:Number($("p-days").value)||0,rate:Number($("p-rate").value)||0,dates_covered:$("p-dates").value.trim(),covering:$("p-cov").value.trim(),reason:$("p-reason").value.trim(),stores:$("p-stores").value.trim(),approved_by:$("p-appr").value.trim(),status:$("p-status").value,verified:$("p-ver").checked,notes:$("p-notes").value.trim()};
+      $("p-save").disabled=true;
+      try{if(p)await must(sb.from("relief_payments").update(data).eq("id",p._id));else await must(sb.from("relief_payments").insert(Object.assign(data,{source:"manual"})));closeModal();toast("Payment saved");loadAll()}
+      catch(err){$("p-save").disabled=false;$("p-msg").textContent=errText(err)}}})}
+$("pay-add").onclick=()=>payForm(null);
+
+/* ---------- CSV export ---------- */
+$("pay-export").onclick=()=>{const list=S.payView||[];if(!list.length){toast("Nothing to export");return}
+  const cols=["Pay date","Relief merchandiser","Days","Daily rate","Total pay"].concat(S.isAdmin?["Banking details"]:[]).concat(["Dates covered","Covering for","Reason","Stores","Approved by","Attendance verified","Status","Notes"]);
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const lines=[cols.join(",")].concat(list.map(p=>{const r=rosterByKey(p.relief);return [p.payDate,p.relief,p.days,p.rate,p.days*p.rate].concat(S.isAdmin?[r?S.bank[r._id]||"":""]:[]).concat([p.datesCovered,p.covering,p.reason,p.stores,p.approvedBy,p.verified?"Yes":"No",p.status,p.notes]).map(q).join(",")}));
+  const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="relief-payments-"+($("pay-batch").value||"all")+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
+
+/* ---------- team form ---------- */
+function teamForm(r){const e=r||{rate:4000,active:true};
+  openModal(`<h3>${r?"Edit "+esc(r.name):"Add relief merchandiser"}</h3>
+  <div class="grid">
+    <label class="f">Full name<input id="t-name" value="${esc(e.name)}"></label>
+    <label class="f">Phone<input id="t-phone" value="${esc(e.phone)}" placeholder="876-000-0000"></label>
+    <label class="f">Home region<select id="t-region">${opts(REGIONS,e.region,"—")}</select></label>
+    <label class="f">Daily rate (JMD)<input type="number" step="500" min="0" id="t-rate" value="${esc(e.rate)}"></label>
+    <label class="f full">Banking details<textarea id="t-bank" placeholder="Account number, bank, account type, branch">${esc(r?S.bank[r._id]:"")}</textarea></label>
+    <div class="full checks"><label><input type="checkbox" id="t-active" ${e.active!==false?"checked":""}> Active (shows in relief name suggestions)</label></div>
+  </div>
+  <div class="foot"><span class="msg" id="t-msg"></span><button class="btn" id="t-cancel">Cancel</button><button class="btn primary" id="t-save">Save</button></div>`,
+  ()=>{$("t-cancel").onclick=closeModal;
+    $("t-save").onclick=async()=>{const name=$("t-name").value.trim().replace(/\s+/g," ");if(!name){$("t-msg").textContent="Enter a name.";return}
+      const dup=rosterByKey(name);if(dup&&(!r||dup._id!==r._id)){$("t-msg").textContent=name+" is already on the relief team.";return}
+      const id=r?r._id:(key(name).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"m")+"-"+Date.now().toString(36).slice(-4);
+      const data={id,name,phone:$("t-phone").value.trim(),region:$("t-region").value,daily_rate:Number($("t-rate").value)||0,active:$("t-active").checked};
+      const bank=$("t-bank").value.trim();$("t-save").disabled=true;
+      try{await must(sb.from("relief_roster").upsert(data));if(bank!==(S.bank[id]||""))await must(sb.from("relief_bank").upsert({roster_id:id,details:bank}));
+        // the log links to the team by name, so carry a rename across, and fill in any blank regions
+        const names=[...new Set([r&&r.name,name].filter(Boolean))],mine=S.cov.filter(c=>names.some(n=>key(n)===key(c.relief)));
+        const renamed=mine.filter(c=>c.relief!==name).map(c=>c._id),noRegion=mine.filter(c=>!c.region&&!c.paymentId).map(c=>c._id);
+        if(renamed.length)await must(sb.from("relief_coverage").update({relief_name:name}).in("id",renamed));
+        if(data.region&&noRegion.length)await must(sb.from("relief_coverage").update({region:data.region}).in("id",noRegion));
+        closeModal();toast(noRegion.length&&data.region?`Saved. ${noRegion.length} logged day${noRegion.length>1?"s":""} set to ${data.region}`:"Saved");loadAll()}
+      catch(err){$("t-save").disabled=false;$("t-msg").textContent=errText(err)}}})}
+$("team-add").onclick=()=>teamForm(null);
+
+if(FRAMED)document.querySelector("header.top h1").hidden=true; // the dashboard header already names it
+setTab(tab);
+})();
+</script>
+
+</body>
+</html>
