@@ -1389,8 +1389,59 @@ function exportPayrollCSV(){
   a.click();
 }
 
-// Printable HR sheet; the browser's print dialog saves it as a PDF.
-function exportPayrollPDF(){
+// Downloads a real .pdf (jsPDF, loaded on first use). No pop-up or print dialog,
+// so it works inside the management/index.html frame and with pop-up blockers.
+let jsPdfReady = null;
+function loadScript(src){ return new Promise((ok,fail)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>fail(new Error('Could not load '+src)); document.head.appendChild(s); }); }
+function loadJsPdf(){
+  if(!jsPdfReady) jsPdfReady = loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+    .then(()=>loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'))
+    .catch(e=>{ jsPdfReady=null; throw e; });
+  return jsPdfReady;
+}
+async function exportPayrollPDF(){
+  if(!payrollRows.length){ toast('Nothing to export for this period',''); return; }
+  try{ await loadJsPdf(); }catch(e){ toast("Couldn't load the PDF tool, opening a printable sheet instead",''); return printPayrollSheet(); }
+  const n = v => parseFloat(v||0);
+  const j$ = v => 'J$' + n(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const sum = k => payrollRows.reduce((s,r)=>s+n(r[k]),0);
+  const label = MONTHS[currentPeriod]||currentPeriod;
+  const who = (window.DFL_PROFILE && window.DFL_PROFILE.full_name) || '';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
+  const W = doc.internal.pageSize.getWidth(), M = 40;
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('DFL Importers & Distributors', M, 48);
+  doc.setFontSize(12); doc.text('Merch Commission and TL Incentive · ' + label, M, 66);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`${payrollRows.length} people · Prepared ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}${who?' by '+who:''}`, M, 82);
+  doc.setTextColor(0);
+  doc.autoTable({
+    startY: 94, margin:{left:M,right:M},
+    head: [['#','Name','Position','BA commission','TL incentive','Relief','Amount payable']],
+    body: payrollRows.map((r,i)=>[i+1, r.person_name, POSITION_LABEL[r.role]||r.role, j$(r.ba_commission), j$(r.tl_incentive), j$(r.relief_incentive), j$(r.total_payable)]),
+    foot: [['', 'Total · '+payrollRows.length+' people', '', j$(sum('ba_commission')), j$(sum('tl_incentive')), j$(sum('relief_incentive')), j$(sum('total_payable'))]],
+    styles:{ fontSize:8.5, cellPadding:4, lineColor:[200,200,200], lineWidth:0.5 },
+    headStyles:{ fillColor:[26,26,46], textColor:255, fontStyle:'bold' },
+    footStyles:{ fillColor:[240,240,240], textColor:0, fontStyle:'bold' },
+    columnStyles:{ 0:{cellWidth:22}, 3:{halign:'right'}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right', fontStyle:'bold'} },
+    didParseCell: d => { if((d.section==='head'||d.section==='foot') && d.column.index>=3) d.cell.styles.halign='right'; }
+  });
+  let y = doc.lastAutoTable.finalY + 44;
+  if(y > doc.internal.pageSize.getHeight() - 90){ doc.addPage(); y = 70; }
+  const colW = (W - 2*M - 40) / 3;
+  ['Prepared by','Approved by','Date'].forEach((t,i)=>{ const x = M + i*(colW+20); doc.line(x, y, x+colW, y); doc.setFontSize(8); doc.setTextColor(80); doc.text(t, x, y+11); });
+  doc.setFontSize(7.5); doc.setTextColor(110);
+  const note = `Confidential: HR use only. Amount payable = Brand Ambassador commission + Team Leader incentive + relief incentive, per person. `
+    + `BA: ${(COMM_RATE_80*100).toFixed(2)}% of sales at 80–99% of target; at 100%+ ${(COMM_RATE_100_BASE*100).toFixed(1)}% of target + ${(COMM_RATE_100_OVER*100).toFixed(2)}% of sales above target. `
+    + `TL: J$${TL_RATE_80}/store at 80–99%, J$${TL_RATE_100.toLocaleString()}/store at 100%+ (TL's own stores excluded). Relief: J$500 per completed relief visit.`;
+  doc.text(doc.splitTextToSize(note, W - 2*M), M, y + 34);
+  doc.save('DFL_Merch_Commission_TL_Incentive_'+currentPeriod+'.pdf');
+  toast('PDF downloaded','success');
+}
+
+// Fallback: printable HR sheet in a new window (browser print dialog -> Save as PDF).
+function printPayrollSheet(){
   if(!payrollRows.length){ toast('Nothing to export for this period',''); return; }
   const esc = v => String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n = v => parseFloat(v||0);

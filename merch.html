@@ -551,6 +551,16 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- STOCK & PRICES — live stock on hand and list price, read-only. -->
+      <div onclick="openStockModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">📦</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Stock & Prices</div>
+          <div style="font-size:10px;color:var(--muted)">What's in stock and the list price of every product</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+
       <!-- PLANOGRAMS -->
       <div onclick="window.location.href='/planograms.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📐</div>
@@ -1025,6 +1035,18 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-ico">📅</div>
       <div><div class="dash-link-title">Events & Training</div><div class="dash-link-sub">See upcoming/past events and sign in as attending</div></div>
       <div id="tl-events-badge" style="display:none;background:var(--red);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;margin-right:6px">0</div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link" onclick="openAreaLeave()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">🌴</div>
+      <div><div class="dash-link-title">Area Leave</div><div class="dash-link-sub">Every vacation requested in your area, with clashes flagged</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link" onclick="openStockModal()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">📦</div>
+      <div><div class="dash-link-title">Stock & Prices</div><div class="dash-link-sub">What's in stock and the list price of every product</div></div>
       <div class="dash-link-arr">›</div>
     </button>
 
@@ -3014,7 +3036,7 @@ function renderMyEvents(){
     return '<div class="merch-card" style="margin-bottom:10px">'+
       '<div style="font-weight:800;font-size:14px;color:var(--navy)">'+escapeHtmlM(ev.title)+'</div>'+
       '<div style="font-size:11px;color:var(--muted);margin:2px 0 8px">'+escapeHtmlM(ev.event_date)+(ev.event_time?' · '+escapeHtmlM(ev.event_time):'')+(ev.location?' · '+escapeHtmlM(ev.location):'')+'</div>'+
-      (ev.description?'<div style="font-size:12px;color:var(--ink);margin-bottom:6px">'+escapeHtmlM(ev.description)+'</div>':'')+
+      (ev.description?'<div style="font-size:12px;color:var(--text);margin-bottom:6px">'+escapeHtmlM(ev.description)+'</div>':'')+
       (topics?'<ul style="font-size:11px;color:var(--muted);margin:0 0 10px 16px;padding:0;line-height:1.6">'+topics+'</ul>':'')+
       (signed
         ? '<div style="background:var(--green-lt);color:var(--green);font-weight:700;font-size:12px;padding:8px;border-radius:8px;text-align:center">✓ Signed in as attending</div>'
@@ -3031,6 +3053,135 @@ async function signEventAttendance(eventId){
     loadMyEvents();
   }catch(e){ alert('Could not sign in: '+(e.message||e)); }
 }
+
+// ══════════════════════════════════════════════
+// STOCK & PRICES — read-only browser over stock_items_raw (synced from the
+// ERP every ~30 min by sync-stock-items): stock on hand + list price
+// (default_price) for every active SKU. avg_cost is deliberately never
+// selected — merchandisers see availability and list price, not margin.
+// ══════════════════════════════════════════════
+let _stockRows=null, _stockSynced=null, _stockLoading=false;
+
+async function loadStock(force){
+  if(_stockLoading) return;
+  if(_stockRows && !force){ renderStock(); return; }
+  _stockLoading=true;
+  const list=document.getElementById('stock-list');
+  if(list) list.innerHTML='<div class="spinner"></div>';
+  try{
+    const rows=[]; let off=0;
+    for(;;){
+      const page=await rest(`stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc&limit=1000&offset=${off}`);
+      const got=page||[];
+      rows.push(...got);
+      if(got.length<1000) break;
+      off+=1000;
+    }
+    _stockRows=rows.map(r=>({
+      id:r.inventory_id, name:(r.description||'').trim(), cls:r.item_class||'',
+      stock:Math.round(parseFloat(r.on_hand)||0), price:parseFloat(r.default_price)||0
+    }));
+    _stockSynced=rows.reduce((m,r)=>(r.last_synced_at&&(!m||r.last_synced_at>m))?r.last_synced_at:m,null);
+    const sel=document.getElementById('stock-class');
+    if(sel){
+      const cur=sel.value;
+      const classes=[...new Set(_stockRows.map(r=>r.cls).filter(Boolean))].sort();
+      sel.innerHTML='<option value="">All categories</option>'+classes.map(c=>`<option value="${escapeHtmlM(c)}">${escapeHtmlM(c)}</option>`).join('');
+      sel.value=cur;
+    }
+    renderStock();
+  }catch(e){
+    console.warn('stock load failed:',e);
+    if(list) list.innerHTML='<div class="empty-feed">Could not load stock — check your connection and tap Refresh.</div>';
+  }finally{ _stockLoading=false; }
+}
+
+function openStockModal(){
+  document.getElementById('stock-modal').style.display='flex';
+  loadStock(false);
+}
+function closeStockModal(){ document.getElementById('stock-modal').style.display='none'; }
+
+function renderStock(){
+  const list=document.getElementById('stock-list');
+  if(!list||!_stockRows) return;
+  const q=(document.getElementById('stock-search').value||'').trim().toLowerCase();
+  const cls=document.getElementById('stock-class').value;
+  const inOnly=document.getElementById('stock-instock').checked;
+  const matches=_stockRows.filter(r=>
+    (!cls||r.cls===cls) && (!inOnly||r.stock>0) &&
+    (!q || r.name.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)));
+  const LIMIT=150;
+  const shown=matches.slice(0,LIMIT);
+  const meta=document.getElementById('stock-meta');
+  const asOf=_stockSynced?new Date(_stockSynced).toLocaleString('en-JM',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+  if(meta) meta.textContent=matches.length+' product'+(matches.length===1?'':'s')+(matches.length>LIMIT?' — showing the first '+LIMIT+', search to narrow':'')+(asOf?' · stock as of '+asOf:'');
+  if(!shown.length){ list.innerHTML='<div class="empty-feed">No products match.</div>'; return; }
+  list.innerHTML=shown.map(r=>{
+    const out=r.stock<=0;
+    return '<div class="merch-card" style="margin-bottom:8px;display:flex;align-items:center;gap:10px;padding:10px 12px">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:700;font-size:13px;color:var(--navy);line-height:1.25">'+escapeHtmlM(r.name||r.id)+'</div>'+
+        '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+escapeHtmlM(r.id)+(r.cls?' · '+escapeHtmlM(r.cls):'')+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0">'+
+        '<div style="font-weight:800;font-size:15px;color:'+(out?'var(--red)':'var(--green)')+'">'+(out?'Out':r.stock.toLocaleString())+'</div>'+
+        '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">'+(out?'of stock':'in stock')+'</div>'+
+        '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-top:3px">'+(r.price>0?'J$'+r.price.toLocaleString('en-JM',{minimumFractionDigits:2,maximumFractionDigits:2}):'–')+'</div>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// AREA LEAVE — every vacation requested/submitted in the viewer's own area,
+// across both leave systems (merch/TL requests and rep leave), read-only.
+// The area logic lives in the get_area_leave() RPC; sick leave is excluded.
+// ══════════════════════════════════════════════
+function areaLeaveFmt(d){
+  if(!d) return '—';
+  return new Date(d+'T00:00:00').toLocaleDateString('en-JM',{day:'numeric',month:'short'});
+}
+
+async function openAreaLeave(){
+  document.getElementById('area-leave-modal').style.display='flex';
+  const list=document.getElementById('area-leave-list');
+  list.innerHTML='<div class="spinner"></div>';
+  try{
+    const rows=await restRpc('get_area_leave',{});
+    if(!rows||!rows.length){ list.innerHTML='<div class="empty-feed">No upcoming vacations in your area.</div>'; return; }
+    // Two different people out on overlapping dates = a coverage clash.
+    const clashes=[];
+    for(let i=0;i<rows.length;i++) for(let j=i+1;j<rows.length;j++){
+      const a=rows[i], b=rows[j];
+      if(a.person_name===b.person_name) continue;
+      if(leaveDatesOverlap(a.from_date,a.to_date,b.from_date,b.to_date)) clashes.push([a,b]);
+    }
+    let html='';
+    if(clashes.length){
+      html+='<div class="merch-card" style="border-color:var(--red);background:var(--red-lt);margin-bottom:12px">'+
+        '<div style="font-size:12px;font-weight:800;color:var(--red);margin-bottom:4px">⚠️ '+clashes.length+' overlapping vacation'+(clashes.length===1?'':'s')+'</div>'+
+        clashes.slice(0,10).map(c=>'<div style="font-size:11px;color:var(--text);margin-top:2px">'+escapeHtmlM(c[0].person_name)+' &amp; '+escapeHtmlM(c[1].person_name)+' <span style="color:var(--muted)">('+areaLeaveFmt(c[0].from_date)+'–'+areaLeaveFmt(c[0].to_date)+' / '+areaLeaveFmt(c[1].from_date)+'–'+areaLeaveFmt(c[1].to_date)+')</span></div>').join('')+
+        (clashes.length>10?'<div style="font-size:10px;color:var(--muted);margin-top:4px">+ '+(clashes.length-10)+' more</div>':'')+
+      '</div>';
+    }
+    html+='<div class="sec-hdr" style="margin-bottom:8px">'+rows.length+' upcoming vacation'+(rows.length===1?'':'s')+'</div>';
+    html+=rows.map(r=>
+      '<div class="merch-card" style="margin-bottom:8px">'+
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'+
+          '<div style="font-size:13px;font-weight:700;color:var(--navy)">'+escapeHtmlM(r.person_name)+(r.is_me?' <span style="font-weight:400;color:var(--muted);font-size:11px">(you)</span>':'')+
+            '<div style="font-weight:400;color:var(--muted);font-size:10px;margin-top:1px">'+escapeHtmlM(r.job_title||'')+(r.area_label?' · '+escapeHtmlM(r.area_label):'')+'</div></div>'+
+          leaveStatusBadge(r.status)+
+        '</div>'+
+        '<div style="font-size:12px;color:var(--text);margin-top:6px">🌴 '+areaLeaveFmt(r.from_date)+' → '+areaLeaveFmt(r.to_date)+(r.days?' · '+r.days+' day'+(Number(r.days)===1?'':'s'):'')+'</div>'+
+        (r.covering_name?'<div style="font-size:11px;color:var(--navy);margin-top:3px">🔄 Covered by '+escapeHtmlM(r.covering_name)+'</div>':'')+
+      '</div>').join('');
+    list.innerHTML=html;
+  }catch(e){
+    console.warn('area leave load failed:',e);
+    list.innerHTML='<div class="empty-feed">Could not load area leave — check your connection.</div>';
+  }
+}
+function closeAreaLeave(){ document.getElementById('area-leave-modal').style.display='none'; }
 
 function tlSearchReassign(q){
   clearTimeout(tlReassignDebounce);
@@ -6288,6 +6439,35 @@ window.addEventListener('offline', updateLiveDot);
     <button onclick="closeEventsModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
   </div>
   <div style="flex:1;overflow-y:auto;padding:12px 16px" id="events-modal-list"><div class="spinner"></div></div>
+</div>
+
+<!-- STOCK & PRICES — live stock on hand + list price (cost is never loaded). -->
+<div id="stock-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">📦 Stock & Prices</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="loadStock(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">↻ Refresh</button>
+      <button onclick="closeStockModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+    </div>
+  </div>
+  <div style="flex-shrink:0;padding:10px 16px 0">
+    <input type="text" id="stock-search" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="renderStock()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box">
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <select id="stock-class" onchange="renderStock()" style="flex:1;min-width:0;padding:8px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:12px;background:var(--card);color:var(--text)"><option value="">All categories</option></select>
+      <label style="font-size:12px;color:var(--navy);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px"><input type="checkbox" id="stock-instock" onchange="renderStock()"> In stock only</label>
+    </div>
+    <div id="stock-meta" style="font-size:10px;color:var(--muted);margin:6px 0 2px"></div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:6px 16px 16px" id="stock-list"><div class="spinner"></div></div>
+</div>
+
+<!-- AREA LEAVE — every vacation requested in the viewer's own area (read-only). -->
+<div id="area-leave-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">🌴 Area Leave</div>
+    <button onclick="closeAreaLeave()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 16px" id="area-leave-list"><div class="spinner"></div></div>
 </div>
 
 <!-- QUARTERLY EVALUATION MODAL (embedded iframe — fully self-contained tool) -->
