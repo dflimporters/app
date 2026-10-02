@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · Stock & Prices</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body { visibility: hidden; }</style>
+<style>
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --navy2:#16264d;
+  --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:640px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:40px;-webkit-font-smoothing:antialiased}
+h1,.mont{font-family:'Montserrat',sans-serif}
+
+.hdr{background:var(--navy);color:#fff;padding:18px 16px;display:flex;align-items:center;gap:12px}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-size:20px;line-height:1}
+.hdr h1{font-size:16px;font-weight:800;margin:0;flex:1}
+.hdr button{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer}
+
+.wrap{max-width:var(--content-max);margin:0 auto;padding:16px}
+.filters input[type=text]{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff}
+.frow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.frow select{flex:1;min-width:0;padding:9px;border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;background:#fff}
+.frow label{font-size:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.meta{font-size:11px;color:var(--mut);margin:10px 2px 8px}
+
+.item{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.item .nm{font-weight:700;font-size:13px;line-height:1.25}
+.item .sub{font-size:10px;color:var(--mut);margin-top:2px}
+.item .r{text-align:right;flex-shrink:0}
+.item .q{font-weight:800;font-size:15px}
+.item .ql{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.item .p{font-size:12px;font-weight:700;margin-top:3px}
+.empty{text-align:center;padding:40px 20px;color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="/index.html" title="Back">‹</a>
+  <h1 class="mont">📦 Stock &amp; Prices</h1>
+  <button type="button" onclick="loadStock(true)">↻ Refresh</button>
+</div>
+
+<div class="wrap">
+  <div class="filters">
+    <input type="text" id="q" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="render()">
+    <div class="frow">
+      <select id="cls" onchange="render()"><option value="">All categories</option></select>
+      <label><input type="checkbox" id="instock" onchange="render()"> In stock only</label>
+    </div>
+  </div>
+  <div class="meta" id="meta"></div>
+  <div id="list"><div class="empty">Loading…</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+// Read-only browser over stock_items_raw (synced from the ERP every ~30 min):
+// stock on hand + list price (default_price) for every active SKU.
+// avg_cost is deliberately never selected — reps see availability and list
+// price here, not margin. Same data and same rules as "Stock & Prices" in merch.html.
+const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+
+let ROWS=null, SYNCED=null, LOADING=false;
+
+document.addEventListener('dfl-auth-ready', () => { loadStock(false); });
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function loadStock(force){
+  if(LOADING) return;
+  if(ROWS && !force){ render(); return; }
+  LOADING=true;
+  document.getElementById('list').innerHTML='<div class="empty">Loading…</div>';
+  try{
+    const rows=[]; let off=0;
+    for(;;){
+      const r=await fetch(`${SB_URL}/rest/v1/stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc&limit=1000&offset=${off}`,{headers:H});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const page=await r.json();
+      rows.push(...page);
+      if(page.length<1000) break;
+      off+=1000;
+    }
+    ROWS=rows.map(r=>({
+      id:r.inventory_id, name:(r.description||'').trim(), cls:r.item_class||'',
+      stock:Math.round(parseFloat(r.on_hand)||0), price:parseFloat(r.default_price)||0
+    }));
+    SYNCED=rows.reduce((m,r)=>(r.last_synced_at&&(!m||r.last_synced_at>m))?r.last_synced_at:m,null);
+    const sel=document.getElementById('cls'), cur=sel.value;
+    const classes=[...new Set(ROWS.map(r=>r.cls).filter(Boolean))].sort();
+    sel.innerHTML='<option value="">All categories</option>'+classes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value=cur;
+    render();
+  }catch(e){
+    console.warn('stock load failed:',e);
+    document.getElementById('list').innerHTML='<div class="empty">Could not load stock — check your connection and tap Refresh.</div>';
+  }finally{ LOADING=false; }
+}
+
+function render(){
+  if(!ROWS) return;
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const cls=document.getElementById('cls').value;
+  const inOnly=document.getElementById('instock').checked;
+  const matches=ROWS.filter(r=>
+    (!cls||r.cls===cls) && (!inOnly||r.stock>0) &&
+    (!q || r.name.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)));
+  const LIMIT=150, shown=matches.slice(0,LIMIT);
+  const asOf=SYNCED?new Date(SYNCED).toLocaleString('en-JM',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+  document.getElementById('meta').textContent=matches.length+' product'+(matches.length===1?'':'s')+
+    (matches.length>LIMIT?' — showing the first '+LIMIT+', search to narrow':'')+(asOf?' · stock as of '+asOf:'');
+  const list=document.getElementById('list');
+  if(!shown.length){ list.innerHTML='<div class="empty">No products match.</div>'; return; }
+  list.innerHTML=shown.map(r=>{
+    const out=r.stock<=0;
+    return '<div class="item"><div style="flex:1;min-width:0">'+
+      '<div class="nm">'+esc(r.name||r.id)+'</div>'+
+      '<div class="sub">'+esc(r.id)+(r.cls?' · '+esc(r.cls):'')+'</div></div>'+
+      '<div class="r"><div class="q" style="color:'+(out?'var(--bad)':'var(--good)')+'">'+(out?'Out':r.stock.toLocaleString())+'</div>'+
+      '<div class="ql">'+(out?'of stock':'in stock')+'</div>'+
+      '<div class="p">'+(r.price>0?'J$'+r.price.toLocaleString('en-JM',{minimumFractionDigits:2,maximumFractionDigits:2}):'–')+'</div></div></div>';
+  }).join('');
+}
+</script>
+</body>
+</html>

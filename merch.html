@@ -3066,7 +3066,7 @@ async function loadStock(force){
   if(_stockLoading) return;
   if(_stockRows && !force){ renderStock(); return; }
   _stockLoading=true;
-  const list=document.getElementById('stock-list');
+  const list=document.getElementById('pl-list');
   if(list) list.innerHTML='<div class="spinner"></div>';
   try{
     const rows=[]; let off=0;
@@ -3082,7 +3082,7 @@ async function loadStock(force){
       stock:Math.round(parseFloat(r.on_hand)||0), price:parseFloat(r.default_price)||0
     }));
     _stockSynced=rows.reduce((m,r)=>(r.last_synced_at&&(!m||r.last_synced_at>m))?r.last_synced_at:m,null);
-    const sel=document.getElementById('stock-class');
+    const sel=document.getElementById('pl-class');
     if(sel){
       const cur=sel.value;
       const classes=[...new Set(_stockRows.map(r=>r.cls).filter(Boolean))].sort();
@@ -3097,23 +3097,23 @@ async function loadStock(force){
 }
 
 function openStockModal(){
-  document.getElementById('stock-modal').style.display='flex';
+  document.getElementById('pl-modal').style.display='flex';
   loadStock(false);
 }
-function closeStockModal(){ document.getElementById('stock-modal').style.display='none'; }
+function closeStockModal(){ document.getElementById('pl-modal').style.display='none'; }
 
 function renderStock(){
-  const list=document.getElementById('stock-list');
+  const list=document.getElementById('pl-list');
   if(!list||!_stockRows) return;
-  const q=(document.getElementById('stock-search').value||'').trim().toLowerCase();
-  const cls=document.getElementById('stock-class').value;
-  const inOnly=document.getElementById('stock-instock').checked;
+  const q=(document.getElementById('pl-search').value||'').trim().toLowerCase();
+  const cls=document.getElementById('pl-class').value;
+  const inOnly=document.getElementById('pl-instock').checked;
   const matches=_stockRows.filter(r=>
     (!cls||r.cls===cls) && (!inOnly||r.stock>0) &&
     (!q || r.name.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)));
   const LIMIT=150;
   const shown=matches.slice(0,LIMIT);
-  const meta=document.getElementById('stock-meta');
+  const meta=document.getElementById('pl-meta');
   const asOf=_stockSynced?new Date(_stockSynced).toLocaleString('en-JM',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
   if(meta) meta.textContent=matches.length+' product'+(matches.length===1?'':'s')+(matches.length>LIMIT?' — showing the first '+LIMIT+', search to narrow':'')+(asOf?' · stock as of '+asOf:'');
   if(!shown.length){ list.innerHTML='<div class="empty-feed">No products match.</div>'; return; }
@@ -6442,7 +6442,7 @@ window.addEventListener('offline', updateLiveDot);
 </div>
 
 <!-- STOCK & PRICES — live stock on hand + list price (cost is never loaded). -->
-<div id="stock-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
+<div id="pl-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
   <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
     <div style="font-size:15px;font-weight:800">📦 Stock & Prices</div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -6451,14 +6451,14 @@ window.addEventListener('offline', updateLiveDot);
     </div>
   </div>
   <div style="flex-shrink:0;padding:10px 16px 0">
-    <input type="text" id="stock-search" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="renderStock()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box">
+    <input type="text" id="pl-search" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="renderStock()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box">
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <select id="stock-class" onchange="renderStock()" style="flex:1;min-width:0;padding:8px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:12px;background:var(--card);color:var(--text)"><option value="">All categories</option></select>
-      <label style="font-size:12px;color:var(--navy);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px"><input type="checkbox" id="stock-instock" onchange="renderStock()"> In stock only</label>
+      <select id="pl-class" onchange="renderStock()" style="flex:1;min-width:0;padding:8px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:12px;background:var(--card);color:var(--text)"><option value="">All categories</option></select>
+      <label style="font-size:12px;color:var(--navy);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px"><input type="checkbox" id="pl-instock" onchange="renderStock()"> In stock only</label>
     </div>
-    <div id="stock-meta" style="font-size:10px;color:var(--muted);margin:6px 0 2px"></div>
+    <div id="pl-meta" style="font-size:10px;color:var(--muted);margin:6px 0 2px"></div>
   </div>
-  <div style="flex:1;overflow-y:auto;padding:6px 16px 16px" id="stock-list"><div class="spinner"></div></div>
+  <div style="flex:1;overflow-y:auto;padding:6px 16px 16px" id="pl-list"><div class="spinner"></div></div>
 </div>
 
 <!-- AREA LEAVE — every vacation requested in the viewer's own area (read-only). -->
