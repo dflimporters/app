@@ -220,29 +220,56 @@ async function init(profile){
 // (rep_customer_cache) joined against merchandiser_map to find who covers
 // any of those stores, then reps.name -> id to read leave_requests by id
 // (never by name — see CLAUDE.md gotcha 7 on name-keyed joins).
+async function loadStoreOverlapLeave(){
+  if(!PROFILE || !PROFILE.full_name) return [];
+  const custRows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(PROFILE.full_name)}&select=customer_id`,{headers:H}).then(r=>r.json());
+  const custIds = [...new Set((Array.isArray(custRows)?custRows:[]).map(r=>r.customer_id).filter(Boolean))];
+  if(!custIds.length) return [];
+
+  const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=in.(${custIds.map(id=>encodeURIComponent(id)).join(',')})&select=merchandiser_name`,{headers:H}).then(r=>r.json());
+  const names = [...new Set((Array.isArray(mapRows)?mapRows:[]).map(r=>r.merchandiser_name).filter(Boolean))];
+  if(!names.length) return [];
+
+  const repRows = await fetch(`${SB_URL}/rest/v1/reps?name=in.(${names.map(n=>encodeURIComponent(n)).join(',')})&select=id,name`,{headers:H}).then(r=>r.json());
+  const ids = [...new Set((Array.isArray(repRows)?repRows:[]).map(r=>r.id).filter(Boolean))];
+  if(!ids.length) return [];
+
+  const today = new Date().toISOString().slice(0,10);
+  const rows = await fetch(`${SB_URL}/rest/v1/leave_requests?requester_id=in.(${ids.join(',')})&status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`,{headers:H}).then(r=>r.json());
+  return Array.isArray(rows) ? rows : [];
+}
+
+// Every vacation in the rep's own area, across both leave systems — the
+// area logic lives in the get_area_leave() RPC (needs the signed-in session,
+// hence sb.rpc rather than the anon-key fetches above). Sick leave is not
+// included. Normalised here to the same shape as a leave_requests row so one
+// renderer and one clash check handle both sources.
+async function loadAreaLeave(){
+  const { data, error } = await sb.rpc('get_area_leave');
+  if(error) throw error;
+  return (data||[]).filter(r=>!r.is_me).map(r=>({
+    id: r.source==='leave_requests' ? r.row_id : r.source+':'+r.row_id,
+    requester_id: r.source+':'+r.person_name,
+    requester_name: r.person_name,
+    job_title: r.job_title,
+    area_label: r.area_label,
+    leave_type: 'vacation',
+    from_date: r.from_date, to_date: r.to_date,
+    status: r.status,
+    covering_name: r.covering_name
+  }));
+}
+
 async function loadMerchLeaveForRep(){
-  if(!PROFILE || !PROFILE.full_name) return;
-  try{
-    const custRows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(PROFILE.full_name)}&select=customer_id`,{headers:H}).then(r=>r.json());
-    const custIds = [...new Set((Array.isArray(custRows)?custRows:[]).map(r=>r.customer_id).filter(Boolean))];
-    if(!custIds.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
-
-    const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=in.(${custIds.map(id=>encodeURIComponent(id)).join(',')})&select=merchandiser_name`,{headers:H}).then(r=>r.json());
-    const names = [...new Set((Array.isArray(mapRows)?mapRows:[]).map(r=>r.merchandiser_name).filter(Boolean))];
-    if(!names.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
-
-    const repRows = await fetch(`${SB_URL}/rest/v1/reps?name=in.(${names.map(n=>encodeURIComponent(n)).join(',')})&select=id,name`,{headers:H}).then(r=>r.json());
-    const ids = [...new Set((Array.isArray(repRows)?repRows:[]).map(r=>r.id).filter(Boolean))];
-    if(!ids.length){ MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[]; return; }
-
-    const today = new Date().toISOString().slice(0,10);
-    const rows = await fetch(`${SB_URL}/rest/v1/leave_requests?requester_id=in.(${ids.join(',')})&status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`,{headers:H}).then(r=>r.json());
-    MERCH_LEAVE = Array.isArray(rows) ? rows : [];
-    MERCH_LEAVE_CLASHES = computeMerchLeaveClashes(MERCH_LEAVE, REQUESTS);
-  }catch(e){
-    console.warn('merch leave load failed:', e);
-    MERCH_LEAVE=[]; MERCH_LEAVE_CLASHES=[];
-  }
+  let overlap=[], area=[];
+  try{ overlap = await loadStoreOverlapLeave(); }catch(e){ console.warn('store-overlap leave failed:', e); }
+  try{ area = await loadAreaLeave(); }catch(e){ console.warn('area leave failed:', e); }
+  const seen=new Set();
+  const merged=[];
+  [...area, ...overlap].forEach(r=>{ if(seen.has(String(r.id))) return; seen.add(String(r.id)); merged.push(r); });
+  merged.sort((a,b)=> a.from_date<b.from_date?-1:a.from_date>b.from_date?1:0);
+  MERCH_LEAVE = merged;
+  MERCH_LEAVE_CLASHES = computeMerchLeaveClashes(MERCH_LEAVE, REQUESTS);
 }
 
 function leaveRangesOverlap(aFrom,aTo,bFrom,bTo){ return aFrom<=bTo && bFrom<=aTo; }
@@ -271,7 +298,7 @@ function computeMerchLeaveClashes(merchRows, ownRows){
 
 function renderMerchLeaveSection(){
   if(!MERCH_LEAVE.length) return '';
-  let html = `<div class="secthdr"><h2>Brand Ambassador leave</h2><span class="cnt">${MERCH_LEAVE.length} upcoming</span></div>`;
+  let html = `<div class="secthdr"><h2>Leave in your area</h2><span class="cnt">${MERCH_LEAVE.length} upcoming</span></div>`;
   if(MERCH_LEAVE_CLASHES.length){
     html += `<div class="badbox" style="margin-bottom:10px">⚠️ ${MERCH_LEAVE_CLASHES.length} overlapping leave clash${MERCH_LEAVE_CLASHES.length===1?'':'es'}: ` +
       MERCH_LEAVE_CLASHES.map(c=>`${esc(c.a.requester_name)} &amp; ${esc(c.b.requester_name)} (${esc(c.a.from_date)}–${esc(c.a.to_date)} / ${esc(c.b.from_date)}–${esc(c.b.to_date)})`).join('; ') +
@@ -279,7 +306,7 @@ function renderMerchLeaveSection(){
   }
   html += MERCH_LEAVE.map(r=>`<div class="cust">
       <div class="crow1">
-        <div><div class="cname">${esc(r.requester_name)}</div><div class="cid">${esc(r.job_title||r.requester_role||'')}</div></div>
+        <div><div class="cname">${esc(r.requester_name)}</div><div class="cid">${esc(r.job_title||r.requester_role||'')}${r.area_label?' · '+esc(r.area_label):''}</div></div>
         <div style="font-size:11px;font-weight:700;color:${r.status==='approved'?'var(--good)':'var(--warn)'}">${r.status==='approved'?'✅ Approved':'⏳ Pending'}</div>
       </div>
       <div class="cmeta"><span>${esc(r.from_date)} → ${esc(r.to_date)}</span><span>${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</span></div>
