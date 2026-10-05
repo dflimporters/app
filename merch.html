@@ -1234,6 +1234,22 @@ async function rest(path,opts={}){
   return r.json();
 }
 
+// Stock counts are kept (append-only, nothing purges them) and the app shows the
+// last 4 weeks. One save writes a row per SKU, so a store can easily have 70+ rows
+// per visit — a plain row LIMIT only reaches back a day or two. Filter by DATE
+// instead and page through PostgREST's 1000-row cap.
+const STOCK_LOOKBACK_DAYS=28;
+function stockSince(){ return new Date(Date.now()-STOCK_LOOKBACK_DAYS*86400000).toISOString().slice(0,10)+'T00:00:00Z'; }
+async function restAll(path){
+  const out=[], PAGE=1000;
+  for(let off=0; off<20000; off+=PAGE){
+    const rows=await rest(path+'&limit='+PAGE+'&offset='+off)||[];
+    out.push(...rows);
+    if(rows.length<PAGE) break;
+  }
+  return out;
+}
+
 async function restRpc(fn,params={}){
   const headers=await restHeaders();
   const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{
@@ -4524,13 +4540,13 @@ async function loadEOD(){
   try{
     if(isRelief()){
       // No route of their own — just their own logged activity.
-      recentCounts=await rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&order=counted_at.desc&limit=200`)||[];
+      recentCounts=await restAll(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${stockSince()}&order=counted_at.desc`);
     } else {
       // Scoped by MY stores rather than by who logged it, so a relief-covered
       // stock count at one of my stores shows up here too.
       const myIds=myStores.map(s=>s.id).filter(Boolean);
       if(myIds.length){
-        recentCounts=await rest(`merch_stock_counts?customer_id=in.(${myIds.join(',')})&order=counted_at.desc&limit=200`)||[];
+        recentCounts=await restAll(`merch_stock_counts?customer_id=in.(${myIds.join(',')})&counted_at=gte.${stockSince()}&order=counted_at.desc`);
       }
     }
   }catch(e){ console.warn('stock history fetch:',e); }
@@ -4563,15 +4579,17 @@ async function loadEOD(){
       listEl.appendChild(card);
     });
   }
-  const recentStores=Object.keys(countsByStore).filter(cid=>!todayV.some(v=>v.customer_id===cid)).slice(0,10);
+  const recentStores=Object.keys(countsByStore).filter(cid=>!todayV.some(v=>v.customer_id===cid));
   if(recentStores.length){
     const hdr2=document.createElement('div');
     hdr2.style.cssText='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:14px 0 6px';
-    hdr2.textContent='Recent stock counts';
+    hdr2.textContent='Stock counts · last 4 weeks';
     listEl.appendChild(hdr2);
     recentStores.forEach(cid=>{
       const counts=countsByStore[cid];
       const latestDate=counts[0].counted_at?new Date(counts[0].counted_at).toLocaleDateString('en-JM',{day:'numeric',month:'short'}):'–';
+      const dayKeys=new Set(counts.map(c=>(c.counted_at||'').slice(0,10)));
+      const latestSkus=counts.filter(c=>(c.counted_at||'').slice(0,10)===(counts[0].counted_at||'').slice(0,10)).length;
       const storeName=storeNameFor(cid)||counts[0].store_name||cid;
       const latestByOther=counts[0].merchandiser_name&&cu&&counts[0].merchandiser_name!==cu.full_name;
       const card=document.createElement('div');
@@ -4579,7 +4597,7 @@ async function loadEOD(){
       card.innerHTML=
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+storeName+'</div>'+
-          '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+counts.length+' SKUs · last '+latestDate+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+latestSkus+' SKUs · last '+latestDate+' · '+dayKeys.size+' count'+(dayKeys.size===1?'':'s')+' in 4 wks</div>'+
           (latestByOther?'<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(counts[0].visit_type==='relief'?'🔄 Covered by ':'Counted by ')+counts[0].merchandiser_name+'</div>':'')+
         '</div>'+
         '<button data-cid="'+cid+'" data-name="'+encodeURIComponent(storeName)+'" onclick="viewStockHistory(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--blue-lt);border:1px solid var(--navy);border-radius:6px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer">View</button>';
@@ -4614,8 +4632,8 @@ async function viewStockHistory(custId,custName){
   try{
     // customer_id only, not filtered to my own name — the latest count at a
     // store reflects who counted it last, whoever that was (relief included).
-    const rows=await rest(`merch_stock_counts?customer_id=eq.${custId}&order=counted_at.desc&limit=100`);
-    if(!rows||!rows.length){ alert('No stock counts found for '+custName); return; }
+    const rows=await restAll(`merch_stock_counts?customer_id=eq.${custId}&counted_at=gte.${stockSince()}&order=counted_at.desc`);
+    if(!rows||!rows.length){ alert('No stock counts in the last 4 weeks for '+custName); return; }
     const byDate={};
     rows.forEach(r=>{
       const d=r.counted_at?r.counted_at.slice(0,10):'Unknown';
@@ -4626,7 +4644,7 @@ async function viewStockHistory(custId,custName){
     html+='<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column">';
     html+='<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">';
     html+='<div><div style="font-size:15px;font-weight:800;color:#fff">📋 Stock history</div>';
-    html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+custName+'</div></div>';
+    html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+custName+' · last 4 weeks</div></div>';
     html+='<button onclick="closeStockHistory()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
     html+='<div style="flex:1;overflow-y:auto">';
     _historyOrderCache = {};
@@ -6915,64 +6933,127 @@ function downloadOrderText(storeName, text){
   setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
 }
 
-// Current (in-progress, unsaved) order for whichever store's stock-count
-// modal is open — read live from skuCounts, not a snapshot.
-function currentOrderText(){
-  const items = getFlaggedOrderItems();
-  return items.length ? buildOrderText(stockCustName, items) : '';
+// ── Order builder ─────────────────────────────────────────────────────────────
+// Opens pre-filled from the SKUs flagged in the stock count, then the merchandiser
+// can fix quantities, drop or add items, add a note and share. It is a draft: edits
+// here do NOT change the saved stock count (that's still done on the count sheet).
+let MORD = null;
+function moEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function moNorm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function moCat(c){ return (CAT_LABELS[c]||c||'Other'); }
+
+function moText(){
+  const items = MORD.lines.map(function(l){ return {description:l.desc, item_class:l.cls, qty:l.qty}; });
+  let t = buildOrderText(stockCustName, items);
+  if(MORD.note && MORD.note.trim()) t += '\n\nNote: '+MORD.note.trim();
+  return t;
 }
-function shareCurrentOrderWhatsApp(){
-  const text = currentOrderText();
-  if(!text){ alert('No items flagged for order yet.'); return; }
-  shareTextWhatsApp(text);
-}
-function downloadCurrentOrder(){
-  const text = currentOrderText();
-  if(!text){ alert('No items flagged for order yet.'); return; }
-  downloadOrderText(stockCustName, text);
-}
+function moGuard(){ if(!MORD || !MORD.lines.length){ alert('Add at least one item to the order first.'); return false; } return true; }
+function shareCurrentOrderWhatsApp(){ if(!moGuard()) return; shareTextWhatsApp(moText()); }
+function downloadCurrentOrder(){ if(!moGuard()) return; downloadOrderText(stockCustName, moText()); }
 // navigator.share puts WhatsApp (if installed) alongside every other share
 // target on the device — offered first since it needs no popup/new tab.
 async function shareCurrentOrderNative(){
-  const text = currentOrderText();
-  if(!text){ alert('No items flagged for order yet.'); return; }
-  if(navigator.share){
-    try{ await navigator.share({text:text}); return; }catch(e){ if(e.name==='AbortError') return; }
-  }
+  if(!moGuard()) return;
+  const text = moText();
+  if(navigator.share){ try{ await navigator.share({text:text}); return; }catch(e){ if(e.name==='AbortError') return; } }
   shareTextWhatsApp(text);
 }
 
 function closeOrderSummary(){
   const m = document.getElementById('order-summary-modal');
   if(m) m.remove();
+  MORD = null;
+}
+
+function moInjectCss(){
+  if(document.getElementById('mo-css')) return;
+  const css = '' +
+    '.mo-sec{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#F2F4F8;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}' +
+    '.mo-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--card)}' +
+    '.mo-name{font-size:13px;font-weight:700;line-height:1.3;color:var(--text)}' +
+    '.mo-qty{display:flex;align-items:center;gap:4px;flex-shrink:0}' +
+    '.mo-qty button{width:32px;height:32px;border:1.5px solid var(--border);background:var(--card);border-radius:9px;font-size:18px;font-weight:700;line-height:1;cursor:pointer;color:var(--navy)}' +
+    '.mo-qty input{width:48px;height:32px;text-align:center;border:1.5px solid var(--border);border-radius:9px;font-size:15px;font-weight:800;color:var(--navy);background:var(--card);font-family:inherit}' +
+    '.mo-x{flex-shrink:0;width:30px;height:30px;border:none;background:none;color:var(--red);font-size:20px;line-height:1;cursor:pointer}' +
+    '.mo-add{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--card)}' +
+    '.mo-pill{flex-shrink:0;padding:6px 12px;border-radius:999px;background:var(--navy);color:#fff;font-size:12px;font-weight:800}' +
+    '.mo-empty{padding:30px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}';
+  const st = document.createElement('style'); st.id = 'mo-css'; st.textContent = css; document.head.appendChild(st);
 }
 
 function openOrderSummary(){
   const items = getFlaggedOrderItems();
   if(!items.length){ alert('No items flagged for order yet — enter a suggested reorder qty first.'); return; }
-  const totalQty = items.reduce(function(s,it){ return s+it.qty; }, 0);
-  let html = '<div id="order-summary-modal" style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end">';
-  html += '<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column">';
-  html += '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">';
-  html += '<div><div style="font-size:15px;font-weight:800;color:#fff">📋 Suggested order</div>';
-  html += '<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+stockCustName+' · '+items.length+' SKUs · '+totalQty+' cs</div></div>';
-  html += '<button onclick="closeOrderSummary()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
-  html += '<div style="flex:1;overflow-y:auto">';
-  items.forEach(function(it){
-    html += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">';
-    html += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+it.description+'</div>';
-    html += '<div style="font-size:10px;color:var(--muted)">'+(CAT_LABELS[it.item_class]||it.item_class||'')+'</div></div>';
-    html += '<div style="font-size:14px;font-weight:800;color:var(--amber);flex-shrink:0">'+it.qty+' cs</div>';
-    html += '</div>';
-  });
-  html += '</div>';
-  html += '<div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">';
-  html += '<button onclick="downloadCurrentOrder()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)">⬇ Download</button>';
-  html += '<button onclick="shareCurrentOrderWhatsApp()" style="flex:1;padding:12px;background:#25D366;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">📲 WhatsApp</button>';
-  html += '<button onclick="shareCurrentOrderNative()" style="flex:1;padding:12px;background:var(--navy);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">↗ Share</button>';
-  html += '</div></div></div>';
-  document.body.insertAdjacentHTML('beforeend', html);
+  moInjectCss();
+  const pool = Object.entries(skuCounts).map(function(e){ return {desc:e[0], cls:e[1].item_class||''}; })
+    .sort(function(x,y){ return x.desc.localeCompare(y.desc); });
+  MORD = {lines: items.map(function(it){ return {desc:it.description, cls:it.item_class, qty:it.qty}; }), note:'', pool:pool, results:[]};
+  let h = '<div id="order-summary-modal" style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end">';
+  h += '<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column">';
+  h += '<div style="flex-shrink:0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">';
+  h += '<div><div style="font-size:15px;font-weight:800;color:#fff">🛒 Order builder</div>';
+  h += '<div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+moEsc(stockCustName)+'</div></div>';
+  h += '<button onclick="closeOrderSummary()" aria-label="Close" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  h += '<div style="flex-shrink:0;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border)">';
+  h += '<input id="mo-search" type="text" placeholder="🔍 Add an item…" oninput="moSearch(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">';
+  h += '<div id="mo-results" style="margin-top:4px;max-height:190px;overflow-y:auto"></div></div>';
+  h += '<div style="flex:1;overflow-y:auto" id="mo-lines"></div>';
+  h += '<div style="flex-shrink:0;padding:8px 14px 0;background:var(--card);border-top:1px solid var(--border)">';
+  h += '<textarea id="mo-note" oninput="MORD.note=this.value" placeholder="Note for the rep / office (optional)…" style="width:100%;min-height:42px;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;box-sizing:border-box;background:var(--card);color:var(--text);resize:vertical"></textarea></div>';
+  h += '<div style="flex-shrink:0;padding:8px 14px 12px;background:var(--card)">';
+  h += '<div id="mo-totals" style="font-size:12.5px;font-weight:800;color:var(--navy);margin-bottom:8px"></div>';
+  h += '<div style="display:flex;gap:8px">';
+  h += '<button onclick="downloadCurrentOrder()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)">⬇ Download</button>';
+  h += '<button onclick="shareCurrentOrderWhatsApp()" style="flex:1;padding:12px;background:#25D366;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">📲 WhatsApp</button>';
+  h += '<button onclick="shareCurrentOrderNative()" style="flex:1;padding:12px;background:var(--navy);border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">↗ Share</button>';
+  h += '</div></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+  moRender();
 }
+
+function moRender(){
+  if(!MORD) return;
+  const box = document.getElementById('mo-lines'); if(!box) return;
+  if(!MORD.lines.length){
+    box.innerHTML = '<div class="mo-empty">Nothing in this order.<br>Search above to add items.</div>';
+  } else {
+    // Group by category so a long order is easy to scan; keep each line's own index for the buttons.
+    const groups = {};
+    MORD.lines.forEach(function(l,i){ const k = moCat(l.cls); (groups[k] = groups[k] || []).push({l:l,i:i}); });
+    box.innerHTML = Object.keys(groups).sort().map(function(k){
+      const g = groups[k], cs = g.reduce(function(s,x){ return s+x.l.qty; }, 0);
+      return '<div class="mo-sec"><span>'+moEsc(k)+'</span><span>'+g.length+' SKU'+(g.length===1?'':'s')+' · '+cs+' cs</span></div>' +
+        g.map(function(x){
+          return '<div class="mo-row"><div style="flex:1;min-width:0"><div class="mo-name">'+moEsc(x.l.desc)+'</div></div>' +
+            '<div class="mo-qty"><button onclick="moStep('+x.i+',-1)" aria-label="Less">−</button><input type="number" inputmode="numeric" min="0" step="1" value="'+x.l.qty+'" onchange="moSet('+x.i+',this.value)"><button onclick="moStep('+x.i+',1)" aria-label="More">+</button></div>' +
+            '<button class="mo-x" onclick="moRemove('+x.i+')" aria-label="Remove">×</button></div>';
+        }).join('');
+    }).join('');
+  }
+  const tot = MORD.lines.reduce(function(s,l){ return s+l.qty; }, 0);
+  const t = document.getElementById('mo-totals');
+  if(t) t.textContent = MORD.lines.length+' SKU'+(MORD.lines.length===1?'':'s')+' · '+tot+' cases';
+}
+function moStep(i,d){ const l=MORD.lines[i]; if(!l) return; l.qty=Math.max(0,l.qty+d); if(l.qty===0) MORD.lines.splice(i,1); moRender(); }
+function moSet(i,v){ const l=MORD.lines[i]; if(!l) return; const n=Math.round(Number(v)); if(!(n>0)) MORD.lines.splice(i,1); else l.qty=n; moRender(); }
+function moRemove(i){ MORD.lines.splice(i,1); moRender(); }
+function moSearch(q){
+  const out = document.getElementById('mo-results'); if(!out || !MORD) return;
+  q = (q||'').trim().toLowerCase();
+  if(q.length<2){ MORD.results=[]; out.innerHTML=''; return; }
+  const inOrder = new Set(MORD.lines.map(function(l){ return moNorm(l.desc); }));
+  const words = q.split(/\s+/);
+  MORD.results = MORD.pool.filter(function(p){ return !inOrder.has(moNorm(p.desc)) && words.every(function(w){ return p.desc.toLowerCase().indexOf(w)>-1; }); }).slice(0,8);
+  let h = MORD.results.map(function(p,i){
+    return '<div class="mo-add" onclick="moAddResult('+i+')"><div style="flex:1;min-width:0"><div class="mo-name">'+moEsc(p.desc)+'</div><div style="font-size:10px;color:var(--muted)">'+moEsc(moCat(p.cls))+'</div></div><span class="mo-pill">+ Add</span></div>';
+  }).join('');
+  h += '<div class="mo-add" onclick="moAddCustom()"><div style="flex:1;min-width:0"><div class="mo-name">Add “'+moEsc(q)+'” as a custom item</div></div><span class="mo-pill">+ Add</span></div>';
+  out.innerHTML = h;
+}
+function moAfterAdd(){ const s=document.getElementById('mo-search'); if(s) s.value=''; const o=document.getElementById('mo-results'); if(o) o.innerHTML=''; MORD.results=[]; moRender(); }
+function moAddResult(i){ const p=MORD.results[i]; if(!p) return; MORD.lines.push({desc:p.desc, cls:p.cls, qty:1}); moAfterAdd(); }
+function moAddCustom(){ const s=document.getElementById('mo-search'); const d=((s&&s.value)||'').trim(); if(!d) return; MORD.lines.push({desc:d, cls:'', qty:1}); moAfterAdd(); }
 </script>
 
 
@@ -7001,7 +7082,7 @@ function openOrderSummary(){
     <!-- Suggested order summary — shown once at least one SKU has a reorder qty -->
     <div id="stock-order-bar" onclick="openOrderSummary()" style="display:none;flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:#FFFBEB;cursor:pointer;align-items:center;justify-content:space-between;gap:10px">
       <div style="font-size:12px;font-weight:700;color:var(--amber)" id="stock-order-bar-text">📋 0 SKUs flagged</div>
-      <div style="font-size:11px;font-weight:700;color:var(--navy)">View &amp; share →</div>
+      <div style="font-size:11px;font-weight:700;color:var(--navy)">Review &amp; share →</div>
     </div>
     <!-- Footer actions -->
     <div style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;background:var(--card)">
