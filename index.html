@@ -231,6 +231,16 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .catbar>span.warn{background:linear-gradient(90deg,#d9920a,#f0b13d)}
 .cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600}
 .cmeta b{color:var(--ink)}
+.qorder{margin-top:9px;width:100%;padding:9px;border:1.5px solid var(--ink);background:var(--card);color:var(--ink);border-radius:8px;font-size:12.5px;font-weight:800;cursor:pointer}
+.ordsrc{display:inline-block;font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:4px;margin-right:4px;letter-spacing:.2px}
+.ordsrc.merch{background:#fffbeb;color:#a5760a}.ordsrc.hot{background:#fff5f5;color:var(--bad)}.ordsrc.rep{background:#f0fdf4;color:var(--good)}.ordsrc.key{background:#eef2ff;color:#4338ca}.ordsrc.add{background:#f1f5f9;color:var(--mut)}
+.ordval{font-size:11px;color:var(--mut);margin-top:3px}.ordval b{color:var(--ink)}
+.orddeal{display:inline-block;font-size:10.5px;font-weight:800;color:#17724a;background:#e8f6ee;border-radius:5px;padding:1px 7px;margin-top:4px}
+.orddeal.sug{color:#7a5a07;background:#fdf1cf;border:none;font-family:inherit;cursor:pointer;margin-right:4px}
+.orddeal.nxt{color:#2858b8;background:#eef3fd;cursor:pointer;border:none;font-family:inherit}
+.ordqty{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.ordqty button{width:30px;height:30px;border:1.5px solid var(--line);background:var(--card);border-radius:8px;font-size:17px;font-weight:700;cursor:pointer;line-height:1;color:var(--ink)}
+.ordqty input{width:46px;height:30px;text-align:center;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-weight:800;color:var(--ink);background:var(--card)}
 .risk-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-top:5px}
 .risk-high{background:#fbe9e9;color:var(--bad)}
 .risk-at{background:#fdf1e0;color:#8a5a06}
@@ -387,6 +397,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 <script src="/shared/section-switcher.js"></script>
 <script src="/shared/hub-button.js"></script>
 <script src="/shared/user-menu.js"></script>
+<script src="/shared/deals.js"></script>
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
@@ -633,6 +644,7 @@ const MORE_PAGES = [
   { key:'debrief', title:'Store Debrief', sub:'How did your last store visit go?', icon:'📝', src:'debrief.html', topLevel:true },
   { key:'bad-goods', title:'Report Bad Goods', sub:'Damaged product or bad batch', icon:'📦', src:'bad-goods.html', topLevel:true },
   { key:'stock', title:'Stock & Prices', sub:'What we have on hand & list prices', icon:'🏷️', src:'stock.html', topLevel:true },
+  { key:'deal-sheet', title:'Deal Sheet', sub:'Volume deals at today\'s list prices', icon:'🤝', src:'deal-sheet.html', topLevel:true },
   { key:'planograms', title:'Planograms', sub:'Shelf placement reference, by category', icon:'📐', src:'planograms.html', topLevel:true },
   { key:'leave-request', title:'Going on Leave', sub:'Submit a leave request & coverage plan', icon:'🌴', src:'leave-request.html', topLevel:true },
   { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
@@ -1146,8 +1158,13 @@ function drawList(){
         <span>${x.order_count||0} ord · ${last} ›</span>
       </div>
       ${ytdRiskBadgeHtml(x.customer_id)}
+      <button class="qorder" onclick="event.stopPropagation();quickOrder('${x.customer_id}')">🛒 Suggested order</button>
     </div>`;
   }).join("");
+}
+async function quickOrder(cid){
+  await openCust(cid);
+  if(CURCUST&&CURCUST.cid===cid) openOrderBuilder();
 }
 
 /* ---------- Customer detail (pre-call brief) ---------- */
@@ -1266,6 +1283,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
   const keyLast=cache?(cache.key_item_last||{}):{};
   const keyOpp=(KEYSKUS||[]).map(sku=>{const lp=keyLast[sku.inventory_id]||null;const ds=lp?Math.round((today-new Date(lp))/86400000):null;return{sku,lp,ds,never:!lp};})
     .filter(r=>r.never||r.ds>60).sort((a,b)=>(b.ds||99999)-(a.ds||99999)).slice(0,10);
+  CURCUST.replenish=replenish; CURCUST.keyOpp=keyOpp;
 
   const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
   const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
@@ -1276,6 +1294,10 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
   const mv=merch&&merch.lastVisit, msc=merch&&merch.lastStockCount, mr=merch&&merch.lastReport;
   const mvOutcome=mv&&mv.outcome==='issue'?'⚠ Issue':mv&&mv.outcome==='pending'?'↩ Follow-up':'✓ Good';
   const flaggedSkus=(mr&&Array.isArray(mr.flagged_skus))?mr.flagged_skus:[];
+  const sugLines=buildSuggestedLines();
+  const sugCnt=s=>sugLines.filter(l=>l.src.includes(s)).length;
+  const sugCs=sugLines.reduce((t,l)=>t+l.qty,0);
+  const sugBreak=[['Merch',sugCnt('Merch')],['Hot list',sugCnt('Hot list')],['Replenish',sugCnt('Replenish')],['Key SKU',sugCnt('Key SKU')]].filter(x=>x[1]).map(x=>x[0]+' '+x[1]).join(' · ');
 
   c.innerHTML=`
     <div class="detailhead">
@@ -1285,6 +1307,17 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
       </div>
       <div class="dname">${esc(name)}</div>
       <div class="dtags">${cache&&cache.segment?`<span class="dtag">${esc(cache.segment)}</span>`:""}${cache&&cache.area?`<span class="dtag">${esc(cache.area)}</span>`:""}${overdue?`<span class="dtag od">⚠ Overdue ${Math.abs(daysToNext)}d</span>`:""}</div>
+    </div>
+
+    <div class="dcard" style="border:1.5px solid var(--ink);cursor:pointer" onclick="openOrderBuilder()">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="min-width:0">
+          <div class="dlbl" style="margin-bottom:3px">🛒 Suggested order</div>
+          <div class="lr1">${sugLines.length?sugLines.length+' SKU'+(sugLines.length!==1?'s':'')+' · '+sugCs+' cs suggested':'Start an order for this account'}</div>
+          <div class="lr2">${sugBreak?esc(sugBreak)+' · ':''}edit quantities, add items, then share</div>
+        </div>
+        <button style="flex-shrink:0;padding:10px 14px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">Build order ›</button>
+      </div>
     </div>
 
     <div class="dcard">
@@ -1324,6 +1357,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
         <div><div class="tk">Last visit</div><div class="tv">${mv?fmtDate(mv.visit_date):"None yet"}</div><div class="ts">${mv?mvOutcome+" · "+esc(mv.user_name||""):""}</div></div>
         <div ${msc&&msc.items&&msc.items.length?`onclick="viewCustStockCount()" style="cursor:pointer"`:""}><div class="tk">Last stock count</div><div class="tv" style="${msc&&msc.items&&msc.items.length?'text-decoration:underline':''}">${msc?fmtDate(msc.counted_at):"None yet"}</div><div class="ts">${msc&&msc.items&&msc.items.length?msc.items.length+" SKUs · tap to view":""}</div></div>
       </div>
+      ${(()=>{const so=sugOrderItems(); if(!so.length) return ''; const cs=so.reduce((s,r)=>s+Number(r.suggested_reorder),0); const ds=Math.max(0,Math.round((today-new Date(msc.counted_at))/86400000)); return `<div class="listrow" style="margin-top:8px;cursor:pointer" onclick="openOrderBuilder()"><span class="dot amberdot"></span><div><div class="lr1">📋 Merchandiser flagged ${so.length} SKU${so.length!==1?'s':''} for reorder · ${cs} cs</div><div class="lr2">From the ${fmtDate(msc.counted_at)} stock count (${ds}d ago) · tap to edit &amp; share</div></div></div>`;})()}
       ${flaggedSkus.length?`<div class="listrow" style="margin-top:8px"><span class="dot reddot"></span><div><div class="lr1" style="color:var(--bad)">⚠ ${flaggedSkus.length} SKU${flaggedSkus.length!==1?'s':''} flagged out of stock</div><div class="lr2">${fmtDate(mr.report_date)} · ${flaggedSkus.slice(0,4).map(esc).join(", ")}${flaggedSkus.length>4?"…":""}</div></div></div>`:""}
     </div>
 
@@ -1385,6 +1419,219 @@ function viewCustStockCount(){
   document.body.insertAdjacentHTML('beforeend',html);
 }
 function closeCustStockCount(){ const m=document.getElementById('custStockModal'); if(m)m.remove(); }
+
+// ---------- Order builder ----------
+// Suggested lines come from four places, de-duplicated by description:
+//   Merch     - SKUs the merchandiser flagged for reorder in the latest stock count
+//   Hot list  - gap_closer_reco_cache rows for this account (qty = avg per order)
+//   Replenish - items overdue vs. the account's own purchase rhythm
+//   Key SKU   - key SKUs not bought in 60+ days / never bought
+// Nothing is stored: the rep edits the draft, then shares or downloads it.
+let ORDER=null;
+function orderNorm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function sugOrderItems(){
+  const msc=CURCUST&&CURCUST.merch&&CURCUST.merch.lastStockCount;
+  if(!msc||!msc.items) return [];
+  return msc.items.filter(r=>r.suggested_reorder>0)
+    .sort((a,b)=>(a.item_class||'').localeCompare(b.item_class||'')||(a.description||'').localeCompare(b.description||''));
+}
+function buildSuggestedLines(){
+  const lines=[], idx={};
+  const add=(desc,cls,qty,src,id)=>{
+    if(!desc) return;
+    const k=orderNorm(desc);
+    if(idx[k]){ if(!idx[k].src.includes(src)) idx[k].src.push(src); if(!idx[k].id&&id) idx[k].id=String(id); return; }
+    const l={desc:desc, cls:cls||'', qty:qty, src:[src], id:id?String(id):''};
+    idx[k]=l; lines.push(l);
+  };
+  sugOrderItems().forEach(r=>add(r.description,r.item_class,Number(r.suggested_reorder),'Merch',r.inventory_id));
+  ((CURCUST&&CURCUST.hot)||[]).forEach(h=>add(h.description,h.item_class,Math.max(1,Math.round(Number(h.avg_qty_per_order)||1)),'Hot list',h.inventory_id));
+  ((CURCUST&&CURCUST.replenish)||[]).forEach(e=>add(e[1].description,e[1].item_class,1,'Replenish',e[0]));
+  ((CURCUST&&CURCUST.keyOpp)||[]).forEach(r=>add(r.sku.description,r.sku.posting_class,1,'Key SKU',r.sku.inventory_id));
+  return lines;
+}
+function orderPool(){
+  const pool=[], seen={};
+  const add=(d,c,id)=>{ if(!d) return; const k=orderNorm(d); if(seen[k]) return; seen[k]=1; pool.push({desc:d,cls:c||'',id:id?String(id):''}); };
+  const ih=(CURCUST&&CURCUST.cache&&CURCUST.cache.item_history)||{};
+  Object.keys(ih).forEach(k=>add(ih[k].description,ih[k].item_class,k));
+  ((CURCUST&&CURCUST.hot)||[]).forEach(h=>add(h.description,h.item_class,h.inventory_id));
+  (KEYSKUS||[]).forEach(k=>add(k.description,k.posting_class,k.inventory_id));
+  return pool.sort((a,b)=>a.desc.localeCompare(b.desc));
+}
+
+// ---- Pricing & deals -------------------------------------------------------
+// Base price is today's Acumatica list price (stock_items_raw.default_price);
+// deal tiers come from the current deal sheet (view current_deal_items) and are
+// applied as free cases on top of the cases ordered. avg_cost is never read.
+let DEALS=null, DEALS_LOADING=null;
+const PRICES={};
+function ordLoadDeals(){
+  if(DEALS) return Promise.resolve();
+  if(DEALS_LOADING) return DEALS_LOADING;
+  DEALS_LOADING=fetch(SB_URL+'/rest/v1/current_deal_items?select=inventory_id,tiers,list_price,item_status&limit=1000',{headers:H})
+    .then(r=>r.ok?r.json():[]).catch(()=>[])
+    .then(rows=>{ DEALS={}; rows.forEach(x=>{ DEALS[x.inventory_id]={tiers:DFL_DEALS.tiersOf(x.tiers),active:x.item_status==='Active'}; if(x.list_price!=null) PRICES[x.inventory_id]=parseFloat(x.list_price); }); })
+    .finally(()=>{ DEALS_LOADING=null; });
+  return DEALS_LOADING;
+}
+async function ordLoadPrices(ids){
+  const need=[...new Set((ids||[]).filter(i=>i&&!(i in PRICES)))];
+  for(let i=0;i<need.length;i+=100){
+    const chunk=need.slice(i,i+100);
+    try{
+      const r=await fetch(SB_URL+'/rest/v1/stock_items_raw?inventory_id=in.('+chunk.join(',')+')&select=inventory_id,default_price',{headers:H});
+      if(!r.ok) continue;
+      (await r.json()).forEach(x=>{ const p=parseFloat(x.default_price); if(p>0) PRICES[x.inventory_id]=Math.max(PRICES[x.inventory_id]||0,p); });
+    }catch(e){}
+  }
+}
+async function ordPricing(){
+  const ord=ORDER; if(!ord) return;
+  await ordLoadDeals();
+  await ordLoadPrices(ord.lines.map(l=>l.id));
+  if(ORDER===ord) ordRender();
+}
+const ordPrice=l=>(l.id&&PRICES[l.id]>0)?PRICES[l.id]:null;
+const ordTiers=l=>(l.id&&DEALS&&DEALS[l.id])?DEALS[l.id].tiers:[];
+function ordCalc(l){ return DFL_DEALS.lineValue(ordPrice(l),ordTiers(l),l.qty,l.dealBuy); }
+// Deals are opt-in: the rep taps Apply. Dropping the qty below an applied tier cancels it.
+function ordApplyDeal(i){ const l=ORDER.lines[i]; if(!l) return; const v=ordCalc(l); if(v.avail){ l.dealBuy=v.avail.buy; ordRender(); } }
+function ordClearDeal(i){ const l=ORDER.lines[i]; if(!l) return; l.dealBuy=null; ordRender(); }
+function ordTotalsCalc(){
+  let gross=0,saved=0,free=0,unpriced=0;
+  let avail=0;
+  ORDER.lines.forEach(l=>{ const v=ordCalc(l); free+=v.free; if(v.avail) avail++; if(v.gross==null) unpriced++; else { gross+=v.gross; saved+=v.saved; } });
+  return {gross,saved,free,unpriced,avail};
+}
+function openOrderBuilder(){
+  if(!CURCUST) return;
+  ORDER={lines:buildSuggestedLines(), note:'', pool:orderPool(), results:[]};
+  const store=(CURCUST.cache&&CURCUST.cache.customer_name)||CURCUST.cid;
+  let h='<div style="position:fixed;inset:0;z-index:9996;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end" id="orderBuilder">';
+  h+='<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column">';
+  h+='<div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--ink);border-radius:18px 18px 0 0">';
+  h+='<div><div style="font-size:15px;font-weight:800;color:#fff">🛒 Order builder</div><div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">'+esc(store)+'</div></div>';
+  h+='<button onclick="closeOrderBuilder()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  h+='<div style="flex:1;overflow-y:auto;padding:0 18px 8px">';
+  h+='<div id="ordLines"></div>';
+  h+='<div style="padding:12px 0 4px;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Add an item</div>';
+  h+='<input id="ordSearch" class="search" placeholder="Search this account\'s items or key SKUs…" oninput="ordSearch(this.value)" style="margin-bottom:6px">';
+  h+='<div id="ordResults"></div>';
+  h+='<div style="padding:10px 0 4px;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Note (optional)</div>';
+  h+='<textarea id="ordNote" oninput="ORDER.note=this.value" placeholder="PO #, delivery day, special instructions…" style="width:100%;min-height:54px;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;background:var(--card);color:var(--ink);box-sizing:border-box"></textarea>';
+  h+='</div>';
+  h+='<div style="padding:10px 16px 12px;border-top:1px solid var(--line)">';
+  h+='<div id="ordTotals" style="font-size:12.5px;font-weight:800;color:var(--ink)"></div>';
+  h+='<div id="ordSaved" style="font-size:11px;color:var(--good);font-weight:700;margin-bottom:8px;min-height:6px"></div>';
+  h+='<div style="display:flex;gap:8px">';
+  h+='<button onclick="downloadOrder()" style="flex:1;padding:12px;background:var(--card);border:1.5px solid var(--line);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--mut)">⬇ Download</button>';
+  h+='<button onclick="shareOrderWhatsApp()" style="flex:1;padding:12px;background:#25D366;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">📲 WhatsApp</button>';
+  h+='<button onclick="shareOrderNative()" style="flex:1;padding:12px;background:var(--ink);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">↗ Share</button>';
+  h+='</div></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+  ordRender();
+  ordPricing();
+}
+function closeOrderBuilder(){ const m=document.getElementById('orderBuilder'); if(m)m.remove(); ORDER=null; }
+const ORD_SRC_CLS={'Merch':'merch','Hot list':'hot','Replenish':'rep','Key SKU':'key','Added':'add'};
+function ordRender(){
+  if(!ORDER) return;
+  const box=document.getElementById('ordLines'); if(!box) return;
+  if(!ORDER.lines.length){
+    box.innerHTML='<div class="empty" style="padding:18px 0">No suggestions for this account yet. Add items below.</div>';
+  } else {
+    ORDER.lines.forEach(l=>{ if(l.dealBuy&&l.qty<l.dealBuy) l.dealBuy=null; });
+    box.innerHTML=ORDER.lines.map((l,i)=>{
+      const chips=l.src.map(s=>'<span class="ordsrc '+(ORD_SRC_CLS[s]||'add')+'">'+esc(s)+'</span>').join('');
+      const v=ordCalc(l), D=DFL_DEALS;
+      let val='';
+      if(v.gross!=null){
+        val='<div class="ordval">'+D.money(ordPrice(l))+' × '+l.qty+' = <b>'+D.money(v.gross)+'</b>'+(v.free?' · eff. '+D.money(v.eff)+'/cs':'')+'</div>';
+      } else if(DEALS&&l.id) val='<div class="ordval">List price not available</div>';
+      let deal='';
+      if(v.tier) deal+='<div class="orddeal">🎁 '+D.label(v.tier)+' applied · +'+v.free+' cs free'+(v.saved!=null?' (worth '+D.money(v.saved)+')':'')+' <a href="#" onclick="ordClearDeal('+i+');return false" style="color:#17724a;margin-left:4px">remove</a></div> ';
+      if(v.avail) deal+='<button class="orddeal sug" onclick="ordApplyDeal('+i+')">💡 '+(v.tier?'Upgrade to ':'Qualifies for ')+D.label(v.avail)+' — apply for +'+v.avail.free+' cs free'+(v.availSaved!=null?' ('+D.money(v.availSaved)+')':'')+'</button> ';
+      if(v.next) deal+='<button class="orddeal nxt" onclick="ordSet('+i+','+v.next.buy+')">Order '+v.toNext+' more for '+D.label(v.next)+' (+'+v.next.free+' free) ›</button>';
+      return '<div class="listrow" style="align-items:center"><div style="flex:1;min-width:0"><div class="lr1">'+esc(l.desc)+'</div><div class="lr2" style="margin-top:3px">'+chips+(l.cls?esc(l.cls):'')+'</div>'+val+(deal?'<div>'+deal+'</div>':'')+'</div>'+
+        '<div class="ordqty"><button onclick="ordStep('+i+',-1)">−</button><input type="number" inputmode="numeric" min="0" step="1" value="'+l.qty+'" onchange="ordSet('+i+',this.value)"><button onclick="ordStep('+i+',1)">+</button></div>'+
+        '<button onclick="ordRemove('+i+')" aria-label="Remove" style="flex-shrink:0;width:30px;height:30px;border:none;background:none;color:var(--bad);font-size:20px;cursor:pointer;line-height:1">×</button></div>';
+    }).join('');
+  }
+  const tot=ORDER.lines.reduce((s,l)=>s+l.qty,0);
+  const t=document.getElementById('ordTotals');
+  if(t){
+    const T=ordTotalsCalc(), D=DFL_DEALS;
+    let s=ORDER.lines.length+' SKU'+(ORDER.lines.length!==1?'s':'')+' · '+tot+' cs'+(T.free?' (+'+T.free+' free)':'');
+    if(T.gross>0) s+=' · '+D.money(T.gross)+(T.unpriced?'+':'');
+    t.textContent=s;
+    const sv=document.getElementById('ordSaved');
+    if(sv){
+      const bits=[];
+      if(T.saved>0) bits.push('Deals applied: '+D.money(T.saved)+' of free product');
+      if(T.avail) bits.push('💡 '+T.avail+' deal'+(T.avail>1?'s':'')+' available to apply');
+      if(T.unpriced) bits.push(T.unpriced+' item'+(T.unpriced>1?'s':'')+' not priced');
+      sv.textContent=bits.join(' · ');
+    }
+  }
+}
+function ordStep(i,d){ const l=ORDER.lines[i]; if(!l) return; l.qty=Math.max(0,l.qty+d); if(l.qty===0) ORDER.lines.splice(i,1); ordRender(); }
+function ordSet(i,v){ const l=ORDER.lines[i]; if(!l) return; const n=Math.round(Number(v)); if(!(n>0)) ORDER.lines.splice(i,1); else l.qty=n; ordRender(); }
+function ordRemove(i){ ORDER.lines.splice(i,1); ordRender(); }
+function ordSearch(q){
+  const out=document.getElementById('ordResults'); if(!out||!ORDER) return;
+  q=(q||'').trim().toLowerCase();
+  if(q.length<2){ ORDER.results=[]; out.innerHTML=''; return; }
+  const inOrder=new Set(ORDER.lines.map(l=>orderNorm(l.desc)));
+  const words=q.split(/\s+/);
+  ORDER.results=ORDER.pool.filter(p=>!inOrder.has(orderNorm(p.desc))&&words.every(w=>p.desc.toLowerCase().includes(w))).slice(0,8);
+  let h=ORDER.results.map((p,i)=>'<div class="listrow" style="align-items:center;cursor:pointer" onclick="ordAddResult('+i+')"><div style="flex:1;min-width:0"><div class="lr1">'+esc(p.desc)+'</div><div class="lr2">'+esc(p.cls)+'</div></div><div style="font-size:12px;font-weight:800;color:var(--ink)">+ Add</div></div>').join('');
+  h+='<div class="listrow" style="align-items:center;cursor:pointer" onclick="ordAddCustom()"><div style="flex:1;min-width:0"><div class="lr1">Add “'+esc(q)+'” as a custom item</div></div><div style="font-size:12px;font-weight:800;color:var(--ink)">+ Add</div></div>';
+  out.innerHTML=h;
+}
+function ordAfterAdd(){ const s=document.getElementById('ordSearch'); if(s) s.value=''; const o=document.getElementById('ordResults'); if(o) o.innerHTML=''; ORDER.results=[]; ordRender(); }
+function ordAddResult(i){ const p=ORDER.results[i]; if(!p) return; ORDER.lines.push({desc:p.desc,cls:p.cls,qty:1,src:['Added'],id:p.id||''}); ordAfterAdd(); ordPricing(); }
+function ordAddCustom(){
+  const s=document.getElementById('ordSearch'); const d=((s&&s.value)||'').trim(); if(!d) return;
+  ORDER.lines.push({desc:d,cls:'',qty:1,src:['Added'],id:''}); ordAfterAdd();
+}
+function ordText(){
+  const store=(CURCUST.cache&&CURCUST.cache.customer_name)||CURCUST.cid;
+  const who=(typeof VIEWAS!=='undefined'&&VIEWAS)||REP;
+  const total=ORDER.lines.reduce((s,l)=>s+l.qty,0);
+  const T=ordTotalsCalc(), D=DFL_DEALS;
+  const today=new Date().toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'});
+  const lineTxt=l=>{
+    const v=ordCalc(l);
+    let s='• '+l.desc+' — '+l.qty+' cs';
+    if(v.gross!=null) s+=' @ '+D.money(ordPrice(l))+' = '+D.money(v.gross);
+    if(v.tier) s+='\n   🎁 '+D.label(v.tier)+' deal: +'+v.free+' cs free';
+    return s;
+  };
+  return '🛒 Order — '+store+'\n'+(who&&who.name?'Rep: '+who.name+' · ':'')+today+'\n\n'+
+    ORDER.lines.map(lineTxt).join('\n')+
+    '\n\nTotal: '+ORDER.lines.length+' SKU'+(ORDER.lines.length===1?'':'s')+', '+total+' cases'+(T.free?' + '+T.free+' free':'')+
+    (T.gross>0?'\nValue at list price: '+D.money(T.gross)+(T.unpriced?' (+ '+T.unpriced+' unpriced item'+(T.unpriced>1?'s':'')+')':''):'')+
+    (T.saved>0?'\nFree product from deals: '+D.money(T.saved):'')+
+    (ORDER.note&&ORDER.note.trim()?'\n\nNote: '+ORDER.note.trim():'');
+}
+function ordGuard(){ if(!ORDER||!ORDER.lines.length){ alert('Add at least one item to the order first.'); return false; } return true; }
+function shareOrderWhatsApp(){ if(!ordGuard()) return; window.open('https://wa.me/?text='+encodeURIComponent(ordText()),'_blank'); }
+async function shareOrderNative(){
+  if(!ordGuard()) return;
+  const text=ordText();
+  if(navigator.share){ try{ await navigator.share({text}); return; }catch(e){ if(e.name==='AbortError') return; } }
+  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+}
+function downloadOrder(){
+  if(!ordGuard()) return;
+  const store=(CURCUST.cache&&CURCUST.cache.customer_name)||CURCUST.cid;
+  const url=URL.createObjectURL(new Blob([ordText()],{type:'text/plain'}));
+  const a=document.createElement('a');
+  a.href=url; a.download='order-'+store.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-'+new Date().toISOString().slice(0,10)+'.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
 
 function monthElapsed(){const n=new Date();const d=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();return n.getDate()/d*100;}
 function yearElapsed(){const n=new Date();const s=new Date(n.getFullYear(),0,1);const e=new Date(n.getFullYear()+1,0,1);return (n-s)/(e-s)*100;}
