@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · Deal Sheet</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body { visibility: hidden; }</style>
+<!--
+  Deal Sheet — volume deals ("buy 10, get 1 free") priced off TODAY's Acumatica
+  list price. The uploaded sheet supplies the deal structure per SKU; the base
+  price is always stock_items_raw.default_price, so a list-price change flows
+  through without re-uploading. The sheet's own printed price is kept only to
+  show drift (managers see it).
+
+  Data:  view current_deal_items (current sheet + live list price), written only
+         via rpc save_deal_sheet() which re-checks can_manage_deals()
+         (admin, manager, rep_management).
+  Upload: a PDF in the same layout as the 2025 sheet (ItemID · description ·
+         List Price · Deal 1-4), parsed in the browser with pdf.js, or a CSV.
+  avg_cost is never selected.
+-->
+<style>
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --navy2:#16264d;
+  --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --bad:#d64545; --warn:#a5760a; --card:#fff; --tint:#eef3fd;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:720px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:40px;-webkit-font-smoothing:antialiased}
+h1,.mont{font-family:'Montserrat',sans-serif}
+.hdr{background:var(--navy);color:#fff;padding:18px 16px;display:flex;align-items:center;gap:12px}
+.hdr a{color:rgba(255,255,255,.7);text-decoration:none;font-size:20px;line-height:1}
+.hdr h1{font-size:16px;font-weight:800;margin:0;flex:1}
+.hdr button{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer}
+.wrap{max-width:var(--content-max);margin:0 auto;padding:16px}
+.hidden{display:none!important}
+.note{font-size:12px;color:var(--mut);line-height:1.45;margin:0 2px 12px}
+.note b{color:var(--ink)}
+.filters input[type=text]{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff}
+.frow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.frow select{flex:1;min-width:0;padding:9px;border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-family:inherit;background:#fff}
+.frow label{font-size:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.meta{font-size:11px;color:var(--mut);margin:10px 2px 8px}
+.item{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:12px 13px;margin-bottom:10px}
+.item.off{opacity:.55}
+.item .top{display:flex;gap:10px;align-items:flex-start}
+.item .nm{font-weight:700;font-size:13px;line-height:1.25}
+.item .sub{font-size:10px;color:var(--mut);margin-top:2px}
+.item .lp{text-align:right;flex-shrink:0}
+.item .lp b{font-size:15px;font-weight:800;display:block}
+.item .lp span{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.tag{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;padding:1px 6px;border-radius:5px;background:#eceff5;color:var(--mut);margin-left:6px;vertical-align:1px}
+.tiers{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.tier{background:var(--tint);border-radius:9px;padding:7px 4px;text-align:center}
+.tier.na{background:#f5f6f9;color:#b3bacb}
+.tier .d{font-size:13px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--blue)}
+.tier.na .d{color:#b3bacb}
+.tier .e{font-size:11px;font-weight:700;margin-top:2px}
+.tier .s{font-size:9px;color:var(--mut);margin-top:1px}
+.drift{font-size:10px;color:var(--warn);margin-top:8px}
+.empty{text-align:center;padding:40px 20px;color:var(--mut);font-size:13px}
+
+.panel{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px;margin-bottom:14px}
+.panel h2{font-size:13px;margin:0 0 4px;font-family:'Montserrat',sans-serif}
+.panel p{font-size:12px;color:var(--mut);margin:0 0 10px;line-height:1.45}
+.btn{padding:11px 14px;border-radius:9px;border:none;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn.pri{background:var(--navy);color:#fff}
+.btn.sec{background:#fff;border:1.5px solid var(--line);color:var(--mut)}
+.btn[disabled]{opacity:.5;cursor:default}
+.panel input[type=text]{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;margin:6px 0 10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.stat{background:var(--tint);border-radius:9px;padding:8px;text-align:center}
+.stat b{display:block;font-size:17px;font-weight:800;font-family:'Montserrat',sans-serif}
+.stat span{font-size:10px;color:var(--mut)}
+.stat.bad b{color:var(--bad)}
+.msg{font-size:12px;line-height:1.45;border-radius:9px;padding:9px 11px;margin:8px 0}
+.msg.warn{background:#fdf6e4;color:#7a5a07}
+.msg.err{background:#fdecec;color:#9b2c2c}
+.msg.ok{background:#e8f6ee;color:#17724a}
+.prev{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:9px;font-size:11px}
+.prev table{width:100%;border-collapse:collapse}
+.prev th,.prev td{padding:5px 7px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.prev th{position:sticky;top:0;background:#f4f6fb;font-size:10px;text-transform:uppercase;color:var(--mut)}
+.prev td.n{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.prev tr.un td{color:var(--bad)}
+@media (max-width:420px){.tier .e{font-size:10px}.tier .d{font-size:12px}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a href="/index.html" title="Back">‹</a>
+  <h1 class="mont">🤝 Deal Sheet</h1>
+  <button type="button" id="upBtn" class="hidden" onclick="toggleUpload()">⬆ Upload</button>
+</div>
+
+<div class="wrap">
+  <div id="upload" class="panel hidden">
+    <h2>Upload a new deal sheet</h2>
+    <p>PDF in the same layout as the 2025 sheet (ItemID · description · list price · Deal 1–4), or a CSV with columns <b>ItemID, List Price, Deal 1, Deal 2, Deal 3, Deal 4</b>. The deal structure is taken from the sheet; <b>prices are re-based to today's Acumatica list price</b>. Saving replaces the current sheet.</p>
+    <input type="file" id="file" accept=".pdf,.csv,application/pdf,text/csv" onchange="onFile(this.files[0])">
+    <div id="upBody"></div>
+  </div>
+
+  <div class="note" id="sheetNote"></div>
+  <div class="filters">
+    <input type="text" id="q" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="render()">
+    <div class="frow">
+      <select id="cat" onchange="render()"><option value="">All categories</option></select>
+      <label><input type="checkbox" id="hideOff" checked onchange="render()"> Active only</label>
+    </div>
+  </div>
+  <div class="meta" id="meta"></div>
+  <div id="list"><div class="empty">Loading…</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/deals.js"></script>
+<script>
+const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+const D=window.DFL_DEALS;
+const CAN_UPLOAD_ROLES=['admin','manager','rep_management'];
+
+let ROWS=null, CAN_UPLOAD=false, PARSED=null;
+
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+document.addEventListener('dfl-auth-ready', e => init(e.detail.profile));
+if(window.self!==window.top) document.addEventListener('DOMContentLoaded', () => init(null));
+
+let started=false;
+function init(profile){
+  if(started) return; started=true;
+  CAN_UPLOAD=!!(profile&&CAN_UPLOAD_ROLES.includes(profile.role));
+  if(CAN_UPLOAD) document.getElementById('upBtn').classList.remove('hidden');
+  load();
+}
+
+async function load(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/current_deal_items?select=inventory_id,category,sheet_price,original_price,tiers,description,item_class,item_status,list_price,sheet_name,uploaded_at&order=category.asc,description.asc&limit=1000`,{headers:H});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    ROWS=(await r.json()).map(x=>({
+      id:x.inventory_id, cat:x.category||'', name:(x.description||'').trim(), tiers:D.tiersOf(x.tiers),
+      list:x.list_price==null?null:parseFloat(x.list_price), orig:x.original_price==null?null:parseFloat(x.original_price),
+      active:(x.item_status||'')==='Active', sheet_name:x.sheet_name, at:x.uploaded_at
+    }));
+    const cats=[...new Set(ROWS.map(r=>r.cat).filter(Boolean))].sort();
+    document.getElementById('cat').innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    const first=ROWS[0];
+    document.getElementById('sheetNote').innerHTML=first
+      ? '<b>'+esc(first.sheet_name)+'</b> · uploaded '+new Date(first.at).toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'})+
+        '. Prices are <b>today\'s list price</b>; each deal shows the effective price per case once the free cases are counted. Deals don\'t stack — an order earns the highest tier it reaches.'
+      : 'No deal sheet has been uploaded yet.';
+    render();
+  }catch(e){
+    console.warn('deal sheet load failed:',e);
+    document.getElementById('list').innerHTML='<div class="empty">Could not load the deal sheet — check your connection and refresh.</div>';
+  }
+}
+
+function render(){
+  if(!ROWS) return;
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const cat=document.getElementById('cat').value;
+  const hideOff=document.getElementById('hideOff').checked;
+  const m=ROWS.filter(r=>(!cat||r.cat===cat)&&(!hideOff||r.active)&&(!q||r.name.toLowerCase().includes(q)||r.id.includes(q)));
+  const LIMIT=120, shown=m.slice(0,LIMIT);
+  document.getElementById('meta').textContent=m.length+' product'+(m.length===1?'':'s')+(m.length>LIMIT?' — showing the first '+LIMIT+', search to narrow':'');
+  const list=document.getElementById('list');
+  if(!shown.length){ list.innerHTML='<div class="empty">'+(ROWS.length?'No products match.':'Nothing to show yet.')+'</div>'; return; }
+  list.innerHTML=shown.map(r=>{
+    const slots=[0,1,2,3].map(i=>r.tiers[i]);
+    // Sheets whose first deal is N/A start at the second column; keep columns aligned
+    // to the sheet by right-aligning the tiers we have.
+    const pad=4-r.tiers.length;
+    const cells=[...Array(pad).fill(null),...r.tiers].map(t=>{
+      if(!t) return '<div class="tier na"><div class="d">N/A</div></div>';
+      const e=r.list==null?null:D.effPrice(r.list,t);
+      return '<div class="tier"><div class="d">'+D.label(t)+'</div><div class="e">'+(e==null?'—':D.money(e))+'</div><div class="s">'+Math.round(t.free/(t.buy+t.free)*100)+'% off</div></div>';
+    }).join('');
+    const drift=(CAN_UPLOAD&&r.orig!=null&&r.list!=null&&Math.abs(r.list-r.orig)>=1)
+      ? '<div class="drift">Original sheet price '+D.money(r.orig)+' → current list '+D.money(r.list)+' ('+(r.list>=r.orig?'+':'')+((r.list/r.orig-1)*100).toFixed(1)+'%)</div>':'';
+    return '<div class="item'+(r.active?'':' off')+'"><div class="top"><div style="flex:1;min-width:0">'+
+      '<div class="nm">'+esc(r.name||r.id)+(r.active?'':'<span class="tag">Inactive</span>')+'</div>'+
+      '<div class="sub">'+esc(r.id)+(r.cat?' · '+esc(r.cat):'')+'</div></div>'+
+      '<div class="lp"><b>'+D.money(r.list)+'</b><span>list / case</span></div></div>'+
+      '<div class="tiers">'+cells+'</div>'+drift+'</div>';
+  }).join('');
+}
+
+// ---------------------------------------------------------------- upload
+
+function toggleUpload(){ document.getElementById('upload').classList.toggle('hidden'); }
+
+const TOK='N\\/A|\\d+\\+\\d+';
+const LINE_RX=new RegExp('^(\\d{8})\\s*(.*?)\\s*\\$\\s*([\\d\\s,.]+?)((?:\\s+(?:'+TOK+'))+)\\s*$');
+function tiersFromTokens(toks){
+  return toks.filter(t=>t!=='N/A').map(t=>{ const [b,f]=t.split('+').map(Number); return {buy:b,free:f}; })
+    .filter(t=>t.buy>0&&t.free>0);
+}
+// Turns reconstructed text lines into [{id,cat,price,tiers}]. Category headings
+// are the all-caps lines between rows.
+function parseLines(lines){
+  const out=[], seen=new Set(); let cat='';
+  for(const raw of lines){
+    const l=raw.replace(/\s+/g,' ').trim(); if(!l) continue;
+    const m=LINE_RX.exec(l);
+    if(m){
+      if(seen.has(m[1])) continue; seen.add(m[1]);
+      out.push({id:m[1],cat:cat,price:parseFloat(m[3].replace(/[^\d.]/g,''))||null,tiers:tiersFromTokens(m[4].trim().split(/\s+/))});
+    } else if(/^[A-Z][A-Z &\/-]{2,}$/.test(l) && !/^ITEMID/.test(l)) cat=l;
+  }
+  return out;
+}
+
+function parseCSV(text){
+  const rows=[]; let cur=[], f='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ cur.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; cur.push(f); f=''; if(cur.some(x=>x.trim())) rows.push(cur); cur=[]; }
+    else f+=c;
+  }
+  cur.push(f); if(cur.some(x=>x.trim())) rows.push(cur);
+  if(!rows.length) return [];
+  const head=rows[0].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const ix=n=>head.findIndex(h=>h===n);
+  const iId=ix('itemid'), iP=head.findIndex(h=>h.includes('price')), iCat=ix('category');
+  const dIx=[1,2,3,4].map(n=>head.findIndex(h=>h==='deal'+n));
+  if(iId<0||dIx.every(i=>i<0)) return [];
+  const out=[], seen=new Set();
+  rows.slice(1).forEach(r=>{
+    const id=(r[iId]||'').trim(); if(!/^\d{8}$/.test(id)||seen.has(id)) return; seen.add(id);
+    const toks=dIx.map(i=>i<0?'N/A':((r[i]||'').trim()||'N/A'));
+    out.push({id,cat:iCat>=0?(r[iCat]||'').trim().toUpperCase():'',price:iP>=0?(parseFloat((r[iP]||'').replace(/[^\d.]/g,''))||null):null,
+      tiers:tiersFromTokens(toks.map(t=>/^\d+\+\d+$/.test(t)?t:'N/A'))});
+  });
+  return out;
+}
+
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('Could not load '+src)); document.head.appendChild(s); }); }
+async function pdfLines(file){
+  if(!window.pdfjsLib){
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const tc=await (await pdf.getPage(p)).getTextContent();
+    const rows=[];   // [{y, items:[{x,s}]}]
+    tc.items.forEach(it=>{
+      if(!it.str||!it.str.trim()) return;
+      const y=it.transform[5], x=it.transform[4];
+      let row=rows.find(r=>Math.abs(r.y-y)<2.5);
+      if(!row){ row={y,items:[]}; rows.push(row); }
+      row.items.push({x,s:it.str});
+    });
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.items.sort((a,b)=>a.x-b.x).map(i=>i.s).join(' ')));
+  }
+  return lines;
+}
+
+function setBody(h){ document.getElementById('upBody').innerHTML=h; }
+
+async function onFile(file){
+  PARSED=null;
+  if(!file) return setBody('');
+  setBody('<div class="msg warn">Reading '+esc(file.name)+'…</div>');
+  try{
+    const isCsv=/\.csv$/i.test(file.name)||file.type==='text/csv';
+    const items=isCsv?parseCSV(await file.text()):parseLines(await pdfLines(file));
+    if(items.length<5) return setBody('<div class="msg err">Found only '+items.length+' deal line(s) — this doesn\'t look like a deal sheet in the expected layout. Nothing was changed.</div>');
+    // Match to Acumatica by ItemID and re-base to the live list price.
+    const ids=items.map(i=>i.id), info={};
+    for(let i=0;i<ids.length;i+=100){
+      const r=await fetch(`${SB_URL}/rest/v1/stock_items_raw?inventory_id=in.(${ids.slice(i,i+100).join(',')})&select=inventory_id,description,item_status,default_price`,{headers:H});
+      if(!r.ok) throw new Error('Acumatica lookup failed (HTTP '+r.status+')');
+      (await r.json()).forEach(x=>{ info[x.inventory_id]=x; });
+    }
+    items.forEach(i=>{ const a=info[i.id]; i.acu=a||null; i.list=a?parseFloat(a.default_price):null; });
+    PARSED={file:file.name,items};
+    renderPreview();
+  }catch(e){
+    console.warn(e); setBody('<div class="msg err">Could not read that file: '+esc(e.message||e)+'</div>');
+  }
+}
+
+function renderPreview(){
+  const it=PARSED.items, ok=it.filter(i=>i.acu), un=it.filter(i=>!i.acu);
+  const inactive=ok.filter(i=>i.acu.item_status!=='Active').length;
+  const noDeal=ok.filter(i=>!i.tiers.length).length;
+  const moved=ok.filter(i=>i.price&&i.list&&Math.abs(i.list-i.price)>=1);
+  const avg=moved.length?moved.reduce((s,i)=>s+(i.list/i.price-1),0)/moved.length*100:0;
+  const cur=ROWS&&ROWS[0]?ROWS[0].sheet_name:'';
+  let h='<div class="stats"><div class="stat"><b>'+it.length+'</b><span>deal lines read</span></div>'+
+    '<div class="stat"><b>'+ok.length+'</b><span>matched in Acumatica</span></div>'+
+    '<div class="stat'+(un.length?' bad':'')+'"><b>'+un.length+'</b><span>not found</span></div></div>';
+  h+='<div class="msg ok">Prices will be re-based to today\'s list price. '+moved.length+' SKU'+(moved.length===1?'':'s')+' differ from the sheet'+(moved.length?' (avg '+(avg>=0?'+':'')+avg.toFixed(1)+'%)':'')+'.</div>';
+  if(inactive) h+='<div class="msg warn">'+inactive+' matched SKU'+(inactive===1?' is':'s are')+' inactive in Acumatica — they\'ll be kept but hidden from reps by default.</div>';
+  if(noDeal) h+='<div class="msg warn">'+noDeal+' SKU'+(noDeal===1?' has':'s have')+' no deal tiers (all N/A) and will be skipped.</div>';
+  if(un.length) h+='<div class="msg warn">'+un.length+' ItemID'+(un.length===1?'':'s')+' not found in Acumatica will be skipped: '+esc(un.slice(0,12).map(i=>i.id).join(', '))+(un.length>12?'…':'')+'</div>';
+  h+='<div class="prev"><table><tr><th>ItemID</th><th>Item</th><th>Sheet</th><th>List now</th><th>Deals</th></tr>'+
+    it.slice(0,150).map(i=>'<tr class="'+(i.acu?'':'un')+'"><td>'+esc(i.id)+'</td><td class="n">'+esc(i.acu?i.acu.description:'not in Acumatica')+'</td><td>'+(i.price?D.money(i.price):'—')+'</td><td>'+(i.list?D.money(i.list):'—')+'</td><td>'+(i.tiers.map(D.label).join(' · ')||'N/A')+'</td></tr>').join('')+
+    '</table></div>'+(it.length>150?'<div class="meta">Showing the first 150 of '+it.length+'.</div>':'');
+  h+='<label style="font-size:12px;font-weight:700;display:block;margin-top:12px">Name this sheet</label><input type="text" id="sheetName" value="'+esc(PARSED.file.replace(/\.(pdf|csv)$/i,'').replace(/\s*\(\d+\)$/,''))+'">';
+  h+='<div style="display:flex;gap:8px"><button class="btn pri" id="saveBtn" style="flex:1" onclick="saveSheet()">Save as current deal sheet</button><button class="btn sec" onclick="cancelUpload()">Cancel</button></div>';
+  if(cur) h+='<div class="meta">This replaces “'+esc(cur)+'”.</div>';
+  setBody(h);
+}
+
+function cancelUpload(){ PARSED=null; document.getElementById('file').value=''; setBody(''); }
+
+async function saveSheet(){
+  if(!PARSED) return;
+  const btn=document.getElementById('saveBtn');
+  const payload=PARSED.items.filter(i=>i.acu&&i.tiers.length).map(i=>({inventory_id:i.id,category:i.cat||null,sheet_price:i.price,tiers:i.tiers}));
+  if(!payload.length){ setBody('<div class="msg err">Nothing to save — no matched SKUs with deals.</div>'); return; }
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    const { error }=await sb.rpc('save_deal_sheet',{p_name:document.getElementById('sheetName').value,p_source_file:PARSED.file,p_items:payload});
+    if(error) throw error;
+    PARSED=null; document.getElementById('file').value='';
+    setBody('<div class="msg ok">Saved — '+payload.length+' SKUs are now live in the rep app.</div>');
+    await load();
+  }catch(e){
+    console.warn(e);
+    btn.disabled=false; btn.textContent='Save as current deal sheet';
+    const denied=e&&(e.code==='42501'||/not allowed/i.test(e.message||''));
+    setBody(document.getElementById('upBody').innerHTML+'<div class="msg err">'+(denied?'Your role isn\'t allowed to upload deal sheets.':'Could not save: '+esc(e.message||e))+'</div>');
+  }
+}
+</script>
+</body>
+</html>

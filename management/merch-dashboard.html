@@ -1184,7 +1184,8 @@ document.querySelectorAll('.month-tab').forEach(tab=>{
 function storeIdsForMerchList(names){
   const set = new Set(names);
   // All assignments, deduped — a store shared across two names still counts once.
-  return [...new Set(mapAssignments.filter(a => set.has(a.merchandiser_name)).map(a => a.customer_id))];
+  // Route-only stores (commission_share 0) earn no one an incentive, TLs included.
+  return [...new Set(mapAssignments.filter(a => set.has(a.merchandiser_name) && a.commission_share > 0).map(a => a.customer_id))];
 }
 
 function calcIncentiveByStores(storeIds, storeData){

@@ -2247,7 +2247,7 @@ async function loadTLIncentive(u, period){
   try{
     const [repsRows, mapRows] = await Promise.all([
       rest(`reps?select=id,name,role,area,active,team_lead_id,acting_tl_shares_credit&active=eq.true`),
-      rest(`merchandiser_map?select=customer_id,merchandiser_name`)
+      rest(`merchandiser_map?select=customer_id,merchandiser_name,commission_share`)
     ]);
     const byId={}; (repsRows||[]).forEach(function(r){ byId[r.id]=r; });
     const merchByLeaderId={}, dualsByLeaderId={};
@@ -2278,7 +2278,8 @@ async function loadTLIncentive(u, period){
     names = names.filter(function(n){ return !tlNameSet.has(n); });
 
     const nameSet=new Set(names);
-    const storeIds=(mapRows||[]).filter(function(r){ return nameSet.has(r.merchandiser_name); }).map(function(r){ return r.customer_id; });
+    // Route-only stores (commission_share 0) earn no one an incentive, TLs included.
+    const storeIds=(mapRows||[]).filter(function(r){ return nameSet.has(r.merchandiser_name) && (r.commission_share==null || parseFloat(r.commission_share)>0); }).map(function(r){ return r.customer_id; });
     if(!storeIds.length){ card.style.display='none'; return; }
 
     const [targets, actuals] = await Promise.all([
