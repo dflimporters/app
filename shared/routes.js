@@ -86,6 +86,8 @@ const DFL_PAGE_ROLES = {
   // Deal sheet: everyone who sells can read it; uploading is limited to the
   // can_manage_deals() roles (admin, manager, rep_management) — the page shows
   // the upload panel only to those, and save_deal_sheet() re-checks server-side.
+  // Catalogue: open to every role that can sign in (the PDF itself is a public file).
+  '/catalogue.html':       ['rep', 'rep_management', 'admin', 'manager', 'merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser', 'warehouse', 'management'],
   '/deal-sheet.html':      ['rep', 'rep_management', 'admin', 'manager'],
   '/planograms.html':      ['merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser', 'rep', 'rep_management', 'manager', 'admin'],
   '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser', 'rep_management'],
