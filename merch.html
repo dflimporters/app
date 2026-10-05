@@ -561,6 +561,16 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- CATALOGUE -->
+      <div onclick="window.location.href='/catalogue.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">📖</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">Catalogue</div>
+          <div style="font-size:10px;color:var(--muted)">Browse the full DFL product catalogue</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+
       <!-- PLANOGRAMS -->
       <div onclick="window.location.href='/planograms.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📐</div>
@@ -1047,6 +1057,12 @@ body.dfl-readonly .readonly-note{display:block}
     <button class="dash-link" onclick="openStockModal()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">📦</div>
       <div><div class="dash-link-title">Stock & Prices</div><div class="dash-link-sub">What's in stock and the list price of every product</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
+    <button class="dash-link" onclick="window.location.href='/catalogue.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">📖</div>
+      <div><div class="dash-link-title">Catalogue</div><div class="dash-link-sub">Browse the full DFL product catalogue</div></div>
       <div class="dash-link-arr">›</div>
     </button>
 

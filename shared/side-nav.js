@@ -99,7 +99,8 @@
         { label: 'Specials & Flyers', href: '/specials.html',        icon: '🎯' },
         { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' },
         { label: 'Price Requests',    href: '/price-requests.html',  icon: '💲' },
-        { label: 'Deal Sheet',        href: '/deal-sheet.html',      icon: '🏷️' }
+        { label: 'Deal Sheet',        href: '/deal-sheet.html',      icon: '🏷️' },
+        { label: 'Catalogue',         href: '/catalogue.html',       icon: '📖' }
       ]
     },
     {

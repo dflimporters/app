@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · Catalogue</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>body { visibility: hidden; }</style>
+<!--
+  Product catalogue — every signed-in role can open it (see DFL_PAGE_ROLES).
+  The PDF lives at /catalogue/DFL-Catalogue-2025-11.pdf. To publish a new
+  edition: drop the new PDF in /catalogue/ and change CATALOGUE_FILE/TITLE below.
+  Pages are drawn with pdf.js (lazily, as you scroll) because phone browsers only
+  show the first page of a PDF inside an iframe.
+-->
+<style>
+:root{--navy:#0D1B3E;--blue:#326BD3;--ink:#0D1B3E;--mut:#6b7794;--line:#e6eaf2;--bg:#e9edf4;--card:#fff;
+  --shadow:0 2px 10px rgba(13,27,62,.14)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+.hdr{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.hdr a.back{color:rgba(255,255,255,.75);text-decoration:none;font-size:22px;line-height:1;padding:0 4px}
+.hdr h1{font:800 15px 'Montserrat',sans-serif;margin:0;flex:1;min-width:0}
+.hdr h1 small{display:block;font:500 10.5px 'Open Sans',sans-serif;color:rgba(255,255,255,.6);margin-top:1px}
+.hbtn{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:8px;padding:8px 11px;font:700 12px 'Open Sans',sans-serif;text-decoration:none;cursor:pointer;white-space:nowrap}
+.bar{position:sticky;top:57px;z-index:4;background:var(--card);border-bottom:1px solid var(--line);padding:8px 14px;display:flex;align-items:center;gap:8px}
+.bar select{flex:1;min-width:0;padding:8px;border:1.5px solid var(--line);border-radius:9px;font:600 13px 'Open Sans',sans-serif;background:#fff;color:var(--ink)}
+.bar .pg{font-size:12px;font-weight:700;color:var(--mut);white-space:nowrap}
+.pages{max-width:860px;margin:0 auto;padding:12px 10px 40px}
+.page{background:#fff;box-shadow:var(--shadow);margin:0 auto 12px;position:relative;width:100%}
+.page canvas{display:block;width:100%;height:auto}
+.page .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#b3bacb;font-size:12px}
+.msg{padding:50px 20px;text-align:center;color:var(--mut);font-size:14px;line-height:1.6}
+.msg a{color:var(--blue);font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <a class="back" href="javascript:history.length>1?history.back():location.assign('/hub.html')" title="Back" aria-label="Back">‹</a>
+  <h1 id="ttl">📖 Catalogue<small id="sub"></small></h1>
+  <a class="hbtn" id="dl" download>⬇ PDF</a>
+</div>
+<div class="bar">
+  <select id="jump" onchange="goPage(this.value)" aria-label="Jump to section"><option value="1">Jump to…</option></select>
+  <span class="pg" id="pg"></span>
+</div>
+<div class="pages" id="pages"><div class="msg">Loading the catalogue…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+const CATALOGUE_FILE='/catalogue/DFL-Catalogue-2025-11.pdf';
+const CATALOGUE_TITLE='DFL Catalogue 2025';
+
+document.getElementById('dl').href=CATALOGUE_FILE;
+document.getElementById('sub').textContent=CATALOGUE_TITLE;
+
+let PDF=null, SLOTS=[], DONE=new Set();
+
+async function boot(){
+  const box=document.getElementById('pages');
+  try{
+    if(!window.pdfjsLib) throw new Error('viewer library did not load');
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    PDF=await pdfjsLib.getDocument(CATALOGUE_FILE).promise;
+    // Reserve every page's height up front so scrolling doesn't jump as pages draw.
+    const first=await PDF.getPage(1), vp=first.getViewport({scale:1});
+    box.innerHTML='';
+    for(let n=1;n<=PDF.numPages;n++){
+      const d=document.createElement('div');
+      d.className='page'; d.dataset.n=n; d.style.aspectRatio=vp.width+' / '+vp.height;
+      d.innerHTML='<div class="ph">Page '+n+'</div>';
+      box.appendChild(d); SLOTS.push(d);
+    }
+    buildJump();
+    const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) draw(+e.target.dataset.n); }),{rootMargin:'900px 0px'});
+    SLOTS.forEach(s=>io.observe(s));
+    const track=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) setPg(+e.target.dataset.n); }),{rootMargin:'-45% 0px -45% 0px'});
+    SLOTS.forEach(s=>track.observe(s));
+    setPg(1);
+  }catch(e){
+    console.warn('catalogue failed:',e);
+    box.innerHTML='<div class="msg">The catalogue couldn\'t be displayed here.<br><a href="'+CATALOGUE_FILE+'" target="_blank" rel="noopener">Open the PDF directly →</a></div>';
+  }
+}
+
+async function draw(n){
+  if(DONE.has(n)) return; DONE.add(n);
+  try{
+    const page=await PDF.getPage(n), slot=SLOTS[n-1];
+    const w=slot.clientWidth||360, base=page.getViewport({scale:1});
+    const scale=Math.min(2.2,(w/base.width)*(window.devicePixelRatio||1)*1.15);
+    const vp=page.getViewport({scale});
+    const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    slot.innerHTML=''; slot.appendChild(c);
+  }catch(e){ DONE.delete(n); console.warn('page',n,e); }
+}
+
+function setPg(n){ document.getElementById('pg').textContent='Page '+n+' / '+PDF.numPages; }
+function goPage(n){ n=+n; if(SLOTS[n-1]){ SLOTS[n-1].scrollIntoView({behavior:'smooth',block:'start'}); } }
+
+// Section jump list. The PDF's own bookmarks are leftovers from the merged files,
+// so the sections are listed here — update with each new edition (page = PDF page).
+const SECTIONS=[['Cover',1],['Foods',3],['Household Supplies',7],['Clear Packaging',10],['Petite Line',14],
+  ['Plastic Disposables',16],['Egg Trays',19],['Meat Trays',20],['Catering',21],['Film Products',22],
+  ['Foil Products',23],['Eco Friendly Products',25],['Stationery',28]];
+function buildJump(){
+  document.getElementById('jump').innerHTML='<option value="1">Jump to section…</option>'+
+    SECTIONS.filter(x=>x[1]<=PDF.numPages).map(x=>'<option value="'+x[1]+'">'+x[0]+'</option>').join('');
+}
+
+boot();
+</script>
+</body>
+</html>
