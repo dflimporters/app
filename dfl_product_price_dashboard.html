@@ -1999,7 +1999,7 @@ async function refreshData(){
     const seasonalKeys = [9,10,11,12].map(m=>priorYear*100+m);
     const neededKeys = Array.from(new Set([...t12mKeys, ...seasonalKeys]));
     const salesRows = await fetchAllRows(
-      `${SB_URL}/rest/v1/v_sales_by_sku_month?period_key=in.(${neededKeys.join(',')})&select=inventory_id,period_key,qty,revenue,cost,gp`
+      `${SB_URL}/rest/v1/rpc/get_sales_by_sku_month?p_period_keys={${neededKeys.join(',')}}&select=inventory_id,period_key,qty,revenue,cost,gp`
     );
 
     // build per-SKU monthly lookup
