@@ -1207,6 +1207,8 @@ body.dfl-readonly .readonly-note{display:block}
 <script src="/shared/section-switcher.js"></script>
 <script src="/shared/hub-button.js"></script>
 <script src="/shared/user-menu.js"></script>
+<script src="/shared/stock-prices.js"></script>
+<script src="/shared/order-builder.js"></script>
 <script>
 // ============================================================
 // PostgREST helpers
@@ -3088,82 +3090,24 @@ async function signEventAttendance(eventId){
 }
 
 // ══════════════════════════════════════════════
-// STOCK & PRICES — read-only browser over stock_items_raw (synced from the
-// ERP every ~30 min by sync-stock-items): stock on hand + list price
-// (default_price) for every active SKU. avg_cost is deliberately never
-// selected — merchandisers see availability and list price, not margin.
+// STOCK & PRICES — stock on hand + list price for every active SKU. The list
+// is /shared/stock-prices.js, the same module behind /stock.html in the rep
+// app; this file only owns the sheet around it. Queries go through rest(), so
+// they run as the signed-in user.
 // ══════════════════════════════════════════════
-let _stockRows=null, _stockSynced=null, _stockLoading=false;
-
-async function loadStock(force){
-  if(_stockLoading) return;
-  if(_stockRows && !force){ renderStock(); return; }
-  _stockLoading=true;
-  const list=document.getElementById('pl-list');
-  if(list) list.innerHTML='<div class="spinner"></div>';
-  try{
-    const rows=[]; let off=0;
-    for(;;){
-      const page=await rest(`stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc&limit=1000&offset=${off}`);
-      const got=page||[];
-      rows.push(...got);
-      if(got.length<1000) break;
-      off+=1000;
-    }
-    _stockRows=rows.map(r=>({
-      id:r.inventory_id, name:(r.description||'').trim(), cls:r.item_class||'',
-      stock:Math.round(parseFloat(r.on_hand)||0), price:parseFloat(r.default_price)||0
-    }));
-    _stockSynced=rows.reduce((m,r)=>(r.last_synced_at&&(!m||r.last_synced_at>m))?r.last_synced_at:m,null);
-    const sel=document.getElementById('pl-class');
-    if(sel){
-      const cur=sel.value;
-      const classes=[...new Set(_stockRows.map(r=>r.cls).filter(Boolean))].sort();
-      sel.innerHTML='<option value="">All categories</option>'+classes.map(c=>`<option value="${escapeHtmlM(c)}">${escapeHtmlM(c)}</option>`).join('');
-      sel.value=cur;
-    }
-    renderStock();
-  }catch(e){
-    console.warn('stock load failed:',e);
-    if(list) list.innerHTML='<div class="empty-feed">Could not load stock — check your connection and tap Refresh.</div>';
-  }finally{ _stockLoading=false; }
+let _plStock=null;
+function plStock(){
+  if(!_plStock) _plStock=DFL_STOCK.mount(document.getElementById('pl-body'),{
+    get:path=>rest(path), fill:true, loadingHtml:'<div class="spinner"></div>',
+    theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',bad:'var(--red)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
+  });
+  return _plStock;
 }
-
 function openStockModal(){
   document.getElementById('pl-modal').style.display='flex';
-  loadStock(false);
+  plStock().load(false);
 }
 function closeStockModal(){ document.getElementById('pl-modal').style.display='none'; }
-
-function renderStock(){
-  const list=document.getElementById('pl-list');
-  if(!list||!_stockRows) return;
-  const q=(document.getElementById('pl-search').value||'').trim().toLowerCase();
-  const cls=document.getElementById('pl-class').value;
-  const inOnly=document.getElementById('pl-instock').checked;
-  const matches=_stockRows.filter(r=>
-    (!cls||r.cls===cls) && (!inOnly||r.stock>0) &&
-    (!q || r.name.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)));
-  const LIMIT=150;
-  const shown=matches.slice(0,LIMIT);
-  const meta=document.getElementById('pl-meta');
-  const asOf=_stockSynced?new Date(_stockSynced).toLocaleString('en-JM',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
-  if(meta) meta.textContent=matches.length+' product'+(matches.length===1?'':'s')+(matches.length>LIMIT?' — showing the first '+LIMIT+', search to narrow':'')+(asOf?' · stock as of '+asOf:'');
-  if(!shown.length){ list.innerHTML='<div class="empty-feed">No products match.</div>'; return; }
-  list.innerHTML=shown.map(r=>{
-    const out=r.stock<=0;
-    return '<div class="merch-card" style="margin-bottom:8px;display:flex;align-items:center;gap:10px;padding:10px 12px">'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-weight:700;font-size:13px;color:var(--navy);line-height:1.25">'+escapeHtmlM(r.name||r.id)+'</div>'+
-        '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+escapeHtmlM(r.id)+(r.cls?' · '+escapeHtmlM(r.cls):'')+'</div>'+
-      '</div>'+
-      '<div style="text-align:right;flex-shrink:0">'+
-        '<div style="font-weight:800;font-size:15px;color:'+(out?'var(--red)':'var(--green)')+'">'+(out?'Out':r.stock.toLocaleString())+'</div>'+
-        '<div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px">'+(out?'of stock':'in stock')+'</div>'+
-        '<div style="font-size:12px;font-weight:700;color:var(--navy);margin-top:3px">'+(r.price>0?'J$'+r.price.toLocaleString('en-JM',{minimumFractionDigits:2,maximumFractionDigits:2}):'–')+'</div>'+
-      '</div></div>';
-  }).join('');
-}
 
 // ══════════════════════════════════════════════
 // AREA LEAVE — every vacation requested/submitted in the viewer's own area,
@@ -6481,19 +6425,11 @@ window.addEventListener('offline', updateLiveDot);
   <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
     <div style="font-size:15px;font-weight:800">📦 Stock & Prices</div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button onclick="loadStock(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">↻ Refresh</button>
+      <button onclick="plStock().load(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">↻ Refresh</button>
       <button onclick="closeStockModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
     </div>
   </div>
-  <div style="flex-shrink:0;padding:10px 16px 0">
-    <input type="text" id="pl-search" placeholder="🔍 Search product name or code…" autocomplete="off" oninput="renderStock()" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box">
-    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-      <select id="pl-class" onchange="renderStock()" style="flex:1;min-width:0;padding:8px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:12px;background:var(--card);color:var(--text)"><option value="">All categories</option></select>
-      <label style="font-size:12px;color:var(--navy);font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:5px"><input type="checkbox" id="pl-instock" onchange="renderStock()"> In stock only</label>
-    </div>
-    <div id="pl-meta" style="font-size:10px;color:var(--muted);margin:6px 0 2px"></div>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:6px 16px 16px" id="pl-list"><div class="spinner"></div></div>
+  <div id="pl-body" style="flex:1;min-height:0;padding:10px 16px 0"></div>
 </div>
 
 <!-- AREA LEAVE — every vacation requested in the viewer's own area (read-only). -->
@@ -6908,7 +6844,7 @@ function resetStockCount(){
 function getFlaggedOrderItems(){
   return Object.entries(skuCounts)
     .filter(function(e){ var v=e[1]; return v.suggested_reorder!==null && v.suggested_reorder!==undefined && v.suggested_reorder>0; })
-    .map(function(e){ return {description:e[0], item_class:e[1].item_class||'', qty:e[1].suggested_reorder}; })
+    .map(function(e){ return {description:e[0], item_class:e[1].item_class||'', qty:e[1].suggested_reorder, inventory_id:e[1].inventory_id||''}; })
     .sort(function(a,b){ return (a.item_class||'').localeCompare(b.item_class||'') || a.description.localeCompare(b.description); });
 }
 
@@ -6936,140 +6872,37 @@ function shareTextWhatsApp(text){
   window.open('https://wa.me/?text='+encodeURIComponent(text), '_blank');
 }
 
-function downloadOrderText(storeName, text){
-  const blob = new Blob([text], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const safe = (storeName||'store').replace(/[^a-z0-9]+/gi,'-').toLowerCase();
-  a.href = url;
-  a.download = 'order-'+safe+'-'+new Date().toISOString().slice(0,10)+'.txt';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
-}
-
 // ── Order builder ─────────────────────────────────────────────────────────────
 // Opens pre-filled from the SKUs flagged in the stock count, then the merchandiser
 // can fix quantities, drop or add items, add a note and share. It is a draft: edits
 // here do NOT change the saved stock count (that's still done on the count sheet).
-let MORD = null;
-function moEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
-function moNorm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
-function moCat(c){ return (CAT_LABELS[c]||c||'Other'); }
-
-function moText(){
-  const items = MORD.lines.map(function(l){ return {description:l.desc, item_class:l.cls, qty:l.qty}; });
-  let t = buildOrderText(stockCustName, items);
-  if(MORD.note && MORD.note.trim()) t += '\n\nNote: '+MORD.note.trim();
-  return t;
-}
-function moGuard(){ if(!MORD || !MORD.lines.length){ alert('Add at least one item to the order first.'); return false; } return true; }
-function shareCurrentOrderWhatsApp(){ if(!moGuard()) return; shareTextWhatsApp(moText()); }
-function downloadCurrentOrder(){ if(!moGuard()) return; downloadOrderText(stockCustName, moText()); }
-// navigator.share puts WhatsApp (if installed) alongside every other share
-// target on the device — offered first since it needs no popup/new tab.
-async function shareCurrentOrderNative(){
-  if(!moGuard()) return;
-  const text = moText();
-  if(navigator.share){ try{ await navigator.share({text:text}); return; }catch(e){ if(e.name==='AbortError') return; } }
-  shareTextWhatsApp(text);
-}
-
-function closeOrderSummary(){
-  const m = document.getElementById('order-summary-modal');
-  if(m) m.remove();
-  MORD = null;
-}
-
-function moInjectCss(){
-  if(document.getElementById('mo-css')) return;
-  const css = '' +
-    '.mo-sec{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#F2F4F8;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}' +
-    '.mo-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--card)}' +
-    '.mo-name{font-size:13px;font-weight:700;line-height:1.3;color:var(--text)}' +
-    '.mo-qty{display:flex;align-items:center;gap:4px;flex-shrink:0}' +
-    '.mo-qty button{width:32px;height:32px;border:1.5px solid var(--border);background:var(--card);border-radius:9px;font-size:18px;font-weight:700;line-height:1;cursor:pointer;color:var(--navy)}' +
-    '.mo-qty input{width:48px;height:32px;text-align:center;border:1.5px solid var(--border);border-radius:9px;font-size:15px;font-weight:800;color:var(--navy);background:var(--card);font-family:inherit}' +
-    '.mo-x{flex-shrink:0;width:30px;height:30px;border:none;background:none;color:var(--red);font-size:20px;line-height:1;cursor:pointer}' +
-    '.mo-add{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--card)}' +
-    '.mo-pill{flex-shrink:0;padding:6px 12px;border-radius:999px;background:var(--navy);color:#fff;font-size:12px;font-weight:800}' +
-    '.mo-empty{padding:30px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}';
-  const st = document.createElement('style'); st.id = 'mo-css'; st.textContent = css; document.head.appendChild(st);
-}
-
+// The builder itself is /shared/order-builder.js, shared with the rep app.
 function openOrderSummary(){
   const items = getFlaggedOrderItems();
   if(!items.length){ alert('No items flagged for order yet — enter a suggested reorder qty first.'); return; }
-  moInjectCss();
-  const pool = Object.entries(skuCounts).map(function(e){ return {desc:e[0], cls:e[1].item_class||''}; })
-    .sort(function(x,y){ return x.desc.localeCompare(y.desc); });
-  MORD = {lines: items.map(function(it){ return {desc:it.description, cls:it.item_class, qty:it.qty}; }), note:'', pool:pool, results:[]};
-  let h = '<div id="order-summary-modal" style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end">';
-  h += '<div style="background:var(--bg);border-radius:18px 18px 0 0;width:100%;max-height:92vh;display:flex;flex-direction:column">';
-  h += '<div style="flex-shrink:0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">';
-  h += '<div><div style="font-size:15px;font-weight:800;color:#fff">🛒 Order builder</div>';
-  h += '<div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+moEsc(stockCustName)+'</div></div>';
-  h += '<button onclick="closeOrderSummary()" aria-label="Close" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
-  h += '<div style="flex-shrink:0;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border)">';
-  h += '<input id="mo-search" type="text" placeholder="🔍 Add an item…" oninput="moSearch(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">';
-  h += '<div id="mo-results" style="margin-top:4px;max-height:190px;overflow-y:auto"></div></div>';
-  h += '<div style="flex:1;overflow-y:auto" id="mo-lines"></div>';
-  h += '<div style="flex-shrink:0;padding:8px 14px 0;background:var(--card);border-top:1px solid var(--border)">';
-  h += '<textarea id="mo-note" oninput="MORD.note=this.value" placeholder="Note for the rep / office (optional)…" style="width:100%;min-height:42px;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;box-sizing:border-box;background:var(--card);color:var(--text);resize:vertical"></textarea></div>';
-  h += '<div style="flex-shrink:0;padding:8px 14px 12px;background:var(--card)">';
-  h += '<div id="mo-totals" style="font-size:12.5px;font-weight:800;color:var(--navy);margin-bottom:8px"></div>';
-  h += '<div style="display:flex;gap:8px">';
-  h += '<button onclick="downloadCurrentOrder()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)">⬇ Download</button>';
-  h += '<button onclick="shareCurrentOrderWhatsApp()" style="flex:1;padding:12px;background:#25D366;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">📲 WhatsApp</button>';
-  h += '<button onclick="shareCurrentOrderNative()" style="flex:1;padding:12px;background:var(--navy);border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:#fff">↗ Share</button>';
-  h += '</div></div></div></div>';
-  document.body.insertAdjacentHTML('beforeend', h);
-  moRender();
+  // "Add an item" searches everything the count sheet knows about this store,
+  // like the rep app does: its 12-month purchase history, the key SKUs it isn't
+  // buying, and anything already counted. Merged by inventory_id.
+  const ix = DFL_ORDER.index();
+  const add = function(d, c, id){ if(!d || ix.find(id, d)) return; ix.add({desc:d, cls:c||'', id:id?String(id):''}); };
+  skuHistory.forEach(function(s){ add(s.description, s.item_class, s.inventory_id); });
+  skuGaps.forEach(function(g){ add(g.description, g.posting_class, g.inventory_id); });
+  Object.entries(skuCounts).forEach(function(e){ add(e[0], e[1].item_class, e[1].inventory_id); });
+  const pool = ix.list.sort(function(x,y){ return x.desc.localeCompare(y.desc); });
+  const cat = function(c){ return CAT_LABELS[c]||c||'Other'; };
+  DFL_ORDER.open({
+    store: stockCustName,
+    lines: items.map(function(it){ return {desc:it.description, cls:it.item_class, qty:it.qty, id:it.inventory_id}; }),
+    pool: pool,
+    textHeader: '📦 Suggested order — '+stockCustName,
+    groupBy: cat, classLabel: cat, pinnedSearch: true,
+    searchPlaceholder: '🔍 Add an item…',
+    notePlaceholder: 'Note for the rep / office (optional)…',
+    emptyText: 'Nothing in this order.\nSearch above to add items.',
+    zIndex: 99998,   // above the stock-count sheet (99997) it opens from
+    theme: {ink:'var(--navy)', text:'var(--text)', muted:'var(--muted)', line:'var(--border)', card:'var(--card)', bg:'var(--bg)', good:'var(--green)', bad:'var(--red)', sec:'#F2F4F8'}
+  });
 }
-
-function moRender(){
-  if(!MORD) return;
-  const box = document.getElementById('mo-lines'); if(!box) return;
-  if(!MORD.lines.length){
-    box.innerHTML = '<div class="mo-empty">Nothing in this order.<br>Search above to add items.</div>';
-  } else {
-    // Group by category so a long order is easy to scan; keep each line's own index for the buttons.
-    const groups = {};
-    MORD.lines.forEach(function(l,i){ const k = moCat(l.cls); (groups[k] = groups[k] || []).push({l:l,i:i}); });
-    box.innerHTML = Object.keys(groups).sort().map(function(k){
-      const g = groups[k], cs = g.reduce(function(s,x){ return s+x.l.qty; }, 0);
-      return '<div class="mo-sec"><span>'+moEsc(k)+'</span><span>'+g.length+' SKU'+(g.length===1?'':'s')+' · '+cs+' cs</span></div>' +
-        g.map(function(x){
-          return '<div class="mo-row"><div style="flex:1;min-width:0"><div class="mo-name">'+moEsc(x.l.desc)+'</div></div>' +
-            '<div class="mo-qty"><button onclick="moStep('+x.i+',-1)" aria-label="Less">−</button><input type="number" inputmode="numeric" min="0" step="1" value="'+x.l.qty+'" onchange="moSet('+x.i+',this.value)"><button onclick="moStep('+x.i+',1)" aria-label="More">+</button></div>' +
-            '<button class="mo-x" onclick="moRemove('+x.i+')" aria-label="Remove">×</button></div>';
-        }).join('');
-    }).join('');
-  }
-  const tot = MORD.lines.reduce(function(s,l){ return s+l.qty; }, 0);
-  const t = document.getElementById('mo-totals');
-  if(t) t.textContent = MORD.lines.length+' SKU'+(MORD.lines.length===1?'':'s')+' · '+tot+' cases';
-}
-function moStep(i,d){ const l=MORD.lines[i]; if(!l) return; l.qty=Math.max(0,l.qty+d); if(l.qty===0) MORD.lines.splice(i,1); moRender(); }
-function moSet(i,v){ const l=MORD.lines[i]; if(!l) return; const n=Math.round(Number(v)); if(!(n>0)) MORD.lines.splice(i,1); else l.qty=n; moRender(); }
-function moRemove(i){ MORD.lines.splice(i,1); moRender(); }
-function moSearch(q){
-  const out = document.getElementById('mo-results'); if(!out || !MORD) return;
-  q = (q||'').trim().toLowerCase();
-  if(q.length<2){ MORD.results=[]; out.innerHTML=''; return; }
-  const inOrder = new Set(MORD.lines.map(function(l){ return moNorm(l.desc); }));
-  const words = q.split(/\s+/);
-  MORD.results = MORD.pool.filter(function(p){ return !inOrder.has(moNorm(p.desc)) && words.every(function(w){ return p.desc.toLowerCase().indexOf(w)>-1; }); }).slice(0,8);
-  let h = MORD.results.map(function(p,i){
-    return '<div class="mo-add" onclick="moAddResult('+i+')"><div style="flex:1;min-width:0"><div class="mo-name">'+moEsc(p.desc)+'</div><div style="font-size:10px;color:var(--muted)">'+moEsc(moCat(p.cls))+'</div></div><span class="mo-pill">+ Add</span></div>';
-  }).join('');
-  h += '<div class="mo-add" onclick="moAddCustom()"><div style="flex:1;min-width:0"><div class="mo-name">Add “'+moEsc(q)+'” as a custom item</div></div><span class="mo-pill">+ Add</span></div>';
-  out.innerHTML = h;
-}
-function moAfterAdd(){ const s=document.getElementById('mo-search'); if(s) s.value=''; const o=document.getElementById('mo-results'); if(o) o.innerHTML=''; MORD.results=[]; moRender(); }
-function moAddResult(i){ const p=MORD.results[i]; if(!p) return; MORD.lines.push({desc:p.desc, cls:p.cls, qty:1}); moAfterAdd(); }
-function moAddCustom(){ const s=document.getElementById('mo-search'); const d=((s&&s.value)||'').trim(); if(!d) return; MORD.lines.push({desc:d, cls:'', qty:1}); moAfterAdd(); }
 </script>
 
 
