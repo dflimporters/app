@@ -3239,8 +3239,8 @@ async function signEventAttendance(eventId){
 // ══════════════════════════════════════════════
 // STOCK & PRICES — read-only browser over stock_items_raw (synced from the
 // ERP every ~30 min by sync-stock-items): stock on hand + list price
-// (default_price) for every active SKU. avg_cost is deliberately never
-// selected — merchandisers see availability and list price, not margin.
+// (default_price) for every active SKU. avg_cost is denied to clients by the
+// DB (column grants) — merchandisers see availability and list price, not margin.
 // ══════════════════════════════════════════════
 let _stockRows=null, _stockSynced=null, _stockLoading=false;
 
