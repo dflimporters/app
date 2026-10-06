@@ -244,6 +244,7 @@ function render(){
       trow("Gap to competitor after change", gap),
       trow("GP % now → new", `${P(o.gp0)} → ${P(o.gp1)}`, o.gp1<0.25 ? "var(--red)" : ""),
       trow("Units a month: today → projected", `${u(r.curUnits)} → ${u(r.curUnits+r.extraUnits)}`),
+      trow("Extra units a month requested", `+${u(r.extraUnits)}${o.up!=null ? ` (+${P(o.up,0)})` : ""}`, "var(--blue)", "What the Category Manager expects the lower price to add"),
       trow("Extra revenue a month", J(o.rev), "", "Sales after the change minus sales today"),
       trow("Extra gross profit a month", J(o.gpchg), o.gpchg>=0?"var(--green)":"var(--red)", "What DFL actually gains after paying for the discount"),
       trow("Runs", `${fmtDate(x.start_date)} – ${x.end_date?fmtDate(x.end_date):"permanent"}`)
