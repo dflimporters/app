@@ -14,12 +14,14 @@
   Deal Sheet — volume deals ("buy 10, get 1 free") priced off TODAY's Acumatica
   list price. The uploaded sheet supplies the deal structure per SKU; the base
   price is always stock_items_raw.default_price, so a list-price change flows
-  through without re-uploading. The sheet's own printed price is kept in the
-  database (original_price) for audit but is not shown on the page.
+  through without re-uploading. Two audit-only prices are stored per item and
+  never shown or used for pricing: sheet_price (what the uploaded sheet printed)
+  and original_price (Acumatica default_price at the moment of upload).
 
   Data:  view current_deal_items (current sheet + live list price), written only
-         via rpc save_deal_sheet() which re-checks can_manage_deals()
-         (admin, manager, rep_management).
+         via rpc save_deal_sheet() which re-checks can_manage_deals() and records
+         uploaded_by. The Upload button is shown only when can_manage_deals() says
+         so — there is no role list on this page.
   Upload: a PDF in the same layout as the 2025 sheet (ItemID · description ·
          List Price · Deal 1-4), parsed in the browser with pdf.js, or a CSV.
   avg_cost is never selected.
@@ -131,8 +133,6 @@ const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
 const D=window.DFL_DEALS;
-const CAN_UPLOAD_ROLES=['admin','manager','rep_management'];
-
 let ROWS=null, CAN_UPLOAD=false, PARSED=null;
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -143,9 +143,18 @@ if(window.self!==window.top) document.addEventListener('DOMContentLoaded', () =>
 let started=false;
 function init(profile){
   if(started) return; started=true;
-  CAN_UPLOAD=!!(profile&&CAN_UPLOAD_ROLES.includes(profile.role));
-  if(CAN_UPLOAD) document.getElementById('upBtn').classList.remove('hidden');
   load();
+  checkCanUpload();
+}
+
+// Who may upload is decided only by can_manage_deals() in the database — the same
+// check save_deal_sheet() enforces — so there's no second role list here to drift.
+async function checkCanUpload(){
+  try{
+    const { data, error }=await sb.rpc('can_manage_deals');
+    CAN_UPLOAD=!error&&data===true;
+  }catch(e){ CAN_UPLOAD=false; }
+  if(CAN_UPLOAD) document.getElementById('upBtn').classList.remove('hidden');
 }
 
 async function load(){
