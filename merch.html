@@ -1430,40 +1430,39 @@ async function loadMyCommission(u){
 // to hold a real route (e.g. Qewon Campbell, Marsha Stewart). This one pays
 // for the work itself: every closed-out visit tagged visit_type='relief'
 // this calendar month, regardless of whose store it was.
-const RELIEF_INCENTIVE_PER_VISIT = 500;
+//
+// Computed by the DB, not here: get_relief_incentive() returns the caller's
+// own row from calc_relief_incentive() — the same function get_merch_payroll()
+// pays from — or no rows if they don't earn it. Who earns it and how much
+// live only in that SQL.
 
 // Per explicit instruction (2026-09-24): only Dwayne Granston is a full-time
-// relief merchandiser and earns this per-visit incentive. Everyone else with
-// role='relief_merchandiser' is temporary/on-call cover and still gets the
-// full relief workflow (nationwide store search, visit_type='relief', etc.
-// via isRelief()) — just not this dollar figure. Gating on his roster id
-// rather than role because "who's full-time relief" is a business fact about
-// one specific person, not a role-wide policy.
+// relief merchandiser. Everyone else with role='relief_merchandiser' is
+// temporary/on-call cover and still gets the full relief workflow
+// (nationwide store search, visit_type='relief', etc. via isRelief()).
+// This id is for screen visibility only (isTempRelief below) — it plays no
+// part in pay; calc_relief_incentive() holds its own copy for that.
 const FULL_TIME_RELIEF_REP_ID = '33850590-52c9-4e1e-8053-084aeaf62c22';
-function earnsReliefIncentive(){
+function isFullTimeRelief(){
   return !!(cu && cu.id===FULL_TIME_RELIEF_REP_ID);
 }
 // Temporary / on-call relief: a relief login that is not the one full-time relief
 // merchandiser. These logins don't see Request Leave, Events & Training or Stock & Prices.
 function isTempRelief(){
-  return isRelief() && !earnsReliefIncentive();
+  return isRelief() && !isFullTimeRelief();
 }
 
 async function loadReliefIncentive(u){
   const card=document.getElementById('m-relief-incentive-card');
   if(!card) return;
-  if(!earnsReliefIncentive()){ card.style.display='none'; return; }
-  card.style.display='block';
   try{
-    const monthStart=_curYear+'-'+String(_curMonthNum).padStart(2,'0')+'-01';
-    const nextMonthNum=_curMonthNum===12?1:_curMonthNum+1;
-    const nextMonthYear=_curMonthNum===12?_curYear+1:_curYear;
-    const nextMonth=nextMonthYear+'-'+String(nextMonthNum).padStart(2,'0')+'-01';
-    const rows=await rest(`merch_visit_log?user_id=eq.${u.id}&visit_type=eq.relief&visit_date=gte.${monthStart}&visit_date=lt.${nextMonth}&clock_out=not.is.null&select=id`);
-    const count=(rows||[]).length;
-    document.getElementById('m-relief-count').textContent=count;
-    document.getElementById('m-relief-earned').textContent='$'+(count*RELIEF_INCENTIVE_PER_VISIT).toLocaleString();
-  }catch(e){ console.warn('relief incentive load failed:',e); }
+    const period=String(_curYear)+String(_curMonthNum).padStart(2,'0');
+    const row=((await restRpc('get_relief_incentive',{p_period:period}))||[])[0];
+    if(!row){ card.style.display='none'; return; }
+    card.style.display='block';
+    document.getElementById('m-relief-count').textContent=row.relief_visits;
+    document.getElementById('m-relief-earned').textContent='$'+Math.round(parseFloat(row.relief_incentive||0)).toLocaleString();
+  }catch(e){ console.warn('relief incentive load failed:',e); card.style.display='none'; }
 }
 
 // ============================================================
@@ -2399,90 +2398,24 @@ async function launchTLMerch(u){
 
 // ── TEAM LEADER INCENTIVE ──
 // A flat per-store bonus paid to team leaders (both formal team_leader AND
-// acting tl_merch), on top of everything above — mirrors
-// management/merch-dashboard.html's buildTeamLeaderRoster()/
-// calcIncentiveByStores() exactly. Keep the two in sync if the incentive
-// rules change; this is the one piece of business logic duplicated between
-// the two files rather than shared, since they're separate static pages.
-const TL_RATE_80 = 250;    // J$ per store at >=80% of target
-const TL_RATE_100 = 1000;  // J$ per store at >=100% of target (2026-09-28: raised from 500)
-
-function tlOwnTeamFor(rep, merchByLeaderId){
-  return [...new Set([rep.name, ...(merchByLeaderId[rep.id]||[])])];
-}
-// A formal TL's full team includes any acting (tl_merch) TL reporting to
-// them who hasn't opted out via acting_tl_shares_credit===false.
-function tlFullTeamFor(formalRep, merchByLeaderId, dualsByLeaderId){
-  const names=new Set(tlOwnTeamFor(formalRep, merchByLeaderId));
-  (dualsByLeaderId[formalRep.id]||[]).forEach(function(dual){
-    if(dual.acting_tl_shares_credit===false) return;
-    tlOwnTeamFor(dual, merchByLeaderId).forEach(function(n){ names.add(n); });
-  });
-  return [...names];
-}
-
+// acting tl_merch), on top of everything above. Computed entirely by the DB:
+// get_tl_incentive() returns the signed-in TL's own row from
+// calc_tl_incentive(), the same function get_merch_payroll() pays from and
+// management/merch-dashboard.html's TL tab renders — so this screen, the
+// dashboard and the payroll email cannot disagree. Rules (rates, team
+// membership, acting-TL credit sharing, route-only and own-store exclusions)
+// live only in that SQL. A non-TL, or a TL with no eligible stores, gets the
+// card hidden.
 async function loadTLIncentive(u, period){
   const card=document.getElementById('tl-incentive-card');
   if(!card) return;
   try{
-    const [repsRows, mapRows] = await Promise.all([
-      rest(`reps?select=id,name,role,area,active,team_lead_id,acting_tl_shares_credit&active=eq.true`),
-      rest(`merchandiser_map?select=customer_id,merchandiser_name,commission_share`)
-    ]);
-    const byId={}; (repsRows||[]).forEach(function(r){ byId[r.id]=r; });
-    const merchByLeaderId={}, dualsByLeaderId={};
-    (repsRows||[]).forEach(function(r){
-      if(!r.team_lead_id) return;
-      if(r.role==='merchandiser'||r.role==='relief_merchandiser') (merchByLeaderId[r.team_lead_id]=merchByLeaderId[r.team_lead_id]||[]).push(r.name);
-      if(r.role==='tl_merch') (dualsByLeaderId[r.team_lead_id]=dualsByLeaderId[r.team_lead_id]||[]).push(r);
-    });
-
-    const me=byId[u.id];
-    let names=null;
-    if(me && me.role==='team_leader'){
-      names=tlFullTeamFor(me, merchByLeaderId, dualsByLeaderId);
-    } else if(me && me.role==='tl_merch'){
-      const shares=me.acting_tl_shares_credit!==false;
-      const formal=me.team_lead_id?byId[me.team_lead_id]:null;
-      names = shares ? (formal?tlFullTeamFor(formal, merchByLeaderId, dualsByLeaderId):tlOwnTeamFor(me, merchByLeaderId)) : tlOwnTeamFor(me, merchByLeaderId);
-    }
-    if(!names){ card.style.display='none'; return; }
-
-    // A TL's/acting TL's own personally-merchandised stores already pay
-    // through their own merch commission (m-comm-card, from
-    // merchandiser_summary) — strip out anyone who is themselves a
-    // team_leader/tl_merch before turning `names` into storeIds, so those
-    // same stores never also count toward this per-store incentive. Mirrors
-    // management/merch-dashboard.html's incentiveNamesFor() — keep in sync.
-    const tlNameSet=new Set((repsRows||[]).filter(function(r){ return r.role==='team_leader'||r.role==='tl_merch'; }).map(function(r){ return r.name; }));
-    names = names.filter(function(n){ return !tlNameSet.has(n); });
-
-    const nameSet=new Set(names);
-    // Route-only stores (commission_share 0) earn no one an incentive, TLs included.
-    const storeIds=(mapRows||[]).filter(function(r){ return nameSet.has(r.merchandiser_name) && (r.commission_share==null || parseFloat(r.commission_share)>0); }).map(function(r){ return r.customer_id; });
-    if(!storeIds.length){ card.style.display='none'; return; }
-
-    const [targets, actuals] = await Promise.all([
-      rest(`store_targets_actual?period=eq.${period}&customer_id=in.(${storeIds.join(',')})&select=customer_id,target_amount`),
-      rest(`monthly_actuals?period=eq.${period}&customer_id=in.(${storeIds.join(',')})&select=customer_id,actual_amount`)
-    ]);
-    const targetById={}; (targets||[]).forEach(function(t){ targetById[t.customer_id]=parseFloat(t.target_amount||0); });
-    const actualById={}; (actuals||[]).forEach(function(a){ actualById[a.customer_id]=parseFloat(a.actual_amount||0); });
-
-    let s80=0, s100=0;
-    storeIds.forEach(function(cid){
-      const target=targetById[cid];
-      if(!(target>0)) return;
-      const pct=(actualById[cid]||0)/target;
-      if(pct>=1) s100++;
-      else if(pct>=0.8) s80++;
-    });
-    const earn = s80*TL_RATE_80 + s100*TL_RATE_100;
-
+    const row=((await restRpc('get_tl_incentive',{p_period:period}))||[])[0];
+    if(!row || !row.total_stores){ card.style.display='none'; return; }
     card.style.display='block';
-    document.getElementById('tl-inc-80').textContent=s80;
-    document.getElementById('tl-inc-100').textContent=s100;
-    document.getElementById('tl-inc-earn').textContent='$'+Math.round(earn).toLocaleString();
+    document.getElementById('tl-inc-80').textContent=row.stores_80;
+    document.getElementById('tl-inc-100').textContent=row.stores_100;
+    document.getElementById('tl-inc-earn').textContent='$'+Math.round(parseFloat(row.incentive||0)).toLocaleString();
   }catch(e){ console.warn('TL incentive load failed:',e); card.style.display='none'; }
 }
 
