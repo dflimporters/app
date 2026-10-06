@@ -124,6 +124,9 @@ const DFL_PAGE_ROLES = {
   '/management/rep-performance.html':       ['manager', 'admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
   '/management/fleet.html':                 ['manager', 'admin'],
+  // Product price simulator — shows cost and GP. Must stay in step with
+  // is_manager(), which get_product_price_master() checks server-side.
+  '/dfl_product_price_dashboard.html':      ['manager', 'admin'],
 
   // ---- Weekly Reports ----
   // Shell + the two pages it embeds — each listed individually, same reason
