@@ -3,8 +3,8 @@
 // (default_price) for every active SKU. Shared by /stock.html (reps) and the
 // Stock & Prices sheet in merch.html.
 //
-// avg_cost is deliberately never selected — field staff see availability and
-// list price, not margin. Don't add it here.
+// avg_cost is never selected — field staff see availability and list price,
+// not margin — and the DB denies the column to clients anyway (selecting it 401s).
 //
 // The host page owns the chrome (header, close/refresh buttons) and the data
 // call, so each page keeps its own auth idiom:

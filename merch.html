@@ -531,7 +531,7 @@ body.dfl-readonly .readonly-note{display:block}
       </div>
 
       <!-- REQUEST LEAVE -->
-      <div onclick="openLeaveModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+      <div id="m-leave-tile" onclick="openLeaveModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">🌴</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--navy)">Request Leave</div>
@@ -541,7 +541,7 @@ body.dfl-readonly .readonly-note{display:block}
       </div>
 
       <!-- EVENTS & TRAINING — admin-assigned events; sign in as attending. -->
-      <div onclick="openEventsModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+      <div id="m-events-tile" onclick="openEventsModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📅</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--navy)">Events & Training</div>
@@ -552,7 +552,7 @@ body.dfl-readonly .readonly-note{display:block}
       </div>
 
       <!-- STOCK & PRICES — live stock on hand and list price, read-only. -->
-      <div onclick="openStockModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+      <div id="m-stock-tile" onclick="openStockModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📦</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--navy)">Stock & Prices</div>
@@ -1085,6 +1085,11 @@ body.dfl-readonly .readonly-note{display:block}
       <div id="tl-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
     </div>
 
+    <div id="tl-corr-wrap" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">Store correction requests</div>
+      <div id="tl-corr-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
+
     <div>
       <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <span>Today's activity</span>
@@ -1170,6 +1175,11 @@ body.dfl-readonly .readonly-note{display:block}
     <div id="admin-leave-requests-wrap" style="display:none">
       <div class="sec-hdr" style="margin-top:6px">Leave requests</div>
       <div id="admin-leave-requests-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
+    </div>
+
+    <div id="admin-corr-wrap" style="display:none">
+      <div class="sec-hdr" style="margin-top:6px">Store correction requests</div>
+      <div id="admin-corr-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
     </div>
 
     <div>
@@ -1362,6 +1372,10 @@ function applyReliefUI(){
   const relief=isRelief();
   const hide=function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; };
   const show=function(id){ const el=document.getElementById(id); if(el) el.style.display=''; };
+  // Request Leave, Events & Training and Stock & Prices are for permanent staff only.
+  // Temporary relief (everyone with the relief role except the full-time one) doesn't get them.
+  const temp=isTempRelief();
+  ['m-leave-tile','m-events-tile','m-stock-tile'].forEach(function(id){ if(temp) hide(id); else show(id); });
   if(relief || tlAdHocVisit){
     hide('m-squal-box'); hide('m-pct-box');
     hide('m-mystores-btn'); hide('n-stores');
@@ -1430,6 +1444,11 @@ const RELIEF_INCENTIVE_PER_VISIT = 500;
 const FULL_TIME_RELIEF_REP_ID = '33850590-52c9-4e1e-8053-084aeaf62c22';
 function earnsReliefIncentive(){
   return !!(cu && cu.id===FULL_TIME_RELIEF_REP_ID);
+}
+// Temporary / on-call relief: a relief login that is not the one full-time relief
+// merchandiser. These logins don't see Request Leave, Events & Training or Stock & Prices.
+function isTempRelief(){
+  return isRelief() && !earnsReliefIncentive();
 }
 
 async function loadReliefIncentive(u){
@@ -1685,6 +1704,132 @@ async function loadPendingRouteChanges(u){
   }catch(e){ console.warn('pending route changes load failed:',e); card.style.display='none'; }
 }
 
+// ══════════════════════════════════════════════
+// STORE CORRECTION — wrong store picked at clock-in?
+// After clocking out (same day only) the merchandiser can ask for the visit's
+// store to be changed. Their Team Leader (or a manager/admin) approves; approval
+// rewrites store_name + customer_id on that visit. Writes go through
+// request_visit_store_correction() / decide_visit_store_correction().
+// ══════════════════════════════════════════════
+let _myCorrByVisit={};
+async function loadMyStoreCorrections(u){
+  _myCorrByVisit={};
+  try{
+    const since=new Date(Date.now()-2*86400000).toISOString();
+    const rows=await rest(`visit_store_corrections?requester_rep_id=eq.${u.id}&requested_at=gte.${since}&order=requested_at.desc&select=*`);
+    (rows||[]).forEach(function(r){ if(!_myCorrByVisit[r.visit_id]) _myCorrByVisit[r.visit_id]=r; });
+  }catch(e){ console.warn('store corrections load failed:',e); }
+}
+function storeCorrectionChip(v){
+  if(!v.clock_out||!cu||v.user_id!==cu.id||cu.viewingAs) return '';
+  const r=_myCorrByVisit[v.id];
+  if(r&&r.status==='pending') return '<div class="fi-meta" style="margin-top:3px;color:var(--amber);font-weight:700">⏳ Store correction waiting for approval → '+escapeHtmlM(r.new_store_name)+'</div>';
+  if(r&&r.status==='approved') return '<div class="fi-meta" style="margin-top:3px;color:var(--green);font-weight:700">✓ Store corrected (was '+escapeHtmlM(r.old_store_name||'')+')</div>';
+  if(r&&r.status==='declined') return '<div class="fi-meta" style="margin-top:3px;color:var(--red);font-weight:700">Correction declined'+(r.decision_note?': '+escapeHtmlM(r.decision_note):'')+'</div>';
+  return '<div style="margin-top:4px"><button onclick="openStoreCorrection(\''+v.id+'\')" style="background:none;border:none;padding:0;font:inherit;font-size:11px;font-weight:700;color:var(--navy);text-decoration:underline;cursor:pointer">Wrong store? Request a correction</button></div>';
+}
+let _scVisit=null, _scPick=null, _scTimer=null, _scGen=0;
+function openStoreCorrection(visitId){
+  const v=visits.find(function(x){return x.id===visitId;}); if(!v) return;
+  _scVisit=v; _scPick=null;
+  const h='<div id="store-corr-modal" style="position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end">'+
+    '<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:90vh;display:flex;flex-direction:column">'+
+    '<div style="flex-shrink:0;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--navy);border-radius:18px 18px 0 0">'+
+      '<div><div style="font-size:15px;font-weight:800;color:#fff">Request a store correction</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">Your Team Leader approves it</div></div>'+
+      '<button onclick="closeStoreCorrection()" aria-label="Close" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>'+
+    '<div style="flex:1;overflow-y:auto;padding:14px 16px">'+
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Logged as</div>'+
+      '<div style="font-size:14px;font-weight:700;margin:2px 0 12px">'+escapeHtmlM(v.store_name||v.customer_id)+'</div>'+
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">The store you actually visited</div>'+
+      '<input id="sc-search" type="text" placeholder="Search by store name or town…" oninput="scSearch(this.value)" autocomplete="off" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">'+
+      '<div id="sc-results" style="margin-top:6px"></div>'+
+      '<div id="sc-pick" style="display:none;margin-top:10px;background:var(--blue-lt);border:1.5px solid var(--navy);border-radius:10px;padding:10px 12px"></div>'+
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 4px">Reason (optional)</div>'+
+      '<textarea id="sc-reason" placeholder="e.g. picked the wrong branch by mistake" style="width:100%;min-height:50px;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;font-family:inherit;box-sizing:border-box;background:var(--card);color:var(--text)"></textarea>'+
+      '<div id="sc-error" style="display:none;margin-top:8px;font-size:12px;color:var(--red);font-weight:600"></div>'+
+    '</div>'+
+    '<div style="flex-shrink:0;padding:10px 16px 14px;border-top:1px solid var(--border);display:flex;gap:8px">'+
+      '<button onclick="closeStoreCorrection()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;color:var(--muted)">Cancel</button>'+
+      '<button id="sc-submit" onclick="submitStoreCorrection()" disabled style="flex:2;padding:12px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;opacity:.5">Send request</button>'+
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+}
+function closeStoreCorrection(){ const m=document.getElementById('store-corr-modal'); if(m) m.remove(); _scVisit=null; _scPick=null; }
+function scSearch(q){
+  const out=document.getElementById('sc-results'); if(!out) return;
+  q=(q||'').trim(); clearTimeout(_scTimer);
+  if(q.length<3){ out.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px">Type at least 3 letters.</div>'; return; }
+  const gen=++_scGen;
+  out.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 2px;font-style:italic">Searching…</div>';
+  _scTimer=setTimeout(async function(){
+    try{
+      const rows=await restRpc('merch_search_stores',{p_query:q});
+      if(gen!==_scGen||!document.getElementById('sc-results')) return;
+      const list=(rows||[]).filter(function(r){ return !_scVisit||r.customer_id!==_scVisit.customer_id; }).slice(0,12);
+      window._scRows=list;
+      out.innerHTML=list.length?list.map(function(r,i){
+        return '<div onclick="scPick('+i+')" style="padding:9px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:5px;cursor:pointer;background:var(--card)"><div style="font-size:13px;font-weight:700">'+escapeHtmlM(r.customer_name)+'</div><div style="font-size:11px;color:var(--muted)">'+escapeHtmlM(r.city||'')+(r.current_holder?' · route: '+escapeHtmlM(r.current_holder):'')+'</div></div>';
+      }).join(''):'<div style="font-size:12px;color:var(--muted);padding:6px 2px">No other stores found.</div>';
+    }catch(e){ if(gen===_scGen&&out) out.innerHTML='<div style="font-size:12px;color:var(--red);padding:6px 2px">Search failed — check your connection.</div>'; }
+  },350);
+}
+function scPick(i){
+  const r=(window._scRows||[])[i]; if(!r) return;
+  _scPick=r;
+  document.getElementById('sc-results').innerHTML='';
+  document.getElementById('sc-search').value='';
+  const box=document.getElementById('sc-pick'); box.style.display='block';
+  box.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Change to</div><div style="font-size:14px;font-weight:800;color:var(--navy)">'+escapeHtmlM(r.customer_name)+'</div>'+(r.city?'<div style="font-size:11px;color:var(--muted)">'+escapeHtmlM(r.city)+'</div>':'');
+  const b=document.getElementById('sc-submit'); b.disabled=false; b.style.opacity='1';
+}
+function _rpcMsg(e){ try{ const j=JSON.parse(e.message); return j.message||e.message; }catch(x){ return e.message||'Something went wrong.'; } }
+async function submitStoreCorrection(){
+  if(!_scVisit||!_scPick) return;
+  const b=document.getElementById('sc-submit'), err=document.getElementById('sc-error');
+  b.disabled=true; b.textContent='Sending…'; err.style.display='none';
+  try{
+    await restRpc('request_visit_store_correction',{p_visit_id:_scVisit.id,p_new_customer_id:_scPick.customer_id,p_reason:document.getElementById('sc-reason').value||null});
+    closeStoreCorrection();
+    await loadMyStoreCorrections(cu); renderFeed();
+    alert('Request sent. Your Team Leader will approve or decline it.');
+  }catch(e){
+    b.disabled=false; b.textContent='Send request';
+    err.textContent=_rpcMsg(e); err.style.display='block';
+  }
+}
+
+// ---- Approver side: Team Leader (their own team) and manager/admin (everyone) ----
+async function loadStoreCorrections(wrapId,listId){
+  const wrap=document.getElementById(wrapId), list=document.getElementById(listId);
+  if(!wrap||!list||!cu) return;
+  try{
+    const rows=await rest('visit_store_corrections?status=eq.pending&order=requested_at.desc&select=*');
+    if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+    wrap.style.display='block';
+    const readonly=!!cu.viewingAs;
+    list.innerHTML=rows.map(function(r){
+      return '<div class="merch-card"><div style="font-weight:700;font-size:13px;color:var(--navy)">'+escapeHtmlM(r.requester_name)+' · '+escapeHtmlM(r.visit_date||'')+'</div>'+
+        '<div style="font-size:12px;margin:4px 0"><span style="color:var(--muted)">Logged:</span> '+escapeHtmlM(r.old_store_name||r.old_customer_id||'')+'</div>'+
+        '<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--muted)">Should be:</span> <b>'+escapeHtmlM(r.new_store_name)+'</b></div>'+
+        (r.reason?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px">“'+escapeHtmlM(r.reason)+'”</div>':'<div style="margin-bottom:8px"></div>')+
+        (readonly?'<div style="font-size:11px;color:var(--muted)">👁️ Read-only while viewing as someone else.</div>'
+        :'<div style="display:flex;gap:8px"><button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideStoreCorrection(this,\''+r.id+'\',true,\''+wrapId+'\',\''+listId+'\')">Approve</button>'+
+         '<button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideStoreCorrection(this,\''+r.id+'\',false,\''+wrapId+'\',\''+listId+'\')">Decline</button></div>')+
+        '</div>';
+    }).join('');
+  }catch(e){ console.warn('store corrections (approver) load failed:',e); }
+}
+async function decideStoreCorrection(btn,id,approve,wrapId,listId){
+  const card=btn.closest('.merch-card'); card.querySelectorAll('button').forEach(function(b){ b.disabled=true; });
+  try{
+    await restRpc('decide_visit_store_correction',{p_id:id,p_approve:approve,p_note:null});
+    loadStoreCorrections(wrapId,listId);
+  }catch(e){
+    card.querySelectorAll('button').forEach(function(b){ b.disabled=false; });
+    alert(_rpcMsg(e));
+  }
+}
+
 async function loadTodayVisits(u){
   try{
     const today=new Date().toISOString().slice(0,10);
@@ -1701,6 +1846,7 @@ async function loadTodayVisits(u){
     }
     merged.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     visits=merged;issueCount=visits.filter(x=>x.outcome==='issue').length;
+    await loadMyStoreCorrections(u);
     renderFeed();
   }catch(e){console.error(e);}
 }
@@ -2198,6 +2344,7 @@ function renderFeed(){
         <button class="checkout-btn" onclick="continueVisit('${v.id}')">Continue visit →</button>
       </div>`;
     }
+    const corrHtml=isReliefRow?'':storeCorrectionChip(v);
     const reliefBadge=isReliefRow?`<div class="fi-meta" style="color:var(--navy);font-weight:700">🔄 Covered by ${v.user_name||'relief'}</div>`:'';
     // Stage trail only for the merchandiser's own in-progress visits — a
     // closed visit already shows its duration, and a relief row belongs to
@@ -2210,6 +2357,7 @@ function renderFeed(){
         <div class="fi-meta">${cats?cats:'No categories checked'}</div>
         ${stageChip}
         ${reliefBadge}
+        ${corrHtml}
       </div>
       ${rightHtml}
     </div>`;
@@ -2385,6 +2533,7 @@ async function loadTLData(u){
     loadTeamRouteRequests();
     loadTLLeaveApprovals();
     loadTLUpcomingLeave();
+    loadStoreCorrections('tl-corr-wrap','tl-corr-list');
 
     if(!myNames.length){
       document.getElementById('tl-tot').textContent='0';
@@ -3094,6 +3243,7 @@ async function signEventAttendance(eventId){
 // is /shared/stock-prices.js, the same module behind /stock.html in the rep
 // app; this file only owns the sheet around it. Queries go through rest(), so
 // they run as the signed-in user.
+// avg_cost is denied to clients by the DB (column grants; selecting it 401s).
 // ══════════════════════════════════════════════
 let _plStock=null;
 function plStock(){
@@ -4055,6 +4205,7 @@ let adminSelf=null;
 
 async function launchAdmin(){
   showScreen('s-admin');
+  loadStoreCorrections('admin-corr-wrap','admin-corr-list');
   loadAdminLeaveApprovals();
   loadAdminLeaveOverview();
   loadIssueAdminBadge();
@@ -4908,7 +5059,7 @@ async function addStoreToRoute(btn){
 
 async function removeStoreFromRoute(btn){
   const cid=btn.dataset.cid, cnm=decodeURIComponent(btn.dataset.cnm);
-  if(!confirm(`Remove "${cnm}" from your route? It goes back to Unassigned.`)) return;
+  if(!confirm(`Remove "${cnm}" from your route? It comes off the merchandised list.`)) return;
   btn.disabled=true;
   try{
     await restRpc('merch_release_store',{p_customer_id:cid});

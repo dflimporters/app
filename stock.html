@@ -49,6 +49,7 @@ h1,.mont{font-family:'Montserrat',sans-serif}
 <script>
 // Stock on hand + list price for every active SKU. The list itself is
 // /shared/stock-prices.js, the same module behind Stock & Prices in merch.html.
+// avg_cost is denied to clients by the DB (column grants; selecting it 401s).
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
