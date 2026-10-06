@@ -212,15 +212,19 @@ textarea{min-height:64px;resize:vertical}
           <label><input type="radio" name="scope" id="scopeAll" value="all"><span>All customers</span></label>
         </div>
       </div>
-      <label id="custWrap">Customer name / code
-        <input id="customer" placeholder="e.g. Progressive Grocers – Portmore">
+      <label id="custWrap">Customer
+        <span class="sku-wrap">
+          <input id="customer" placeholder="Type a customer name or code" autocomplete="off" autocorrect="off" spellcheck="false"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="custMenu">
+          <span class="sku-menu" id="custMenu" role="listbox" hidden></span>
+        </span>
       </label>
      </fieldset>
 
      <fieldset>
       <legend>Prices (J$ per selling unit)</legend>
       <div class="row">
-        <label>Our current avg selling price <small>Prefilled from DFL YTD sales data</small>
+        <label>Our current avg selling price <small id="priceHint">Prefilled from DFL YTD sales data</small>
           <input id="curPrice" class="auto" type="number" step="0.01" min="0" inputmode="decimal"></label>
         <label>Landed cost <small>Prefilled from DFL YTD sales data</small>
           <input id="cost" class="auto" type="number" step="0.01" min="0" inputmode="decimal"></label>
@@ -260,8 +264,8 @@ textarea{min-height:64px;resize:vertical}
      <fieldset>
       <legend>What you expect it to deliver</legend>
       <div class="row">
-        <label>Units a month today <small id="unitsHint">Enter this customer's monthly units</small>
-          <input id="curUnits" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label>Units a month today <small id="unitsHint">Prefilled once you pick the customer and SKU</small>
+          <input id="curUnits" class="auto" type="number" step="1" min="0" inputmode="numeric"></label>
         <label>Extra units a month you expect
           <input id="extraUnits" class="lever" type="number" step="1" min="0" inputmode="numeric"></label>
       </div>
@@ -363,82 +367,153 @@ function currentSku(){
   const v = $("sku").value.trim();
   return SKUS.get(v) || SKU_LIST.find(s => s.code === v) || null;
 }
+function currentCust(){
+  const v = $("customer").value.trim();
+  return CUSTS.get(v) || CUST_LIST.find(c => c.id.toLowerCase() === v.toLowerCase()) || null;
+}
+function scope(){ return $("scopeAll").checked ? "all" : "customer"; }
 
-/* ---------- SKU search dropdown ---------- */
-const SKU_LIST = [], MENU_MAX = 40;
-let menuItems = [], menuActive = -1;
-function openMenu(){
-  const q = $("sku").value.trim().toLowerCase();
-  const words = q.split(/\s+/).filter(Boolean);
-  const hits = words.length ? SKU_LIST.filter(s => words.every(w => s.hay.includes(w))) : SKU_LIST;
-  menuItems = hits.slice(0, MENU_MAX); menuActive = -1;
-  const m = $("skuMenu"); m.textContent = "";
-  if (!SKU_LIST.length){ const n = document.createElement("span"); n.className = "sku-none"; n.textContent = "Loading the SKU list…"; m.append(n); }
-  else if (!menuItems.length){ const n = document.createElement("span"); n.className = "sku-none"; n.textContent = `No SKU matches "${$("sku").value.trim()}".`; m.append(n); }
-  else {
-    const head = document.createElement("span"); head.className = "sku-head";
-    head.textContent = words.length ? `${hits.length.toLocaleString()} match${hits.length===1?"":"es"}${hits.length>MENU_MAX?` · showing top ${MENU_MAX} by sales`:""}` : "Top sellers · type to search";
-    m.append(head);
-    menuItems.forEach((s, i) => {
-      const o = document.createElement("span"); o.className = "sku-opt"; o.setAttribute("role","option"); o.id = "skuOpt"+i;
-      const b = document.createElement("b"); b.textContent = s.code;
-      const sm = document.createElement("small"); sm.textContent = `${s.cls} · avg ${J2(s.price)}`;
-      o.append(b, document.createTextNode(s.desc), sm);
-      // pointerdown, not click: fires before the input's blur closes the menu.
-      o.addEventListener("pointerdown", e => { e.preventDefault(); pickSku(s); });
-      m.append(o);
-    });
+/* ---------- search dropdowns (SKU and customer) ----------
+   Opens under the field. The native datalist showed suggestions in a strip
+   above the Android keyboard, which confused people. */
+const SKU_LIST = [], CUST_LIST = [], CUSTS = new Map(), MENU_MAX = 40;
+function combo({ input, menu, list, noun, topLabel, line, sub, onPick }){
+  const inp = $(input), m = $(menu);
+  let items = [], active = -1;
+  function open(){
+    const q = inp.value.trim().toLowerCase();
+    const words = q.split(/\s+/).filter(Boolean);
+    const all = list();
+    const hits = words.length ? all.filter(x => words.every(w => x.hay.includes(w))) : all;
+    items = hits.slice(0, MENU_MAX); active = -1;
+    m.textContent = "";
+    const note = t => { const n = document.createElement("span"); n.className = "sku-none"; n.textContent = t; m.append(n); };
+    if (!all.length) note(`Loading the ${noun} list…`);
+    else if (!items.length) note(`No ${noun} matches "${inp.value.trim()}".`);
+    else {
+      const head = document.createElement("span"); head.className = "sku-head";
+      head.textContent = words.length ? `${hits.length.toLocaleString()} match${hits.length===1?"":"es"}${hits.length>MENU_MAX?` · showing top ${MENU_MAX} by sales`:""}` : topLabel;
+      m.append(head);
+      items.forEach((x, i) => {
+        const o = document.createElement("span"); o.className = "sku-opt"; o.setAttribute("role","option"); o.id = menu+"Opt"+i;
+        const [code, text] = line(x);
+        const b = document.createElement("b"); b.textContent = code;
+        const sm = document.createElement("small"); sm.textContent = sub(x);
+        o.append(b, document.createTextNode(text), sm);
+        // pointerdown, not click: fires before the input's blur closes the menu.
+        o.addEventListener("pointerdown", e => { e.preventDefault(); pick(x); });
+        m.append(o);
+      });
+    }
+    m.hidden = false; inp.setAttribute("aria-expanded","true");
   }
-  m.hidden = false; $("sku").setAttribute("aria-expanded","true");
+  function close(){ m.hidden = true; inp.setAttribute("aria-expanded","false"); inp.removeAttribute("aria-activedescendant"); }
+  function pick(x){ inp.value = x.key; inp.classList.remove("invalid"); close(); onPick(x); }
+  function move(d){
+    if (!items.length) return;
+    active = (active + d + items.length) % items.length;
+    [...m.querySelectorAll(".sku-opt")].forEach((o,i)=>o.setAttribute("aria-selected", i===active));
+    const el = $(menu+"Opt"+active); if (el){ el.scrollIntoView({block:"nearest"}); inp.setAttribute("aria-activedescendant", el.id); }
+  }
+  inp.addEventListener("focus", () => {
+    open();
+    // On phones, lift the field to the top so the list has room above the keyboard.
+    if (window.matchMedia("(max-width:640px)").matches) setTimeout(()=>inp.scrollIntoView({block:"start", behavior:"smooth"}), 250);
+  });
+  inp.addEventListener("blur", () => setTimeout(close, 120));
+  inp.addEventListener("keydown", e => {
+    if (m.hidden && (e.key==="ArrowDown" || e.key==="ArrowUp")) open();
+    if (e.key==="ArrowDown"){ e.preventDefault(); move(1); }
+    else if (e.key==="ArrowUp"){ e.preventDefault(); move(-1); }
+    else if (e.key==="Enter" && !m.hidden){ e.preventDefault(); const x = items[active >= 0 ? active : 0]; if (x) pick(x); }
+    else if (e.key==="Escape") close();
+  });
+  return { open };
 }
-function closeMenu(){ $("skuMenu").hidden = true; $("sku").setAttribute("aria-expanded","false"); $("sku").removeAttribute("aria-activedescendant"); }
-function pickSku(s){
-  $("sku").value = s.key; $("sku").classList.remove("invalid");
-  closeMenu(); onSku();
-}
-function moveActive(d){
-  if (!menuItems.length) return;
-  menuActive = (menuActive + d + menuItems.length) % menuItems.length;
-  [...$("skuMenu").querySelectorAll(".sku-opt")].forEach((o,i)=>o.setAttribute("aria-selected", i===menuActive));
-  const el = $("skuOpt"+menuActive); if (el){ el.scrollIntoView({block:"nearest"}); $("sku").setAttribute("aria-activedescendant", el.id); }
-}
-$("sku").addEventListener("focus", () => {
-  openMenu();
-  // On phones, lift the field to the top so the list has room above the keyboard.
-  if (window.matchMedia("(max-width:640px)").matches) setTimeout(()=>$("sku").scrollIntoView({block:"start", behavior:"smooth"}), 250);
+
+const skuCombo = combo({
+  input:"sku", menu:"skuMenu", list:()=>SKU_LIST, noun:"SKU", topLabel:"Top sellers · type to search",
+  line:s => [s.code, s.desc], sub:s => `${s.cls} · avg ${J2(s.price)}`, onPick:()=>onSku()
 });
 $("sku").addEventListener("input", () => {
-  openMenu();
+  skuCombo.open();
   if (currentSku()) onSku();
   else if (SKU_LIST.length) $("skuInfo").textContent = "Pick a SKU from the list and its current price and cost fill in automatically.";
 });
-$("sku").addEventListener("blur", () => setTimeout(closeMenu, 120));
-$("sku").addEventListener("keydown", e => {
-  if ($("skuMenu").hidden && (e.key==="ArrowDown" || e.key==="ArrowUp")){ openMenu(); }
-  if (e.key==="ArrowDown"){ e.preventDefault(); moveActive(1); }
-  else if (e.key==="ArrowUp"){ e.preventDefault(); moveActive(-1); }
-  else if (e.key==="Enter" && !$("skuMenu").hidden){ e.preventDefault(); const s = menuItems[menuActive >= 0 ? menuActive : 0]; if (s) pickSku(s); }
-  else if (e.key==="Escape"){ closeMenu(); }
-});
-function scope(){ return $("scopeAll").checked ? "all" : "customer"; }
 
+const custCombo = combo({
+  input:"customer", menu:"custMenu", list:()=>CUST_LIST, noun:"customer", topLabel:"Largest accounts · type to search",
+  line:c => [c.id, c.name], sub:c => `${J(c.rev)} invoiced this year`, onPick:()=>prefillUnits()
+});
+$("customer").addEventListener("input", () => { custCombo.open(); if (currentCust()) prefillUnits(); });
+
+async function loadCustomers(){
+  for (let from = 0; ; from += 1000){
+    const { data, error } = await sb.from("price_request_customer_cache")
+      .select("customer_id,customer_name,revenue_ytd")
+      .order("revenue_ytd", { ascending:false }).range(from, from + 999);
+    if (error) throw error;
+    for (const r of data){
+      const c = { id:r.customer_id, name:r.customer_name || r.customer_id, rev:+r.revenue_ytd };
+      c.key = c.name + " (" + c.id + ")";
+      c.hay = (c.id + " " + c.name).toLowerCase();
+      CUSTS.set(c.key, c); CUST_LIST.push(c);
+    }
+    if (data.length < 1000) break;
+  }
+}
+
+/* ---------- prefill: SKU averages, then this customer's own price and units ---------- */
+const HINT_YTD = "Prefilled from DFL YTD sales data";
 function onSku(){
   const s = currentSku();
   if (s){
     $("curPrice").value = s.price; $("cost").value = s.cost;
     $("curPrice").classList.remove("invalid"); $("cost").classList.remove("invalid");
+    $("priceHint").textContent = HINT_YTD;
     $("skuInfo").textContent = `${s.cls} · GP ${P((s.price-s.cost)/s.price)} · ${Math.round(s.units).toLocaleString()} units / ${J(s.rev)} a month across all customers`;
-    if (scope()==="all") $("curUnits").value = Math.round(s.units);
   }
+  prefillUnits();
+}
+let prefillSeq = 0;
+async function prefillUnits(){
+  const s = currentSku(), seq = ++prefillSeq;
+  if (scope()==="all"){
+    $("unitsHint").textContent = HINT_YTD + " (all customers)";
+    if (s) $("curUnits").value = Math.round(s.units);
+    return calc();
+  }
+  const c = currentCust();
+  if (!s || !c){
+    $("unitsHint").textContent = "Prefilled once you pick the customer and SKU";
+    return calc();
+  }
+  $("unitsHint").textContent = "Looking up this customer's sales…";
+  const { data, error } = await sb.rpc("price_request_customer_sku", { p_customer_id:c.id, p_sku:s.code });
+  if (seq !== prefillSeq) return;              // a newer pick has started; drop this answer
+  const r = !error && data && data[0];
+  if (r && r.units_per_month != null){
+    $("curUnits").value = Math.round(+r.units_per_month);
+    $("curPrice").value = +r.avg_price;
+    $("priceHint").textContent = "This customer's YTD average price";
+    $("unitsHint").textContent = `This customer's YTD average · last bought ${fmtDate(r.last_invoice)}`;
+  } else if (!error){
+    $("curUnits").value = 0;
+    $("curPrice").value = s.price;
+    $("priceHint").textContent = HINT_YTD + " (customer hasn't bought this SKU this year)";
+    $("unitsHint").textContent = "This customer hasn't bought this SKU this year";
+  } else {
+    $("unitsHint").textContent = "Couldn't look this up. Enter this customer's monthly units.";
+  }
+  $("curUnits").classList.remove("invalid"); $("curPrice").classList.remove("invalid");
   calc();
 }
 for (const r of ["scopeCust","scopeAll"]) $(r).addEventListener("change", ()=>{
-  const all = scope()==="all";
-  $("custWrap").classList.toggle("hidden", all);
-  $("unitsHint").textContent = all ? "Prefilled from DFL YTD sales data" : "Enter this customer's monthly units";
+  $("custWrap").classList.toggle("hidden", scope()==="all");
   const s = currentSku();
-  $("curUnits").value = all && s ? Math.round(s.units) : "";
-  calc();
+  if (s){ $("curPrice").value = s.price; $("priceHint").textContent = HINT_YTD; }
+  $("curUnits").value = "";
+  prefillUnits();
 });
 for (const id of ["curPrice","cost","compPrice","newPrice","curUnits","extraUnits"]) $(id).addEventListener("input", calc);
 
@@ -577,11 +652,17 @@ $("form").addEventListener("submit", async e=>{
     if (empty) miss.push(name);
   }
   if (miss.length){ const first = document.querySelector(".invalid"); if (first) first.focus(); return msg("Please fill in: " + miss.join(", ") + ".", "err"); }
+  const cust = currentCust();
+  if (scope()==="customer" && CUST_LIST.length && !cust){
+    $("customer").classList.add("invalid"); $("customer").focus();
+    return msg("Pick the customer from the list so their sales can be checked.", "err");
+  }
   if (r.newPrice >= r.curPrice) return msg("The proposed price is not below the current average, so it doesn't need approval.", "err");
   if ($("end").value && $("end").value < $("start").value) return msg("The end date is before the start date.", "err");
 
   const row = {
-    scope: scope(), customer: scope()==="customer" ? $("customer").value.trim() : null,
+    scope: scope(), customer: scope()==="customer" ? (cust ? cust.name : $("customer").value.trim()) : null,
+    customer_id: scope()==="customer" && cust ? cust.id : null,
     sku: s ? s.code : skuText.split(" — ")[0], sku_description: s ? s.desc : skuText, item_class: s ? s.cls : null,
     current_price: r.curPrice, landed_cost: r.cost, competitor_name: $("compName").value.trim(), competitor_price: r.compPrice,
     proposed_price: r.newPrice, reason: $("reason").value, explanation: $("note").value.trim(),
@@ -609,6 +690,8 @@ function clearForm(clearMsg=true){
   for (const id of ["sku","customer","curPrice","cost","compName","compPrice","newPrice","note","end","curUnits","extraUnits"]) $(id).value="";
   $("reason").value=""; $("start").value=today; dpStart.label(); dpEnd.label();
   $("skuInfo").textContent = "Pick a SKU and its current price and cost fill in automatically.";
+  $("priceHint").textContent = HINT_YTD;
+  $("unitsHint").textContent = scope()==="all" ? HINT_YTD + " (all customers)" : "Prefilled once you pick the customer and SKU";
   if (clearMsg) msg("");
   calc();
 }
@@ -712,6 +795,7 @@ async function init(profile){
   if (PROFILE) return;
   PROFILE = profile;
   $("requester").textContent = PROFILE.full_name || "You";
+  loadCustomers().catch(() => { $("unitsHint").textContent = "The customer list didn't load. Enter this customer's monthly units."; });
   try { await loadSkus(); onSku(); }
   catch (_) { $("skuInfo").textContent = "The price list didn't load. Type the SKU and enter the prices yourself."; }
   if (location.hash === "#mine") show("mine"); else loadMine();
