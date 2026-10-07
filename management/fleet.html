@@ -196,6 +196,12 @@ const headers = { apikey: FLEET_SB_KEY, Authorization: `Bearer ${FLEET_SB_KEY}` 
    and document links only ever point into our own fleet-documents bucket
    (anything else, e.g. a javascript: URL, renders as an empty href). */
 const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// fetch() only rejects on a network failure, so a 401/403/500 on a write used to
+// fall through and the page still said "updated" (FE-D-20). Wrap writes in this.
+async function mustOk(res, what){
+  if(!res.ok) throw new Error(what + ' failed (HTTP ' + res.status + ')');
+  return res;
+}
 const FLEET_DOCS_PUB = `${FLEET_SB_URL}/storage/v1/object/public/fleet-documents/`;
 const safeUrl = u => (typeof u==='string' && u.indexOf(FLEET_DOCS_PUB)===0) ? escH(u) : '';
 
@@ -268,12 +274,12 @@ async function fetchVehicle(reg){
 }
 async function fetchDocs(vehicleId){
   const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?vehicle_id=eq.${vehicleId}&select=*&order=uploaded_at.desc`, {headers});
-  if(!res.ok) return [];
+  if(!res.ok) throw new Error('documents lookup failed (HTTP ' + res.status + ')');
   return res.json();
 }
 async function fetchMileageHistory(vehicleId){
   const res = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_mileage_log?vehicle_id=eq.${vehicleId}&select=*&order=reported_at.desc&limit=1`, {headers});
-  if(!res.ok) return null;
+  if(!res.ok) throw new Error('mileage lookup failed (HTTP ' + res.status + ')');
   const rows = await res.json();
   return rows[0] || null;
 }
@@ -419,10 +425,10 @@ async function submitMileage(){
   }
 
   try{
-    await fetch(`${FLEET_SB_URL}/rest/v1/fleet_mileage_log`, {
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_mileage_log`, {
       method:'POST', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
       body: JSON.stringify({vehicle_id: currentVehicle.id, mileage: val, reported_by:'public_lookup'})
-    });
+    }), 'mileage log');
 
     const patchBody = { current_mileage: val, updated_at: new Date().toISOString() };
     // First-ever mileage report becomes the service baseline automatically.
@@ -431,13 +437,13 @@ async function submitMileage(){
       patchBody.last_service_date = new Date().toISOString().slice(0,10);
     }
 
-    await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${currentVehicle.id}`, {
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${currentVehicle.id}`, {
       method:'PATCH', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
       body: JSON.stringify(patchBody)
-    });
+    }), 'vehicle update');
     toast('Mileage updated');
     doSearch();
-  }catch(e){ toast('Could not update mileage', true); }
+  }catch(e){ console.error(e); toast('Could not update mileage', true); }
 }
 
 document.getElementById('searchBtn').addEventListener('click', doSearch);
@@ -463,6 +469,10 @@ async function loadAll(){
     fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?select=*&order=reg_number.asc`, {headers}),
     fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?select=*&status=eq.pending_review`, {headers})
   ]);
+  if(!vRes.ok || !dRes.ok){
+    document.getElementById('tableWrap').innerHTML = '<div class="loading">Could not load vehicles (HTTP ' + (vRes.ok ? dRes.status : vRes.status) + '). Check your connection or sign-in, then refresh.</div>';
+    return;
+  }
   vehicles = await vRes.json();
   const pendingDocs = await dRes.json();
   allDocsByVehicle = {};
@@ -524,6 +534,7 @@ async function openVehicle(id){
   const v = vehicles.find(x=>x.id===id);
   if(!v) return;
   const docsRes = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?vehicle_id=eq.${id}&select=*&order=uploaded_at.desc`, {headers});
+  if(!docsRes.ok){ toast('Could not load documents (HTTP ' + docsRes.status + ')', true); return; }
   const docs = await docsRes.json();
   const fieldRow = (label, key, type='text') => `<div class="field"><label>${label}</label><input type="${type}" id="f-${key}" value="${escH(v[key])}"></div>`;
 
@@ -574,10 +585,12 @@ async function openVehicle(id){
 }
 
 async function approveDoc(docId, vehicleId){
-  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?id=eq.${docId}`, {
-    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
-    body: JSON.stringify({status:'approved', reviewed_at: new Date().toISOString()})
-  });
+  try{
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?id=eq.${docId}`, {
+      method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
+      body: JSON.stringify({status:'approved', reviewed_at: new Date().toISOString()})
+    }), 'approve');
+  }catch(e){ console.error(e); toast('Could not approve the document', true); return; }
   await loadAll();
   openVehicle(vehicleId);
 }
@@ -594,13 +607,15 @@ async function markServiced(id){
     next_service_date: nextDate.toISOString().slice(0,10),
     updated_at: new Date().toISOString(),
   };
-  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
-    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
-  });
-  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_service_log`, {
-    method:'POST', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
-    body: JSON.stringify({ vehicle_id: id, service_date: today, mileage_at_service: v.current_mileage || null, logged_by: 'admin_dashboard' })
-  });
+  try{
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
+      method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
+    }), 'service update');
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_service_log`, {
+      method:'POST', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
+      body: JSON.stringify({ vehicle_id: id, service_date: today, mileage_at_service: v.current_mileage || null, logged_by: 'admin_dashboard' })
+    }), 'service log');
+  }catch(e){ console.error(e); toast('Could not mark as serviced', true); return; }
   await loadAll();
   openVehicle(id);
   toast('Marked as serviced \u2014 interval reset');
@@ -619,9 +634,11 @@ async function saveVehicle(id){
     payload[k] = val;
   });
   payload.updated_at = new Date().toISOString();
-  await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
-    method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
-  });
+  try{
+    await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_vehicles?id=eq.${id}`, {
+      method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'}, body: JSON.stringify(payload)
+    }), 'save');
+  }catch(e){ console.error(e); toast('Could not save changes — nothing was saved', true); return; }
   closeModal();
   await loadAll();
 }
