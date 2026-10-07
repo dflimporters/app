@@ -6229,12 +6229,16 @@ async function updateOfflineVisit(localId, patch){
   });
 }
 
+// Only the signed-in person's queued visits: the queue lives on the device, so
+// on a shared phone an earlier user's entries must never be posted (or counted)
+// under this user's token. Items without a user_id (none are written today)
+// are left alone rather than adopted.
 async function getOfflineQueue(){
   const d = await openDB();
   return new Promise((resolve, reject) => {
     const tx = d.transaction(IDB_STORE, 'readonly');
     const req = tx.objectStore(IDB_STORE).getAll();
-    req.onsuccess = () => resolve(req.result || []);
+    req.onsuccess = () => resolve((req.result || []).filter(it => cu && it.user_id === cu.id));
     req.onerror   = e => reject(e.target.error);
   });
 }

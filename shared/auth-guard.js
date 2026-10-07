@@ -273,8 +273,48 @@ function showAccessDenied(profile) {
 
 })();
 
+// How many visits are still waiting in the merch app's offline queue
+// (IndexedDB 'dfl_merch' / 'offline_visits'). 0 when there is none, and also
+// when IndexedDB is unavailable — it must never be able to block a logout.
+function dflOfflineQueueCount() {
+  return new Promise(function (resolve) {
+    try {
+      const req = indexedDB.open('dfl_merch');
+      req.onerror = function () { resolve(0); };
+      req.onsuccess = function (e) {
+        const d = e.target.result;
+        try {
+          if (!d.objectStoreNames.contains('offline_visits')) { d.close(); resolve(0); return; }
+          const c = d.transaction('offline_visits', 'readonly').objectStore('offline_visits').count();
+          c.onsuccess = function () { d.close(); resolve(c.result || 0); };
+          c.onerror = function () { d.close(); resolve(0); };
+        } catch (err) { try { d.close(); } catch (e2) {} resolve(0); }
+      };
+    } catch (err) { resolve(0); }
+  });
+}
+
 // Global logout helper — wire this to any "Log out" link/button.
+//
+// Signing out also clears what the merch app keeps on the device for the
+// signed-in person — in-progress visit/audit drafts (localStorage) and the
+// offline visit queue (IndexedDB) — so the next person to use a shared phone
+// can't see or post them. If visits are still queued and unsynced we ask first,
+// rather than silently throwing away field work (FE-D-22).
 async function logout() {
+  const queued = await dflOfflineQueueCount();
+  if (queued > 0 && !window.confirm(
+        'You have ' + queued + ' visit' + (queued === 1 ? '' : 's') +
+        ' that haven’t synced yet. Logging out will discard ' + (queued === 1 ? 'it' : 'them') +
+        '. Log out anyway?')) {
+    return;
+  }
+  try {
+    Object.keys(localStorage)
+      .filter(function (k) { return /^dfl_merch_(visit|audit)_draft_/.test(k); })
+      .forEach(function (k) { localStorage.removeItem(k); });
+    indexedDB.deleteDatabase('dfl_merch');
+  } catch (e) { /* storage unavailable — nothing to clear */ }
   await sb.auth.signOut();
   window.location.href = '/login.html';
 }
