@@ -287,11 +287,11 @@
       .sort((a,b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
 
     roles.forEach(role => {
-      html += '<optgroup label="' + (roleLabel[role] || role) + '">';
+      html += '<optgroup label="' + escapeHtml(roleLabel[role] || role) + '">';
       byRole[role].forEach(r => {
         const bits = [r.area, r.team_lead_name ? 'TL: ' + r.team_lead_name : null]
           .filter(Boolean).join(' · ');
-        html += '<option value="' + r.rep_id + '">' +
+        html += '<option value="' + escapeHtml(r.rep_id) + '">' +
                 escapeHtml(r.name) + (bits ? ' — ' + escapeHtml(bits) : '') +
                 '</option>';
       });
@@ -430,7 +430,7 @@
   function teamLeadOptions() {
     return '<option value="">— none —</option>' +
       (formOptions.team_leads || []).map(t =>
-        '<option value="' + t.id + '">' + escapeHtml(t.name) + '</option>').join('');
+        '<option value="' + escapeHtml(t.id) + '">' + escapeHtml(t.name) + '</option>').join('');
   }
 
   // Which roles each optional field means something for. These two live here,
