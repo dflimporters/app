@@ -346,9 +346,17 @@ function getQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
   catch(e) { return []; }
 }
+// Returns false when the phone's storage is full (queued visits carry base64
+// photos, so this can happen) — callers must not tell the user it was saved.
 function saveQueue(q) {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  } catch (err) {
+    console.error('Could not persist the offline queue:', err);
+    return false;
+  }
   renderQueue();
+  return true;
 }
 function renderQueue() {
   const q = getQueue();
@@ -443,11 +451,14 @@ async function handleSubmit(e) {
       id, your_name: yourName, store_name: storeName, area, visit_date: visitDate,
       notes: currentNotes, kept_photo_paths: keptPaths, new_photos_base64, queued_at: Date.now()
     });
-    saveQueue(q);
-    showBanner('No connection — saved on this phone, will sync automatically.', 'queued');
-    editingId = null;
-    document.getElementById('cancelEditBtn').style.display = 'none';
-    resetForm();
+    if (!saveQueue(q)) {
+      showBanner('Phone storage is full — this visit was NOT saved. Remove some photos or connect to the internet and try again.', 'error');
+    } else {
+      showBanner('No connection — saved on this phone, will sync automatically.', 'queued');
+      editingId = null;
+      document.getElementById('cancelEditBtn').style.display = 'none';
+      resetForm();
+    }
   }
 
   btn.disabled = false;
