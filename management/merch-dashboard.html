@@ -613,11 +613,26 @@ const fmtPct = p => !p?'—':(p*100).toFixed(1)+'%';
 const fmtComm = n => !n||n===0?'—':'$'+(n).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const statusOf = pct => !pct||pct===0?'nodata':pct>=1?'100':pct>=0.8?'80':'below';
 
+// The server caps every response at 1000 rows no matter what Range or limit we
+// ask for (db-max-rows), so a single request silently dropped everything past
+// the first 1000 — more than 40% of a busy month's visits (FE-D-15). Page in
+// 1000-row steps until a short page comes back. Callers should include a unique
+// tiebreaker in order= so rows can't repeat or vanish at page edges; any
+// limit= in the path is stripped because paging fetches the whole set.
 async function supa(path){
-  const headers = Object.assign({}, HDR, {'Range': '0-9999', 'Range-Unit': 'items', 'Prefer': 'count=none'});
-  const r = await fetch(`${SUPA}/rest/v1/${path}`,{headers});
-  if(!r.ok) throw new Error(await r.text());
-  return r.json();
+  const clean = path.replace(/([?&])limit=d+(&|$)/, (m, a, b) => b ? a : '').replace(/[?&]$/, '');
+  const PAGE_ROWS = 1000;
+  let all = [], off = 0;
+  for(;;){
+    const headers = Object.assign({}, HDR, {'Range': `${off}-${off + PAGE_ROWS - 1}`, 'Range-Unit': 'items', 'Prefer': 'count=none'});
+    const r = await fetch(`${SUPA}/rest/v1/${clean}`,{headers});
+    if(!r.ok && r.status !== 206) throw new Error(await r.text());
+    const rows = await r.json();
+    all = all.concat(rows);
+    if(rows.length < PAGE_ROWS) break;
+    off += PAGE_ROWS;
+  }
+  return all;
 }
 
 // HTML-escape every DB-sourced string before it reaches innerHTML, an
@@ -631,7 +646,7 @@ const safeUrl = u => (typeof u==='string' && u.indexOf(STORAGE_PUB)===0) ? escH(
 // ── BOOT: load reference data once, then the default tab ──
 async function loadStaticRefs(){
   const [mapRows, repsRows] = await Promise.all([
-    supa(`merchandiser_map?select=customer_id,merchandiser_name,commission_share`),
+    supa(`merchandiser_map?select=customer_id,merchandiser_name,commission_share&order=customer_id,merchandiser_name`),
     supa(`reps?select=id,name,role,area,active,team_lead_id&active=eq.true`)
   ]);
   mapByCid = {};
@@ -679,7 +694,7 @@ async function loadData(){
   document.getElementById('mainContent').innerHTML = '<div class="loading-center"><div class="spinner" style="width:22px;height:22px;border-color:var(--border);border-top-color:var(--accent);margin:0 auto 12px"></div><p>Loading '+MONTHS[currentPeriod]+'...</p></div>';
   try {
     const [raw, summaries, tlRows] = await Promise.all([
-      supa(`merch_store_dashboard?period=eq.${currentPeriod}&select=customer_id,customer_name,target_amount,actual_amount,target_source&limit=9999&order=customer_name`),
+      supa(`merch_store_dashboard?period=eq.${currentPeriod}&select=customer_id,customer_name,target_amount,actual_amount,target_source&order=customer_name,customer_id`),
       supa(`merchandiser_summary?period=eq.${currentPeriod}&select=merchandiser_name,store_count,stores_with_target,stores_qualified,stores_100,total_target,total_actual,achievement_pct,commission&order=merchandiser_name`),
       loadTLIncentive(currentPeriod).catch(e => { console.warn('TL incentive load failed:', e); return e; })
     ]);
@@ -1429,7 +1444,7 @@ function periodBounds(period){
 async function loadVisits(){
   const {start, end} = periodBounds(currentPeriod);
   try {
-    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,clock_out,outcome,visit_type,latitude,longitude,geo_accuracy,notes,oos_skus,shelf_photo_urls,cat_household,cat_garbage,cat_foil,cat_processing,cat_paper,cat_plastic,cat_ecocup,cat_foodsup,cat_ecobox,cat_beverages,cat_clearpack,cat_ecobag,cat_ecostraw&order=visit_date.desc,clock_in.desc&limit=5000`);
+    visitRows = await supa(`merch_visit_log?visit_date=gte.${start}&visit_date=lte.${end}&select=id,user_name,customer_id,store_name,visit_date,clock_in,clock_out,outcome,visit_type,latitude,longitude,geo_accuracy,notes,oos_skus,shelf_photo_urls,cat_household,cat_garbage,cat_foil,cat_processing,cat_paper,cat_plastic,cat_ecocup,cat_foodsup,cat_ecobox,cat_beverages,cat_clearpack,cat_ecobag,cat_ecostraw&order=visit_date.desc,clock_in.desc,id.desc`);
   } catch(e) {
     toast('Visit log load failed: '+e.message, 'error');
     visitRows = [];
@@ -1600,7 +1615,7 @@ function evalIsComplete(r){ return !!(r.employee_signed && r.supervisor_signed) 
 
 async function loadEvals(){
   try {
-    evalRows = await supa(`merchandiser_evaluations?select=*&order=created_at.desc&limit=2000`);
+    evalRows = await supa(`merchandiser_evaluations?select=*&order=created_at.desc,id.desc`);
   } catch(e) {
     toast('Evaluations load failed: '+e.message, 'error');
     evalRows = [];
