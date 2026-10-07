@@ -1177,22 +1177,22 @@ async function openCust(cid){
   const mnum=new Date().getMonth()+1;
   try{
     const [cacheR,budR,mbudR,skuR,visitR,stockR,hotR]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${encodeURIComponent(cid)}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${encodeURIComponent(cid)}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
       KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json()),
       // Merch app activity for this store — same customer_id, no rep linkage needed.
-      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${cid}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${encodeURIComponent(cid)}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
       // One save writes one row per SKU sharing the same counted_at — fetch a
       // batch, then keep just the rows matching the latest timestamp so the
       // rep can see the full itemized count, not only its date.
       // Limit by date, not rows: a count is often 70+ SKUs, so a row limit of 60 cut
       // the latest count short and dropped flagged reorders from the suggested order.
-      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${cid}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${encodeURIComponent(cid)}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:H}).then(r=>r.json()).catch(()=>[]),
       // Same source as the Hot List page (gap_closer_reco_cache) — surfaced
       // here too so a rep sees it while already looking at the account,
       // not only on a separate page.
-      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${cid}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(cid)}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
     ]);
     KEYSKUS=Array.isArray(skuR)?skuR:[];
     const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
@@ -1208,7 +1208,7 @@ async function openCust(cid){
     let reportR=[];
     if(reportName){
       try{
-        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(reportName)}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
+        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(String(reportName).replace(/[*%]/g,''))}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
       }catch(e){ reportR=[]; }
     }
     const stockRows=Array.isArray(stockR)?stockR:[];

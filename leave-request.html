@@ -136,6 +136,10 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
 const HRET={...H,Prefer:"return=representation"};
 // Quote-safe: also used inside value="…"/data-*="…" attributes below.
+// PostgREST in.() list: each value double-quoted (JSON string syntax matches
+// PostgREST's quoting) and URL-encoded, so a comma or quote in a name can't
+// split the list (FE-D-19).
+function pgIn(values){ return 'in.('+values.map(x=>encodeURIComponent(JSON.stringify(String(x)))).join(',')+')'; }
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 let PROFILE=null, STAFF=null, COVERERS=[], REQUESTS=[];
@@ -245,11 +249,11 @@ async function loadStoreOverlapLeave(){
   const custIds = [...new Set((Array.isArray(custRows)?custRows:[]).map(r=>r.customer_id).filter(Boolean))];
   if(!custIds.length) return [];
 
-  const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=in.(${custIds.map(id=>encodeURIComponent(id)).join(',')})&select=merchandiser_name`,{headers:H}).then(r=>r.json());
+  const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=${pgIn(custIds)}&select=merchandiser_name`,{headers:H}).then(r=>r.json());
   const names = [...new Set((Array.isArray(mapRows)?mapRows:[]).map(r=>r.merchandiser_name).filter(Boolean))];
   if(!names.length) return [];
 
-  const repRows = await fetch(`${SB_URL}/rest/v1/reps?name=in.(${names.map(n=>encodeURIComponent(n)).join(',')})&select=id,name`,{headers:H}).then(r=>r.json());
+  const repRows = await fetch(`${SB_URL}/rest/v1/reps?name=${pgIn(names)}&select=id,name`,{headers:H}).then(r=>r.json());
   const ids = [...new Set((Array.isArray(repRows)?repRows:[]).map(r=>r.id).filter(Boolean))];
   if(!ids.length) return [];
 
