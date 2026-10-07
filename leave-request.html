@@ -140,6 +140,45 @@ function esc(s){return(s||"").toString().replace(/[&<>]/g,c=>({"&":"&amp;","<":"
 let PROFILE=null, STAFF=null, COVERERS=[], REQUESTS=[];
 let MERCH_LEAVE=[], MERCH_LEAVE_CLASHES=[];
 
+// Display text only — role codes stay merchandiser/tl_merch/etc. (see CLAUDE.md).
+const FIELD_ROLE_LABEL={merchandiser:'Brand Ambassador', relief_merchandiser:'Relief Brand Ambassador', team_leader:'Team Leader', tl_merch:'Team Leader + Brand Ambassador'};
+
+// Everyone who could cover a rep: the sales team (leave_tracker_staff — Field
+// Reps, Category Managers, KAMs only, not Sales Support/Other/Admin) plus the
+// live field roster (Brand Ambassadors, relief, team leaders) via
+// get_leave_coverers(). That used to read the legacy `merchandisers` table,
+// which only ever held ~15 of ~68 active field staff and no team leaders.
+//
+// Prefixed codes since the pools have different id types (staff: uuid,
+// merch: legacy bigint, rep: reps.id uuid). Anyone already in the legacy table
+// keeps their old "merch:<id>" code so coverage saved before this still
+// pre-selects; everyone else gets "rep:<uuid>". Saved records also mirror plain
+// names into covered_by, which is what the Leave & Coverage Tracker reads.
+async function fetchCoverers(excludeStaffId){
+  const [staffPoolR, fieldR, legacyR] = await Promise.all([
+    fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
+    fetch(`${SB_URL}/rest/v1/rpc/get_leave_coverers`,{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>null),
+    fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()).catch(()=>[])
+  ]);
+  const key=n=>(n||'').trim().toLowerCase();
+  const legacy=Array.isArray(legacyR)?legacyR:[];
+  const legacyByName=new Map(legacy.map(m=>[key(m.name), m.id]));
+  const staffCoverers=(Array.isArray(staffPoolR)?staffPoolR:[])
+    .filter(s=>!excludeStaffId||s.id!==excludeStaffId)
+    .map(s=>({code:'staff:'+s.id, name:s.name, label:s.name, group:'Sales team'}));
+  // If the roster call fails, fall back to the legacy list rather than an empty picker.
+  const fieldCoverers=Array.isArray(fieldR)
+    ? fieldR.map(p=>{
+        const lid=legacyByName.get(key(p.name));
+        const isTL=p.role==='team_leader'||p.role==='tl_merch';
+        return {code: lid!=null ? 'merch:'+lid : 'rep:'+p.id, name:p.name,
+                label:p.name+' — '+(FIELD_ROLE_LABEL[p.role]||p.role),
+                group: isTL ? 'Team leaders' : 'Brand Ambassadors'};
+      })
+    : legacy.map(m=>({code:'merch:'+m.id, name:m.name, label:m.name, group:'Brand Ambassadors'}));
+  return [...staffCoverers, ...fieldCoverers].sort((a,b)=>a.name.localeCompare(b.name));
+}
+
 document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
 
 async function init(profile){
@@ -157,15 +196,7 @@ async function init(profile){
     REQUESTS = [];
     // So the coverage checklist's "who's covering you" picker isn't just an
     // empty dropdown in the preview — same pool a real rep would see.
-    try{
-      const [staffPoolR, merchR] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
-        fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json())
-      ]);
-      const staffCoverers=(Array.isArray(staffPoolR)?staffPoolR:[]).map(s=>({code:'staff:'+s.id, name:s.name}));
-      const merchCoverers=(Array.isArray(merchR)?merchR:[]).map(m=>({code:'merch:'+m.id, name:m.name}));
-      COVERERS=[...staffCoverers, ...merchCoverers].sort((a,b)=>a.name.localeCompare(b.name));
-    }catch(e){ COVERERS=[]; }
+    try{ COVERERS = await fetchCoverers(null); }catch(e){ COVERERS=[]; }
     drawList();
     return;
   }
@@ -174,22 +205,9 @@ async function init(profile){
     return;
   }
   try{
-    const [staffR, staffPoolR, merchR] = await Promise.all([
-      fetch(`${SB_URL}/rest/v1/leave_tracker_staff?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=id,name,territory,role`,{headers:H}).then(r=>r.json()),
-      // Covering-person picker is deliberately narrow — only these three roles
-      // (not Sales Support/Other/Admin/etc.) make sense as someone who could
-      // actually cover a rep's stores.
-      fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json())
-    ]);
+    const staffR = await fetch(`${SB_URL}/rest/v1/leave_tracker_staff?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=id,name,territory,role`,{headers:H}).then(r=>r.json());
     STAFF=(Array.isArray(staffR)&&staffR[0])?staffR[0]:null;
-    // Prefixed codes since these come from two tables with different id types
-    // (leave_tracker_staff.id is a uuid, merchandisers.id is a bigint) —
-    // resolved back to a name by the same "staff:"/"merch:" split wherever
-    // this code is read (here and in the Leave & Coverage Tracker tool).
-    const staffCoverers=(Array.isArray(staffPoolR)?staffPoolR:[]).filter(s=>!STAFF||s.id!==STAFF.id).map(s=>({code:'staff:'+s.id, name:s.name}));
-    const merchCoverers=(Array.isArray(merchR)?merchR:[]).map(m=>({code:'merch:'+m.id, name:m.name}));
-    COVERERS=[...staffCoverers, ...merchCoverers].sort((a,b)=>a.name.localeCompare(b.name));
+    COVERERS = await fetchCoverers(STAFF&&STAFF.id);
     if(!STAFF){
       app.innerHTML=`<div class="empty">You're not set up in the leave tracker yet. Ask your admin to add you before submitting a leave request.</div>`;
       return;
@@ -443,7 +461,10 @@ function drawStep2(rec){
   // required pick. The fallback select only appears when there are no stores
   // on file at all, so there's still *some* answer to "who covers you".
   const coverFor = cid => { const s = savedStores && savedStores.find(x=>x.customer_id===cid); return s ? s.covering_salesperson_id : ''; };
-  const repOptions = (selected) => COVERERS.map(r=>`<option value="${esc(r.code)}" ${r.code===selected?'selected':''}>${esc(r.name)}</option>`).join('');
+  const repOptions = (selected) => ['Sales team','Team leaders','Brand Ambassadors'].map(g=>{
+    const items = COVERERS.filter(r=>r.group===g);
+    return items.length ? `<optgroup label="${g}">${items.map(r=>`<option value="${esc(r.code)}" ${r.code===selected?'selected':''}>${esc(r.label||r.name)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
 
   app.innerHTML = `
     <div class="secthdr"><h2>Coverage checklist</h2><span class="cnt">${esc(rec.start_date)} → ${esc(rec.end_date)}</span></div>
