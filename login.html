@@ -231,7 +231,20 @@
   const params = new URLSearchParams(window.location.search);
   // An explicit ?redirect= (set by auth-guard when it bounces someone off a
   // page they wanted) wins over role-based landing.
-  const explicitRedirect = params.get('redirect');
+  //
+  // Only a same-origin path is accepted. Anything else — javascript:, //host,
+  // /\host, https://elsewhere — is dropped, because handleSignedIn() assigns
+  // it straight to location.href: a javascript: URL would run in this origin
+  // and could read the session out of localStorage (FE-A-04 / FE-D-10).
+  const explicitRedirect = (function (r) {
+    if (!r || r.charAt(0) !== '/' || r.charAt(1) === '/' || r.charAt(1) === '\\') return null;
+    try {
+      const u = new URL(r, window.location.origin);
+      return u.origin === window.location.origin ? u.pathname + u.search + u.hash : null;
+    } catch (e) {
+      return null;
+    }
+  })(params.get('redirect'));
   const reason = params.get('reason');
 
   const checkingState = document.getElementById('checkingState');
