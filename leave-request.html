@@ -601,10 +601,9 @@ async function submitStep2(){
     });
     if(!res.ok) throw new Error('update failed');
     drawDone(discussedEl.value==='none');
-    // Fire-and-forget — HR (and Monique/Scott, cc'd) get the completed
-    // checklist by email. The checklist submission itself already succeeded
-    // above, so a failure here shouldn't alarm the submitter.
-    sendLeaveChecklistEmail(CURRENT_ID);
+    // Checklist email switched off 2026-10-07: Resend only delivers to the
+    // account owner until a domain is verified. sendLeaveChecklistEmail() is
+    // kept below; re-add the call here to re-enable.
   }catch(e){
     err.textContent='Could not submit the checklist. Try again.'; err.style.display='block';
   }
