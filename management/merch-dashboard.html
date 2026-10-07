@@ -620,6 +620,14 @@ async function supa(path){
   return r.json();
 }
 
+// HTML-escape every DB-sourced string before it reaches innerHTML, an
+// attribute or a Leaflet popup. merch_visit_log and merchandiser_evaluations
+// are anon-writable, so their text is untrusted (FE-D-01).
+const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Shelf photos must be our own public storage objects; anything else is dropped.
+const STORAGE_PUB = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/';
+const safeUrl = u => (typeof u==='string' && u.indexOf(STORAGE_PUB)===0) ? escH(u) : '';
+
 // ── BOOT: load reference data once, then the default tab ──
 async function loadStaticRefs(){
   const [mapRows, repsRows] = await Promise.all([
@@ -658,12 +666,12 @@ async function loadTLIncentive(period){
 function populateRegionFilter(){
   const sel = document.getElementById('regionFilter');
   const regions = [...new Set(Object.values(regionByMerch).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">All regions</option>' + regions.map(r=>`<option value="${r}">${r}</option>`).join('');
+  sel.innerHTML = '<option value="">All regions</option>' + regions.map(r=>`<option value="${escH(r)}">${escH(r)}</option>`).join('');
 }
 function populateTLFilter(){
   const sel = document.getElementById('tlFilter');
   const prev = sel.value;
-  sel.innerHTML = '<option value="all">All Team Leaders</option>' + tlIncentive.map(tl=>`<option value="${tl.tl_rep_id}">${tl.tl_name}${tl.tl_role==='tl_merch'?' (acting)':''}</option>`).join('');
+  sel.innerHTML = '<option value="all">All Team Leaders</option>' + tlIncentive.map(tl=>`<option value="${escH(tl.tl_rep_id)}">${escH(tl.tl_name)}${tl.tl_role==='tl_merch'?' (acting)':''}</option>`).join('');
   if(prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
 }
 
@@ -683,7 +691,7 @@ async function loadData(){
     applyFilters();
     document.getElementById('lastSyncTime').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch(e){
-    document.getElementById('mainContent').innerHTML = '<div class="empty"><p style="color:var(--red)">Load failed: ' + e.message + '</p></div>';
+    document.getElementById('mainContent').innerHTML = '<div class="empty"><p style="color:var(--red)">Load failed: ' + escH(e.message) + '</p></div>';
     toast('Connection error','error');
   }
 }
@@ -758,8 +766,10 @@ function buildSidebar(summaries){
     const txt = hasActuals ? fmtPct(pct) : count+' stores';
     const sid = 'sb-'+m.replace(/[^a-zA-Z0-9]/g,'_');
     const tip = hasActuals ? qualified+'/'+count+' qualified | Comm: '+fmtComm(commission) : count+' stores';
-    return '<div class="sidebar-item'+(selectedMerch===m?' active':'')+'" onclick="selectMerch(\'' + m.replace(/'/g, "\\'") + '\')" id="' + sid + '" title="' + tip + '">'
-      + '<span class="merch-name">'+m+'</span>'
+    // Name goes through data-merch, not into the onclick string, so a quote or
+    // markup in a merchandiser name can't break out of the handler.
+    return '<div class="sidebar-item'+(selectedMerch===m?' active':'')+'" data-merch="' + escH(m) + '" onclick="selectMerch(this.dataset.merch)" id="' + sid + '" title="' + tip + '">'
+      + '<span class="merch-name">'+escH(m)+'</span>'
       + '<span class="badge '+cls+'">'+txt+'</span>'
       + '</div>';
   }).join('');
@@ -827,7 +837,7 @@ function renderTable(){
   const showMerch = selectedMerch==='ALL';
   const isReal = REAL_TARGET_MONTHS.has(currentPeriod);
   c.innerHTML=`
-    <div class="view-title">${selectedMerch==='ALL'?'All Stores':selectedMerch}</div>
+    <div class="view-title">${selectedMerch==='ALL'?'All Stores':escH(selectedMerch)}</div>
     <div class="view-sub">${filteredRows.length} stores · ${MONTHS[currentPeriod]} · <span class="source-tag ${isReal?'real':''}">${isReal?'Real targets uploaded':'Budget targets'}</span></div>
     <div class="table-wrap">
       <table>
@@ -845,9 +855,9 @@ function renderTable(){
         </thead>
         <tbody>
           ${filteredRows.map(r=>`<tr>
-            <td class="td-id">${r.customer_id}${r.shared?' <span class="pill pill-amber">split</span>':''}${r.routeOnly?' <span class="pill pill-grey">route-only</span>':''}</td>
-            <td class="td-name">${r.customer_name}</td>
-            ${showMerch?`<td class="td-merch">${r.merchandiser}</td>`:''}
+            <td class="td-id">${escH(r.customer_id)}${r.shared?' <span class="pill pill-amber">split</span>':''}${r.routeOnly?' <span class="pill pill-grey">route-only</span>':''}</td>
+            <td class="td-name">${escH(r.customer_name)}</td>
+            ${showMerch?`<td class="td-merch">${escH(r.merchandiser)}</td>`:''}
             <td class="td-num">${fmt(r.target)}</td>
             <td class="td-num td-actual">${r.actual>0?fmt(r.actual):'<span style="color:var(--muted)">—</span>'}</td>
             <td>${pctBar(r.pct)}</td>
@@ -921,7 +931,7 @@ function loadRawText(text){
 
   const cidSel = document.getElementById('col-cid');
   const amtSel = document.getElementById('col-amt');
-  cidSel.innerHTML = amtSel.innerHTML = csvHeaders.map((h,i) => `<option value="${i}">${h}</option>`).join('');
+  cidSel.innerHTML = amtSel.innerHTML = csvHeaders.map((h,i) => `<option value="${i}">${escH(h)}</option>`).join('');
 
   const cidGuess = csvHeaders.findIndex(h => {
     const l = h.toLowerCase();
@@ -995,9 +1005,9 @@ function repreview(){
         <th style="padding:3px 8px">In Dashboard?</th>
       </tr>
       ${sample.map(r => `<tr style="border-bottom:1px solid #eee">
-        <td style="padding:3px 8px;font-family:var(--mono);font-size:10px">${r.customer_id}</td>
+        <td style="padding:3px 8px;font-family:var(--mono);font-size:10px">${escH(r.customer_id)}</td>
         <td style="padding:3px 8px;text-align:right;font-family:var(--mono);font-size:10px">$${r.actual_amount.toLocaleString()}</td>
-        <td style="padding:3px 8px;font-size:10px">${mapByCid[r.customer_id] ? '<span style="color:var(--green)">✓ '+mapByCid[r.customer_id].merchandiser_name+'</span>' : '<span style="color:var(--red)">✗ not found</span>'}</td>
+        <td style="padding:3px 8px;font-size:10px">${mapByCid[r.customer_id] ? '<span style="color:var(--green)">✓ '+escH(mapByCid[r.customer_id].merchandiser_name)+'</span>' : '<span style="color:var(--red)">✗ not found</span>'}</td>
       </tr>`).join('')}
       ${parsedRows.length > 6 ? `<tr><td colspan="3" style="padding:3px 8px;color:var(--muted);font-size:9px">... and ${parsedRows.length - 6} more rows</td></tr>` : ''}
     </table>`;
@@ -1131,7 +1141,7 @@ document.querySelectorAll('.month-tab').forEach(tab=>{
 function renderTLSection(){
   const grid = document.getElementById('tlGrid');
   const filterVal = document.getElementById('tlFilter').value;
-  if(tlIncentiveError){ grid.innerHTML = `<div class="empty"><p style="color:var(--red)">Team leader incentive failed to load: ${tlIncentiveError}</p></div>`; return; }
+  if(tlIncentiveError){ grid.innerHTML = `<div class="empty"><p style="color:var(--red)">Team leader incentive failed to load: ${escH(tlIncentiveError)}</p></div>`; return; }
 
   const list = filterVal==='all' ? tlIncentive : tlIncentive.filter(tl=>tl.tl_rep_id===filterVal);
   if(!list.length){ grid.innerHTML = '<div class="empty">No team leaders match this filter.</div>'; return; }
@@ -1155,7 +1165,7 @@ function renderTLSection(){
   if(unassigned.length && filterVal==='all'){
     grid.innerHTML += `<div class="tl-card" style="border-top:3px solid var(--red)">
       <div class="tl-head"><div><div class="tl-tname" style="color:var(--red)">⚠ Unassigned</div><div class="tl-region" style="color:var(--red)">No team_lead_id set in reps</div></div></div>
-      <div style="padding:14px 18px;font-size:11px;color:var(--muted)">${unassigned.map(n=>n).join(', ')}</div>
+      <div style="padding:14px 18px;font-size:11px;color:var(--muted)">${unassigned.map(escH).join(', ')}</div>
     </div>`;
   }
 }
@@ -1171,7 +1181,7 @@ function buildTLCard(tl){
     const r = { s80: m.stores_80, s100: m.stores_100, earn: parseFloat(m.incentive)||0, totalStores: m.stores };
     const merchPct = r.totalStores>0 ? Math.round(((r.s80+r.s100)/r.totalStores)*100) : 0;
     return `<div class="tl-mrow">
-      <div class="tl-mname">${m.name}</div>
+      <div class="tl-mname">${escH(m.name)}</div>
       <div class="tl-mc">${r.totalStores}</div>
       <div class="tl-me ${r.s80?'has':'no'}">${r.s80||'—'}</div>
       <div class="tl-me ${r.s100?'has':'no'}">${r.s100||'—'}</div>
@@ -1179,8 +1189,8 @@ function buildTLCard(tl){
       <div class="tl-me has">${fmtComm(r.earn)}</div>
     </div>`;
   }).join('');
-  const subtitle = acting ? (tl.acting_for ? `Acting TL · shares credit with ${tl.acting_for}` : 'Acting TL · own team') : region;
-  return `<div class="tl-card ${cls}"><div class="tl-head"><div><div class="tl-tname">${tl.tl_name}</div><div class="tl-region ${cls}">${subtitle}</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">${fmtComm(res.earn)}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">${res.totalStores}</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">${res.s100}</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">${res.s80}</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:${pc}">${pct}%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">${fmtComm(res.earn)}</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Brand Ambassador</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>${rows}<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">${res.totalStores}</div><div class="tl-mtot-v" style="color:var(--amber)">${res.s80}</div><div class="tl-mtot-v" style="color:var(--green)">${res.s100}</div><div class="tl-mtot-v" style="color:${pc}">${pct}%</div><div class="tl-mtot-e">${fmtComm(res.earn)}</div></div></div>`;
+  const subtitle = acting ? (tl.acting_for ? `Acting TL · shares credit with ${escH(tl.acting_for)}` : 'Acting TL · own team') : escH(region);
+  return `<div class="tl-card ${cls}"><div class="tl-head"><div><div class="tl-tname">${escH(tl.tl_name)}</div><div class="tl-region ${cls}">${subtitle}</div></div><div><div style="font-family:var(--display);font-size:24px;font-weight:900;color:var(--accent2);text-align:right">${fmtComm(res.earn)}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;margin-top:3px;text-align:right">Incentive Earned</div></div></div><div class="tl-kpis"><div class="tl-kpi"><div class="tl-kpi-v">${res.totalStores}</div><div class="tl-kpi-l">Stores</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--green)">${res.s100}</div><div class="tl-kpi-l">100%+</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--amber)">${res.s80}</div><div class="tl-kpi-l">80–99%</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:${pc}">${pct}%</div><div class="tl-kpi-l">Achievement</div></div><div class="tl-kpi"><div class="tl-kpi-v" style="color:var(--accent2)">${fmtComm(res.earn)}</div><div class="tl-kpi-l">Earned</div></div></div><div class="tl-mhdr"><span>Brand Ambassador</span><span>Stores</span><span>80–99%</span><span>100%+</span><span>Achievement</span><span>Earned</span></div>${rows}<div class="tl-mtot"><div class="tl-mtot-l">TOTAL</div><div class="tl-mtot-v">${res.totalStores}</div><div class="tl-mtot-v" style="color:var(--amber)">${res.s80}</div><div class="tl-mtot-v" style="color:var(--green)">${res.s100}</div><div class="tl-mtot-v" style="color:${pc}">${pct}%</div><div class="tl-mtot-e">${fmtComm(res.earn)}</div></div></div>`;
 }
 
 function exportTLCSV(){
@@ -1243,8 +1253,8 @@ function renderPayroll(){
 
     const body = payable.map((r,i) => `<tr style="border-bottom:1px solid #f0ede8">
         ${td(i+1,'left','font-family:var(--mono);font-size:10px;color:#9ca3af')}
-        ${td(r.person_name,'left','font-size:12px;font-weight:600;color:#1a1a2e')}
-        ${td(POSITION_LABEL[r.role]||r.role,'left','font-size:11px;color:#6b7280')}
+        ${td(escH(r.person_name),'left','font-size:12px;font-weight:600;color:#1a1a2e')}
+        ${td(escH(POSITION_LABEL[r.role]||r.role),'left','font-size:11px;color:#6b7280')}
         ${td(dash(r.ba_commission),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
         ${td(dash(r.tl_incentive),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
         ${td(dash(r.relief_incentive),'right',bd+'font-family:var(--mono);font-size:10px;color:#6b7280')}
@@ -1289,7 +1299,7 @@ function renderPayroll(){
         </div>
       </div>`;
   }).catch(err => {
-    pc.innerHTML = `<div style="padding:20px;color:#dc2626;font-family:var(--mono);font-size:11px">Error loading payroll: ${err.message}</div>`;
+    pc.innerHTML = `<div style="padding:20px;color:#dc2626;font-family:var(--mono);font-size:11px">Error loading payroll: ${escH(err.message)}</div>`;
   });
 }
 
@@ -1366,7 +1376,6 @@ async function exportPayrollPDF(){
 // Fallback: printable HR sheet in a new window (browser print dialog -> Save as PDF).
 function printPayrollSheet(){
   if(!payrollRows.length){ toast('Nothing to export for this period',''); return; }
-  const esc = v => String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n = v => parseFloat(v||0);
   const j$ = v => 'J$' + n(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const sum = k => payrollRows.reduce((s,r)=>s+n(r[k]),0);
@@ -1375,7 +1384,7 @@ function printPayrollSheet(){
   const w = window.open('', '_blank');
   if(!w){ toast('Allow pop-ups for this site to export the PDF',''); return; }
   w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DFL Merch Commission and TL Incentive ${esc(label)}</title>
+<title>DFL Merch Commission and TL Incentive ${escH(label)}</title>
 <style>
 body{font:12px/1.4 "Segoe UI",Arial,sans-serif;color:#111;margin:24px;background:#fff}
 h1{font-size:18px;margin:0 0 2px}.sub{color:#555;margin:0 0 14px}
@@ -1390,9 +1399,9 @@ td.amt{font-weight:700}tfoot td{font-weight:700;background:#f4f4f4}
 </style></head><body>
 <div class="tools"><button onclick="window.print()">Print / Save as PDF</button></div>
 <h1>DFL Importers &amp; Distributors: Merch Commission and TL Incentive</h1>
-<p class="sub">Period: <b>${esc(label)}</b> · ${payrollRows.length} people · Prepared ${esc(new Date().toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}))}${who?` by ${esc(who)}`:''}</p>
+<p class="sub">Period: <b>${escH(label)}</b> · ${payrollRows.length} people · Prepared ${escH(new Date().toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}))}${who?` by ${escH(who)}`:''}</p>
 <table><thead><tr><th>#</th><th>Name</th><th>Position</th><th class="n">BA commission</th><th class="n">TL incentive</th><th class="n">Relief</th><th class="n">Amount payable</th></tr></thead><tbody>
-${payrollRows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.person_name)}</td><td>${esc(POSITION_LABEL[r.role]||r.role)}</td><td class="n">${j$(r.ba_commission)}</td><td class="n">${j$(r.tl_incentive)}</td><td class="n">${j$(r.relief_incentive)}</td><td class="n amt">${j$(r.total_payable)}</td></tr>`).join('')}
+${payrollRows.map((r,i)=>`<tr><td>${i+1}</td><td>${escH(r.person_name)}</td><td>${escH(POSITION_LABEL[r.role]||r.role)}</td><td class="n">${j$(r.ba_commission)}</td><td class="n">${j$(r.tl_incentive)}</td><td class="n">${j$(r.relief_incentive)}</td><td class="n amt">${j$(r.total_payable)}</td></tr>`).join('')}
 </tbody><tfoot><tr><td colspan="3">Total · ${payrollRows.length} people</td><td class="n">${j$(sum('ba_commission'))}</td><td class="n">${j$(sum('tl_incentive'))}</td><td class="n">${j$(sum('relief_incentive'))}</td><td class="n">${j$(sum('total_payable'))}</td></tr></tfoot></table>
 <div class="sign"><div>Prepared by</div><div>Approved by</div><div>Date</div></div>
 <p class="note"><span class="conf">Confidential: HR use only.</span> Amount payable = Brand Ambassador commission + Team Leader incentive + relief incentive, per person.
@@ -1457,7 +1466,7 @@ function renderVisitMap(){
       radius: 6, fillColor: isRelief?'#c8922a':'#2F5DBF', color:'#fff', weight:1.5, fillOpacity:0.85
     }).addTo(visitMapInstance);
     const outcomeLbl = r.outcome==='issue'?'⚠ Issue':r.outcome==='pending'?'↩ Follow-up':'✓ Good';
-    marker.bindPopup(`<strong>${r.store_name||r.customer_id}</strong><br>${r.user_name||''}${isRelief?' <span style="color:#c8922a;font-weight:700">(relief cover)</span>':''}<br>${r.visit_date} · ${outcomeLbl}`);
+    marker.bindPopup(`<strong>${escH(r.store_name||r.customer_id)}</strong><br>${escH(r.user_name)}${isRelief?' <span style="color:#c8922a;font-weight:700">(relief cover)</span>':''}<br>${escH(r.visit_date)} · ${outcomeLbl}`);
     visitMarkers.push(marker);
   });
   if(visitMarkers.length){
@@ -1481,10 +1490,10 @@ function renderVisitTable(){
     const typeLbl = r.visit_type==='relief'?'<span class="pill pill-amber">🔄 Relief</span>':'<span class="pill pill-grey">Regular</span>';
     const loc = (r.latitude!=null&&r.longitude!=null) ? `<a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--accent)">${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}</a>` : '<span style="color:var(--muted)">—</span>';
     const time = r.clock_in ? new Date(r.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'}) : '';
-    return `<tr class="clickable" onclick="openVisitDetail('${r.id}')">
-      <td class="td-id">${r.visit_date} ${time}</td>
-      <td>${r.user_name||''}</td>
-      <td>${r.store_name||r.customer_id}</td>
+    return `<tr class="clickable" data-id="${escH(r.id)}" onclick="openVisitDetail(this.dataset.id)">
+      <td class="td-id">${escH(r.visit_date)} ${time}</td>
+      <td>${escH(r.user_name)}</td>
+      <td>${escH(r.store_name||r.customer_id)}</td>
       <td>${outcomeLbl}</td>
       <td>${typeLbl}</td>
       <td class="td-id" onclick="event.stopPropagation()">${loc}</td>
@@ -1545,11 +1554,13 @@ function openVisitDetail(id){
   else catsWrap.style.display='none';
 
   const photosWrap = document.getElementById('vd-photos-wrap');
-  const photos = r.shelf_photo_urls||[];
+  // Only our own public storage URLs (safeUrl returns them escaped); a
+  // javascript: or off-site URL in the anon-writable log is dropped.
+  const photos = (Array.isArray(r.shelf_photo_urls) ? r.shelf_photo_urls : []).map(safeUrl).filter(Boolean);
   if(photos.length){
     photosWrap.style.display='block';
     document.getElementById('vd-photos-title').textContent = `Shelf Photos (${photos.length})`;
-    document.getElementById('vd-photos').innerHTML = photos.map(u=>`<a href="${u}" target="_blank"><img src="${u}" loading="lazy" alt="shelf photo"></a>`).join('');
+    document.getElementById('vd-photos').innerHTML = photos.map(u=>`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" loading="lazy" alt="shelf photo"></a>`).join('');
   } else photosWrap.style.display='none';
 
   document.getElementById('visit-detail-modal').classList.add('open');
@@ -1583,7 +1594,7 @@ const EVAL_CRITERIA = [
 ];
 function evalRatingPill(rating){
   const cls = rating==='Exceptional'?'pill-green':rating==='Satisfactory'?'pill-amber':rating==='Unsatisfactory'?'pill-red':'pill-grey';
-  return `<span class="pill ${cls}">${rating||'Not yet scored'}</span>`;
+  return `<span class="pill ${cls}">${rating?escH(rating):'Not yet scored'}</span>`;
 }
 function evalIsComplete(r){ return !!(r.employee_signed && r.supervisor_signed) || !!(r.employee_signed && r.manager_signed); }
 
@@ -1627,13 +1638,13 @@ function renderEvalTable(){
       <span class="sign-dot ${r.supervisor_signed?'on':''}"></span>
       <span class="sign-dot ${r.manager_signed?'on':''}"></span>
     </span>`;
-    return `<tr class="clickable" onclick="openEvalDetail('${r.id}')">
+    return `<tr class="clickable" data-id="${escH(r.id)}" onclick="openEvalDetail(this.dataset.id)">
       <td class="td-id">${date}</td>
-      <td>${r.employee_name||'—'}</td>
-      <td>${r.position||'—'}</td>
-      <td>${r.review_period||'—'}</td>
-      <td>${r.reviewed_by||'—'}</td>
-      <td class="td-num">${r.total_score!=null?r.total_score:'—'}</td>
+      <td>${escH(r.employee_name||'—')}</td>
+      <td>${escH(r.position||'—')}</td>
+      <td>${escH(r.review_period||'—')}</td>
+      <td>${escH(r.reviewed_by||'—')}</td>
+      <td class="td-num">${r.total_score!=null?escH(r.total_score):'—'}</td>
       <td>${evalRatingPill(r.rating)}</td>
       <td onclick="event.stopPropagation()">${signoff}</td>
     </tr>`;
@@ -1647,8 +1658,8 @@ function openEvalDetail(id){
   document.getElementById('ed-sub').textContent = `${r.position||'—'} · ${r.review_period||'—'}`;
 
   document.getElementById('ed-meta').innerHTML = `
-    <div class="vd-item"><b>Reviewed By</b>${r.reviewed_by||'—'}</div>
-    <div class="vd-item"><b>Total Score</b>${r.total_score!=null?r.total_score:'—'}</div>
+    <div class="vd-item"><b>Reviewed By</b>${escH(r.reviewed_by||'—')}</div>
+    <div class="vd-item"><b>Total Score</b>${r.total_score!=null?escH(r.total_score):'—'}</div>
     <div class="vd-item"><b>Rating</b>${evalRatingPill(r.rating)}</div>
     <div class="vd-item"><b>Sign-off</b>Employee ${r.employee_signed?'✓':'—'} · Supervisor ${r.supervisor_signed?'✓':'—'} · Manager ${r.manager_signed?'✓':'—'}</div>
   `;
@@ -1657,8 +1668,8 @@ function openEvalDetail(id){
     const score = r['score_'+key];
     const comment = r['comments_'+key];
     return `<div class="ev-crit">
-      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${score!=null?score:'—'}</div></div>
-      ${comment?`<div class="ev-crit-comment">${comment}</div>`:''}
+      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${score!=null?escH(score):'—'}</div></div>
+      ${comment?`<div class="ev-crit-comment">${escH(comment)}</div>`:''}
     </div>`;
   }).join('');
 
@@ -1671,7 +1682,9 @@ function openEvalDetail(id){
   else notesWrap.style.display='none';
 
   const scanWrap = document.getElementById('ed-scan-wrap');
-  if(r.scan_file_url){ scanWrap.style.display='block'; document.getElementById('ed-scan-link').href = r.scan_file_url; }
+  // https only: the evaluation-scans bucket is public, so a real scan is an
+  // https storage URL; a javascript: URL from the anon-writable table becomes '#'.
+  if(r.scan_file_url){ scanWrap.style.display='block'; document.getElementById('ed-scan-link').href = /^https:\/\//i.test(r.scan_file_url||'') ? r.scan_file_url : '#'; }
   else scanWrap.style.display='none';
 
   document.getElementById('eval-detail-modal').classList.add('open');
