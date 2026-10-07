@@ -130,8 +130,14 @@ function showAccessDenied(profile) {
   // empty (frame-scoped storage), making the guard wrongly redirect
   // the iframe to login.html and leaving the embed blank. So when
   // framed, reveal immediately and let the embedded page's own code run.
+  //
+  // That assumption only holds for a parent on this origin. A page framed by
+  // any other site stays hidden (FE-A-13). Reading top.location.origin throws
+  // cross-origin, which lands in the catch and leaves sameOriginParent false.
   if (window.self !== window.top) {
-    revealPage();
+    let sameOriginParent = false;
+    try { sameOriginParent = window.top.location.origin === window.location.origin; } catch (e) {}
+    if (sameOriginParent) revealPage();
     return;
   }
 
