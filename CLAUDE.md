@@ -105,6 +105,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `/login.html` | — | Microsoft SSO + phone OTP; also the OAuth callback |
 | `/index.html` | rep, manager, admin | Rep app ("My Numbers"). Bottom tab bar toggles `.hidden` sections; Plan/More tabs load other pages in **iframes** |
 | `/merch.html` | merchandiser, team_leader, manager, admin | Merch field app — visits, shelf photos, OOS, stock counts |
+| `/merch-eval.html` | team_leader, tl_merch, manager, admin | Quarterly Brand Ambassador evaluation form, framed by `merch.html` (it used to be a base64 `data:` iframe on a hardcoded anon key; now a normal page on the shared client). The guard no-ops while framed |
 | `/hub.html` | manager, admin | Landing page: section cards into both apps and the tools |
 | `/pending.html` | pending | Holding page; lets them set their own name via `set_pending_name()` |
 | `/admin/index.html` | admin | Admin landing |
@@ -148,6 +149,9 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 10. **Revoking `anon` needs to be explicit.** Supabase grants EXECUTE on public functions to `anon` and `authenticated` *directly*, so `revoke ... from public` does not remove it. Trigger functions like `handle_new_user` are a special case — Postgres refuses to call them directly (`0A000`), so an anon grant on those is unexploitable.
 11. **Confirm destructive DB changes before executing.**
 12. **Before writing a new RLS policy, check whether a narrower predicate like `is_manager()` is really what the feature needs — grep `pg_proc` for other `can_*`/`is_*` predicates first.** `is_manager()` (admin, manager only) is shared by `specials`, `org_chart` and `field_intel`. The HOD weekly-report writes use a separate, wider predicate, `can_manage_weekly_reports()` (admin, manager, management, rep_management) — added because the actual department heads mostly carry the `management` role, which `is_manager()` excludes. This has already bitten once: splitting the HOD uploads onto their own storage bucket recreated the new bucket's write policies with `is_manager()` (copied from a similar-looking policy elsewhere) instead of `can_manage_weekly_reports()`, silently narrowing storage-layer access back down for `management`/`rep_management` users while the *table* policies — untouched by that change — kept working. Same class of bug as gotcha 7, one layer down: two policies that are supposed to agree on who counts, quietly drifting apart.
+13. **Escape at the sink; inline handlers take data, not strings.** Anything from the database (or the URL) that reaches `innerHTML`, an attribute or a Leaflet popup goes through an escape helper that handles `"` and `'` (`escH` / `esc` / `escapeHtml` / `escapeHtmlM` — each page keeps its own; the old `textContent`-trick versions left quotes alone and were unsafe in attributes). A URL going into `href`/`src` must be *restricted* (storage prefix or `https://`), not just escaped — `javascript:` survives escaping. Never build `onclick="f('${value}')"`: `encodeURIComponent` leaves `' ( ) ! * ~` alone. Put the value in `data-*` and read `this.dataset`, or use `encQ()` and decode on the other side. Several tables are still writable with the public key, so treat their text as hostile.
+14. **PostgREST paging: the server returns at most 1000 rows per request, whatever `limit`/`Range` you send.** A page size above 1000 makes a "short page means last page" loop stop after page one — that silently truncated the KAM and category dashboards and the merch visit log. Page in 1000s with a unique `order=` tiebreaker (`id`). Build `in.(…)` lists with `pgIn()` (quote + URL-encode each value); never join raw names into a filter.
+15. **Never fall back to the anon key when there is no session** (`merch.html`, `planograms.html` and the price dashboard used to). Throw, and redirect to login when online. `merch.html` deliberately does not redirect while offline so its IndexedDB visit queue keeps working. A failed *load* must also never look like an empty record: the CM/KAM report once upserted a blank month over real data after one transient error.
 
 ## Database
 
@@ -236,9 +240,9 @@ Every guarded page uses `shared/auth-guard.js` and takes its allow-list from `DF
 - `*_legacy.html` (`index_legacy.html`, `rep-weekly-plan-form_legacy.html`, `specials-upload_legacy.html`) are superseded predecessors, reference only. `index_legacy.html` was the old portal homepage and is the ancestor of `hub.html`.
 - The rest (`assets.html`, `dashboards.html`, `dfl-sales-dashboard.html`, `dfl-worldcup.html`, `dispatch-portal.html`, `forms.html`) are not-yet-deployed drafts. `hub.html` renders cards for four of them as disabled "Coming soon" tiles; to ship one, move the file to the repo root and turn its tile back into a link.
 
-## Root-level experimental pages
+## Experimental / retired pages (in `_staging/`)
 
-`driver-broadcast.html` and `live-map-viewer.html` are feasibility tests, not wired into any nav, using anonymous clients (`persistSession:false`) against `location_test_pings` — plain inserts plus `postgres_changes` Realtime (not Supabase's broadcast feature, despite the filename), rendered with Leaflet. Treat as throwaway unless told otherwise.
+`driver-broadcast.html` and `live-map-viewer.html` (moved to `_staging/` on 2026-10-07, so they no longer deploy; `merch_index.html` went the same way as `_staging/merch_index_legacy.html`) are feasibility tests, not wired into any nav, using anonymous clients (`persistSession:false`) against `location_test_pings` — plain inserts plus `postgres_changes` Realtime (not Supabase's broadcast feature, despite the filename), rendered with Leaflet. Treat as throwaway unless told otherwise.
 
 ## Key constants
 
