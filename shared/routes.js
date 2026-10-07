@@ -146,10 +146,17 @@ const DFL_PAGE_ROLES = {
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
 // hashes are stripped so '/index.html?denied=1' matches '/index.html'.
+//
+// GitHub Pages also serves 'foo.html' at '/foo', and decodes '/hub%2Ehtml', so
+// both are mapped back to the '.html' entry — otherwise '/hub' would miss the
+// table and fall through to "unlisted, so allowed" (FE-A-05).
 function dflNormalisePath(path) {
   let p = (path || '/').split('?')[0].split('#')[0];
+  try { p = decodeURIComponent(p); } catch (e) {}
+  p = p.replace(/\/{2,}/g, '/');
   if (p === '' || p === '/') return '/index.html';
   if (p.charAt(p.length - 1) === '/') p += 'index.html';
+  else if (!/\.[A-Za-z0-9]+$/.test(p.split('/').pop())) p += '.html';
   return p;
 }
 
