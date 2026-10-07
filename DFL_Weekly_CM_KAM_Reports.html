@@ -251,17 +251,28 @@ function monthName(m){ return ['','January','February','March','April','May','Ju
 
 /* ============== STORAGE (Supabase table) ============== */
 function blankRecord(){ return {plan:null, updates:[], recap:null, drafts:{plan:null, updates:{}, recap:null}}; }
+// A blank record is returned ONLY when the month genuinely has no saved row.
+// A failed load (network, 401, 5xx) throws. It used to fall back to a blank
+// record, and since every save/delete/autosave upserts the WHOLE data object,
+// one transient error was enough to overwrite the month's plan, updates and
+// recap with an empty one (FE-D-20).
 async function loadRecord(personId,y,m){
-  try{
-    const rows = await sbSelect('cmkam_weekly_reports', {person_id:personId, year:y, month:m}, 'data');
-    if(rows && rows.length && rows[0].data){
-      const d = rows[0].data;
-      return { plan: d.plan||null, updates: d.updates||[], recap: d.recap||null, drafts: d.drafts || {plan:null, updates:{}, recap:null} };
-    }
-  }catch(e){
-    console.error('loadRecord failed:', e);
+  const rows = await sbSelect('cmkam_weekly_reports', {person_id:personId, year:y, month:m}, 'data');
+  if(rows && rows.length && rows[0].data){
+    const d = rows[0].data;
+    return { plan: d.plan||null, updates: d.updates||[], recap: d.recap||null, drafts: d.drafts || {plan:null, updates:{}, recap:null} };
   }
   return blankRecord();
+}
+// For save/delete: if the existing record can't be read, stop — never write.
+async function loadRecordForWrite(personId,y,m){
+  try{
+    return await loadRecord(personId,y,m);
+  }catch(e){
+    console.error('loadRecord failed:', e);
+    showToast('Could not load the saved report, so nothing was changed. Check your connection and try again.', true);
+    return null;
+  }
 }
 async function saveRecord(personId,y,m,rec){
   await sbUpsert('cmkam_weekly_reports', {person_id:personId, year:y, month:m, data:rec, updated_at:new Date().toISOString()}, 'person_id,year,month');
@@ -404,7 +415,17 @@ async function renderPersonScreen(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const fridays = getFridays(state.year,state.month);
   const cls = classify(state.fIdx, fridays.length);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  let rec;
+  try{
+    rec = await loadRecord(person.id, state.year, state.month);
+  }catch(e){
+    // Show an error, not an empty month, and leave currentRec unset so the
+    // draft autosave can't write over what we failed to read.
+    console.error('loadRecord failed:', e);
+    currentRec = null;
+    app.innerHTML = '<div class="card" style="padding:20px"><b>Could not load this report.</b><div class="hint" style="margin:8px 0 12px">Nothing has been changed. Check your connection, then try again.</div><button class="btn btn-primary" onclick="renderPersonScreen()">Try again</button></div>';
+    return;
+  }
   currentRec = rec;
 
   // status strip
@@ -504,7 +525,8 @@ function renderInitRows(){
 function updInit(id,field,val){ const it=planInitiatives.find(i=>i.id===id); if(it) it[field]=val; }
 async function savePlan(){
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   rec.plan = {
     submittedAt: new Date().toISOString(),
     initiatives: planInitiatives.filter(i=>i.name.trim()!==''),
@@ -545,7 +567,8 @@ function readonlyPlan(person, plan){
 async function deletePlan(){
   if(!confirm('Delete this plan? This cannot be undone.')) return;
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   rec.plan = null;
   rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
   rec.drafts.plan = null;
@@ -607,7 +630,8 @@ function renderUpdRows(){
 function updStatus(id,field,val){ const s=updStatuses.find(x=>x.initiativeId===id); if(s) s[field]=val; }
 async function saveUpdate(weekNum, fridayIso){
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   const entry = {
     weekNum, fridayDate: fridayIso, submittedAt: new Date().toISOString(),
     statuses: updStatuses,
@@ -648,7 +672,8 @@ function readonlyUpdate(person, u, weekNum){
 async function deleteUpdate(weekNum){
   if(!confirm('Delete this update? This cannot be undone.')) return;
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   rec.updates = rec.updates.filter(u=>u.weekNum!==weekNum);
   rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
   if(rec.drafts.updates) delete rec.drafts.updates[weekNum];
@@ -783,7 +808,8 @@ async function fetchActuals(){
 }
 async function saveRecap(){
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   rec.recap = {
     submittedAt: new Date().toISOString(),
     review: recapReview,
@@ -840,7 +866,8 @@ function readonlyRecap(person, recap){
 async function deleteRecap(){
   if(!confirm('Delete this recap? This cannot be undone.')) return;
   const person = PEOPLE.find(p=>p.id===state.personId);
-  const rec = await loadRecord(person.id, state.year, state.month);
+  const rec = await loadRecordForWrite(person.id, state.year, state.month);
+  if(!rec) return;
   rec.recap = null;
   rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
   rec.drafts.recap = null;
