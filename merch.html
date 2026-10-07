@@ -1274,6 +1274,13 @@ async function rest(path,opts={}){
 // instead and page through PostgREST's 1000-row cap.
 const STOCK_LOOKBACK_DAYS=28;
 function stockSince(){ return new Date(Date.now()-STOCK_LOOKBACK_DAYS*86400000).toISOString().slice(0,10)+'T00:00:00Z'; }
+// PostgREST in.() list from raw values: every value is double-quoted and
+// URL-encoded, so a comma, quote, & or # in a name or id can't split the list or
+// add query parameters (FE-D-19). pgIn(['a','b']) -> "in.(%22a%22,%22b%22)".
+function pgIn(values){
+  return 'in.('+values.map(x=>encodeURIComponent('"'+String(x).replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"')).join(',')+')';
+}
+
 async function restAll(path){
   const out=[], PAGE=1000;
   for(let off=0; off<20000; off+=PAGE){
@@ -1693,7 +1700,7 @@ async function loadPendingRouteChanges(u){
   try{
     const rows=await rest(`pending_route_changes?to_merchandiser_name=eq.${encodeURIComponent(u.full_name)}&applied=eq.false&order=customer_name&select=customer_id,customer_name,effective_date`);
     if(!rows||!rows.length){ card.style.display='none'; return; }
-    const targets=await rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=in.(${rows.map(r=>r.customer_id).join(',')})&select=customer_id,target_amount`).catch(function(){return [];});
+    const targets=await rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=${pgIn(rows.map(r=>r.customer_id))}&select=customer_id,target_amount`).catch(function(){return [];});
     const targetById={};
     (targets||[]).forEach(function(t){ targetById[t.customer_id]=parseFloat(t.target_amount||0); });
     const dateLbl=new Date(rows[0].effective_date+'T00:00:00').toLocaleDateString('en-JM',{month:'long',day:'numeric'});
@@ -2495,15 +2502,13 @@ async function loadTLData(u){
     }
 
     // 2. Fetch performance summary only for this TL's merchandisers
-    const nameFilter=myNames.map(n=>`"${n}"`).join(',');
-    const nameList=myNames.map(n=>'"'+n+'"').join(',');
     const mon=new Date(now);
     mon.setDate(now.getDate()-(now.getDay()===0?6:now.getDay()-1));
     const weekStart=mon.toISOString().slice(0,10);
     const todayStr=now.toISOString().slice(0,10);
     const [all,ownVisits,reliefVisits]=await Promise.all([
-      rest(`merchandiser_summary?period=eq.${period}&merchandiser_name=in.(${nameList})&select=*&order=achievement_pct.desc`),
-      rest(`merch_visit_log?user_name=in.(${nameList})&visit_date=gte.${weekStart}&select=*&order=created_at.desc`),
+      rest(`merchandiser_summary?period=eq.${period}&merchandiser_name=${pgIn(myNames)}&select=*&order=achievement_pct.desc`),
+      rest(`merch_visit_log?user_name=${pgIn(myNames)}&visit_date=gte.${weekStart}&select=*&order=created_at.desc`),
       // Relief coverage of this team's stores — same "screen they already
       // check for daily team activity", not a separate section.
       restRpc('get_relief_visits_for_merchandisers',{p_names:myNames,p_since:weekStart}).catch(function(e){console.warn('relief coverage fetch failed:',e);return [];})
@@ -2898,7 +2903,7 @@ async function loadTLLeaveApprovals(){
   const ids=(tlMyMerch||[]).map(m=>m.id);
   if(!ids.length){ wrap.style.display='none'; return; }
   try{
-    const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.pending&order=created_at.desc&select=*`);
+    const rows=await rest(`leave_requests?requester_id=${pgIn(ids)}&status=eq.pending&order=created_at.desc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
@@ -2929,7 +2934,7 @@ async function loadTLUpcomingLeave(){
   try{
     const today=new Date(); const weekOut=new Date(today.getTime()+7*86400000);
     const todayStr=today.toISOString().slice(0,10), weekOutStr=weekOut.toISOString().slice(0,10);
-    const rows=await rest(`leave_requests?requester_id=in.(${ids.join(',')})&status=eq.approved&from_date=gte.${todayStr}&from_date=lte.${weekOutStr}&order=from_date.asc&select=*`);
+    const rows=await rest(`leave_requests?requester_id=${pgIn(ids)}&status=eq.approved&from_date=gte.${todayStr}&from_date=lte.${weekOutStr}&order=from_date.asc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
@@ -3703,14 +3708,12 @@ async function openTLTeamStores(){
   try{
     const names=(tlMyMerch||[]).map(m=>m.name);
     if(!names.length){ _tlTeamStores=[]; renderTLTeamStores(); return; }
-    const nameList=names.map(n=>'"'+n+'"').join(',');
-    const roster=await rest(`merchandiser_map?merchandiser_name=in.(${nameList})&select=customer_id,merchandiser_name`);
+    const roster=await rest(`merchandiser_map?merchandiser_name=${pgIn(names)}&select=customer_id,merchandiser_name`);
     const ids=[...new Set((roster||[]).map(r=>r.customer_id))];
     if(!ids.length){ _tlTeamStores=[]; renderTLTeamStores(); return; }
-    const idList=ids.join(',');
     const [targets,actuals]=await Promise.all([
-      rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,customer_name,target_amount`),
-      rest(`monthly_actuals?period=eq.${_curPeriod}&customer_id=in.(${idList})&select=customer_id,actual_amount`),
+      rest(`store_targets_actual?period=eq.${_curPeriod}&customer_id=${pgIn(ids)}&select=customer_id,customer_name,target_amount`),
+      rest(`monthly_actuals?period=eq.${_curPeriod}&customer_id=${pgIn(ids)}&select=customer_id,actual_amount`),
       ensureYtdActualsLoaded()
     ]);
     const targetById={}; (targets||[]).forEach(t=>{ targetById[t.customer_id]={name:t.customer_name,target:parseFloat(t.target_amount||0)}; });
@@ -3786,8 +3789,7 @@ async function openDeliveryReport(mode, dateOverride){
   try{
     if(_delivMode==='tl'){
       const names=[...(tlMyMerch||[]).map(function(m){return m.name;}), cu.full_name];
-      const nameList=names.map(function(n){return '"'+n+'"';}).join(',');
-      const rows=await rest(`merchandiser_map?merchandiser_name=in.(${nameList})&select=customer_id`);
+      const rows=await rest(`merchandiser_map?merchandiser_name=${pgIn(names)}&select=customer_id`);
       customerIds=(rows||[]).map(function(r){return r.customer_id;});
     } else {
       customerIds=(myStores||[]).map(function(s){return s.id;});
@@ -3811,13 +3813,13 @@ async function fetchMerchDeliveryReport(customerIds, dateISO){
   if(!customerIds || !customerIds.length) return empty;
   try{
     const next=deliveryAddDaysISO(dateISO,1);
-    const rows=await rest(`invoiced_items?customer_id=in.(${customerIds.join(',')})&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`);
+    const rows=await restAll(`invoiced_items?customer_id=${pgIn(customerIds)}&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`);
     const list=Array.isArray(rows)?rows:[];
     if(!list.length) return empty;
     const refs=[...new Set(list.map(function(r){return r.reference_number;}))];
     const viaMap={};
     try{
-      const viaRows=await rest(`so_invoices?reference_number=in.(${refs.join(',')})&select=reference_number,ship_via_description`);
+      const viaRows=await rest(`so_invoices?reference_number=${pgIn(refs)}&select=reference_number,ship_via_description`);
       (viaRows||[]).forEach(function(v){ viaMap[v.reference_number]=v.ship_via_description; });
     }catch(e){ /* Via just shows blank if this lookup fails */ }
     const byRef={};
@@ -4427,7 +4429,7 @@ async function loadMyWeek(){
   try{
     const [visRows,stRows,reliefRows]=await Promise.all([
       rest(`merch_visit_log?user_id=eq.${cu.id}&visit_date=gte.${weekStart}&order=visit_date.desc,created_at.desc`),
-      rest(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${weekStart}T00:00:00Z&order=counted_at.desc`),
+      restAll(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${weekStart}T00:00:00Z&order=counted_at.desc,id.desc`),
       isRelief()?Promise.resolve([]):restRpc('get_relief_visits_for_merchandisers',{p_names:[cu.full_name],p_since:weekStart}).catch(function(e){console.warn('relief coverage fetch failed:',e);return [];})
     ]);
     _weekVisits=(visRows||[]).concat(reliefRows||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -4604,13 +4606,13 @@ async function loadEOD(){
   try{
     if(isRelief()){
       // No route of their own — just their own logged activity.
-      recentCounts=await restAll(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${stockSince()}&order=counted_at.desc`);
+      recentCounts=await restAll(`merch_stock_counts?merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&counted_at=gte.${stockSince()}&order=counted_at.desc,id.desc`);
     } else {
       // Scoped by MY stores rather than by who logged it, so a relief-covered
       // stock count at one of my stores shows up here too.
       const myIds=myStores.map(s=>s.id).filter(Boolean);
       if(myIds.length){
-        recentCounts=await restAll(`merch_stock_counts?customer_id=in.(${myIds.join(',')})&counted_at=gte.${stockSince()}&order=counted_at.desc`);
+        recentCounts=await restAll(`merch_stock_counts?customer_id=${pgIn(myIds)}&counted_at=gte.${stockSince()}&order=counted_at.desc,id.desc`);
       }
     }
   }catch(e){ console.warn('stock history fetch:',e); }
@@ -4696,7 +4698,7 @@ async function viewStockHistory(custId,custName){
   try{
     // customer_id only, not filtered to my own name — the latest count at a
     // store reflects who counted it last, whoever that was (relief included).
-    const rows=await restAll(`merch_stock_counts?customer_id=eq.${custId}&counted_at=gte.${stockSince()}&order=counted_at.desc`);
+    const rows=await restAll(`merch_stock_counts?customer_id=eq.${encodeURIComponent(custId)}&counted_at=gte.${stockSince()}&order=counted_at.desc,id.desc`);
     if(!rows||!rows.length){ alert('No stock counts in the last 4 weeks for '+custName); return; }
     const byDate={};
     rows.forEach(r=>{

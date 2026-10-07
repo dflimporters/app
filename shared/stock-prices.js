@@ -86,7 +86,7 @@
       try {
         const all = []; let off = 0;
         for (;;) {
-          const page = (await opts.get('stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc&limit=1000&offset=' + off)) || [];
+          const page = (await opts.get('stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc,inventory_id.asc&limit=1000&offset=' + off)) || [];
           all.push(...page);
           if (page.length < 1000) break;
           off += 1000;
