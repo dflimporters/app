@@ -72,8 +72,8 @@ h1,.mont{font-family:'Montserrat',sans-serif}
 <script>
 // Read-only browser over stock_items_raw (synced from the ERP every ~30 min):
 // stock on hand + list price (default_price) for every active SKU.
-// avg_cost is deliberately never selected — reps see availability and list
-// price here, not margin. Same data and same rules as "Stock & Prices" in merch.html.
+// avg_cost is denied to clients by the DB (column grants; selecting it 401s) —
+// reps see availability and list price here, not margin. Same data and same rules as "Stock & Prices" in merch.html.
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};

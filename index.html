@@ -1471,7 +1471,8 @@ function orderPool(){
 // ---- Pricing & deals -------------------------------------------------------
 // Base price is today's Acumatica list price (stock_items_raw.default_price);
 // deal tiers come from the current deal sheet (view current_deal_items) and are
-// applied as free cases on top of the cases ordered. avg_cost is never read.
+// applied as free cases on top of the cases ordered. (avg_cost is column-denied
+// to anon/authenticated in the DB — asking for it returns 401.)
 let DEALS=null, DEALS_LOADING=null;
 const PRICES={};
 function ordLoadDeals(){
