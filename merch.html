@@ -1240,11 +1240,17 @@ const DASH_URL = '/management/merch-dashboard.html';
 async function restHeaders(extra){
   const { data } = await sb.auth.getSession();
   const token = data && data.session ? data.session.access_token : null;
+  // No session: never fall back to the anon key — that made writes succeed
+  // un-attributed. Send them to sign in instead, but only when online: offline
+  // the throw alone is right, because the callers (check-in, syncOfflineVisits)
+  // catch it and keep the visit queued in IndexedDB rather than losing it.
+  if(!token){
+    if(navigator.onLine) window.location.href='/login.html?redirect='+encodeURIComponent(window.location.pathname);
+    throw new Error('Not signed in');
+  }
   return Object.assign({
     'apikey': SUPABASE_PUBLISHABLE_KEY,
-    // Fall back to the publishable key so a signed-out call degrades to anon
-    // rather than throwing — the auth guard should prevent that case anyway.
-    'Authorization': 'Bearer ' + (token || SUPABASE_PUBLISHABLE_KEY),
+    'Authorization': 'Bearer ' + token,
     'Content-Type': 'application/json'
   }, extra || {});
 }
