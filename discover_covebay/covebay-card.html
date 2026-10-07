@@ -185,11 +185,13 @@ const contactRow = document.getElementById('contact-row');
 function addChip(href, label, iconPath){
   const a = document.createElement('a');
   a.href = href; a.className = 'contact-chip';
-  a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg><span>${label}</span>`;
+  a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg>`;
+  // label comes from the URL: textContent, never innerHTML
+  const span = document.createElement('span'); span.textContent = label; a.appendChild(span);
   contactRow.appendChild(a);
 }
-if(staffPhone){ addChip('tel:'+staffPhone, staffPhone, '<path d="M6.6 10.8a15.9 15.9 0 0 0 6.6 6.6l2.2-2.2a1.5 1.5 0 0 1 1.5-.4c1.3.4 2.7.6 4.1.6a1.5 1.5 0 0 1 1.5 1.5V21a1.5 1.5 0 0 1-1.5 1.5A18 18 0 0 1 3 4.5 1.5 1.5 0 0 1 4.5 3H8a1.5 1.5 0 0 1 1.5 1.5c0 1.4.2 2.8.6 4.1a1.5 1.5 0 0 1-.4 1.5z"/>'); }
-if(staffEmail){ addChip('mailto:'+staffEmail, staffEmail, '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>'); }
+if(staffPhone){ addChip('tel:'+staffPhone.replace(/[^\d+]/g,''), staffPhone, '<path d="M6.6 10.8a15.9 15.9 0 0 0 6.6 6.6l2.2-2.2a1.5 1.5 0 0 1 1.5-.4c1.3.4 2.7.6 4.1.6a1.5 1.5 0 0 1 1.5 1.5V21a1.5 1.5 0 0 1-1.5 1.5A18 18 0 0 1 3 4.5 1.5 1.5 0 0 1 4.5 3H8a1.5 1.5 0 0 1 1.5 1.5c0 1.4.2 2.8.6 4.1a1.5 1.5 0 0 1-.4 1.5z"/>'); }
+if(staffEmail){ addChip('mailto:'+encodeURIComponent(staffEmail), staffEmail, '<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>'); }
 
 function saveContact(){
   const name = staffName || 'DFL Importers';
