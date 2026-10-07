@@ -2788,10 +2788,9 @@ async function confirmLeaveApproval(){
     }});
     closeLeaveApproveModal();
     if(typeof reloadFn==='function') reloadFn();
-    // Fire-and-forget — HR gets the filled-out form by email the moment a
-    // request is approved. The approval itself already succeeded above, so a
-    // failure here shouldn't alarm the approver; just log it for follow-up.
-    sendLeaveApprovalEmail(id);
+    // HR approval email switched off 2026-10-07: Resend only delivers to the
+    // account owner until a domain is verified, and HR is moving to OrangeHRM.
+    // sendLeaveApprovalEmail(id) is kept below; re-add the call to re-enable.
   }catch(e){
     alert('Could not approve: '+(e.message||e));
     if(btn) btn.disabled=false;
