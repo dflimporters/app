@@ -756,11 +756,13 @@ async function loadAll() {
       console.log(`LY ${p}: ${lyByPortfolio[p].length} rows, total=${lyTotal}`);
     });
 
-    // 4. Per-customer category revenue from cat_cust_cache — filtered per portfolio
+    // 4. Per-customer category revenue from kam_cust_cat_cache — every item_class bought, every period.
+    //    (cat_cust_cache only holds budgeted categories for the current month, so it dropped
+    //    unbudgeted purchases like PROCESSING and showed $0 for every past month.)
     const [chainCatCust, keyCatCust, keydfCatCust] = await Promise.all([
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
-      sbAll('cat_cust_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.keydf.ids.join(',')})`)    ]);
+      sbAll('kam_cust_cat_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.chain.ids.join(',')})`),
+      sbAll('kam_cust_cat_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.key.ids.join(',')})`),
+      sbAll('kam_cust_cat_cache', `select=customer_id,item_class,financial_period,actual_mtd,last_purchase_date&financial_period=in.(${pIn})&customer_id=in.(${PORTFOLIOS.keydf.ids.join(',')})`)    ]);
     const catCustByPortfolio = { chain: chainCatCust, key: keyCatCust, keydf: keydfCatCust };
 
     // 5. Missing key SKUs from cat_cust_sku_cache — filtered per portfolio to avoid 1000-row cap
@@ -869,7 +871,7 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
     }
   });
 
-  // Per-customer category revenue for expand panels (from cat_cust_cache)
+  // Per-customer category revenue for expand panels (from kam_cust_cat_cache)
   const custCatRev = {};
   catCust.forEach(r => {
     const cid = r.customer_id;
@@ -877,7 +879,7 @@ function process(budget, kam, catCust, missSkuRows, catRepData, keySkuSet, keySk
     custCatRev[cid][r.item_class] = (custCatRev[cid][r.item_class]||0) + (+r.actual_mtd||0);
   });
 
-  // Per-customer category last purchase date — from cat_cust_cache which has last_purchase_date per item_class
+  // Per-customer category last purchase date — last invoice in the period, per item_class
   const custCatLastDate = {};
   catCust.filter(r => r.last_purchase_date && r.item_class).forEach(r => {
     const cid = r.customer_id;
@@ -1113,6 +1115,7 @@ function buildStoreCards(rows, paceElapsed, pctElapsedActual, portfolio) {
           <th class="r">Pace %</th>
           <th class="r">Status</th>
           <th class="r">Actual MTD</th>
+          <th class="r">Budget MTD</th>
           <th class="r">Full Mo Budget</th>
           <th class="r">Gap</th>
           <th class="r">Last Purchased</th>
