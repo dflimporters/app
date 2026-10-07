@@ -2362,12 +2362,13 @@ async function generateBriefs() {
     const PAGE = 1000;
     while (true) {
       const page = await fetchSupabase(
-        `precall_customer_dir?select=customer_id,customer_name&limit=${PAGE}&offset=${offset}`
+        `precall_customer_dir?select=customer_id,customer_name&order=customer_id.asc&limit=${PAGE}&offset=${offset}`
       );
       custData = custData.concat(page);
       if (page.length < PAGE) break;
       offset += PAGE;
-      if (offset > 8000) break; // safety cap
+      // (An 'offset > 8000' cap used to sit here; the directory has ~9,800 rows,
+      // so every customer past the 8,000th never matched and got no brief.)
     }
 
     // Build name → customer_id map (case-insensitive)
@@ -2400,10 +2401,9 @@ async function generateBriefs() {
     }
 
     // Fetch precall_cache for all matched customers
-    const idList = foundIds.join(',');
-    const [cacheData, budgetData, keySkus] = await Promise.all([
-      fetchSupabase(`precall_cache?customer_id=in.(${idList})&select=customer_id,customer_name,last_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
-      fetchSupabase(`precall_budget_cache?customer_id=in.(${idList})&limit=2000`),
+        const [cacheData, budgetData, keySkus] = await Promise.all([
+      fetchSupabase(`precall_cache?customer_id=${pgIn(foundIds)}&select=customer_id,customer_name,last_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
+      fetchBudgetRows(foundIds),
       fetchSupabase(`key_skus?select=inventory_id,description,posting_class&limit=200`),
     ]);
 
@@ -2448,6 +2448,25 @@ async function generateBriefs() {
     btn.disabled = false;
     btn.innerHTML = '<span>📄</span> Generate Store Briefs';
   }
+}
+
+// PostgREST in.() list from raw values: each one is double-quoted and
+// URL-encoded, so a comma, quote or & in a value can't split the list or add
+// query parameters (FE-D-19).
+function pgIn(values) {
+  return 'in.(' + values.map(x => encodeURIComponent('"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"')).join(',') + ')';
+}
+
+// precall_budget_cache holds ~3 rows per customer and the server returns at most
+// 1000 rows per request, so ask for the customers in small chunks.
+async function fetchBudgetRows(ids) {
+  const CHUNK = 150;
+  const parts = [];
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    parts.push(fetchSupabase(
+      `precall_budget_cache?customer_id=${pgIn(ids.slice(i, i + CHUNK))}&select=customer_id,item_class,total_budget&limit=1000`));
+  }
+  return (await Promise.all(parts)).flat();
 }
 
 async function fetchSupabase(path) {
