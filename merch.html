@@ -5111,10 +5111,6 @@ async function runAiSummary(rawText,aiBoxId,contextId){
   const textEl=document.getElementById(aiBoxId.replace('box','text'));
   if(!box||!textEl)return;
   box.classList.add('show');textEl.textContent='✨ Summarising…';
-  const isStock=contextId.startsWith('sf');
-  const ctx=isStock
-    ?'a DFL field merchandiser filing a stock/OOS report for a retail store in Jamaica'
-    :'a DFL field merchandiser logging a store visit (shelf compliance, competitor activity, buyer conversations) in Jamaica';
   // ---- AI summary is DISABLED ----
   // This used to POST straight to https://api.anthropic.com/v1/messages from
   // the browser with NO api key, so it always failed and fell through to the
@@ -5124,25 +5120,12 @@ async function runAiSummary(rawText,aiBoxId,contextId){
   //
   // Until then we keep the plain voice-to-text (Web Speech API) working and
   // just show the raw transcript, which is what actually happened before.
-  const AI_SUMMARY_ENABLED = false;
-
-  if(!AI_SUMMARY_ENABLED){
-    textEl.textContent=rawText;
-    const label=box.querySelector('.ai-note-label');
-    if(label) label.innerHTML='Voice transcript <span class="ai-badge">RAW</span>';
-    return;
-  }
-
-  try{
-    // Intentionally unreachable until an Edge Function proxy exists.
-    const res=await fetch('/functions/v1/summarise-field-note',{
-      method:'POST',
-      headers:await restHeaders(),
-      body:JSON.stringify({context:ctx,transcript:rawText})
-    });
-    const data=await res.json();
-    textEl.textContent=data.summary||rawText;
-  }catch(e){textEl.textContent=rawText;console.error('AI:',e);}
+  // (A relative fetch to /functions/v1/summarise-field-note used to sit here
+  // behind a flag; it would have hit dflhq.com, not Supabase, so it was removed.
+  // When the Edge Function exists, call SUPABASE_URL + '/functions/v1/…'.)
+  textEl.textContent=rawText;
+  const label=box.querySelector('.ai-note-label');
+  if(label) label.innerHTML='Voice transcript <span class="ai-badge">RAW</span>';
 }
 
 function useAiNote(textareaId,aiBoxId,textElId){

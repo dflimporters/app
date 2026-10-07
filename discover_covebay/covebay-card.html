@@ -276,7 +276,7 @@ async function submitForm(){
   submitBtn.disabled = true;
 
   try{
-    const res = await fetch(`${LEADS_SB_URL}/rest/v1/covebay_leads`, {
+    const res = await fetch(`${LEADS_SB_URL}/rest/v1/contact_leads`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
