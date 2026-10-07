@@ -181,16 +181,6 @@ const fmt = n => {
 
 const fmtFull = n => '$' + Math.round(n).toLocaleString();
 
-async function query(sql) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/rpc/execute_sql`, {
-    method: 'POST',
-    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: sql })
-  });
-  // Use direct table queries instead
-  throw new Error('Use direct queries');
-}
-
 // Renamed from sb() — that name collides with the const `sb` client from
 // /shared/supabase-client.js (now loaded on this page for the auth guard).
 // Same declaration always existed here; it only ever ran unnoticed because

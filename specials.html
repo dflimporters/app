@@ -313,6 +313,13 @@
   let activeImageUrl = '';
   let activeItemName = '';
 
+  // ── Escaping ────────────────────────────────────────────────────────────────
+  // Every specials field is escaped before it reaches innerHTML; image URLs are
+  // limited to https:// so a javascript:/data: URL can never land in src.
+  const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isHttps = u => typeof u === 'string' && /^https:\/\//i.test(u);
+  const safeHttps = u => isHttps(u) ? escH(u) : '';
+
   // ── Expiry helpers ──────────────────────────────────────────────────────────
   function getExpiryStatus(valid_until) {
     if (!valid_until) return null;
@@ -363,17 +370,17 @@
       return;
     }
     grid.innerHTML = items.map(i => `
-      <div class="card" data-id="${i.id}">
+      <div class="card" data-id="${escH(i.id)}">
         <div class="card-img">
-          ${i.image_url ? `<img src="${i.image_url}" alt="${i.name}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}
+          ${isHttps(i.image_url) ? `<img src="${safeHttps(i.image_url)}" alt="${escH(i.name)}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}
         </div>
         <div class="card-body">
-          <span class="card-type type-${i.type.toLowerCase()}">${i.type}</span>
-          <div class="card-name">${i.name}</div>
-          <div class="card-desc">${i.description || ''}</div>
+          <span class="card-type type-${escH(String(i.type).toLowerCase())}">${escH(i.type)}</span>
+          <div class="card-name">${escH(i.name)}</div>
+          <div class="card-desc">${escH(i.description || '')}</div>
           <div class="card-footer">
             <div class="${i.price ? 'card-price' : 'card-price notes'}">
-              ${i.price ? `$${Number(i.price).toLocaleString()}` : (i.price_notes || 'See description')}
+              ${i.price ? `$${Number(i.price).toLocaleString()}` : escH(i.price_notes || 'See description')}
             </div>
             ${expiryBadge(i.valid_until, i.type)}
           </div>
@@ -419,7 +426,7 @@
       `<span class="cat-label">Category:</span>` +
       `<button class="cat-btn active" data-cat="all" onclick="filterCategory(this.dataset.cat,this)">All</button>` +
       cats.map(c =>
-        `<button class="cat-btn" data-cat="${c}" onclick="filterCategory(this.dataset.cat,this)">${c}</button>`
+        `<button class="cat-btn" data-cat="${escH(c)}" onclick="filterCategory(this.dataset.cat,this)">${escH(c)}</button>`
       ).join('');
   }
 
@@ -428,17 +435,18 @@
     const i = all.find(x => x.id == id);
     if (!i) return;
 
-    activeImageUrl = i.image_url || '';
+    // Only an https image counts as an image (same rule as the card render)
+    activeImageUrl = isHttps(i.image_url) ? i.image_url : '';
     activeItemName = i.name || 'image';
 
     // Image
-    document.getElementById('modalImg').innerHTML = i.image_url
-      ? `<img src="${i.image_url}" alt="${i.name}" onerror="this.parentElement.innerHTML='📦'">`
+    document.getElementById('modalImg').innerHTML = activeImageUrl
+      ? `<img src="${safeHttps(activeImageUrl)}" alt="${escH(i.name)}" onerror="this.parentElement.innerHTML='📦'">`
       : '📦';
 
     // Type badge
     document.getElementById('modalType').innerHTML =
-      `<span class="card-type type-${i.type.toLowerCase()}">${i.type}</span>`;
+      `<span class="card-type type-${escH(String(i.type).toLowerCase())}">${escH(i.type)}</span>`;
 
     // Name & description
     document.getElementById('modalName').textContent = i.name;
@@ -449,19 +457,19 @@
     if (i.price) {
       meta += `<div class="modal-meta-row"><span class="modal-meta-label">Price</span><span class="modal-meta-value price">$${Number(i.price).toLocaleString()}</span></div>`;
     } else if (i.price_notes) {
-      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Price</span><span class="modal-meta-value">${i.price_notes}</span></div>`;
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Price</span><span class="modal-meta-value">${escH(i.price_notes)}</span></div>`;
     }
     if (i.type !== 'Flyer' && i.valid_until) {
       const d = new Date(i.valid_until).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
       meta += `<div class="modal-meta-row"><span class="modal-meta-label">Valid Until</span><span class="modal-meta-value">${d}</span></div>`;
     }
     if (i.category) {
-      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Category</span><span class="modal-meta-value">${i.category}</span></div>`;
+      meta += `<div class="modal-meta-row"><span class="modal-meta-label">Category</span><span class="modal-meta-value">${escH(i.category)}</span></div>`;
     }
     document.getElementById('modalMeta').innerHTML = meta;
 
     // Show/hide action buttons based on whether there's an image
-    const hasImage = !!i.image_url;
+    const hasImage = !!activeImageUrl;
     document.getElementById('modalShare').style.display = hasImage ? 'flex' : 'none';
     document.getElementById('modalDownload').style.display = hasImage ? 'flex' : 'none';
 

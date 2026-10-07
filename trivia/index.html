@@ -378,7 +378,7 @@ async function onNameInput() {
   });
 }
 
-function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 async function handleNameSubmit() {
   const val = document.getElementById('name-input').value.trim();
@@ -508,7 +508,7 @@ async function renderPlayView() {
   if (!currentRound) { renderState('play', '🧠', 'No trivia yet', 'Nothing has been set up yet — check back soon.'); return; }
 
   if (roundState === 'before') {
-    renderState('play', '⏰', `${currentRound.title} opens soon`,
+    renderState('play', '⏰', `${escapeHtml(currentRound.title)} opens soon`,
       `Opens ${formatWhen(currentRound.opens_at)}. Come back then!`);
     return;
   }

@@ -213,10 +213,10 @@ function badgeClass(label) {
 
 function reasonText(r) {
   if (r.recommendation_type === 'OVERDUE_REORDER') {
-    return `Usually reorders every <b>${Math.round((r.days_since_last||0) - (r.days_overdue||0))} days</b> — this one's <b>${r.days_overdue} days overdue</b>.`;
+    return `Usually reorders every <b>${Math.round((r.days_since_last||0) - (r.days_overdue||0))} days</b> — this one's <b>${escapeHtml(r.days_overdue)} days overdue</b>.`;
   }
   if (r.recommendation_type === 'DORMANT_ITEM') {
-    return `Was a regular buyer of this item, hasn't ordered in <b>${r.days_since_last} days</b>.`;
+    return `Was a regular buyer of this item, hasn't ordered in <b>${escapeHtml(r.days_since_last)} days</b>.`;
   }
   if (r.recommendation_type === 'HIGH_ELASTICITY') {
     return `Dormant on this item, and has responded well to pricing/discount conversations before.`;
@@ -257,7 +257,7 @@ function render(recos, refreshedAt, scopeLabel) {
     ${recos.map(r => `
       <div class="card">
         <div class="card-top">
-          <div onclick="openCustomer('${encodeURIComponent(r.customer_id)}','${encodeURIComponent(r.customer_name || '')}')" style="cursor:pointer">
+          <div onclick="openCustomer('${encQ(r.customer_id)}','${encQ(r.customer_name)}')" style="cursor:pointer">
             <div class="cust-name">${escapeHtml(r.customer_name || r.customer_id)} <span style="color:var(--text-dim);font-weight:400">›</span></div>
             <div class="cust-tier">${escapeHtml(r.customer_tier || '')}${r.area ? ' · ' + escapeHtml(r.area) : ''}</div>
           </div>
@@ -269,7 +269,7 @@ function render(recos, refreshedAt, scopeLabel) {
           <div class="p-class">${escapeHtml(r.item_class || '')}</div>
         </div>
         <div class="stat-row">
-          <span>Last ordered <b>${r.last_order_date || '—'}</b></span>
+          <span>Last ordered <b>${escapeHtml(r.last_order_date || '—')}</b></span>
           <span>Avg order <b>$${Math.round(r.avg_revenue_per_order || 0).toLocaleString('en-JM')}</b></span>
         </div>
         ${elasticityNote(r) ? `<div class="stat-row" style="margin-top:8px">${elasticityNote(r)}</div>` : ''}
@@ -282,10 +282,17 @@ function openCustomer(customerId, customerName) {
   window.location.href = `/customer.html?id=${customerId}&name=${customerName}`;
 }
 
+// Quote-safe (the old textContent trick left " and ' alone, so it was unsafe
+// inside attributes).
 function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// For a value placed inside a quoted JS string in an inline onclick.
+// encodeURIComponent leaves ' ( ) ! * alone, so a customer like O'Brien's
+// broke the handler; openCustomer() puts it in a URL, so it stays encoded.
+function encQ(s) {
+  return encodeURIComponent(s == null ? '' : String(s)).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 }
 </script>
 </body>

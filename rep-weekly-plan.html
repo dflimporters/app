@@ -1237,6 +1237,13 @@ function rebuildDayHeaders() {
   });
 }
 
+// Quote-safe HTML escape for everything that comes from the database or from
+// what the rep typed (zones, store names, SKU descriptions, flags) before it is
+// put into innerHTML or an attribute.
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 // ── Day selected zones state ────────────────────────────────────────────────
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
 const dayZones = { 0:[], 1:[], 2:[], 3:[], 4:[] };
@@ -1408,11 +1415,11 @@ function buildZoneList(dayIndex, filter) {
   }
   listEl.innerHTML = filtered.map(z => {
     const isChecked = selected.has(z) || pending.has(z);
-    const safe = z.replace(/"/g, '&quot;');
+    const safe = esc(z);
     return '<label class="store-checklist-item' + (isChecked ? ' checked' : '') + '">'
       + '<input type="checkbox"' + (isChecked ? ' checked' : '')
       + ' data-day="' + dayIndex + '" data-zone="' + safe + '" onchange="toggleZonePending(this)">'
-      + '<span>' + z + '</span></label>';
+      + '<span>' + esc(z) + '</span></label>';
   }).join('');
 }
 
@@ -1447,9 +1454,9 @@ function confirmZones(dayIndex) {
 function renderZoneChips(dayIndex) {
   const container = document.getElementById('selected-zones-' + dayIndex);
   container.innerHTML = dayZones[dayIndex].map(zone => {
-    const safe = zone.replace(/"/g, '&quot;');
+    const safe = esc(zone);
     return '<div class="selected-zone-chip">'
-      + zone
+      + esc(zone)
       + '<button class="chip-remove" type="button" data-day="' + dayIndex + '" data-zone="' + safe + '" onclick="removeZoneByData(this)">✕</button>'
       + '</div>';
   }).join('');
@@ -1754,11 +1761,11 @@ function buildStoreList(dayIndex, filter) {
   listEl.innerHTML = filtered.map(s => {
     const isChecked = selected.has(s.name) || pending.has(s.name);
     const tierSym   = s.tier === 'Tier 1' ? '★' : s.tier === 'Tier 2' ? '●' : '○';
-    const safeStore = s.name.replace(/"/g, '&quot;');
+    const safeStore = esc(s.name);
     return '<label class="store-checklist-item' + (isChecked ? ' checked' : '') + '">'
       + '<input type="checkbox"' + (isChecked ? ' checked' : '')
       + ' data-day="' + dayIndex + '" data-store="' + safeStore + '" onchange="togglePendingByData(this)">'
-      + '<span>' + s.name + '</span>'
+      + '<span>' + esc(s.name) + '</span>'
       + '<span class="store-checklist-tier">' + tierSym + '</span>'
       + '</label>';
   }).join('');
@@ -1901,9 +1908,9 @@ function confirmStores(dayIndex) {
 function renderStoreChips(dayIndex) {
   const container = document.getElementById('selected-stores-' + dayIndex);
   container.innerHTML = dayStores[dayIndex].map(name => {
-    const safe = name.replace(/"/g, '&quot;');
+    const safe = esc(name);
     return '<div class="selected-zone-chip" style="max-width:100%">'
-      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">' + name + '</span>'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px">' + esc(name) + '</span>'
       + '<button class="chip-remove" type="button" data-day="' + dayIndex + '" data-store="' + safe + '" onclick="removeStoreByData(this)">✕</button>'
       + '</div>';
   }).join('');
@@ -1971,7 +1978,7 @@ function addCustomZone(dayIndex) {
     const chip = document.createElement('div');
     chip.className = 'selected-zone-chip';
     chip.dataset.zone = zone;
-    chip.innerHTML = zone + '<button class="chip-remove" type="button" title="Remove ' + zone + '">✕</button>';
+    chip.innerHTML = esc(zone) + '<button class="chip-remove" type="button" title="Remove ' + esc(zone) + '">✕</button>';
     chip.querySelector('.chip-remove').addEventListener('click', () => removeZone(dayIndex, zone, chip));
     container.appendChild(chip);
 
@@ -2135,10 +2142,16 @@ async function submitPlan() {
     const encWeek = encodeURIComponent(plan.week);
 
     // Check if a record already exists for this rep + week
-    const existing = await fetch(
+    // A failed lookup must not look like "no plan yet": the error body is an
+    // object with no .length, so this used to fall through to a POST that
+    // duplicated (or failed to update) the week's plan.
+    const existingRes = await fetch(
       `${PLAN_SB_URL}/rest/v1/weekly_plans?salesperson=eq.${encRep}&week_commencing=eq.${encWeek}&select=id`,
       { headers: { 'apikey': PLAN_SB_KEY, 'Authorization': `Bearer ${PLAN_SB_KEY}` } }
-    ).then(r => r.json());
+    );
+    if (!existingRes.ok) throw new Error('Could not check for an existing plan (HTTP ' + existingRes.status + ')');
+    const existing = await existingRes.json();
+    if (!Array.isArray(existing)) throw new Error('Could not check for an existing plan');
 
     let res;
     if (existing && existing.length > 0) {
@@ -2208,11 +2221,11 @@ function showSuccess(plan) {
   document.getElementById('summary-top').innerHTML = `
     <div class="summary-item">
       <div class="summary-item-label">Rep</div>
-      <div class="summary-item-value">${plan.rep}</div>
+      <div class="summary-item-value">${esc(plan.rep)}</div>
     </div>
     <div class="summary-item">
       <div class="summary-item-label">Week</div>
-      <div class="summary-item-value">${plan.week}</div>
+      <div class="summary-item-value">${esc(plan.week)}</div>
     </div>
     <div class="summary-item">
       <div class="summary-item-label">Invoice Goal This Week</div>
@@ -2226,16 +2239,16 @@ function showSuccess(plan) {
   const activeDays = plan.days.filter(d => d.zones.length > 0);
   document.getElementById('summary-days').innerHTML = activeDays.map(d => `
     <div class="day-summary-row">
-      <div class="day-summary-name">${d.day}</div>
+      <div class="day-summary-name">${esc(d.day)}</div>
       <div class="day-summary-zones">
-        ${d.zones.map(z => `<span class="day-summary-zone-chip">${z}</span>`).join('')}
+        ${d.zones.map(z => `<span class="day-summary-zone-chip">${esc(z)}</span>`).join('')}
       </div>
-      <div class="day-summary-stores">${d.stores || '<em style="color:var(--dim)">No key stores listed</em>'}</div>
+      <div class="day-summary-stores">${esc(d.stores) || '<em style="color:var(--dim)">No key stores listed</em>'}</div>
     </div>`).join('');
 
   document.getElementById('summary-flags').innerHTML = plan.flags
     ? `<div class="summary-title" style="margin-top:4px">Flag for Scott</div>
-       <div class="flags-box"><span style="font-size:18px">⚠️</span><div>${plan.flags}</div></div>`
+       <div class="flags-box"><span style="font-size:18px">⚠️</span><div>${esc(plan.flags)}</div></div>`
     : '';
 
   document.getElementById('whatsapp-btn').href =
@@ -2355,12 +2368,13 @@ async function generateBriefs() {
     const PAGE = 1000;
     while (true) {
       const page = await fetchSupabase(
-        `precall_customer_dir?select=customer_id,customer_name&limit=${PAGE}&offset=${offset}`
+        `precall_customer_dir?select=customer_id,customer_name&order=customer_id.asc&limit=${PAGE}&offset=${offset}`
       );
       custData = custData.concat(page);
       if (page.length < PAGE) break;
       offset += PAGE;
-      if (offset > 8000) break; // safety cap
+      // (An 'offset > 8000' cap used to sit here; the directory has ~9,800 rows,
+      // so every customer past the 8,000th never matched and got no brief.)
     }
 
     // Build name → customer_id map (case-insensitive)
@@ -2393,10 +2407,9 @@ async function generateBriefs() {
     }
 
     // Fetch precall_cache for all matched customers
-    const idList = foundIds.join(',');
-    const [cacheData, budgetData, keySkus] = await Promise.all([
-      fetchSupabase(`precall_cache?customer_id=in.(${idList})&select=customer_id,customer_name,last_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
-      fetchSupabase(`precall_budget_cache?customer_id=in.(${idList})&limit=2000`),
+        const [cacheData, budgetData, keySkus] = await Promise.all([
+      fetchSupabase(`precall_cache?customer_id=${pgIn(foundIds)}&select=customer_id,customer_name,last_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
+      fetchBudgetRows(foundIds),
       fetchSupabase(`key_skus?select=inventory_id,description,posting_class&limit=200`),
     ]);
 
@@ -2441,6 +2454,25 @@ async function generateBriefs() {
     btn.disabled = false;
     btn.innerHTML = '<span>📄</span> Generate Store Briefs';
   }
+}
+
+// PostgREST in.() list from raw values: each one is double-quoted and
+// URL-encoded, so a comma, quote or & in a value can't split the list or add
+// query parameters (FE-D-19).
+function pgIn(values) {
+  return 'in.(' + values.map(x => encodeURIComponent('"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"')).join(',') + ')';
+}
+
+// precall_budget_cache holds ~3 rows per customer and the server returns at most
+// 1000 rows per request, so ask for the customers in small chunks.
+async function fetchBudgetRows(ids) {
+  const CHUNK = 150;
+  const parts = [];
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    parts.push(fetchSupabase(
+      `precall_budget_cache?customer_id=${pgIn(ids.slice(i, i + CHUNK))}&select=customer_id,item_class,total_budget&limit=1000`));
+  }
+  return (await Promise.all(parts)).flat();
 }
 
 async function fetchSupabase(path) {
@@ -2598,7 +2630,7 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
         <div>
           <div style="color:#fff;font-family:Montserrat,sans-serif;font-size:20px;font-weight:900;letter-spacing:1px">DFL IMPORTERS</div>
           <div style="color:#8fa8d0;font-size:11px;font-family:Montserrat,sans-serif;letter-spacing:2px;font-weight:600;margin-top:2px">
-            PRE-CALL STORE BRIEF &nbsp;·&nbsp; ${dayName.toUpperCase()}
+            PRE-CALL STORE BRIEF &nbsp;·&nbsp; ${esc(dayName.toUpperCase())}
           </div>
         </div>
       </div>
@@ -2612,7 +2644,7 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
 
     <!-- STORE NAME -->
     <div style="margin-bottom:14px">
-      <div style="font-family:Montserrat,sans-serif;font-size:22px;font-weight:900;color:#0D1B3E;letter-spacing:0.5px">${storeName}</div>
+      <div style="font-family:Montserrat,sans-serif;font-size:22px;font-weight:900;color:#0D1B3E;letter-spacing:0.5px">${esc(storeName)}</div>
       ${!cache ? '<div style="color:#94a3b8;font-style:italic;margin-top:8px">No pre-call data available for this store.</div>' : ''}
     </div>
 
@@ -2681,7 +2713,7 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
         <tbody>
           ${catRows.map((r,i) => `
             <tr style="background:${i%2===0?'#fff':'#f8fafc'};border-top:1px solid #f1f5f9">
-              <td style="padding:6px 12px;color:#0D1B3E;font-weight:600">${r.cat}</td>
+              <td style="padding:6px 12px;color:#0D1B3E;font-weight:600">${esc(r.cat)}</td>
               <td style="padding:6px 12px;text-align:right;color:#64748b">${fmtJ(r.bud)}</td>
               <td style="padding:6px 12px;text-align:right;color:#64748b">${fmtJ(r.actual)}</td>
               <td style="padding:6px 12px;text-align:right;font-family:Montserrat,sans-serif;font-weight:800;
@@ -2706,8 +2738,8 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
               return `<div style="padding:5px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:6px">
                 <div style="width:7px;height:7px;border-radius:50%;background:#dc2626;margin-top:4px;flex-shrink:0"></div>
                 <div>
-                  <div style="font-size:11px;font-weight:700;color:#0D1B3E">${nm}</div>
-                  <div style="font-size:10px;color:#94a3b8;margin-top:1px">${item.item_class} · Last: ${fmtDate(item.last_date)} (${ds}d ago)</div>
+                  <div style="font-size:11px;font-weight:700;color:#0D1B3E">${esc(nm)}</div>
+                  <div style="font-size:10px;color:#94a3b8;margin-top:1px">${esc(item.item_class)} · Last: ${fmtDate(item.last_date)} (${ds}d ago)</div>
                 </div>
               </div>`;
             }).join('')
@@ -2725,8 +2757,8 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
               return `<div style="padding:5px 0;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:6px">
                 <div style="width:7px;height:7px;border-radius:50%;background:#dc2626;margin-top:4px;flex-shrink:0"></div>
                 <div>
-                  <div style="font-size:11px;font-weight:700;color:#0D1B3E">${nm}</div>
-                  <div style="font-size:10px;color:#94a3b8;margin-top:1px">${r.sku.posting_class} · ${lt}</div>
+                  <div style="font-size:11px;font-weight:700;color:#0D1B3E">${esc(nm)}</div>
+                  <div style="font-size:10px;color:#94a3b8;margin-top:1px">${esc(r.sku.posting_class)} · ${lt}</div>
                 </div>
               </div>`;
             }).join('')
