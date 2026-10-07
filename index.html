@@ -579,13 +579,13 @@ function drawAdmin(){
       const rcls=r.pct>=expPace-2?"good":r.pct>=expPace-10?"warn":"bad";
       const rcolor=rcls==="good"?"var(--good)":rcls==="warn"?"#d9920a":"var(--bad)";
       const p=Math.max(0,Math.min(r.pct,100));
-      return `<div class="cust tap" onclick="viewAsRep('${encodeURIComponent(r.name)}','${r.sp_id}')">
+      return `<div class="cust tap" onclick="viewAsRep('${encQ(r.name)}','${encQ(r.sp_id)}')">
         <div class="crow1">
           <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)}</div></div>
           <div class="cgap"><div class="g" style="color:${rcolor}">${r.pct.toFixed(0)}%</div><div class="gl">achieved</div></div>
         </div>
         <div class="cbar"><span class="${rcls}" style="width:${p}%"></span></div>
-        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${r.pace||''} ›</span></div>
+        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${esc(r.pace)} ›</span></div>
       </div>`;
     }).join("")}
     <div class="foot">Figures in JMD · directional for GP.<br>Team pace based on ${sd.done} of ${sd.total} selling days</div>`;
@@ -593,8 +593,8 @@ function drawAdmin(){
 
 function setAdminSort(s){ ADMINSORT=s; drawAdmin(); }
 
-async function viewAsRep(encName, spId){
-  const name=decodeURIComponent(encName);
+async function viewAsRep(encName, spIdEnc){
+  const name=decodeURIComponent(encName), spId=decodeURIComponent(spIdEnc);
   VIEWAS={name, salesperson_id:spId};
   planLoaded=false;                         // force plan reload for this rep
   document.getElementById("planframe").src="";
@@ -740,9 +740,9 @@ function openOrders(bucket, label){
       const tapCred = isCred && o.customer_id;
       const tappable = tapBack || tapCred;
       const onclick = tapBack
-        ? `openBackorderItems('${encodeURIComponent(o.order_nbr)}','${encodeURIComponent(o.customer_name||'')}')`
+        ? `openBackorderItems('${encQ(o.order_nbr)}','${encQ(o.customer_name)}')`
         : tapCred
-        ? `openCreditNoteItems('${encodeURIComponent(o.customer_id)}','${encodeURIComponent(o.customer_name||'')}')`
+        ? `openCreditNoteItems('${encQ(o.customer_id)}','${encQ(o.customer_name)}')`
         : '';
       const hint = tapBack ? 'See backordered items ›' : tapCred ? 'See credit note items ›' : '';
       return `<div class="cust ${tappable?'tap':''}" ${tappable?`onclick="${onclick}"`:''}>
@@ -1009,7 +1009,7 @@ function paceChip(s){
   const st=(s.pace_status||"").toLowerCase();
   const cls=st.includes("ahead")||st==="on-pace"?"good":st.includes("watch")?"warn":st.includes("behind")?"bad":"warn";
   const label=s.pace_status?s.pace_status.replace(/-/g," "):"—";
-  return `<span class="chip ${cls}">${label.charAt(0).toUpperCase()+label.slice(1)}</span>`;
+  return `<span class="chip ${cls}">${esc(label.charAt(0).toUpperCase()+label.slice(1))}</span>`;
 }
 
 function catCard(elapsed){
@@ -1024,7 +1024,7 @@ function catCard(elapsed){
   return `<div class="dcard" style="margin-top:16px">
     <div class="dlbl">Item class · MTD</div>
     <table class="ctable" style="table-layout:fixed"><thead><tr><th style="width:auto">Category</th><th style="width:64px">Budget</th><th style="width:64px">Actual</th><th style="width:44px">%</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td><div class="catrow"><span class="catname">${r.cat}</span><div class="catbar"><span class="${catCls(r.pct)}" style="width:${Math.max(0,Math.min(r.pct,100))}%"></span><i class="barmark" style="left:${mark}%"></i></div></div></td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+      ${rows.map(r=>`<tr><td><div class="catrow"><span class="catname">${esc(r.cat)}</span><div class="catbar"><span class="${catCls(r.pct)}" style="width:${Math.max(0,Math.min(r.pct,100))}%"></span><i class="barmark" style="left:${mark}%"></i></div></div></td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
     </tbody></table>
   </div>`;
 }
@@ -1096,7 +1096,7 @@ function drawTeaser(){
   if(!rows.length){t.innerHTML=`<div class="empty">No open gaps — nice work. 🎯</div>`;return;}
   t.innerHTML=rows.map(x=>{
     const bud=+x.monthly_budget, net=+x.net_sales, gap=bud-net, pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
-    return `<div class="cust tap" onclick="openCustFromHome('${x.customer_id}')">
+    return `<div class="cust tap" onclick="openCustFromHome(decodeURIComponent('${encQ(x.customer_id)}'))">
       <div class="crow1">
         <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
         <div class="cgap"><div class="g">${Jk(gap)}</div><div class="gl">to budget</div></div>
@@ -1137,7 +1137,7 @@ function drawList(){
     const pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
     const met=bud>0&&net>=bud;
     const last=x.last_order_date?fmtDate(x.last_order_date):"No order yet";
-    return `<div class="cust tap" onclick="openCust('${x.customer_id}')">
+    return `<div class="cust tap" onclick="openCust(decodeURIComponent('${encQ(x.customer_id)}'))">
       <div class="crow1">
         <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
         <div class="cgap">
@@ -1359,7 +1359,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     <div class="dcard">
       <div class="dlbl">Budget by category · ${isY?'YTD':'MTD'}</div>
       ${catRows.length?`<table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
-        ${catRows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+        ${catRows.map(r=>`<tr><td>${esc(r.cat)}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
       </tbody></table>`:`<div class="empty" style="padding:16px">No category budget set.</div>`}
     </div>
 
@@ -1370,17 +1370,17 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
 
     <div class="dcard">
       <div class="dlbl amber">Category gaps · longest since purchase</div>
-      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${g.cat}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
+      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${esc(g.cat)}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
     </div>
 
     <div class="dcard">
       <div class="dlbl green">Replenishment due</div>
-      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${it.item_class} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
+      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(it.item_class)} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
     </div>
 
     <div class="dcard">
       <div class="dlbl red">Key SKU opportunities</div>
-      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${r.sku.posting_class||""} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
+      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.sku.posting_class)} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
     </div>
 
     <div class="foot">Figures in JMD · directional for GP.<br>Account data updated ${cache&&cache.refreshed_at?fmtDate(cache.refreshed_at):"daily"}</div>`;
@@ -1501,7 +1501,12 @@ function sellingDays(){
 }
 function lastRefresh(){const r=CUST[0]&&CUST[0].refreshed_at;if(!r)return"just now";const d=new Date(r);return d.toLocaleString("en-JM",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"});}
 function fmtDate(s){const d=new Date(s);return d.toLocaleDateString("en-JM",{day:"numeric",month:"short"});}
-function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+// Quote-safe, so it is also correct inside attributes, and tolerates non-strings.
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+// For a value placed inside a quoted JS string in an inline onclick:
+// encodeURIComponent leaves ' ( ) ! * alone, so a name like O'Brien broke the
+// handler (and a crafted one could run script). Decode it on the other side.
+function encQ(s){return encodeURIComponent(s==null?"":String(s)).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());}
 
 </script>
 </body>
