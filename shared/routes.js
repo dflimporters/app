@@ -75,6 +75,9 @@ const DFL_HOME_BY_ROLE = {
 const DFL_PAGE_ROLES = {
   '/index.html':           ['admin', 'manager', 'rep', 'rep_management'],
   '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'relief_merchandiser'],
+  // Quarterly Brand Ambassador evaluation form, framed by merch.html (the guard
+  // no-ops in the frame; this entry decides who can open it directly).
+  '/merch-eval.html':      ['team_leader', 'tl_merch', 'manager', 'admin'],
   '/hub.html':             ['manager', 'admin'],
   '/warehouse.html':       ['warehouse', 'manager', 'admin'],
   '/admin/index.html':     ['admin'],
