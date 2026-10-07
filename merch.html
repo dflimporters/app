@@ -1854,7 +1854,13 @@ async function loadTodayVisits(u){
 // ── SEARCHABLE STORE DROPDOWN ──
 function buildDropdown(dropId,stores,prefix){
   const drop=document.getElementById(dropId);
-  drop.innerHTML=stores.length?stores.map(s=>`<div class="store-opt" onclick="selectStore('${prefix}','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join(''):'<div class="store-none">No stores assigned</div>';
+  drop.innerHTML=stores.length?stores.map(s=>storeOptHtml(prefix,s.id,s)).join(''):'<div class="store-none">No stores assigned</div>';
+}
+// One store row for the pickers. Store id/name/city ride in data-* attributes
+// (escaped) and reach selectStore() via this.dataset — interpolating them into
+// the onclick as JS string literals broke on any name with a quote in it.
+function storeOptHtml(prefix,id,s){
+  return `<div class="store-opt" data-id="${escapeHtmlM(id)}" data-nm="${escapeHtmlM(s.name||'')}" data-city="${escapeHtmlM(s.city||'')}" onclick="selectStore('${prefix}',this.dataset.id,this.dataset.nm,this.dataset.city)"><div class="so-name">${escapeHtmlM(s.name)}</div>${s.city?'<div class="so-city">'+escapeHtmlM(s.city)+'</div>':''}</div>`;
 }
 function filterStores(q){
   const drop=document.getElementById('store-drop');
@@ -1870,7 +1876,7 @@ function filterStores(q){
   const assigned=myStores.filter(s=>(s.name||'').toLowerCase().includes(ql)||(s.city||'').toLowerCase().includes(ql));
   if(assigned.length){
     drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
-      +assigned.map(s=>`<div class="store-opt" onclick="selectStore('vf','${s.id}','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
+      +assigned.map(s=>storeOptHtml('vf',s.id,s)).join('');
   } else {
     drop.innerHTML='';
   }
@@ -1947,7 +1953,7 @@ function filterStoresSF(q){
   const drop=document.getElementById('sf-store-drop');
   if(f.length){
     drop.innerHTML='<div style="padding:6px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:#F9FAFB;border-bottom:1px solid var(--border)">Your stores</div>'
-      +f.map(s=>`<div class="store-opt" onclick="selectStore('sf','','${(s.name||'').replace(/'/g,"\\'")}','${(s.city||'').replace(/'/g,"\\'")}')"><div class="so-name">${s.name}</div>${s.city?'<div class="so-city">'+s.city+'</div>':''}</div>`).join('');
+      +f.map(s=>storeOptHtml('sf','',s)).join('');
   } else {
     drop.innerHTML='';
   }
@@ -2344,7 +2350,7 @@ function renderFeed(){
       </div>`;
     }
     const corrHtml=isReliefRow?'':storeCorrectionChip(v);
-    const reliefBadge=isReliefRow?`<div class="fi-meta" style="color:var(--navy);font-weight:700">🔄 Covered by ${v.user_name||'relief'}</div>`:'';
+    const reliefBadge=isReliefRow?`<div class="fi-meta" style="color:var(--navy);font-weight:700">🔄 Covered by ${escapeHtmlM(v.user_name||'relief')}</div>`:'';
     // Stage trail only for the merchandiser's own in-progress visits — a
     // closed visit already shows its duration, and a relief row belongs to
     // someone else, so neither needs the extra line.
@@ -2352,7 +2358,7 @@ function renderFeed(){
     return`<div class="feed-item" id="visit-${v.id}">
       <div class="fi-ico ${ic}">${ico}</div>
       <div class="fi-info">
-        <div class="fi-name">${v.store_name}</div>
+        <div class="fi-name">${escapeHtmlM(v.store_name)}</div>
         <div class="fi-meta">${cats?cats:'No categories checked'}</div>
         ${stageChip}
         ${reliefBadge}
@@ -2548,9 +2554,9 @@ async function loadTLData(u){
         :`<div style="font-size:11px;color:var(--red);margin-top:6px">Not logged in today</div>`;
       return`<div class="merch-card">
         <div class="merch-hdr">
-          <div class="merch-av">${ini}</div>
+          <div class="merch-av">${escapeHtmlM(ini)}</div>
           <div style="flex:1">
-            <div class="merch-nm">${name}</div>
+            <div class="merch-nm">${escapeHtmlM(name)}</div>
             <div class="merch-rt">${stores} stores assigned</div>
           </div>
           ${qb}
@@ -3500,8 +3506,8 @@ function renderTodayFeed(feedEl,tvToday,notVisited){
     row.innerHTML=
       '<div class="tl-av-sm">'+ini+'</div>'+
       '<div style="flex:1;min-width:0">'+
-        '<div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+        '<div style="font-size:12px;font-weight:700">'+escapeHtmlM(v.user_name)+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(v.store_name)+'</div>'+
         '<div style="font-size:10px;margin-top:2px">'+visitStageChip(v)+'</div>'+
         (v.outcome==='issue'?'<div style="font-size:10px;font-weight:700;color:var(--red)">⚠ Issue</div>':'')+
       '</div>'+
@@ -3574,8 +3580,8 @@ function renderWeekFeed(feedEl,visits,myNames){
       row.style.cursor='pointer';
       row.onclick=function(){ openTLVisitDetail(v); };
       row.innerHTML='<div class="tl-av-sm" style="font-size:9px">'+ini+'</div>'+
-        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+v.user_name+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
-        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700">'+escapeHtmlM(v.user_name)+(v.visit_type==='relief'?' <span style="color:var(--navy)">🔄 relief cover</span>':'')+'</div>'+
+        '<div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(v.store_name)+'</div>'+
         '<div style="font-size:10px;margin-top:2px">'+visitStageChip(v)+'</div></div>'+
         '<div style="font-size:11px;color:var(--muted);text-align:right;flex-shrink:0">'+timeLbl+
           (tOut?'<div style="font-size:10px;color:var(--navy);font-weight:700">⏱ '+fmtDuration(v.clock_in,v.clock_out)+'</div>':'')+
@@ -3649,7 +3655,7 @@ async function openTLVisitDetail(v){
   const photos=v.shelf_photo_urls||[];
   if(photos.length){
     html+=`<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">📷 Shelf photos (${photos.length})</div><div class="photo-thumb-grid">`+
-      photos.map(u=>`<a href="${u}" target="_blank" class="photo-thumb"><img src="${u}" loading="lazy" alt="shelf photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+
+      photos.map(safeStorageUrl).filter(Boolean).map(u=>`<a href="${u}" target="_blank" rel="noopener" class="photo-thumb"><img src="${u}" loading="lazy" alt="shelf photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+
       '</div></div>';
   }
 
@@ -3667,7 +3673,7 @@ async function openTLVisitDetail(v){
     bgEl.innerHTML=`<div style="background:var(--red-lt);border:1.5px solid var(--red);border-radius:10px;padding:12px">
       <div style="font-size:12px;font-weight:800;color:var(--red);margin-bottom:6px">📦 Bad goods reported</div>
       ${r.note?`<div style="font-size:13px;margin-bottom:8px">${escapeHtmlM(r.note)}</div>`:''}
-      ${allPhotos.length?`<div class="photo-thumb-grid">`+allPhotos.map(u=>`<a href="${u}" target="_blank" class="photo-thumb"><img src="${u}" loading="lazy" alt="bad goods photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+'</div>':''}
+      ${allPhotos.length?`<div class="photo-thumb-grid">`+allPhotos.map(safeStorageUrl).filter(Boolean).map(u=>`<a href="${u}" target="_blank" rel="noopener" class="photo-thumb"><img src="${u}" loading="lazy" alt="bad goods photo" style="width:100%;height:100%;object-fit:cover"></a>`).join('')+'</div>':''}
     </div>`;
   }catch(e){ console.warn('bad goods lookup failed:',e); }
 }
@@ -3972,7 +3978,7 @@ async function loadAuditStores(){
     auditAllStores=allStores;
     filterAuditStores('');
   }catch(e){
-    listEl.innerHTML='<div style="font-size:12px;color:var(--red);padding:8px">Error: '+e.message+'</div>';
+    listEl.innerHTML='<div style="font-size:12px;color:var(--red);padding:8px">Error: '+escapeHtmlM(e.message)+'</div>';
     console.error('loadAuditStores:',e);
   }
 }
@@ -3987,7 +3993,7 @@ function filterAuditStores(q){
     btn.dataset.name=s.store_name;
     btn.dataset.merch=s.merchandiser_name;
     btn.style.cssText='padding:8px 12px;border-radius:8px;border:1.5px solid '+(auditState.customer_id===s.customer_id?'var(--amber)':'var(--border)')+';font-size:13px;cursor:pointer;background:'+(auditState.customer_id===s.customer_id?'#FFFBEB':'#fff')+';margin-bottom:2px';
-    btn.innerHTML='<div style="font-weight:700">'+s.store_name+'</div><div style="font-size:10px;color:var(--muted)">'+s.merchandiser_name+'</div>';
+    btn.innerHTML='<div style="font-weight:700">'+escapeHtmlM(s.store_name)+'</div><div style="font-size:10px;color:var(--muted)">'+escapeHtmlM(s.merchandiser_name)+'</div>';
     btn.onclick=function(){selectAuditStore(this.dataset.cid,this.dataset.name,this.dataset.merch);};
     listEl.appendChild(btn);
   });
@@ -4104,7 +4110,7 @@ async function submitAudit(){
       '<div style="text-align:center;padding:40px 24px">'+
         '<div style="font-size:56px;margin-bottom:16px">✅</div>'+
         '<div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:8px">Audit submitted!</div>'+
-        '<div style="font-size:13px;color:var(--muted)">'+auditState.store_name+'</div>'+
+        '<div style="font-size:13px;color:var(--muted)">'+escapeHtmlM(auditState.store_name)+'</div>'+
         '<div style="font-size:28px;font-weight:900;margin-top:16px">'+pctText+' overall score</div>'+
         '<button onclick="closeAudit()" style="margin-top:20px;padding:12px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Done</button>'+
       '</div>';
@@ -4295,6 +4301,14 @@ function escapeHtmlM(s){
   return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// A photo URL from the database goes into href/src only if it points at our own
+// public storage; a javascript:/data:/off-site value renders as an empty string.
+// (visit and bad-goods photo columns are writable with the public key.)
+const STORAGE_PUB = SUPABASE_URL + '/storage/v1/object/public/';
+function safeStorageUrl(u){
+  u=String(u==null?'':u);
+  return u.indexOf(STORAGE_PUB)===0 ? escapeHtmlM(u) : '';
+}
 
 // ── VIEW AS ──
 // Loads a merchandiser's real app — their stores, visits and performance —
@@ -4483,14 +4497,14 @@ function renderWeekVisits(){
           '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2"><circle cx="12" cy="10" r="3"/><path d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z"/></svg>'+
         '</div>'+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+          '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(v.store_name)+'</div>'+
           '<div style="display:flex;gap:8px;margin-top:3px;font-size:11px;color:var(--muted)">'+
             '<span>'+time+'</span>'+
             (photoCount?'<span>📷 '+photoCount+'</span>':'')+
             (v.outcome==='issue'?'<span style="color:var(--red);font-weight:700">⚠ Issue</span>':'')+
             (v.outcome==='oos'?'<span style="color:var(--amber)">OOS flagged</span>':'')+
           '</div>'+
-          (v.visit_type==='relief'?'<div style="font-size:11px;font-weight:700;color:var(--navy);margin-top:2px">🔄 Covered by '+(v.user_name||'relief')+'</div>':'')+
+          (v.visit_type==='relief'?'<div style="font-size:11px;font-weight:700;color:var(--navy);margin-top:2px">🔄 Covered by '+escapeHtmlM(v.user_name||'relief')+'</div>':'')+
         '</div>';
       el.appendChild(card);
     });
@@ -4535,7 +4549,7 @@ function renderWeekStockCounts(){
     sHdr.dataset.expanded='false';
     sHdr.innerHTML=
       '<div>'+
-        '<div style="font-size:13px;font-weight:700;color:#fff">'+store.name+'</div>'+
+        '<div style="font-size:13px;font-weight:700;color:#fff">'+escapeHtmlM(store.name)+'</div>'+
         '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">'+store.items.length+' SKUs · '+latestDate+'</div>'+
       '</div>'+
       '<span style="color:rgba(255,255,255,.6);font-size:18px" id="arr-'+store.cid+'">›</span>';
@@ -4560,7 +4574,7 @@ function renderWeekStockCounts(){
           :'';
         row.innerHTML=
           '<div style="flex:1;min-width:0">'+
-            '<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.description+'</div>'+
+            '<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(r.description)+'</div>'+
             reorderBadge+
           '</div>'+
           '<div style="font-size:14px;font-weight:800;color:var(--navy);flex-shrink:0;margin-left:8px">'+r.stock_on_hand+'cs</div>';
@@ -4613,12 +4627,12 @@ async function loadEOD(){
       const countCount=hasCounts?countsByStore[v.customer_id].filter(c=>c.counted_at&&c.counted_at.slice(0,10)===today).length:0;
       card.innerHTML=
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+v.store_name+'</div>'+
+          '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(v.store_name)+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-top:2px">Visited '+time+(hasCounts?' · ✓ '+countCount+' SKUs counted':' · No stock count yet')+'</div>'+
         '</div>'+
         '<div style="display:flex;gap:6px;flex-shrink:0">'+
-          (hasCounts?'<button data-cid="'+v.customer_id+'" data-name="'+encodeURIComponent(v.store_name||'')+'" onclick="viewStockHistory(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--green-lt);border:1px solid var(--green);border-radius:6px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer">View</button>':'')+
-          '<button data-cid="'+v.customer_id+'" data-name="'+encodeURIComponent(v.store_name||'')+'" onclick="eodOpenStock(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--navy);border:none;border-radius:6px;font-size:11px;font-weight:700;color:#fff;cursor:pointer">'+(hasCounts?'Update':'Record')+'</button>'+
+          (hasCounts?'<button data-cid="'+escapeHtmlM(v.customer_id)+'" data-name="'+encodeURIComponent(v.store_name||'')+'" onclick="viewStockHistory(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--green-lt);border:1px solid var(--green);border-radius:6px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer">View</button>':'')+
+          '<button data-cid="'+escapeHtmlM(v.customer_id)+'" data-name="'+encodeURIComponent(v.store_name||'')+'" onclick="eodOpenStock(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--navy);border:none;border-radius:6px;font-size:11px;font-weight:700;color:#fff;cursor:pointer">'+(hasCounts?'Update':'Record')+'</button>'+
         '</div>';
       listEl.appendChild(card);
     });
@@ -4642,7 +4656,7 @@ async function loadEOD(){
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+storeName+'</div>'+
           '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+latestSkus+' SKUs · last '+latestDate+' · '+dayKeys.size+' count'+(dayKeys.size===1?'':'s')+' in 4 wks</div>'+
-          (latestByOther?'<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(counts[0].visit_type==='relief'?'🔄 Covered by ':'Counted by ')+counts[0].merchandiser_name+'</div>':'')+
+          (latestByOther?'<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(counts[0].visit_type==='relief'?'🔄 Covered by ':'Counted by ')+escapeHtmlM(counts[0].merchandiser_name)+'</div>':'')+
         '</div>'+
         '<button data-cid="'+cid+'" data-name="'+encodeURIComponent(storeName)+'" onclick="viewStockHistory(this.dataset.cid,decodeURIComponent(this.dataset.name))" style="padding:6px 10px;background:var(--blue-lt);border:1px solid var(--navy);border-radius:6px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer">View</button>';
       listEl.appendChild(card);
@@ -4710,9 +4724,9 @@ async function viewStockHistory(custId,custName){
         const reorder=r.suggested_reorder>0?'<span style="background:var(--amber-lt);color:var(--amber);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Reorder: '+r.suggested_reorder+'cs</span>':'';
         html+='<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">';
         const countedByOther=r.merchandiser_name&&cu&&r.merchandiser_name!==cu.full_name;
-        html+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.description+'</div>';
-        html+='<div style="font-size:10px;color:var(--muted)">'+(r.item_class||'')+'</div>';
-        if(countedByOther)html+='<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(r.visit_type==='relief'?'🔄 Covered by ':'Counted by ')+r.merchandiser_name+'</div>';
+        html+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtmlM(r.description)+'</div>';
+        html+='<div style="font-size:10px;color:var(--muted)">'+escapeHtmlM(r.item_class||'')+'</div>';
+        if(countedByOther)html+='<div style="font-size:10px;font-weight:700;color:var(--navy)">'+(r.visit_type==='relief'?'🔄 Covered by ':'Counted by ')+escapeHtmlM(r.merchandiser_name)+'</div>';
         html+='</div>';
         html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800">'+r.stock_on_hand+'cs</div>';
         html+='<div style="font-size:10px;color:var(--muted)">in storeroom</div>'+reorder+'</div>';
@@ -4868,7 +4882,7 @@ function renderStores(){
         </div>`;
       }
       if(todayVisit.visit_type==='relief'){
-        visitBlock=`<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">🔄 Covered today by ${todayVisit.user_name||'relief'}</div>`+visitBlock;
+        visitBlock=`<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">🔄 Covered today by ${escapeHtmlM(todayVisit.user_name||'relief')}</div>`+visitBlock;
       }
     } else if(lastPastVisit){
       const lIn=new Date(lastPastVisit.clock_in).toLocaleTimeString('en-JM',{hour:'2-digit',minute:'2-digit'});
@@ -4885,15 +4899,15 @@ function renderStores(){
       visitBlock=`<div class="spc-timebox spc-timebox-empty">Not visited yet</div>`;
     }
 
-    return`<div class="store-perf-card" id="spc-${s.customer_id}">
+    return`<div class="store-perf-card" id="spc-${escapeHtmlM(s.customer_id)}">
       <div class="spc-top">
         <div>
-          <div class="spc-name">${s.customer_name}</div>
-          ${s.city?`<div class="spc-city">${s.city}</div>`:''}
+          <div class="spc-name">${escapeHtmlM(s.customer_name)}</div>
+          ${s.city?`<div class="spc-city">${escapeHtmlM(s.city)}</div>`:''}
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
-            ${s.service_day?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--blue-lt);color:var(--navy)">📅 ${s.service_day}</span>`:''}
-            ${s.customer_tier&&s.customer_tier!=='NULL'?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--amber-lt);color:var(--amber)">${s.customer_tier}</span>`:''}
-            ${s.route_tag?`<span style="font-size:10px;color:var(--muted);padding:2px 7px;border-radius:4px;background:#F0F0F0">${s.route_tag}</span>`:''}
+            ${s.service_day?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--blue-lt);color:var(--navy)">📅 ${escapeHtmlM(s.service_day)}</span>`:''}
+            ${s.customer_tier&&s.customer_tier!=='NULL'?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--amber-lt);color:var(--amber)">${escapeHtmlM(s.customer_tier)}</span>`:''}
+            ${s.route_tag?`<span style="font-size:10px;color:var(--muted);padding:2px 7px;border-radius:4px;background:#F0F0F0">${escapeHtmlM(s.route_tag)}</span>`:''}
             ${ytdRiskBadgeHtml(s.customer_id)}
           </div>
         </div>
@@ -4911,11 +4925,11 @@ function renderStores(){
       </div>`:'<div style="font-size:12px;color:var(--muted);padding:4px 0">No target set for this period</div>'}
       ${visitBlock}
       <div class="spc-visit">
-        <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="openSalesInfo(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="background:var(--blue-lt);color:var(--navy);border:1.5px solid var(--navy)">📊 Sales info</button>
-        <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="prefillStore(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="${todayVisit&&todayVisit.clock_out?'background:var(--navy)':''}">Log visit</button>
+        <button class="log-btn" data-cid="${escapeHtmlM(s.customer_id)}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="openSalesInfo(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="background:var(--blue-lt);color:var(--navy);border:1.5px solid var(--navy)">📊 Sales info</button>
+        <button class="log-btn" data-cid="${escapeHtmlM(s.customer_id)}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="prefillStore(this.dataset.cid,decodeURIComponent(this.dataset.cnm))" style="${todayVisit&&todayVisit.clock_out?'background:var(--navy)':''}">Log visit</button>
       </div>
       <div class="spc-visit hide-when-readonly" style="margin-top:6px">
-        <button class="log-btn" data-cid="${s.customer_id}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="removeStoreFromRoute(this)" style="background:#fff;color:var(--red);border:1.5px solid var(--red)">🗑 Remove from my route</button>
+        <button class="log-btn" data-cid="${escapeHtmlM(s.customer_id)}" data-cnm="${encodeURIComponent(s.customer_name)}" onclick="removeStoreFromRoute(this)" style="background:#fff;color:var(--red);border:1.5px solid var(--red)">🗑 Remove from my route</button>
       </div>
     </div>`;
   }).join('');
@@ -5989,8 +6003,9 @@ function renderIssueAdminList(rows){
     const resolveBtn=r.status==='open'
       ? '<button onclick="resolveIssue(\''+r.id+'\',this)" style="margin-top:10px;background:var(--green);color:#fff;border:none;border-radius:var(--rad-sm);padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">✓ Mark resolved</button>'
       : '<div style="margin-top:10px;font-size:11px;color:var(--muted)">Resolved by '+escapeHtmlM(r.resolved_by_name||'—')+'</div>';
-    const photo=r.photo_url
-      ? '<a href="'+r.photo_url+'" target="_blank" style="display:inline-block;margin-top:8px"><img src="'+r.photo_url+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></a>'
+    const photoUrl=safeStorageUrl(r.photo_url);
+    const photo=photoUrl
+      ? '<a href="'+photoUrl+'" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px"><img src="'+photoUrl+'" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></a>'
       : '';
     return '<div class="merch-card" style="margin-bottom:10px">'+
       '<div class="merch-hdr">'+
@@ -5998,7 +6013,7 @@ function renderIssueAdminList(rows){
           '<div class="merch-nm">'+escapeHtmlM(r.reported_by_name)+' <span style="font-weight:400;color:var(--muted);font-size:11px">('+escapeHtmlM(r.reported_by_role)+')</span></div>'+
           '<div class="merch-rt">'+t+'</div>'+
         '</div>'+
-        '<div class="badge b-pend">'+(ISSUE_CAT_LABELS[r.category]||r.category)+'</div>'+
+        '<div class="badge b-pend">'+escapeHtmlM(ISSUE_CAT_LABELS[r.category]||r.category)+'</div>'+
       '</div>'+
       '<div style="font-size:13px;margin-top:8px;color:var(--text)">'+escapeHtmlM(r.description)+'</div>'+
       photo+resolveBtn+
@@ -6641,7 +6656,7 @@ async function openStockCount(){
   }catch(e){
     console.error('stock history:', e);
     document.getElementById('stock-sku-list').innerHTML =
-      '<div style="padding:32px;text-align:center;color:var(--muted)">Error loading history: '+e.message+'</div>';
+      '<div style="padding:32px;text-align:center;color:var(--muted)">Error loading history: '+escapeHtmlM(e.message)+'</div>';
   }
 }
 
@@ -6716,7 +6731,7 @@ function renderStockSheet(){
         // SKU name + last purchase info
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">'+
           '<div style="flex:1;min-width:0">'+
-            '<div style="font-size:13px;font-weight:700;line-height:1.3">'+sku.description+'</div>'+
+            '<div style="font-size:13px;font-weight:700;line-height:1.3">'+escapeHtmlM(sku.description)+'</div>'+
             '<div style="display:flex;gap:10px;margin-top:3px;font-size:11px;color:var(--muted)">'+
               '<span style="color:'+urgencyCol+';font-weight:700">Last: '+lastDate+'</span>'+
               '<span>Qty: '+Math.round(lastQty)+'cs</span>'+
@@ -6780,7 +6795,7 @@ function renderGapsSheet(){
     html += '<div style="padding:12px 16px;border-bottom:1px solid var(--border);'+(flagged?'background:#FFFBEB':'')+'">'+
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">'+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:13px;font-weight:700;line-height:1.3">'+sku.description+'</div>'+
+          '<div style="font-size:13px;font-weight:700;line-height:1.3">'+escapeHtmlM(sku.description)+'</div>'+
           '<div style="display:flex;gap:10px;margin-top:3px;font-size:11px;color:var(--muted)">'+
             '<span style="color:var(--red);font-weight:700">'+lastTxt+'</span>'+
             (sku.posting_class?'<span>'+(CAT_LABELS[sku.posting_class]||sku.posting_class)+'</span>':'')+
