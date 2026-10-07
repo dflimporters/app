@@ -2142,10 +2142,16 @@ async function submitPlan() {
     const encWeek = encodeURIComponent(plan.week);
 
     // Check if a record already exists for this rep + week
-    const existing = await fetch(
+    // A failed lookup must not look like "no plan yet": the error body is an
+    // object with no .length, so this used to fall through to a POST that
+    // duplicated (or failed to update) the week's plan.
+    const existingRes = await fetch(
       `${PLAN_SB_URL}/rest/v1/weekly_plans?salesperson=eq.${encRep}&week_commencing=eq.${encWeek}&select=id`,
       { headers: { 'apikey': PLAN_SB_KEY, 'Authorization': `Bearer ${PLAN_SB_KEY}` } }
-    ).then(r => r.json());
+    );
+    if (!existingRes.ok) throw new Error('Could not check for an existing plan (HTTP ' + existingRes.status + ')');
+    const existing = await existingRes.json();
+    if (!Array.isArray(existing)) throw new Error('Could not check for an existing plan');
 
     let res;
     if (existing && existing.length > 0) {

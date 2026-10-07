@@ -1094,7 +1094,8 @@ async function refreshFromDB(){
         toast('Refresh running - reloading data...');
         await new Promise(r => setTimeout(r, 2000));
         await loadData();
-        document.getElementById('lastSyncTime').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+        // Not "Refreshed": the database call timed out on our side and may still be running.
+        document.getElementById('lastSyncTime').textContent = 'Refresh still running (reloaded ' + new Date().toLocaleTimeString() + ')';
         return;
       }
       throw new Error(errText.slice(0, 200));

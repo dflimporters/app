@@ -86,6 +86,9 @@ async function init() {
       fetch(`${SB_URL}/rest/v1/rep_debrief_items?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H }),
       fetch(`${SB_URL}/rest/v1/customer_contacts?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H })
     ]);
+    // A 401/403 body is an object, which render() would show as "nothing here".
+    const bad = [recoRes, debriefRes, contactRes].find(r => !r.ok);
+    if (bad) throw new Error('customer data request failed (HTTP ' + bad.status + ')');
     const recos = await recoRes.json();
     const debriefItems = await debriefRes.json();
     const contacts = await contactRes.json();

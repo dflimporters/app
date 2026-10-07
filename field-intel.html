@@ -454,7 +454,13 @@ async function handleSubmit(e) {
     if (!saveQueue(q)) {
       showBanner('Phone storage is full — this visit was NOT saved. Remove some photos or connect to the internet and try again.', 'error');
     } else {
-      showBanner('No connection — saved on this phone, will sync automatically.', 'queued');
+      // Say what actually failed: a rejection from the server (permission,
+      // validation, outage) is not "no connection", and telling people it is
+      // hides a problem that retrying will never fix.
+      const offline = !navigator.onLine || (err && (err instanceof TypeError || /fetch|network/i.test(String(err.message || ''))));
+      showBanner(offline
+        ? 'No connection — saved on this phone, will sync automatically.'
+        : 'Couldn’t save to the server (' + String((err && (err.message || err.code)) || 'error').slice(0, 80) + ') — kept on this phone and will retry.', 'queued');
       editingId = null;
       document.getElementById('cancelEditBtn').style.display = 'none';
       resetForm();
