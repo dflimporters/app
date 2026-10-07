@@ -135,7 +135,8 @@ const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
 const HRET={...H,Prefer:"return=representation"};
-function esc(s){return(s||"").toString().replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+// Quote-safe: also used inside value="…"/data-*="…" attributes below.
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 let PROFILE=null, STAFF=null, COVERERS=[], REQUESTS=[];
 let MERCH_LEAVE=[], MERCH_LEAVE_CLASHES=[];
@@ -353,7 +354,7 @@ function drawList(){
     ${REQUESTS.length ? REQUESTS.map(r=>{
         const b=statusBadge(r);
         const resumeBtn = !r.checklist_submitted_at
-          ? `<div style="margin-top:8px"><button class="btn btn-ghost" style="padding:8px" onclick="startChecklist('${r.id}')">Finish coverage checklist</button></div>` : '';
+          ? `<div style="margin-top:8px"><button class="btn btn-ghost" style="padding:8px" data-id="${esc(r.id)}" onclick="startChecklist(this.dataset.id)">Finish coverage checklist</button></div>` : '';
         return `<div class="cust">
           <div class="crow1">
             <div><div class="cname">${esc(r.leave_type||'Leave')}</div><div class="cid">${esc(r.start_date)} → ${esc(r.end_date)}</div></div>
@@ -428,7 +429,8 @@ let KEYSTORES=[], CURRENT_ID=null;
 
 async function startChecklist(id){
   CURRENT_ID = id;
-  const rec = REQUESTS.find(r=>r.id===id) || {};
+  // String compare: the id arrives via data-id, whatever the column type.
+  const rec = REQUESTS.find(r=>String(r.id)===String(id)) || {};
   const app=document.getElementById('app');
   app.innerHTML = `<div class="spin"></div>`;
   try{
