@@ -148,7 +148,9 @@ const DFL_PAGE_ROLES = {
   // specials, org_chart and field_intel. Keep the two lists in step.
   '/weekly-reports.html': ['manager', 'admin', 'management', 'rep_management'],
   '/report-upload.html':  ['manager', 'admin', 'management', 'rep_management'],
-  '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management']
+  '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management'],
+  // CM & KAM weekly plan/update/recap tool — the shell's third tab.
+  '/DFL_Weekly_CM_KAM_Reports.html': ['manager', 'admin', 'management', 'rep_management']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
