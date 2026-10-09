@@ -109,6 +109,13 @@ const DFL_PAGE_ROLES = {
   '/price-requests.html':        ['admin', 'manager', 'rep_management'],
   '/admin/price-approvals.html': ['admin'],
 
+  // ---- 2027 category budget ----
+  // Shared by direct link only (not in the rail or the rep app). The guard admits these roles so every
+  // Category Manager can open it (Phobea is a 'rep'); what each person SEES is decided in Postgres —
+  // budget27_* RPCs return only the caller's own categories (by profile id in budget27_cm), everything
+  // for is_price_approver(), and nothing for anyone else.
+  '/category-budget.html':       ['admin', 'manager', 'rep_management', 'rep'],
+
   // ---- Management ----
   // These used to sit behind a hardcoded plaintext password in
   // management/index.html (MGMT_PASSWORD), while the eight dashboards it embeds
