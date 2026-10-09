@@ -2805,9 +2805,8 @@ async function confirmLeaveApproval(){
     }});
     closeLeaveApproveModal();
     if(typeof reloadFn==='function') reloadFn();
-    // HR approval email switched off 2026-10-07: Resend only delivers to the
-    // account owner until a domain is verified, and HR is moving to OrangeHRM.
-    // sendLeaveApprovalEmail(id) is kept below; re-add the call to re-enable.
+    // HR no longer gets an email here — they see every request on
+    // /hr-leave.html (get_hr_leave()).
   }catch(e){
     alert('Could not approve: '+(e.message||e));
     if(btn) btn.disabled=false;
@@ -2868,17 +2867,6 @@ async function saveLeaveCovering(){
     btn.disabled=false; btn.textContent='Save';
     updateLeaveCoveringGating();
   }
-}
-
-async function sendLeaveApprovalEmail(leaveRequestId){
-  try{
-    const res=await fetch(SUPABASE_URL+'/functions/v1/send-leave-approval-email',{
-      method:'POST',
-      headers:await restHeaders(),
-      body:JSON.stringify({leave_request_id:leaveRequestId})
-    });
-    if(!res.ok) console.warn('leave approval email failed:',await res.text());
-  }catch(e){ console.warn('leave approval email failed:',e); }
 }
 
 // Deciding a request can immediately change what belongs in the upcoming-leave
