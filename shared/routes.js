@@ -40,8 +40,13 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management', 'rep_management'
+  'relief_merchandiser', 'management', 'rep_management', 'hr'
 ];
+
+// Roles that may open ONLY the pages that explicitly list them. For everyone
+// else an unlisted page is open (see DFL_PAGE_ROLES); for these it's closed.
+// `hr` (Monique) is meant to see the HR Leave portal and nothing else.
+const DFL_LISTED_ONLY_ROLES = ['hr'];
 
 // ------------------------------------------------------------
 // Where each role belongs when it has nowhere more specific to be.
@@ -63,7 +68,8 @@ const DFL_HOME_BY_ROLE = {
   pending:      '/pending.html',
   relief_merchandiser: '/merch.html',
   management:   '/morning-brief.html',
-  rep_management: '/index.html'
+  rep_management: '/index.html',
+  hr:           '/hr-leave.html'
 };
 
 // ------------------------------------------------------------
@@ -144,7 +150,14 @@ const DFL_PAGE_ROLES = {
   // specials, org_chart and field_intel. Keep the two lists in step.
   '/weekly-reports.html': ['manager', 'admin', 'management', 'rep_management'],
   '/report-upload.html':  ['manager', 'admin', 'management', 'rep_management'],
-  '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management']
+  '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management'],
+
+  // ---- HR ----
+  // Every leave request from both leave systems. The data itself is gated in
+  // Postgres by is_hr() (admins, role 'hr', and anyone in public.hr_staff —
+  // Paula, who is 'management'), so other management users get through this
+  // door but see a "not set up for HR" message.
+  '/hr-leave.html': ['admin', 'management', 'hr']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
@@ -171,10 +184,11 @@ function dflHome(profile) {
   return (role && DFL_HOME_BY_ROLE[role]) || '/hub.html';
 }
 
-// Can `role` open `path`? Unlisted paths are permitted — see the note above.
+// Can `role` open `path`? Unlisted paths are permitted — see the note above —
+// except for DFL_LISTED_ONLY_ROLES.
 function dflCanAccess(role, path) {
   const allowed = DFL_PAGE_ROLES[dflNormalisePath(path)];
-  if (!allowed) return true;
+  if (!allowed) return DFL_LISTED_ONLY_ROLES.indexOf(role) === -1;
   return allowed.indexOf(role) !== -1;
 }
 

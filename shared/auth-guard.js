@@ -247,9 +247,9 @@ function showAccessDenied(profile) {
   // possibility of a page and the routing table disagreeing, which is what
   // produced the loop in the first place. A path that isn't in the table has
   // no role restriction.
-  const allowedRoles = dflRolesFor(window.location.pathname);
-  if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(profile.role)) {
+  // dflCanAccess() also closes unlisted pages to DFL_LISTED_ONLY_ROLES (hr).
+  {
+    if (!dflCanAccess(profile.role, window.location.pathname)) {
       const home = dflHome(profile);
       const here = dflNormalisePath(window.location.pathname);
 

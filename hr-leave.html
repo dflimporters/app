@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · HR Leave</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  HR Leave — every leave request in the company, in one place, for HR.
+  Replaces the Resend emails HR used to get (send-leave-approval-email from
+  merch.html, send-rep-leave-checklist-email from leave-request.html).
+
+  Data: get_hr_leave() unions BOTH leave systems into one shape —
+    source 'field' = leave_requests (Brand Ambassadors / TLs, approved by TLs in merch.html)
+    source 'sales' = leave_tracker_records + leave_tracker_staff (reps/CMs/KAMs, leave-request.html)
+  Gated by is_hr(): admins + anyone in public.hr_staff (Paula). The page
+  guard lets admin/management through; other management users get a
+  "not set up for HR" message. HR marks rows processed via hr_mark_leave();
+  the hr_* columns are protected by trigger protect_hr_leave_columns().
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+.kpi .v.bad{color:#FF9B9B}
+.kpi:hover .l{color:#fff}
+@media (max-width:640px){.strip{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.kpi .v{font-size:18px}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.filters input:focus,.filters select:focus{border-color:var(--blue)}
+.filters input[type=search]{flex:1 1 200px;min-width:160px}
+.filters label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.count{font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#FAFBFD;white-space:nowrap;cursor:pointer;user-select:none}
+th.nosort{cursor:default}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#F8FAFE}
+tbody tr:last-child td{border-bottom:0}
+.who{font-weight:600}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.t-vacation{background:var(--blue-t);color:var(--blue)}
+.t-sick{background:var(--red-t);color:var(--red)}
+.t-personal{background:var(--amber-t);color:var(--amber)}
+.t-other{background:var(--grey-t);color:var(--grey)}
+.s-approved{background:var(--green-t);color:var(--green)}
+.s-pending{background:var(--amber-t);color:var(--amber)}
+.s-denied{background:var(--grey-t);color:var(--grey)}
+.flag{color:var(--red);font-weight:600;font-size:12px}
+.done{color:var(--green);font-weight:600;font-size:12px;white-space:nowrap}
+.todo{color:var(--ink3);font-size:12px;white-space:nowrap}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2)}
+
+/* Mobile: table becomes cards */
+@media (max-width:640px){
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  td{border:0;padding:2px 0}
+  td[data-l]::before{content:attr(data-l)": ";color:var(--ink3);font-size:12px}
+}
+
+/* Calendar (month timeline) */
+.calbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.calbar h2{font:800 17px var(--hf);margin:0 8px 0 0;min-width:150px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-left:auto}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.calwrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.cal{display:grid;min-width:max-content}
+.cal .c{height:30px;border-right:1px solid #F0F2F6;border-bottom:1px solid #F0F2F6;font-size:11px;display:flex;align-items:center;justify-content:center;position:relative}
+.cal .nm{position:sticky;left:0;z-index:2;background:#fff;justify-content:flex-start;padding:0 10px;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line)}
+.cal .hd{font:700 10px var(--hf);color:var(--ink3);flex-direction:column;line-height:1.15;height:38px;background:#FAFBFD}
+.cal .hd.nm{background:#FAFBFD}
+.cal .we{background:#F7F8FB}
+.cal .td{box-shadow:inset 0 0 0 2px var(--blue)}
+.cal .tot{font:700 11px var(--hf);color:var(--ink2);background:#FAFBFD}
+.cal .tot.hot{background:var(--red-t);color:var(--red)}
+.cal .on{cursor:pointer}
+.cal .on::after{content:"";position:absolute;inset:6px 0;}
+.cal .on.vacation::after{background:var(--blue)}
+.cal .on.sick::after{background:var(--red)}
+.cal .on.personal::after{background:var(--amber)}
+.cal .on.other::after{background:var(--grey)}
+.cal .on.pend::after{opacity:.4}
+.cal .on.start::after{left:3px;border-top-left-radius:4px;border-bottom-left-radius:4px}
+.cal .on.end::after{right:3px;border-top-right-radius:4px;border-bottom-right-radius:4px}
+
+/* Detail drawer */
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:#fff;z-index:901;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding:22px 22px 40px}
+.drawer h3{font:800 19px var(--hf);margin:0 0 2px}
+.drawer .x{position:absolute;top:14px;right:14px;border:0;background:var(--grey-t);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--ink2)}
+.dl{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;margin:16px 0;font-size:13.5px}
+.dl dt{color:var(--ink3);font-size:12.5px}
+.dl dd{margin:0;word-break:break-word}
+.sect{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:20px 0 8px}
+.stores{list-style:none;padding:0;margin:0;font-size:13px}
+.stores li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px}
+.hrbox{background:#FAFBFD;border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px}
+.hrbox textarea{width:100%;min-height:70px;font:13.5px var(--bf);border:1px solid var(--line);border-radius:8px;padding:9px;resize:vertical;margin:8px 0}
+.hrbox .row{display:flex;gap:8px;flex-wrap:wrap}
+.err{color:var(--red);font-size:12.5px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1 class="ptitle">HR Leave Dashboard</h1>
+  <p class="psub">All leave requests from the field team (Brand Ambassadors &amp; Team Leaders) and the sales team (Reps, CMs &amp; KAMs).</p>
+
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <div class="strip">
+      <button class="kpi" data-quick="today"><div class="l">Out today</div><div class="v" id="kToday">–</div></button>
+      <button class="kpi" data-quick="next14"><div class="l">Starting next 14 days</div><div class="v" id="kNext">–</div></button>
+      <button class="kpi" data-quick="pending"><div class="l">Awaiting approval</div><div class="v warn" id="kPending">–</div></button>
+      <button class="kpi" data-quick="unprocessed"><div class="l">Approved, not yet processed by HR</div><div class="v warn" id="kUnproc">–</div></button>
+      <button class="kpi" data-quick="nocover"><div class="l">No cover identified</div><div class="v bad" id="kNoCover">–</div></button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="list">All requests</button>
+      <button role="tab" aria-selected="false" data-tab="cal">Calendar</button>
+    </div>
+
+    <section id="tab-list">
+      <div class="filters">
+        <input type="search" id="fq" placeholder="Search name, area, cover…">
+        <select id="fwhen">
+          <option value="upcoming">Current &amp; upcoming</option>
+          <option value="month">This month</option>
+          <option value="past">Past</option>
+          <option value="all">All dates</option>
+        </select>
+        <select id="fstatus">
+          <option value="">Any status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="denied">Denied</option>
+        </select>
+        <select id="ftype">
+          <option value="">Any type</option>
+          <option value="vacation">Vacation</option>
+          <option value="sick">Sick</option>
+          <option value="personal">Personal</option>
+          <option value="other">Other</option>
+        </select>
+        <select id="fteam">
+          <option value="">Both teams</option>
+          <option value="field">Field (BAs &amp; TLs)</option>
+          <option value="sales">Sales (Reps, CMs, KAMs)</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="funproc"> Not processed by HR</label>
+        <button class="btn" id="csv">Export CSV</button>
+      </div>
+      <p class="count" id="count"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th data-sort="person_name">Employee</th>
+            <th data-sort="leave_type">Type</th>
+            <th data-sort="from_date">Dates</th>
+            <th data-sort="days">Days</th>
+            <th data-sort="status">Status</th>
+            <th data-sort="covering_name">Cover</th>
+            <th data-sort="hr_processed_at">HR</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-cal" class="hidden">
+      <div class="calbar">
+        <button class="btn" id="calPrev" aria-label="Previous month">‹</button>
+        <h2 id="calTitle"></h2>
+        <button class="btn" id="calNext" aria-label="Next month">›</button>
+        <button class="btn" id="calNow">Today</button>
+        <label class="chk" style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2)"><input type="checkbox" id="calDenied"> Show denied</label>
+        <div class="legend">
+          <span><i style="background:var(--blue)"></i>Vacation</span>
+          <span><i style="background:var(--red)"></i>Sick</span>
+          <span><i style="background:var(--amber)"></i>Personal</span>
+          <span><i style="background:var(--grey)"></i>Other</span>
+          <span><i style="background:var(--blue);opacity:.4"></i>Pending</span>
+        </div>
+      </div>
+      <div class="calwrap"><div class="cal" id="cal"></div></div>
+      <p class="count" style="margin-top:8px">The bottom row counts how many people are out each day — days with 3 or more are highlighted.</p>
+    </section>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true"></aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+const ROLE_LABEL = {merchandiser:'Brand Ambassador', relief_merchandiser:'Relief Brand Ambassador',
+  team_leader:'Team Leader', tl_merch:'Team Leader + Brand Ambassador', rep:'Sales Rep'};
+const TYPE_LABEL = {vacation:'Vacation', sick:'Sick', personal:'Personal', other:'Other'};
+const DISCUSSED = {agreed:'Discussed & agreed', planned:'Planned, not yet discussed', none:"Hasn't identified anyone"};
+
+let ROWS = [], ME = null;
+let SORT = {key:'from_date', dir:1};
+let CAL = null;   // first day of the month shown on the calendar
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// Dates come back as 'YYYY-MM-DD'; keep them as local calendar days, never UTC instants.
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parse(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(s,n){ const d=parse(s); d.setDate(d.getDate()+n); return ymd(d); }
+const TODAY = ymd(new Date());
+function fmt(s){ return s ? parse(s).toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+function fmtShort(s){ return s ? parse(s).toLocaleDateString('en-JM',{day:'numeric',month:'short'}) : ''; }
+function fmtTs(s){ return s ? new Date(s).toLocaleString('en-JM',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+function roleLabel(r){ return ROLE_LABEL[r.person_role] || r.job_title || r.person_role || ''; }
+function noCover(r){ return r.status!=='denied' && (r.discussed_status==='none' || (r.source==='field' && r.status==='approved' && !r.covering_name)); }
+function overlaps(r,a,b){ return r.from_date<=b && r.to_date>=a; }
+
+document.addEventListener('dfl-auth-ready', (e) => init(e.detail.profile));
+
+async function init(profile){
+  ME = profile;
+  const { data, error } = await sb.rpc('get_hr_leave');
+  const gate = document.getElementById('gate');
+  if(error){
+    gate.innerHTML = /not authorised/i.test(error.message||'')
+      ? `<div class="msg">This dashboard is for HR. You're signed in as <b>${esc(profile.full_name||'')}</b>, who isn't set up for HR access.<br>Ask an admin to add you to <code>hr_staff</code>.</div>`
+      : `<div class="msg">Couldn't load leave requests. Try again shortly.</div>`;
+    return;
+  }
+  ROWS = data || [];
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  wire();
+  drawKpis();
+  drawList();
+  CAL = new Date(); CAL.setDate(1);
+}
+
+function wire(){
+  ['fq','fwhen','fstatus','ftype','fteam','funproc'].forEach(id=>{
+    document.getElementById(id).addEventListener(id==='fq'?'input':'change', drawList);
+  });
+  document.getElementById('csv').addEventListener('click', exportCsv);
+  document.querySelectorAll('th[data-sort]').forEach(th=>th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    SORT = {key:k, dir: SORT.key===k ? -SORT.dir : 1};
+    drawList();
+  }));
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+  document.querySelectorAll('.kpi').forEach(b=>b.addEventListener('click', ()=>quick(b.dataset.quick)));
+  document.getElementById('rows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-id]'); if(tr) openDrawer(tr.dataset.id);
+  });
+  document.getElementById('cal').addEventListener('click', e=>{
+    const c = e.target.closest('[data-id]'); if(c) openDrawer(c.dataset.id);
+  });
+  document.getElementById('calPrev').addEventListener('click', ()=>{ CAL.setMonth(CAL.getMonth()-1); drawCal(); });
+  document.getElementById('calNext').addEventListener('click', ()=>{ CAL.setMonth(CAL.getMonth()+1); drawCal(); });
+  document.getElementById('calNow').addEventListener('click', ()=>{ CAL = new Date(); CAL.setDate(1); drawCal(); });
+  document.getElementById('calDenied').addEventListener('change', drawCal);
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+}
+
+function showTab(t){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===t)));
+  document.getElementById('tab-list').classList.toggle('hidden', t!=='list');
+  document.getElementById('tab-cal').classList.toggle('hidden', t!=='cal');
+  if(t==='cal') drawCal();
+}
+
+// ---------- KPIs (click one to filter the list to it) ----------
+const QUICK = {
+  today:       r => r.status!=='denied' && overlaps(r, TODAY, TODAY),
+  next14:      r => r.status!=='denied' && r.from_date>TODAY && r.from_date<=addDays(TODAY,14),
+  pending:     r => r.status==='pending' && r.to_date>=TODAY,
+  unprocessed: r => r.status==='approved' && !r.hr_processed_at,
+  nocover:     r => noCover(r) && r.to_date>=TODAY
+};
+let QUICK_ON = null;
+
+function drawKpis(){
+  const n = k => ROWS.filter(QUICK[k]).length;
+  document.getElementById('kToday').textContent = n('today');
+  document.getElementById('kNext').textContent = n('next14');
+  document.getElementById('kPending').textContent = n('pending');
+  document.getElementById('kUnproc').textContent = n('unprocessed');
+  document.getElementById('kNoCover').textContent = n('nocover');
+}
+
+function quick(k){
+  ['fq','fstatus','ftype','fteam'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('funproc').checked = false;
+  document.getElementById('fwhen').value = 'all';
+  QUICK_ON = k;
+  showTab('list');
+  drawList(true);
+}
+
+// ---------- List ----------
+function filtered(){
+  const q = document.getElementById('fq').value.trim().toLowerCase();
+  const when = document.getElementById('fwhen').value;
+  const st = document.getElementById('fstatus').value;
+  const ty = document.getElementById('ftype').value;
+  const tm = document.getElementById('fteam').value;
+  const un = document.getElementById('funproc').checked;
+  const m0 = TODAY.slice(0,8)+'01', m1 = addDays(ymd(new Date(new Date().getFullYear(), new Date().getMonth()+1, 1)), -1);
+  return ROWS.filter(r=>{
+    if(QUICK_ON && !QUICK[QUICK_ON](r)) return false;
+    if(when==='upcoming' && r.to_date<TODAY) return false;
+    if(when==='past' && r.to_date>=TODAY) return false;
+    if(when==='month' && !overlaps(r,m0,m1)) return false;
+    if(st && r.status!==st) return false;
+    if(ty && r.leave_type!==ty) return false;
+    if(tm && r.source!==tm) return false;
+    if(un && r.hr_processed_at) return false;
+    if(q){
+      const hay = [r.person_name, roleLabel(r), r.area, r.covering_name, r.reviewed_by, r.remarks].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>{
+    const x=a[SORT.key], y=b[SORT.key];
+    if(x==y) return a.person_name.localeCompare(b.person_name);
+    if(x==null) return 1; if(y==null) return -1;
+    return (x<y?-1:1)*SORT.dir;
+  });
+}
+
+function drawList(fromQuick){
+  // Touching any filter by hand clears a KPI shortcut.
+  if(fromQuick!==true) QUICK_ON = null;
+  const list = filtered();
+  const quickName = QUICK_ON ? document.querySelector(`.kpi[data-quick="${QUICK_ON}"] .l`).textContent : '';
+  document.getElementById('count').innerHTML = `${list.length} request${list.length===1?'':'s'}` +
+    (quickName ? ` · showing <b>${esc(quickName)}</b> — change any filter to clear` : '');
+  document.querySelectorAll('th[data-sort]').forEach(th=>{
+    th.textContent = th.textContent.replace(/ [▲▼]$/,'') + (th.dataset.sort===SORT.key ? (SORT.dir>0?' ▲':' ▼') : '');
+  });
+  const tb = document.getElementById('rows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="7" class="empty">No leave requests match these filters.</td></tr>`; return; }
+  tb.innerHTML = list.map(r=>`<tr data-id="${esc(r.row_id)}">
+    <td><div class="who">${esc(r.person_name)}</div><div class="sub">${esc(roleLabel(r))}${r.area?' · '+esc(r.area):''}</div></td>
+    <td data-l="Type"><span class="pill t-${esc(r.leave_type)}">${esc(TYPE_LABEL[r.leave_type]||r.leave_type)}</span></td>
+    <td data-l="Dates" class="num">${fmtShort(r.from_date)} → ${fmt(r.to_date)}</td>
+    <td data-l="Days" class="num">${r.days!=null?Number(r.days):''}</td>
+    <td data-l="Status"><span class="pill s-${esc(r.status)}">${esc(r.status)}</span></td>
+    <td data-l="Cover">${r.covering_name?esc(r.covering_name):(noCover(r)?'<span class="flag">⚠ None</span>':'<span class="sub">—</span>')}</td>
+    <td data-l="HR">${r.hr_processed_at?`<span class="done">✓ ${fmtShort(r.hr_processed_at.slice(0,10))}</span>`:'<span class="todo">Not processed</span>'}</td>
+  </tr>`).join('');
+}
+
+// ---------- Calendar: one row per person out that month ----------
+function drawCal(){
+  const y = CAL.getFullYear(), m = CAL.getMonth();
+  const days = new Date(y, m+1, 0).getDate();
+  const m0 = ymd(new Date(y,m,1)), m1 = ymd(new Date(y,m,days));
+  document.getElementById('calTitle').textContent = CAL.toLocaleDateString('en-JM',{month:'long',year:'numeric'});
+  const showDenied = document.getElementById('calDenied').checked;
+  const inMonth = ROWS.filter(r=>overlaps(r,m0,m1) && (showDenied || r.status!=='denied'));
+
+  // Group by person so someone with two trips in a month stays on one line.
+  const people = new Map();
+  inMonth.forEach(r=>{ const k=r.source+'|'+r.person_name; if(!people.has(k)) people.set(k,{name:r.person_name, role:roleLabel(r), rows:[]}); people.get(k).rows.push(r); });
+  const list = [...people.values()].sort((a,b)=>a.rows[0].from_date.localeCompare(b.rows[0].from_date)||a.name.localeCompare(b.name));
+
+  const cal = document.getElementById('cal');
+  cal.style.gridTemplateColumns = `minmax(150px,200px) repeat(${days}, 30px)`;
+  const dateStr = d => ymd(new Date(y,m,d));
+  const isWe = d => { const w=new Date(y,m,d).getDay(); return w===0||w===6; };
+  let html = `<div class="c hd nm">${list.length} ${list.length===1?'person':'people'}</div>`;
+  for(let d=1; d<=days; d++){
+    const ds=dateStr(d);
+    html += `<div class="c hd${isWe(d)?' we':''}${ds===TODAY?' td':''}"><span>${'SMTWTFS'[new Date(y,m,d).getDay()]}</span><span>${d}</span></div>`;
+  }
+  if(!list.length){
+    html += `<div class="c nm" style="grid-column:1 / -1;justify-content:center;color:var(--ink3);height:60px">Nobody is on leave this month.</div>`;
+  }
+  const counts = new Array(days+1).fill(0);
+  list.forEach(p=>{
+    html += `<div class="c nm" title="${esc(p.name)} — ${esc(p.role)}">${esc(p.name)}</div>`;
+    for(let d=1; d<=days; d++){
+      const ds = dateStr(d);
+      const r = p.rows.find(x=>x.from_date<=ds && x.to_date>=ds);
+      let cls = 'c'+(isWe(d)?' we':'');
+      let attr = '';
+      if(r){
+        if(r.status!=='denied') counts[d]++;
+        cls += ` on ${r.leave_type}${r.status!=='approved'?' pend':''}${r.from_date===ds?' start':''}${r.to_date===ds?' end':''}`;
+        attr = ` data-id="${esc(r.row_id)}" title="${esc(p.name)}: ${esc(TYPE_LABEL[r.leave_type]||r.leave_type)}, ${fmtShort(r.from_date)}–${fmtShort(r.to_date)} (${esc(r.status)})"`;
+      }
+      html += `<div class="${cls}"${attr}></div>`;
+    }
+  });
+  html += `<div class="c nm tot">Out per day</div>`;
+  for(let d=1; d<=days; d++) html += `<div class="c tot${counts[d]>=3?' hot':''}">${counts[d]||''}</div>`;
+  cal.innerHTML = html;
+}
+
+// ---------- Detail drawer ----------
+function openDrawer(id){
+  const r = ROWS.find(x=>x.row_id===id); if(!r) return;
+  const dr = document.getElementById('drawer');
+  const stores = Array.isArray(r.key_stores) ? r.key_stores : [];
+  const row = (k,v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+  dr.innerHTML = `
+    <button class="x" aria-label="Close" onclick="closeDrawer()">×</button>
+    <h3>${esc(r.person_name)}</h3>
+    <div class="sub">${esc(roleLabel(r))}${r.area?' · '+esc(r.area):''} · ${r.source==='field'?'Field team':'Sales team'}</div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="pill t-${esc(r.leave_type)}">${esc(TYPE_LABEL[r.leave_type]||r.leave_type)}</span>
+      <span class="pill s-${esc(r.status)}">${esc(r.status)}</span>
+      ${noCover(r)?'<span class="pill t-sick">No cover</span>':''}
+    </div>
+    <dl class="dl">
+      ${row('From', fmt(r.from_date))}
+      ${row('To', fmt(r.to_date))}
+      ${row('Working days', r.days!=null?esc(Number(r.days)):'')}
+      ${row('Submitted', fmtTs(r.submitted_at))}
+      ${row(r.source==='field'?'Reviewed by':'Acknowledged', r.source==='field' ? (r.reviewed_by?esc(r.reviewed_by)+(r.reviewed_at?' · '+fmtTs(r.reviewed_at):''):'') : fmtTs(r.reviewed_at))}
+      ${row('Covering', esc(r.covering_name||''))}
+      ${row('Cover phone', r.covering_phone?`<a href="tel:${esc(r.covering_phone)}">${esc(r.covering_phone)}</a>`:'')}
+      ${row('Remarks', esc(r.remarks||''))}
+    </dl>
+    ${r.source==='sales' ? `
+      <div class="sect">Coverage checklist</div>
+      <dl class="dl" style="margin-top:0">
+        ${row('Checklist', r.checklist_submitted_at ? 'Submitted '+fmtTs(r.checklist_submitted_at) : '<span class="flag">Not finished</span>')}
+        ${row('Discussed with cover', esc(DISCUSSED[r.discussed_status]||''))}
+        ${row('Reachable while out', esc(r.reachable_during_leave||''))}
+        ${row('Handover notes', esc(r.handover_notes||''))}
+      </dl>
+      ${stores.length?`<div class="sect">Key / Chain stores (${stores.length})</div>
+        <ul class="stores">${stores.map(s=>`<li><span>${esc(s.customer_name)}</span><span class="sub">${esc(s.tier||'')}</span></li>`).join('')}</ul>`:''}
+    ` : ''}
+    <div class="sect">HR</div>
+    <div class="hrbox">
+      ${r.hr_processed_at
+        ? `<div class="done">✓ Processed by ${esc(r.hr_processed_by||'HR')} · ${fmtTs(r.hr_processed_at)}</div>`
+        : `<div class="todo">Not yet processed by HR</div>`}
+      <textarea id="hrNote" placeholder="HR note (optional) — e.g. recorded in payroll, days deducted…">${esc(r.hr_note||'')}</textarea>
+      <div class="row">
+        ${r.hr_processed_at
+          ? `<button class="btn" onclick="saveHr('${esc(r.row_id)}', false)">Mark not processed</button>
+             <button class="btn primary" onclick="saveHr('${esc(r.row_id)}', true)">Save note</button>`
+          : `<button class="btn" onclick="saveHr('${esc(r.row_id)}', false)">Save note</button>
+             <button class="btn primary" onclick="saveHr('${esc(r.row_id)}', true)">Mark processed</button>`}
+      </div>
+      <div class="err hidden" id="hrErr"></div>
+    </div>`;
+  dr.classList.remove('hidden');
+  document.getElementById('scrim').classList.remove('hidden');
+}
+
+function closeDrawer(){
+  document.getElementById('drawer').classList.add('hidden');
+  document.getElementById('scrim').classList.add('hidden');
+}
+
+async function saveHr(id, processed){
+  const r = ROWS.find(x=>x.row_id===id); if(!r) return;
+  const note = document.getElementById('hrNote').value.trim();
+  const err = document.getElementById('hrErr');
+  document.querySelectorAll('.hrbox .btn').forEach(b=>b.disabled=true);
+  const { error } = await sb.rpc('hr_mark_leave', { p_source:r.source, p_id:id, p_processed:processed, p_note:note });
+  if(error){
+    err.textContent = 'Could not save: '+(error.message||error); err.classList.remove('hidden');
+    document.querySelectorAll('.hrbox .btn').forEach(b=>b.disabled=false);
+    return;
+  }
+  if(processed && !r.hr_processed_at){ r.hr_processed_at = new Date().toISOString(); r.hr_processed_by = ME.full_name; }
+  if(!processed){ r.hr_processed_at = null; r.hr_processed_by = null; }
+  r.hr_note = note || r.hr_note;
+  drawKpis(); drawList(QUICK_ON!=null);
+  if(!document.getElementById('tab-cal').classList.contains('hidden')) drawCal();
+  openDrawer(id);
+}
+
+// ---------- CSV of whatever the list currently shows ----------
+function exportCsv(){
+  const cols = [
+    ['Employee', r=>r.person_name], ['Role', r=>roleLabel(r)], ['Team', r=>r.source==='field'?'Field':'Sales'],
+    ['Area', r=>r.area], ['Type', r=>TYPE_LABEL[r.leave_type]||r.leave_type], ['From', r=>r.from_date], ['To', r=>r.to_date],
+    ['Working days', r=>r.days], ['Status', r=>r.status], ['Reviewed by', r=>r.reviewed_by],
+    ['Covering', r=>r.covering_name], ['Cover phone', r=>r.covering_phone], ['Remarks', r=>r.remarks],
+    ['HR processed', r=>r.hr_processed_at?r.hr_processed_at.slice(0,10):''], ['HR processed by', r=>r.hr_processed_by], ['HR note', r=>r.hr_note]
+  ];
+  const q = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [cols.map(c=>c[0]).join(','), ...filtered().map(r=>cols.map(c=>q(c[1](r))).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'}));
+  a.download = `dfl-leave-${TODAY}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+</script>
+</body>
+</html>

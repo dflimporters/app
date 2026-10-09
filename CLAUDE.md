@@ -95,6 +95,9 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 | `warehouse` | `/warehouse.html` | No |
 | `management` | `/morning-brief.html` | No |
 | `pending` | `/pending.html` | No |
+| `hr` | `/hr-leave.html` | No |
+
+**`hr` is a listed-pages-only role** (`DFL_LISTED_ONLY_ROLES` in `routes.js`): unlike every other role, an *unlisted* page is closed to it, so it can open `/hr-leave.html` and nothing else. First holder: Monique Deleon (roster row in `reps`, provisioned on her first Microsoft sign-in).
 
 `login.html` honours `?redirect=` (set by the guard when it bounces someone) over role-based landing, and shows messages for `?reason=not-provisioned|inactive`.
 
@@ -120,6 +123,7 @@ Roles: `rep`, `manager`, `admin`, `merchandiser`, `team_leader`, `tl_merch`, `re
 **Order builder** — one implementation, `shared/order-builder.js` (`DFL_ORDER.open({...})`), used by the rep app (`openOrderBuilder()` in `index.html`: prices, deal tiers via `shared/deals.js`, no-charge lines, source chips) and the merch app (`openOrderSummary()` in `merch.html`: no prices, grouped by category, search pinned on top). Pages only supply suggested lines, the search pool and options. Lines are keyed by `inventory_id`, falling back to description only when an id is missing; build suggestion lists through `DFL_ORDER.index()` for the same reason. Both shared modules use `dflo-`/`dfls-` prefixed classes and attach their own handlers — no element ids or global functions to collide with (commit e6d17be is what happens otherwise).
 
 **Area leave** — `get_area_leave()` (SECURITY DEFINER) returns upcoming vacation (pending+approved, sick excluded) across both leave systems for the caller's region, using `jm_region_keys(area)` (NE/NW/SC/SE/SW/HOSP/ALL; Kingston & Portmore fold into SE; admin/manager without an area see all). Surfaces as "Area Leave" on the TL screen in `merch.html` and as "Leave in your area" in `leave-request.html` for reps (merged with their store-overlap leave, with clash detection). Read-only — approval widgets are unchanged.
+| `/hr-leave.html` | admin, management, hr (page) / **`is_hr()` only** (data) | HR Leave dashboard — every leave request from both systems via `get_hr_leave()` (`source` `field` = `leave_requests`, `sales` = `leave_tracker_records`). KPIs, filters, month calendar, CSV, and HR's own "processed" marker + note via `hr_mark_leave()`. `is_hr()` = admin, role `hr`, or a row in `hr_staff` (Paula, who is `management`). The `hr_*` columns are trigger-protected (`protect_hr_leave_columns`) because both tables have permissive UPDATE policies. Replaced the Resend emails to HR — `merch.html` and `leave-request.html` no longer call `send-leave-approval-email` / `send-rep-leave-checklist-email` (functions still deployed, unused). Rail link is `hrOnly`. |
 | `/morning-brief.html` | management, manager, admin | Standalone MTD sales dashboard; raw-fetch against `morning_brief_cache` with the anon key |
 | `/weekly-reports.html`, `/report-upload.html`, `/report-viewer.html` | manager, admin, management, rep_management | HOD report tool — tabbed shell (View/Upload) over two independently-guarded pages. Departments upload PDF/HTML as-is into the `hod-reports` bucket; no AI parsing. Writes gated by `can_manage_weekly_reports()`, not `is_manager()` — see Database section below. **Not** the same system as the auto-generated reports in the `weekly-reports` bucket. |
 | `/price-requests.html` | admin, manager, rep_management | Category Managers request any price below the YTD avg selling price; "My requests" shows only their own. Linked from the rail's Tools group and the rep app's More tab (`cmOnly`). |
@@ -279,7 +283,7 @@ The rep and merch apps use their own palettes and fonts intentionally. Unifying 
 ## Known issues / deferred (don't action without asking)
 
 - **`reps` has RLS disabled** — whole roster readable with the anon key.
-- **Resend has no verified domain.** Emails send from `onboarding@resend.dev`, which Resend only delivers to the account owner (travis@dflimporters.com) — confirmed 2026-09-28 with a 403. So `send-leave-approval-email` (to hr@) and `price-request-email` don't reach their recipients until `dflimporters.com` is verified in Resend and the `from` addresses are switched to that domain.
+- **Resend has no verified domain.** Emails send from `onboarding@resend.dev`, which Resend only delivers to the account owner (travis@dflimporters.com) — confirmed 2026-09-28 with a 403. Leave emails to HR were retired in favour of `/hr-leave.html` (2026-10-09); `price-request-email` still doesn't reach their recipients until `dflimporters.com` is verified in Resend and the `from` addresses are switched to that domain.
 - **`shelf-photos` has no DELETE policy** — "remove photo" fails silently.
 - **Name-keyed joins and RPCs** (gotcha 7) — the largest remaining source of silent breakage.
 - **A newly created merchandiser has no stores.** Assignments live in `merchandiser_map` / `store_targets_actual`, keyed by name; creating a roster row grants access but leaves the app empty until those are added.
