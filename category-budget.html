@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<title>DFL · Category Budget 2027</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  Category Budget 2027 — each Category Manager sets 2027 growth, price, cost and line changes for their
+  own categories; Scott (price approver) approves and sees the company views (Summary, Rep targets,
+  Monthly targets).
+
+  Data: budget27_* tables (RLS on, no client grants). Everything goes through SECURITY DEFINER RPCs that
+  check the caller: budget27_me / _data / _inputs / _company return only the caller's categories (or
+  everything for is_price_approver()); budget27_save lets an owner change only their own budget until it
+  is submitted; budget27_decide and budget27_set_target are approver-only. Owners are linked to their
+  login by profile id in budget27_cm; categories to owners in budget27_cat_owner. The Jan–Sep 2026
+  snapshot is rebuilt by budget27_refresh() (approver only) — rebuilding shifts every baseline.
+--><style>
+/* Layout: navy bar + CM strip, tabbed working views (levers → channels → accounts → lines → output). Light only (DFL house style). */
+:root{
+  --blue:#326BD3; --blue-bg:#EEF4FF; --navy:#0D1B3E; --navy-mid:#1a2e5a;
+  --bg:#F5F7FA; --surface:#FFFFFF; --surface-alt:#F9FAFC;
+  --border:#E4E9F2; --border-soft:#EEF1F8;
+  --text:#1A2340; --text-mid:#4A5578; --text-soft:#8A95B0;
+  --red:#D63B3B; --red-bg:#FEF2F2; --amber:#C47A1A; --amber-bg:#FFFBEB; --green:#1A8F4C; --green-bg:#F0FDF4;
+  --lever:#FFF6C7; --lever-bd:#E8D27A;
+  --key:#6D28D9; --key-bg:#F5F0FF; --hosp:#0E7490; --hosp-bg:#E8F7FB;
+  --head:'Montserrat',system-ui,sans-serif; --body:'Open Sans',system-ui,sans-serif;
+  --radius:10px; --shadow:0 1px 4px rgba(26,35,64,.08);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:13.5px;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+td.n,th.n{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.topbar{background:var(--navy);padding-block:14px}
+.in{max-width:1500px;margin:0 auto;padding-inline:16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.topbar img{height:42px;width:auto}
+.topbar h1{font-family:var(--head);font-weight:800;font-size:24px;color:#fff;margin:0;letter-spacing:-.2px}
+.topbar p{margin:1px 0 0;font-size:11px;color:rgba(255,255,255,.55)}
+.co{margin-left:auto;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;padding:6px 14px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:rgba(255,255,255,.05)}
+.co .s{display:flex;flex-direction:column;gap:1px}
+.co .t{font-family:var(--head);font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#9DB8F0;align-self:center}
+.co .sv{font-size:14px}
+.save{margin-left:auto;font-family:var(--head);font-size:11px;font-weight:600;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:6px}
+.save i{width:8px;height:8px;border-radius:50%;background:#8A95B0;display:inline-block}
+.save[data-s=saved] i{background:#3FCB7E}.save[data-s=pending] i{background:#F0B429}.save[data-s=err] i,.save[data-s=ro] i{background:#F26B6B}
+.strip{background:var(--navy-mid);padding-block:10px}
+.strip .in{gap:12px 22px;align-items:flex-end}
+.strip .in>.s+.s{border-left:1px solid rgba(255,255,255,.14);padding-left:22px}
+.strip .s{display:flex;flex-direction:column;gap:2px;min-width:0}
+.sl{font-family:var(--head);font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.5)}
+.sv{font-family:var(--head);font-size:16px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.sv small{font-size:11px;font-weight:600;color:rgba(255,255,255,.55);margin-left:4px}
+.up{color:#6FE3A2!important}.dn{color:#FF9A9A!important}
+#cmSel{background:#fff;border:0;border-radius:7px;padding:7px 10px;font-family:var(--head);font-weight:700;font-size:14px;color:var(--navy);max-width:260px}
+.wrap{padding:14px 16px 40px;max-width:1500px;margin:0 auto}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.tab{font-family:var(--head);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:9px 16px;border:1px solid var(--border);border-bottom:0;border-radius:9px 9px 0 0;background:var(--border-soft);color:var(--text-mid);cursor:pointer}
+.tab[aria-selected=true]{background:var(--surface);color:var(--blue);position:relative;top:1px;box-shadow:inset 0 3px 0 var(--blue)}
+.panel{background:var(--surface);border:1px solid var(--border);border-top:0;border-radius:0 0 var(--radius) var(--radius);padding:14px;box-shadow:var(--shadow)}
+.bar{display:flex;gap:10px 16px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar label,.lbl{font-family:var(--head);font-size:11px;font-weight:600;color:var(--text-mid)}
+.fld{display:flex;align-items:center;gap:6px}
+input.lv,select.lv,textarea.lv{background:var(--lever);border:1px solid var(--lever-bd);border-radius:6px;padding:5px 7px}
+input.lv:disabled,select.lv:disabled,textarea.lv:disabled{background:var(--border-soft);border-color:var(--border);color:var(--text-mid)}
+input.lv:focus,select.lv:focus,textarea.lv:focus,input.pl:focus,select.pl:focus{outline:2px solid var(--blue);outline-offset:0;background:#fff}
+input.pct{width:58px;text-align:right}
+input.amt{width:84px;text-align:right}
+select.mo{width:70px}
+input.pl,select.pl{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:5px 8px}
+.btn{font-family:var(--head);font-size:11.5px;font-weight:700;border-radius:7px;padding:6px 12px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:var(--surface);color:var(--blue)}
+.btn.ok{background:var(--green);border-color:var(--green)}
+.btn.sm{padding:3px 8px;font-size:10.5px}
+.btn:focus-visible,.tab:focus-visible,.chip:focus-visible,.pre:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+.btn[disabled]{opacity:.5;cursor:default}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{font-family:var(--head);font-size:10.5px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-mid);border-radius:14px;padding:4px 10px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+.tw{overflow-x:auto;border:1px solid var(--border);border-radius:8px}
+.tw.tall{overflow:auto;max-height:calc(100vh - 150px)}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;background:var(--navy-mid);padding:9px 8px;border-bottom:0;text-align:left;position:sticky;top:0;z-index:1;white-space:nowrap}
+th.grp{text-align:center;border-left:1px solid rgba(255,255,255,.18);color:#fff}
+th.bl{border-left-color:rgba(255,255,255,.18)}
+th.h2{background:var(--surface);color:var(--text-soft);font-size:9.5px;padding:6px 8px;border-bottom:1px solid var(--border)}
+th.h2.bl{border-left-color:var(--border)}
+th.yo,td.yo{text-align:center}
+table.lite th{background:var(--blue-bg);color:var(--navy);border-bottom:1px solid #D6E1F5}
+table.lite th.bl{border-left-color:#D6E1F5}
+td{padding:6px 8px;border-bottom:1px solid var(--border-soft);vertical-align:middle}
+td.bl,th.bl{border-left:1px solid var(--border)}
+tr.r:hover td{background:#FAFBFE}
+tr.lost td{color:var(--text-soft)}
+tr.lost td .nm{text-decoration:line-through}
+tr.tot td{font-family:var(--head);font-weight:700;background:#DDE7F8;color:var(--navy);border-top:2px solid var(--blue);position:sticky;bottom:0;z-index:1}
+tr.tot td .sub,tr.tot td.sub{color:var(--text-mid)}
+tr.tot td.pos,tr.tot .pos{color:var(--green)}tr.tot td.neg,tr.tot .neg{color:var(--red)}
+tr.tot td.b27{background:#CFDCF4}
+tr.grp td{background:var(--blue-bg);color:var(--navy);font-family:var(--head);font-weight:700;border-bottom:1px solid #D6E1F5}
+tr.grp td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+tr.grp td.b27{background:#E2EBFB}
+.nm{font-weight:600;color:var(--text)}
+.sub{font-size:11px;color:var(--text-soft)}
+.tg{display:inline-block;font-family:var(--head);font-size:9.5px;font-weight:700;border-radius:4px;padding:1px 5px;margin-right:3px;letter-spacing:.2px;vertical-align:1px}
+.tg.ch{background:var(--blue-bg);color:var(--blue)}.tg.ky{background:var(--key-bg);color:var(--key)}.tg.ho{background:var(--hosp-bg);color:var(--hosp)}
+.tg.ti{background:var(--border-soft);color:var(--text-mid)}.tg.rp{background:var(--amber-bg);color:var(--amber)}.tg.dc{background:var(--red-bg);color:var(--red)}
+.tg.fo{background:var(--green-bg);color:var(--green)}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.pres{display:flex;gap:3px}
+.pre{font-family:var(--head);font-size:10px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--text-mid);border-radius:5px;padding:3px 6px;cursor:pointer}
+.pre:hover{border-color:var(--blue);color:var(--blue)}
+.pre.x:hover{border-color:var(--red);color:var(--red)}
+.pre[disabled]{opacity:.45;cursor:default}
+td.b27{font-family:var(--head);font-weight:700;background:rgba(50,107,211,.05)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+.card{border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card h3{font-family:var(--head);font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--navy);margin:0;padding-left:9px;border-left:3px solid var(--blue)}
+.hint{margin:0;font-size:12px;color:var(--text-soft);max-width:900px}
+.tgrp{align-self:flex-end;font-family:var(--head);font-size:9.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text-soft);padding:0 6px 10px 2px}
+.tgrp.sep{margin-left:14px;padding-left:14px;border-left:1px solid var(--border)}
+table.mtt td.mt1,table.mtt th.mt1{position:sticky;left:0;background:var(--surface);z-index:2;min-width:190px}
+table.mtt thead th.mt1{z-index:3;background:var(--navy-mid)}
+table.mtt tr.grp td.mt1{background:var(--blue-bg)}
+table.mtt tr.tot td.mt1{background:#DDE7F8}
+table.mtt td.n{font-size:12.5px}
+.guide{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:12.5px;color:var(--text-mid);margin-bottom:10px}
+.guide .how summary{cursor:pointer;color:var(--blue);font-family:var(--head);font-weight:600;font-size:11.5px;list-style:none}
+.guide .how summary::-webkit-details-marker{display:none}
+.guide .how summary::after{content:' ▸'}
+.guide .how[open] summary::after{content:' ▾'}
+.guide .how ul{margin:6px 0 2px;padding-left:18px;color:var(--text-mid);font-size:12px;line-height:1.55;max-width:820px}
+.guide .how[open]{flex-basis:100%}
+th[title]{cursor:help;text-decoration:underline dotted rgba(255,255,255,.55);text-underline-offset:3px}
+.pill{font-family:var(--head);font-size:10px;font-weight:700;border-radius:10px;padding:2px 8px;display:inline-block}
+.pill.ns{background:var(--border-soft);color:var(--text-soft)}.pill.ip{background:var(--amber-bg);color:var(--amber)}.pill.sb{background:var(--blue-bg);color:var(--blue)}.pill.ag{background:var(--green-bg);color:var(--green)}
+.signoff{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.banner{background:var(--amber-bg);border:1px solid #F3D9A8;color:#7A4B0E;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12.5px}
+.banner.info{background:var(--blue-bg);border-color:#C9D6F2;color:var(--navy)}
+.empty{padding:22px;text-align:center;color:var(--text-soft)}
+svg text{font-family:var(--head)}
+.catbar{height:6px;border-radius:3px;background:var(--blue);display:block}
+@media (max-width:700px){.grid2{grid-template-columns:1fr}.strip{gap:12px 18px}.signoff{margin-left:0}}
+.cbload{max-width:560px;margin:80px auto;padding:24px;background:#fff;border:1px solid var(--border);border-radius:10px;text-align:center;color:var(--text-mid);line-height:1.6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="cbLoading" class="cbload">Loading your budget…</div>
+<div id="cbApp" hidden>
+<header class="topbar"><div class="in">
+
+  <div><h1>Category Budget · 2027</h1></div>
+  <div class="save" id="save" data-s="idle"><i></i><span id="saveTxt">Connecting…</span></div>
+</div></header>
+<section class="strip" aria-label="Category manager summary"><div class="in">
+  <div class="s"><span class="sl">Category manager</span><select id="cmSel" aria-label="Choose category manager"></select></div>
+  <div class="s"><span class="sl">2026 run-rate</span><span class="sv" id="s26">–</span></div>
+  <div class="s"><span class="sl">2027 budget</span><span class="sv" id="s27">–</span></div>
+  <div class="s"><span class="sl">GP% 2027</span><span class="sv" id="sgp">–</span></div>
+  <div class="s"><span class="sl">Status</span><span class="sv" id="sst">–</span></div>
+  <div class="co" id="co" aria-label="Company 2027 budget"></div>
+</div></section>
+
+<main class="wrap">
+  <div id="banner"></div>
+  <div class="tabs" role="tablist">
+    <span class="tgrp">Your budget</span>
+    <button class="tab" role="tab" data-tab="cat" aria-selected="true">1 · Categories</button>
+    <button class="tab" role="tab" data-tab="chn" aria-selected="false">2 · Channels</button>
+    <button class="tab" role="tab" data-tab="acc" aria-selected="false">3 · Top accounts</button>
+    <button class="tab" role="tab" data-tab="sku" aria-selected="false">4 · Lines</button>
+    <button class="tab" role="tab" data-tab="mon" aria-selected="false">5 · By month</button>
+    <span class="tgrp sep" data-owner hidden>Company view</span>
+    <button class="tab" role="tab" data-tab="team" aria-selected="false" data-owner hidden>Summary</button>
+    <button class="tab" role="tab" data-tab="rep" aria-selected="false" data-owner hidden>Rep targets</button>
+    <button class="tab" role="tab" data-tab="mt" aria-selected="false" data-owner hidden>Monthly targets</button>
+  </div>
+  <section class="panel" id="pane"></section>
+</main>
+</div>
+<script>window.DFL_PAGE_TITLE = 'Category Budget 2027';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+function startApp(){'use strict';
+const D=window.CM_SEAS||{}, SKU=window.CM_SKU||[];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_L=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const ANN=12/9;
+const CHANNELS=['Key','Chain','Hospitality','Supermarkets','Wholesale & distributors','Retail & other trade'];
+const JUNK=c=>/^(0|\(none\)|Z-NONSTOCK|SALES)$/i.test(c||'');
+const CMS=[
+  {key:'rejene',name:'Rejene Henry',test:c=>['PAPER','PLASTIC','CLEARPACK'].includes(c)},
+  {key:'travis',name:'Travis Decasseres',test:c=>['GARBAGEBAG','HOUSEHOLD','PROCESSING','FOIL','WIPES'].includes(c)},
+  {key:'matthew',name:'Matthew Decasseres',test:c=>/^ECO/.test(c)},
+  {key:'trebor',name:'Trebor Sergeant',test:c=>['FOODSUP','BEVERAGES','SALT'].includes(c)},
+  {key:'richard',name:'Richard Gordon',test:c=>/^MEZ/.test(c)},
+  {key:'phobea',name:'Phobea Whorms',test:c=>['FOODSERV','PLSWRAP'].includes(c)},
+  {key:'scott',name:'Scott Chambers',test:c=>!JUNK(c)}
+];
+// only the owners this login may open (the server decides); categories map to owners from the server too
+{const allow=new Set((((window.CB_BOOT||{}).me||{}).cms||[]).map(c=>c.key)); for(let i=CMS.length-1;i>=0;i--) if(!allow.has(CMS[i].key)) CMS.splice(i,1);}
+const ownerOf=cat=>{const k=(window.CM_OWNERS||{})[cat]; return k?(CMS.find(m=>m.key===k)||null):null;};
+const FOCUS=new Set(['10000683','10000684','10000682','10003356','10003506','10001344','10000325','10003657','10003671','10000260','10001578','10000571','10000611','10001163','10001116','10000090','10000089','10000676']);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';
+const $=s=>document.querySelector(s);
+
+/* ---------- model (J$ '000) ---------- */
+// every store × category line is its own unit; "top" marks the accounts listed on the Top accounts tab
+const STORES={};  // cid -> {id,n,cl,ar,ch,rep,prev,units:[]}
+const CAT={};  // cat -> {units:[], base, r25, r25y, r26, g26, b26, gm}
+const catOf=c=>CAT[c]||(CAT[c]={cat:c,units:[],base:0,r25:0,r25y:0,r26:0,g26:0,g25:0,b26:0});
+for(const r of (window.CM_STORES||[])){
+  const [cid,name,cl,ar,ch,rep,prev,cells]=r;
+  const s=STORES[cid]={id:cid,n:String(name||cid).trim(),cl:cl||'',ar:ar||'',ch:ch||'Retail & other trade',rep:rep||'No current rep',prev:prev||'',units:[]};
+  for(const x of (cells||[])){const [cat,r25,r25y,r26,g26,g25,b26]=x;
+    const u={kind:'n',key:cat+'|'+cid,cat,cid,n:s.n,cl:s.cl,ar:s.ar,ch:s.ch,rep:s.rep,prev:s.prev,r25,r25y,r26,g26,g25,b26,base:Math.max(0,r26*ANN)};
+    catOf(cat).units.push(u); s.units.push(u);}
+}
+// KAM portfolios, from the Key Account Management dashboard
+const KAMS=[
+  {key:'andrea',name:'Andrea Skelton',label:'Chain stores',ids:['C000001907','C000001908','C000001909','C000001912','C000001913','C000001915','C000001916','C000001917','C000001920','C000001921','C000001923','C000002297','C000002298','C000003798','C000003799','C000004156','C000004157','C000004158','C000004160','C000004161','C000004357','C000004358','C000004359','C000004360','C000004362','C000004656','C000004657','C000005455','C000005617','C000005618','C000005619','C000005648','C000005649','C000005651','C000005652','C000005653','C000006029','C000006110','C000007077','C000003041','C000003042','C000003043','C000004658','C000003778']},
+  {key:'shallet',name:'Shallet Marsh',label:'Key stores SM',ids:['C000000081','C000009549','C000005934','C000000554','C000000556','C000000757','C000001490','C000001627','C000001656','C000001689','C000005724','C000001703','C000001704','C000001972','C000005725','C000002523','C000002679','C000002680','C000002731','C000002794','C000002795','C000002896','C000005579','C000009557','C000002974','C000002976','C000003331','C000003774','C000003934','C000004462','C000004565','C000004990','C000005049','C000005697','C000005228']},
+  {key:'damita',name:'Damita Samuels-Foster',label:'Key stores DF',ids:['C000000446','C000005640','C000007120','C000002706','C000005356','C000002033','C000002034','C000002990','C000002778','C000000456','C000000944','C000003103','C000003696','C000004009','C000004393','C000004635','C000005442','C000005714','C000007491','C000009590','C000004874','C000001575']}
+  ,{key:'phobea',name:'Phobea Whorms',label:'Hospitality',ids:['C000007968','C000000692','C000005748','C000000981','C000000982','C000000983','C000000984','C000001925','C000001454','C000001550','C000001766','C000004061','C000005505','C000001817','C000001869','C000004060','C000007742','C000005524','C000002006','C000006839','C000006680','C000002218','C000002561','C000005577','C000003177','C000003234','C000003500','C000003598','C000003930','C000005630','C000003976','C000003977','C000003978','C000003979','C000007407','C000003980','C000003981','C000004068','C000004069','C000009840','C000004165','C000006457','C000004167','C000007967','C000004168','C000008042','C000004238']}
+];
+// a store on a KAM's dashboard counts toward that KAM's target, whoever invoices it today
+KAMS.forEach(k=>{k.set=new Set(k.ids);
+  for(const id of k.ids){const s=STORES[id]; if(!s||s.kam) continue; s.kam=k.key;
+    if(s.rep!==k.name){s.moved=s.rep; s.prev=s.rep; s.rep=k.name; s.units.forEach(u=>{u.rep=k.name;u.prev=s.prev;});}}});
+const okR=v=>v>-0.5&&v<0.95;
+for(const C of Object.values(CAT)){
+  for(const u of C.units){C.base+=u.base;C.r25+=u.r25;C.r25y+=u.r25y;C.r26+=u.r26;C.g26+=u.g26;C.g25+=u.g25;C.b26+=u.b26;}
+  C.gm=C.r26>0&&okR(C.g26/C.r26)?C.g26/C.r26:(C.r25>0&&okR(C.g25/C.r25)?C.g25/C.r25:0.35);
+  for(const u of C.units){u.gm=u.r26>0&&okR(u.g26/u.r26)?u.g26/u.r26:(u.r25>0&&okR(u.g25/u.r25)?u.g25/u.r25:C.gm);u.gp=u.r26>0?u.g26/u.r26:null;u.yoy=u.r25y>0?(u.r26-u.r25y)/u.r25y:null;}
+  C.units.sort((a,b)=>b.base-a.base);
+  C.G0=C.units.reduce((s,u)=>s+u.base*u.gm,0);
+  let cum=0; const tot=C.units.reduce((s,u)=>s+u.base,0);
+  C.units.forEach((u,i)=>{u.top=i<40&&u.base>=500&&cum<0.8*tot; cum+=u.base;});
+  C.owner=ownerOf(C.cat);
+}
+const CMCATS={}; for(const m of CMS) CMCATS[m.key]=Object.values(CAT).filter(C=>C.owner===m&&(C.base>0||C.r25>0)).sort((a,b)=>b.base-a.base).map(C=>C.cat);
+const JUNKBASE=Object.values(CAT).filter(C=>!C.owner).reduce((s,C)=>s+C.r26*ANN,0);
+const JUNK25=Object.values(CAT).filter(C=>!C.owner).reduce((s,C)=>s+C.r25,0);
+// SKUs by category
+const SK={}; for(const r of SKU){const [id,descr,cat,r25,r25y,r26,g26,nc,last]=r;(SK[cat]||(SK[cat]=[])).push({id,d:String(descr||'').trim(),cat,r25,r25y,r26,g26,nc,last:last||'',base:Math.max(0,r26*ANN)});}
+for(const cat in SK){const L=SK[cat];const tot=L.reduce((s,x)=>s+Math.max(0,x.r26),0)||1;L.sort((a,b)=>a.r26-b.r26);let cum=0;
+  for(const x of L){cum+=Math.max(0,x.r26);x.tail=x.r26>0&&cum/tot<=0.02;x.dead=x.r26<=0&&x.r25>0;x.focus=FOCUS.has(x.id);x.gp=x.r26>0?x.g26/x.r26:null;}
+  L.sort((a,b)=>b.r26-a.r26);}
+// seasonality
+const norm12=a=>{const v=(a||[]).map(x=>Math.max(0,+x||0));while(v.length<12)v.push(0);const s=v.reduce((p,q)=>p+q,0);return s>0?v.map(x=>x/s):null;};
+const SEAS_ALL=norm12(D.seasAll)||Array(12).fill(1/12); const SEASC={};
+const seas=c=>SEASC[c]||(SEASC[c]=norm12((D.seas||{})[c])||SEAS_ALL);
+const fromShare=(c,m)=>seas(c).slice(Math.max(1,+m||1)-1).reduce((p,q)=>p+q,0);
+// price steps: % at the start of each quarter, compounding. Older single "p from pm" entries read as one step in that quarter.
+function priceQ(L){const q=[0,0,0,0];if(Array.isArray(L.q)){for(let i=0;i<4;i++)q[i]=+L.q[i]||0;}return q;}
+const QM_DEF=[1,4,7,10];
+function priceQM(L){return [0,1,2,3].map(i=>{const v=Array.isArray(L.qm)?+L.qm[i]:0;return v>=1&&v<=12?v:QM_DEF[i];});}
+// price: one % plus when — a month (1–12) for a single increase, or 'Q' for the same % at the start of every quarter
+function priceIdx(L){
+  if(L.p!=null&&!Array.isArray(L.q)){const p=(+L.p||0)/100,out=[];let m=1;
+    for(let i=1;i<=12;i++){if(L.pm==='Q'?(i-1)%3===0:i===(+L.pm||1))m*=1+p;out.push(m);}return out;}
+  return priceIdxSteps(L);
+}
+function priceIdxSteps(L){const q=priceQ(L),qm=priceQM(L),out=[];for(let i=1;i<=12;i++){let m=1;for(let k=0;k<4;k++)if(q[k]&&qm[k]<=i)m*=1+q[k]/100;out.push(m);}return out;}
+const pEffOf=(c,L)=>{const w=seas(c),ix=priceIdx(L);let s=0;for(let i=0;i<12;i++)s+=w[i]*ix[i];return s-1;};
+const REPS=[...new Set(Object.values(CAT).flatMap(C=>C.units.map(u=>u.rep)))].sort((a,b)=>a==='No current rep'?1:b==='No current rep'?-1:a.localeCompare(b));
+
+/* ---------- state ---------- */
+const blank=cm=>({v:1,cm,def:null,cat:{},ch:{},acc:{},sku:{},newl:[],status:'draft',submittedAt:null,updatedAt:null});
+function normState(o,cm){const b=blank(cm);if(!o||typeof o!=='object')return b;for(const k in b){if(o[k]!==undefined&&o[k]!==null)b[k]=o[k];}return b;}
+const STATES={}, APPROVALS={}; let SETTINGS={mode:'pct',target:null,amt:null};
+// company target: none by default; set by the owner as % growth on the 2026 run-rate or as a J$ total ('000)
+const tgtOf=base=>SETTINGS.mode==='amt'?(SETTINGS.amt!=null?+SETTINGS.amt:null):(SETTINGS.target!=null?base*(1+(+SETTINGS.target)/100):null);
+const tgtLabel=base=>SETTINGS.mode==='amt'?`${fj(SETTINGS.amt)} target`:`${pctIn(SETTINGS.target)}% target`;
+let cur=CMS[0], tab='cat', selCat=null, skuFilt='all', skuQ='', accQ='';
+try{const t=localStorage.getItem('cb.tab');if(['cat','chn','acc','sku','mon','rep','team','mt'].includes(t))tab=t;const c=localStorage.getItem('cb.cm');const f=CMS.find(m=>m.key===c);if(f)cur=f;}catch(e){}
+const S=()=>STATES[cur.key]||(STATES[cur.key]=blank(cur.key));
+let IS_OWNER=false;
+const locked=()=>{const ap=APPROVALS[cur.key];if(ap&&ap.status==='approved'&&!IS_OWNER)return true;return S().status==='submitted'&&!IS_OWNER;};
+const dis=()=>locked()?' disabled':'';
+
+/* ---------- compute ---------- */
+function computeCM(cmKey,st){
+  const out={cat:{},unit:{},rep:{},chn:{},mon:Array(12).fill(0),catMon:{},t:{base:0,r25:0,b26:0,r26:0,g26:0,gp26w:0,rev:0,gp:0}};
+  for(const cat of CMCATS[cmKey]||[]){
+    const C=CAT[cat], L=st.cat[cat]||{}, vC=L.v??st.def??0, w=seas(cat);
+    const cmo=L.cm||1, ix=priceIdx(L);
+    const pEff=pEffOf(cat,L), cEff=(+L.c||0)/100*fromShare(cat,cmo);
+    const one=Math.min(Math.max(0,+L.one||0),C.base), f=C.base>0?1-one/C.base:1;
+    let R=0,G=0,V0=0; const mon=Array(12).fill(0);
+    for(const u of C.units){
+      const a=u.kind==='n'?st.acc[u.key]:null;
+      const g=a&&a.g!=null?a.g:(st.ch[cat+'|'+u.ch]??vC);
+      const pe=a&&a.p!=null?a.p/100:pEff; // account price % = its own 2027 price change, from January
+      let V=a&&a.lost?0:u.base*f*(1+g/100), r=V*(1+pe);
+      if(a&&a.amt!=null&&!a.lost){r=a.amt;V=r/(1+pe);}
+      const gp=r-V*(1-u.gm)*(1+cEff);
+      out.unit[u.key]={V,r,gp,g};
+      R+=r;G+=gp;V0+=V;
+      for(let i=0;i<12;i++) mon[i]+=V*w[i]*(a&&a.p!=null?1+a.p/100:ix[i]);
+    }
+    if(C.base>0) G+=(C.gm*C.base-C.G0)*V0/C.base; // keeps 2027 GP% equal to 2026 GP% when nothing changes
+    // line changes
+    let ex=0, push=0, del=0; const gm27=R>0?G/R:C.gm;
+    for(const x of (SK[cat]||[])){const s=st.sku[x.id]; if(!s) continue;
+      if(s.act==='push'){const v=x.base*f*(+s.pct||0)/100*(1+pEff); ex+=v; push+=v;}
+      if(s.act==='delist'){const v=x.base*f*(1+vC/100)*(1-(+s.ret||0)/100)*(1+pEff); ex-=v; del-=v;}}
+    for(let i=0;i<12;i++) mon[i]+=ex*w[i];
+    let nl=0,nlg=0;
+    for(const n of st.newl){ if(n.cat!==cat||!(+n.amt)) continue; const a=+n.amt; nl+=a; nlg+=a*((n.gp!=null&&n.gp!=='')?(+n.gp)/100:C.gm);
+      const m0=Math.max(1,+n.m||1)-1, ww=w.map((v,i)=>i>=m0?v:0), s=ww.reduce((p,q)=>p+q,0)||1; for(let i=0;i<12;i++) mon[i]+=a*ww[i]/s; }
+    const rev=R+ex+nl, gp=G+ex*gm27+nlg;
+    const k=R>0?rev/R:1;
+    out.cat[cat]={base:C.base,r25:C.r25,r25y:C.r25y,r26:C.r26,g26:C.g26,b26:C.b26,rev,gp,ex,push,del,nl,one,k,vC,pEff,cEff,units:R};
+    out.catMon[cat]=mon; mon.forEach((v,i)=>out.mon[i]+=v);
+    for(const u of C.units){const o=out.unit[u.key];
+      const rp=out.rep[u.rep]||(out.rep[u.rep]={base:0,rev:0,gp:0}); rp.base+=u.base; rp.rev+=o.r*k; rp.gp+=G?o.gp*gp/G:o.gp;
+      const ch=out.chn[cat+'|'+u.ch]||(out.chn[cat+'|'+u.ch]={base:0,rev:0}); ch.base+=u.base; ch.rev+=o.r;
+      const cht=out.chn['*|'+u.ch]||(out.chn['*|'+u.ch]={base:0,rev:0}); cht.base+=u.base; cht.rev+=o.r;}
+    const T=out.t;T.base+=C.base;T.r25+=C.r25;T.b26+=C.b26;T.r26+=C.r26;T.g26+=C.g26;T.gp26w+=C.gm*C.base;T.rev+=rev;T.gp+=gp;
+  }
+  return out;
+}
+
+/* ---------- formatting ---------- */
+const fm=k=>{if(k==null||isNaN(k))return '–';const a=Math.abs(k);if(a>=1000000)return (k/1000000).toFixed(2)+'B';if(a>=100000)return (k/1000).toFixed(0)+'M';if(a>=1000)return (k/1000).toFixed(1)+'M';if(a>=0.5)return Math.round(k)+'K';return '0';};
+const fj=k=>'J$'+fm(k);
+const fp=(v,d=1)=>v==null||!isFinite(v)?'–':Math.abs(v)<0.5*Math.pow(10,-d-2)?(0).toFixed(d)+'%':(v>0?'+':'')+(v*100).toFixed(d)+'%';
+const fg=v=>v==null||!isFinite(v)?'–':(v*100).toFixed(1)+'%';
+const cls=v=>v==null?'':v>0.0005?'pos':v<-0.0005?'neg':'';
+const pctIn=v=>v==null||v===''?'':String(+(+v).toFixed(2));
+function parsePct(s){s=String(s).trim().replace('%','');if(s==='')return null;const v=parseFloat(s);return isFinite(v)?Math.max(-100,Math.min(500,v)):null;}
+function parseAmt(s){s=String(s).trim().toLowerCase().replace(/[j$,\s]/g,'');if(s==='')return null;const m=s.match(/^(-?[\d.]+)([kmb]?)$/);if(!m)return null;const v=parseFloat(m[1]);if(!isFinite(v))return null;
+  if(m[2]==='b')return v*1000000;if(m[2]==='m')return v*1000;if(m[2]==='k')return v;return Math.abs(v)<1000?v*1000:v/1000;}
+const amtIn=k=>k==null||k===''?'':(Math.abs(k)>=1000?+(k/1000).toFixed(2)+'m':+(+k).toFixed(0)+'k');
+const moSel=(id,act,k,v)=>`<select id="${id}" class="lv mo" data-act="${act}" data-k="${esc(k)}"${dis()}>${MONTHS.map((m,i)=>`<option value="${i+1}"${(+v||1)===i+1?' selected':''}>${m}</option>`).join('')}</select>`;
+const chTag=ch=>{const m={'Key':'ky','Chain':'ch','Hospitality':'ho'};return `<span class="tg ${m[ch]||'ti'}">${esc(ch.toUpperCase())}</span>`;};
+
+/* ---------- saving (portal: budget27_* RPCs; the server checks who may change what) ---------- */
+let DB=null, DL=null; const pending=new Set(); let tm=null, saving=false, dbChecked=false, COMPANY=null;
+function setSave(s,t){$('#save').dataset.s=s;$('#saveTxt').textContent=t;}
+async function rpc(fn,args){const r=await sb.rpc(fn,args||{}); if(r.error) throw r.error; return r.data;}
+function touch(){const st=S();st.updatedAt=new Date().toISOString();pending.add(cur.key);setSave('pending','Saving…');clearTimeout(tm);tm=setTimeout(flush,700);update();}
+async function flush(){
+  if(saving){clearTimeout(tm);tm=setTimeout(flush,400);return;}
+  saving=true; const keys=[...pending]; pending.clear(); let ok=true;
+  for(const k of keys){ const st=STATES[k]; if(!st) continue;
+    try{ const t=computeCM(k,st).t;
+      const status=await rpc('budget27_save',{p_cm:k,p_state:JSON.parse(JSON.stringify(st)),p_summary:{base:t.base,rev:t.rev,gp:t.gp,n:inputList(st).length},p_submit:st.status==='submitted'});
+      st.status=status; APPROVALS[k]={status:status==='approved'?'approved':'open'};
+    }catch(e){ ok=false; const m=(e&&e.message)||''; setSave('err',/locked|only change/i.test(m)?m:'Not saved. Check your connection'); if(!/locked|only change/i.test(m)) pending.add(k); } }
+  saving=false;
+  if(pending.size){clearTimeout(tm);tm=setTimeout(flush,3000);} else if(ok){setSave('saved','All changes saved'); refreshCompany();}
+}
+async function decide(k,status){
+  try{ const s=await rpc('budget27_decide',{p_cm:k,p_status:status}); const st=STATES[k]||(STATES[k]=blank(k)); st.status=s; APPROVALS[k]={status:s==='approved'?'approved':'open'}; render(); }
+  catch(e){ setSave('err',(e&&e.message)||'Not saved'); }
+}
+async function saveSettings(){ try{ await rpc('budget27_set_target',{p_mode:SETTINGS.mode,p_target:SETTINGS.target,p_amt:SETTINGS.amt}); refreshCompany(); }catch(e){ setSave('err',(e&&e.message)||'Target not saved'); } }
+function applyCompany(co){ if(!co) return; COMPANY=co; const v=co.settings||{}; SETTINGS={mode:v.mode==='amt'?'amt':'pct',target:v.target!=null?+v.target:null,amt:v.amt!=null?+v.amt:null}; }
+async function refreshCompany(){ try{ applyCompany(await rpc('budget27_company')); renderCo(); }catch(e){} }
+function applyRemote(r){
+  const k=r.cm; if(!CMS.some(m=>m.key===k)) return false;
+  if(pending.has(k)||(saving&&k===cur.key)) return false;
+  const st=normState(r.state||{},k); st.status=r.status||'draft'; st.updatedAt=(r.state&&r.state.updatedAt)||r.updated_at;
+  const prev=STATES[k]; APPROVALS[k]={status:st.status==='approved'?'approved':'open'};
+  if(prev&&prev.updatedAt&&st.updatedAt&&prev.updatedAt>=st.updatedAt&&prev.status===st.status) return false;
+  STATES[k]=st; return true;
+}
+async function poll(){
+  if(document.hidden||saving||pending.size) return;
+  try{ const [inp,co]=await Promise.all([rpc('budget27_inputs'),rpc('budget27_company')]);
+    let changedCur=false, any=false; for(const r of (inp||[])){ if(applyRemote(r)){ any=true; if(r.cm===cur.key) changedCur=true; } }
+    applyCompany(co); const a=document.activeElement, typing=a&&a.matches('input,textarea,select');
+    if(changedCur&&!typing) render(); else { renderCo(); if(any&&tab==='team'&&!typing) renderTeam(); }
+  }catch(e){}
+}
+function downloadFile(name,data){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+}
+
+/* ---------- rendering ---------- */
+let COMP=null;
+function statusOf(key){const st=STATES[key];const ap=APPROVALS[key];
+  if(ap&&ap.status==='approved') return ['ag','Approved'];
+  if(st&&st.status==='submitted') return ['sb','Submitted'];
+  if(st&&inputList(st).length) return ['ip','In progress']; return ['ns','Not started'];} // only real inputs count as started
+function cmOptions(){$('#cmSel').innerHTML=CMS.map(m=>`<option value="${m.key}"${m===cur?' selected':''}>${esc(m.name)}</option>`).join('');}
+function strip(){
+  const t=COMP.t, g=t.base>0?t.rev/t.base-1:null;
+  $('#s26').textContent=fj(t.base);
+  $('#s27').innerHTML=`${fj(t.rev)} <span class="${g>0.0005?'up':g<-0.0005?'dn':''}" style="font-size:13px;margin-left:4px">${fp(g)}</span>`;
+  $('#sgp').innerHTML=`${fg(t.rev>0?t.gp/t.rev:null)}<small>${fj(t.gp)}</small>`;
+  const [c,l]=statusOf(cur.key); $('#sst').innerHTML=`<span class="pill ${c}">${l}</span>`;
+}
+function signoffBar(){
+  const st=S(), ap=APPROVALS[cur.key], approved=ap&&ap.status==='approved';
+  let b='';
+  if(approved) b=IS_OWNER?'<button class="btn ghost sm" data-act="reopen">Reopen</button>':'';
+  else if(st.status==='submitted') b=IS_OWNER?'<button class="btn ok sm" data-act="approve">Approve</button> <button class="btn ghost sm" data-act="reopen">Send back</button>':'<span class="sub">Submitted. Ask Scott to send it back if you need changes.</span>';
+  else b='<button class="btn sm" data-act="submit">Submit to Scott</button>';
+  const n=inputList(st).length;
+  return `<div class="signoff"><button class="btn ghost sm" data-act="inputs" aria-expanded="${showInputs}">Inputs (${n})</button>${b}<button class="btn ghost sm" data-act="export" data-scope="cm">Export CSV</button></div>`;
+}
+// every input that changes the numbers, in plain words, each with its own remove
+let showInputs=false, clearArm='';
+function inputList(st){
+  const L=[], nm=id=>(STORES[id]||{}).n||id, pct=v=>(v>0?'+':'')+pctIn(v)+'%';
+  if(st.def!=null&&+st.def!==0) L.push({t:`Default exp. growth for all categories: ${pct(st.def)}`,k:'def'});
+  for(const [c,o] of Object.entries(st.cat||{})){ if(!o) continue;
+    if(o.v!=null) L.push({t:`${c}: exp. growth ${pct(o.v)}`,k:'cat',c,f:'v'});
+    if(o.p!=null&&+o.p!==0&&!Array.isArray(o.q)) L.push({t:`${c}: price ${pct(o.p)} ${o.pm==='Q'?'each quarter':'from '+MONTHS[(+o.pm||1)-1]}`,k:'cat',c,f:'p'});
+    if(Array.isArray(o.q)&&o.q.some(v=>+v)) L.push({t:`${c}: price increases ${o.q.map(v=>pctIn(v)||0).join('/')}%`,k:'cat',c,f:'p'});
+    if(o.c!=null&&+o.c!==0) L.push({t:`${c}: cost ${pct(o.c)} from ${MONTHS[(+o.cm||1)-1]}`,k:'cat',c,f:'c'});
+    if(o.one) L.push({t:`${c}: one-off removed from 2026 ${fj(o.one)}`,k:'cat',c,f:'one'});
+    if(o.note) L.push({t:`${c}: note "${o.note}"`,k:'cat',c,f:'note'});}
+  for(const [k,v] of Object.entries(st.ch||{})){ if(v==null) continue; const [c,ch]=k.split('|'); L.push({t:`${c} · ${ch} channel: exp. growth ${pct(v)}`,k:'ch',key:k}); }
+  for(const [k,a] of Object.entries(st.acc||{})){ if(!a) continue; const [c,id]=k.split('|'); const bits=[];
+    if(a.lost) bits.push('Lost'); else { if(a.g!=null) bits.push('exp. growth '+pct(a.g)); if(a.p!=null&&+a.p!==0) bits.push('own price '+pct(a.p)); if(a.amt!=null) bits.push('fixed '+fj(a.amt)); }
+    if(bits.length) L.push({t:`${nm(id)} · ${c}: ${bits.join(', ')}`,k:'acc',key:k}); }
+  for(const [id,s] of Object.entries(st.sku||{})){ if(!s||!s.act) continue; const x=Object.values(SK).flat().find(z=>z.id===id);
+    L.push({t:`${x?x.d:id} (${x?x.cat:''}): ${s.act==='push'?'push '+pct(+s.pct||0):'delist, kept '+(pctIn(s.ret)||0)+'%'}`,k:'sku',key:id}); }
+  (st.newl||[]).forEach((n,i)=>L.push({t:`New line "${n.name}" in ${n.cat}: ${fj(n.amt)} from ${MONTHS[(n.m||1)-1]}`,k:'newl',i}));
+  return L;
+}
+function inputsPanel(){
+  if(!showInputs) return '';
+  const st=S(), L=inputList(st), lk=locked(), armed=clearArm===cur.key;
+  return `<div class="card" style="margin-bottom:12px;background:var(--surface)"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3>Everything entered for ${esc(cur.name)} (${L.length})</h3>
+    ${IS_OWNER&&L.length?`<button class="btn sm ${armed?'':'ghost'}" style="${armed?'background:var(--red);border-color:var(--red)':'color:var(--red);border-color:var(--red)'};margin-left:auto" data-act="clearcm">${armed?'Click again to clear all of '+esc(cur.name)+"'s inputs":'Clear all inputs'}</button>`:''}</div>
+    ${L.length?`<div class="tw" style="max-height:300px"><table><tbody>${L.map((x,j)=>`<tr><td>${esc(x.t)}</td><td class="n" style="width:40px">${lk?'':`<button class="pre x" data-act="rmin" data-j="${j}" aria-label="Remove">✕</button>`}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Nothing entered yet. Everything is at its 2026 run-rate.</p>'}</div>`;
+}
+function removeInput(st,x){
+  if(x.k==='def') st.def=null;
+  else if(x.k==='cat'){const o=st.cat[x.c]||{}; if(x.f==='p'){delete o.p;delete o.pm;delete o.q;delete o.qm;} else if(x.f==='c'){delete o.c;delete o.cm;} else delete o[x.f]; if(!Object.keys(o).length) delete st.cat[x.c];}
+  else if(x.k==='ch') delete st.ch[x.key];
+  else if(x.k==='acc') delete st.acc[x.key];
+  else if(x.k==='sku') delete st.sku[x.key];
+  else if(x.k==='newl') st.newl.splice(x.i,1);
+}
+function resetCM(key){const old=STATES[key]||blank(key);const b=blank(key);b.updatedAt=new Date().toISOString();b.status='draft';STATES[key]=b;pending.add(key);
+  if(old.status!=='draft'||(APPROVALS[key]&&APPROVALS[key].status==='approved')) decide(key,'draft');}
+function catsOf(){return CMCATS[cur.key]||[];}
+// one short instruction per tab, with optional "How it works" detail
+const guide=(text,items)=>`<div class="guide"><span>${text}</span>${items&&items.length?`<details class="how"><summary>How it works</summary><ul>${items.map(i=>`<li>${i}</li>`).join('')}</ul></details>`:''}</div>`;
+
+function renderCat(){
+  const st=S(), cats=catsOf();
+  const max=Math.max(1,...cats.map(c=>Math.max(CAT[c].base,COMP.cat[c].rev)));
+  $('#pane').innerHTML=`
+  <div class="bar"><div class="fld"><label for="def">Default exp. growth % for all your categories</label><input id="def" class="lv pct" data-act="def" value="${pctIn(st.def)}" placeholder="0"${dis()}><span class="lbl">%</span></div>${signoffBar()}</div>
+  ${guide('Start here: set exp. growth and any price increase for each category.',['<b>Exp. growth %</b>: how much more you expect to sell, at today\'s prices.','<b>Price %</b> and <b>When</b>: your price increase and the month it starts, or <b>Each quarter</b> to repeat it in Jan, Apr, Jul and Oct.','<b>Effect</b>: what the price increase adds over the year. Total growth ≈ exp. growth + Effect.','<b>Cost %</b>: the supplier increase procurement expects. Price and cost go straight to GP.','<b>One-off in 2026</b>: sales this year that won\'t repeat (a tender, an event spike).'])}
+  <div class="tw tall"><table>
+   <thead><tr><th>Category</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n yo">YoY Jan–Sep</th><th class="n">GP% 26</th><th class="n">2026 bud</th>
+    <th class="n bl" title="Sales in 2026 that won't repeat">One-off in 2026</th><th class="n" title="How much more you expect to sell, at today's prices">Exp. growth %</th><th class="n bl" title="Your price increase">Price %</th><th title="The month it starts, or each quarter">When</th><th class="n" title="What your price increase adds over 2027">Effect</th><th class="n bl" title="Supplier cost increase expected by procurement">Cost %</th><th title="Month the cost increase starts">From</th>
+    <th class="n bl">2027</th><th class="n">Total growth</th><th class="n">GP% 27</th><th style="min-width:110px">2026 → 2027</th><th>Notes</th></tr></thead>
+   <tbody>${cats.map(c=>{const C=CAT[c],L=st.cat[c]||{},id=slug(c),yoy=C.r25y>0?(C.r26-C.r25y)/C.r25y:null;
+     return `<tr class="r"><td><span class="nm">${esc(c)}</span></td><td class="n">${fm(C.r25)}</td><td class="n">${fm(C.base)}</td><td class="n yo ${cls(yoy)}">${fp(yoy,0)}</td><td class="n">${fg(C.r26>0?C.g26/C.r26:null)}</td><td class="n">${fm(C.b26)}</td>
+     <td class="n bl"><input id="one_${id}" class="lv amt" data-act="cat" data-f="one" data-k="${esc(c)}" value="${amtIn(L.one)}" placeholder="J$"${dis()}></td>
+     <td class="n"><input id="v_${id}" class="lv pct" data-act="cat" data-f="v" data-k="${esc(c)}" value="${pctIn(L.v)}"${dis()}></td>
+     <td class="n bl"><input id="p_${id}" class="lv pct" data-act="cat" data-f="p" data-k="${esc(c)}" value="${Array.isArray(L.q)?'':pctIn(L.p)}" placeholder="0" aria-label="${esc(c)} price increase %"${dis()}></td>
+     <td><select id="pm_${id}" class="lv" data-act="catpm" data-k="${esc(c)}" aria-label="${esc(c)} price increase timing"${dis()}>${MONTHS.map((m,i)=>`<option value="${i+1}"${String(L.pm||1)===String(i+1)?' selected':''}>From ${m}</option>`).join('')}<option value="Q"${L.pm==='Q'?' selected':''}>Each quarter</option></select></td>
+     <td class="n" data-o="cat:${esc(c)}:pe"></td>
+     <td class="n bl"><input id="c_${id}" class="lv pct" data-act="cat" data-f="c" data-k="${esc(c)}" value="${pctIn(L.c)}" placeholder="0"${dis()}></td>
+     <td>${moSel('cm_'+id,'catm',c+'|cm',L.cm)}</td>
+     <td class="n b27 bl" data-o="cat:${esc(c)}:rev"></td><td class="n" data-o="cat:${esc(c)}:g"></td><td class="n" data-o="cat:${esc(c)}:gp"></td>
+     <td><span class="catbar" style="width:${(C.base/max*100).toFixed(1)}%;background:#C9D6F2"></span><span class="catbar" data-o="cat:${esc(c)}:bar" data-max="${max}" style="margin-top:2px"></span></td>
+     <td><input id="nt_${id}" class="lv" data-act="cat" data-f="note" data-k="${esc(c)}" value="${esc(L.note||'')}" placeholder="Launches, price moves, risks" style="min-width:180px;width:100%"${dis()}></td></tr>`;}).join('')||'<tr><td colspan="18" class="empty">No categories with sales for this owner.</td></tr>'}</tbody>
+   <tfoot><tr class="tot"><td>Total</td><td class="n" data-o="t:r25"></td><td class="n" data-o="t:base"></td><td class="n yo" data-o="t:yoy"></td><td class="n" data-o="t:gp26"></td><td class="n" data-o="t:b26"></td><td class="bl"></td><td></td><td class="bl"></td><td></td><td></td><td class="bl"></td><td></td><td class="n bl" data-o="t:rev"></td><td class="n" data-o="t:g"></td><td class="n" data-o="t:gp"></td><td></td><td></td></tr></tfoot>
+  </table></div>`;
+  update();
+}
+function renderChn(){
+  const st=S(), cats=catsOf();
+  $('#pane').innerHTML=`<div class="bar">${guide('Optional: set a different exp. growth for a channel. Blank boxes use the category\'s %.',['Your price increases from tab 1 are added on top, so 2027 and Total growth include them.','Open a channel at the bottom of the page to see which customers are in it.'])}${signoffBar()}</div>
+  <div class="tw tall"><table><thead><tr><th>Category</th>${CHANNELS.map(ch=>`<th class="grp" colspan="2">${esc(ch)}</th>`).join('')}<th class="n bl">2027</th><th class="n">Total growth</th></tr>
+   <tr>${'<th class="h2" style="top:33px"></th>'}${CHANNELS.map(()=>'<th class="n bl h2" style="top:33px">2026 RR</th><th class="n h2" style="top:33px">Exp. growth %</th>').join('')}<th class="bl h2" style="top:33px"></th><th class="h2" style="top:33px"></th></tr></thead>
+  <tbody>${cats.map(c=>`<tr class="r"><td class="nm">${esc(c)}</td>${CHANNELS.map(ch=>{const k=c+'|'+ch,o=COMP.chn[k];if(!o||o.base<=0)return '<td class="n bl sub">–</td><td></td>';
+     return `<td class="n bl">${fm(o.base)}</td><td class="n"><input id="ch_${slug(k)}" class="lv pct" data-act="ch" data-k="${esc(k)}" value="${pctIn(st.ch[k])}"${dis()}></td>`;}).join('')}
+     <td class="n b27 bl" data-o="cat:${esc(c)}:rev"></td><td class="n" data-o="cat:${esc(c)}:g"></td></tr>`).join('')}</tbody>
+  <tfoot><tr class="tot"><td>Total</td>${CHANNELS.map(ch=>`<td class="n bl">${fm((COMP.chn['*|'+ch]||{}).base||0)}</td><td class="n" data-o="ch:${esc(ch)}:g"></td>`).join('')}<td class="n bl" data-o="t:rev"></td><td class="n" data-o="t:g"></td></tr></tfoot></table></div>
+  <h3 style="font-family:var(--head);font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-mid);margin:20px 0 8px">Customers in each channel</h3>
+  <div class="bar"><input id="chq" class="pl" type="search" placeholder="Search customer, rep, area, class" value="${esc(chQ)}" data-act="chq" style="width:250px">
+   <span class="sub">Click a channel to see its customers. Figures are 2026 run-rate in ${esc(cur.name)}'s categories only, biggest first.</span></div>
+  <div id="chlist"></div>`;
+  renderChList();
+  update();
+}
+let chQ=''; const chOpen=new Set();
+function renderChList(){
+  const box=$('#chlist'); if(!box) return; const cats=new Set(catsOf());
+  const by={}; for(const s of Object.values(STORES)){let b=0,r26=0,r25y=0;for(const u of s.units){if(!cats.has(u.cat))continue;b+=u.base;r26+=u.r26;r25y+=u.r25y;}
+    if(r26!==0){(by[s.ch]||(by[s.ch]=[])).push({...s,b,yy:r25y>0?(r26-r25y)/r25y:null});}}
+  box.innerHTML=CHANNELS.map(ch=>{
+    let L=by[ch]||[]; const tot=L.reduce((s,c)=>s+c.b,0), n=L.length;
+    if(chQ) L=L.filter(c=>(c.n+' '+c.id+' '+c.rep+' '+c.ar+' '+c.cl).toLowerCase().includes(chQ));
+    L.sort((a,b)=>b.b-a.b);
+    const open=chOpen.has(ch)||(!!chQ&&L.length>0), shown=open?L.slice(0,300):[];
+    return `<details data-ch="${esc(ch)}"${open?' open':''} style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface)">
+     <summary style="cursor:pointer;padding:10px 12px;font-family:var(--head);font-weight:700;font-size:12px">${chTag(ch)} ${esc(ch)} <span class="sub" style="font-weight:600;margin-left:6px">${n} customers · ${fj(tot)}${chQ?` · ${L.length} match${L.length===1?'':'es'}`:''}</span></summary>
+     ${open?`<div class="tw" style="max-height:420px;border:0;border-top:1px solid var(--border);border-radius:0"><table><thead><tr><th>Customer</th><th>Class</th><th>Area</th><th>Rep</th><th class="n">2026 RR</th><th class="n yo">YoY Jan–Sep</th><th class="n">Share of channel</th></tr></thead><tbody>
+     ${shown.map(c=>`<tr class="r"><td><span class="nm">${esc(c.n)}</span> <span class="sub">${esc(c.id)}</span></td><td class="sub">${esc(c.cl)}</td><td class="sub">${esc(c.ar)}</td><td class="sub">${esc(c.rep)}</td><td class="n">${fm(c.b)}</td><td class="n yo ${cls(c.yy)}">${fp(c.yy,0)}</td><td class="n">${tot>0?(c.b/tot*100).toFixed(1)+'%':'–'}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No customers match.</td></tr>'}
+     </tbody></table></div>${L.length>shown.length?`<div class="sub" style="padding:6px 12px">Showing the top ${shown.length} of ${L.length}. Search to find others.</div>`:''}`:''}</details>`;}).join('');
+}
+document.addEventListener('toggle',e=>{const d=e.target; if(!d.matches||!d.matches('details[data-ch]')) return; const ch=d.dataset.ch;
+  if(d.open&&!chOpen.has(ch)){chOpen.add(ch);renderChList();} else if(!d.open&&chOpen.has(ch)){chOpen.delete(ch);renderChList();}},true);
+
+let kamSel='';
+function accRow(u,st,indent){
+  const a=st.acc[u.key]||{}, lost=!!a.lost, id=slug(u.key), low=u.gp!=null&&u.gp<0.2&&u.base>=1000;
+  const first=indent?`<td style="padding-left:28px"><span class="nm">${esc(u.cat)}</span>${low?' <span class="tg rp">LOW GP</span>':''}${u.yoy!=null&&u.yoy<-0.2?'<span class="tg dc">DECLINING</span>':''}</td><td></td>`
+    :`<td><span class="nm">${esc(u.n)}</span><div class="sub">${chTag(u.ch)}${low?'<span class="tg rp">LOW GP</span>':''}${u.yoy!=null&&u.yoy<-0.2?'<span class="tg dc">DECLINING</span>':''}${esc(u.cl)}${u.ar?' · '+esc(u.ar):''}</div></td><td class="sub">${esc(u.rep)}${u.prev?`<div>billed by ${esc(u.prev)}</div>`:''}</td>`;
+  return `<tr class="r${lost?' lost':''}" data-u="${esc(u.key)}">${first}<td class="n">${fm(u.r25)}</td><td class="n">${fm(u.base)}</td><td class="n yo ${cls(u.yoy)}">${fp(u.yoy,0)}</td><td class="n">${fg(u.gp)}</td><td class="n">${fm(u.b26)}</td>
+    <td class="n bl"><input id="ag_${id}" class="lv pct" data-act="acc" data-f="g" data-k="${esc(u.key)}" value="${pctIn(a.g)}"${lost?' disabled':dis()}></td>
+    <td><div class="pres">${[[0,'Flat'],[5,'+5'],[10,'+10'],[-10,'−10']].map(([v,l])=>`<button class="pre" data-act="apre" data-k="${esc(u.key)}" data-v="${v}" tabindex="-1"${dis()}>${l}</button>`).join('')}<button class="pre x" data-act="apre" data-k="${esc(u.key)}" data-v="lost" tabindex="-1"${dis()}>${lost?'Undo lost':'Lost'}</button></div></td>
+    <td class="n"><input id="ap_${id}" class="lv pct" data-act="acc" data-f="p" data-k="${esc(u.key)}" value="${pctIn(a.p)}"${lost?' disabled':dis()}></td>
+    <td class="n"><input id="aa_${id}" class="lv amt" data-act="acc" data-f="amt" data-k="${esc(u.key)}" value="${amtIn(a.amt)}" placeholder="J$"${lost?' disabled':dis()}></td>
+    <td class="n b27 bl" data-o="u:${esc(u.key)}:r"></td><td class="n" data-o="u:${esc(u.key)}:gp"></td></tr>`;
+}
+const ACC_HEAD=`<thead><tr><th>Account</th><th>Rep</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n yo">YoY</th><th class="n">GP% 26</th><th class="n">2026 bud</th><th class="n bl" title="Blank uses the channel or category %">Exp. growth %</th><th>Quick set</th><th class="n" title="This account's own 2027 price change, from January">Own price %</th><th class="n" title="Type the 2027 amount instead of a %">or fixed J$</th><th class="n bl">2027</th><th class="n">GP% 27</th></tr></thead>`;
+function renderAcc(){
+  const st=S(), cats=catsOf(), K=KAMS.find(k=>k.key===kamSel);
+  if(!K&&selCat==='*') selCat=null;
+  if(!selCat||(selCat!=='*'&&!cats.includes(selCat))) selCat=K?'*':cats[0];
+  if(!cats.length){$('#pane').innerHTML='<div class="empty">No categories.</div>';return;}
+  const chips=(K?[['*','All categories']]:[]).concat(cats.map(c=>[c,c]));
+  const kamSelHtml=`<div class="fld"><label for="kamSel">Working with</label><select id="kamSel" class="pl" data-act="kam"><option value="">All accounts (top accounts by category)</option>${KAMS.map(k=>`<option value="${k.key}"${k.key===kamSel?' selected':''}>${esc(k.name)} · ${esc(k.label)} (${k.ids.length})</option>`).join('')}</select></div>`;
+  let body, foot, hint;
+  if(K){
+    const catset=new Set(selCat==='*'?cats:[selCat]);
+    let stores=K.ids.map(id=>STORES[id]).filter(Boolean).map(s=>({s,us:s.units.filter(u=>catset.has(u.cat)).sort((a,b)=>b.base-a.base)})).filter(o=>o.us.length);
+    if(accQ) stores=stores.filter(o=>(o.s.n+' '+o.s.id+' '+o.s.ar).toLowerCase().includes(accQ));
+    stores.forEach(o=>o.b=o.us.reduce((x,u)=>x+u.base,0)); stores.sort((a,b)=>b.b-a.b);
+    const missing=K.ids.filter(id=>!STORES[id]).length;
+    hint=`${esc(K.name)}'s ${stores.length} store${stores.length===1?'':'s'} (${esc(K.label)}).${missing?` ${missing} on the list bought nothing this year.`:''}`;
+    body=stores.map(o=>`<tr class="grp"><td colspan="3"><span class="nm">${esc(o.s.n)}</span> <span class="sub">${chTag(o.s.ch)}${esc(o.s.ar)} · ${esc(o.s.id)}</span></td><td class="n"><b>${fm(o.b)}</b></td><td colspan="7"></td><td class="n b27 bl" data-o="st:${esc(o.s.id)}"></td><td></td></tr>`+o.us.map(u=>accRow(u,st,true)).join('')).join('')||'<tr><td colspan="13" class="empty">None of these stores buy this category.</td></tr>';
+    const tb=stores.reduce((x,o)=>x+o.b,0);
+    foot=`<tr class="tot"><td colspan="3">${esc(K.name)} · ${esc(K.label)}</td><td class="n">${fm(tb)}</td><td colspan="7"></td><td class="n bl" data-o="kam:${K.key}"></td><td></td></tr>`;
+  } else {
+    const C=CAT[selCat]; let list=C.units.filter(u=>u.top);
+    if(accQ) list=C.units.filter(u=>(u.n+' '+u.rep+' '+u.ch+' '+u.cid).toLowerCase().includes(accQ)).slice(0,200);
+    const L=st.cat[selCat]||{};
+    hint=accQ?`Searching every account in ${esc(selCat)}.`:`Optional: adjust your biggest ${list.length} ${esc(selCat)} accounts (about ${Math.round(list.reduce((s,u)=>s+u.base,0)/Math.max(1,C.base)*100)}% of the category).`;
+    body=list.map(u=>accRow(u,st,false)).join('')||'<tr><td colspan="13" class="empty">No accounts match.</td></tr>';
+    foot=`<tr class="tot"><td>All ${esc(selCat)} (incl. other accounts)</td><td></td><td class="n">${fm(C.r25)}</td><td class="n">${fm(C.base)}</td><td></td><td class="n">${fg(C.r26>0?C.g26/C.r26:null)}</td><td class="n">${fm(C.b26)}</td><td class="bl"></td><td></td><td></td><td></td><td class="n bl" data-o="cat:${esc(selCat)}:rev"></td><td class="n" data-o="cat:${esc(selCat)}:gp"></td></tr>`;
+  }
+  $('#pane').innerHTML=`<div class="bar">${kamSelHtml}<div class="chips" role="group" aria-label="Category">${chips.map(([v,l])=>`<button class="chip" data-act="selcat" data-v="${esc(v)}" aria-pressed="${v===selCat}">${esc(l)}</button>`).join('')}</div><input id="accq" class="pl" type="search" placeholder="${K?'Search store or area':'Search account, rep, channel'}" value="${esc(accQ)}" data-act="accq" style="width:210px">${signoffBar()}</div>
+  ${guide(hint,['Blank boxes use the channel or category %.','<b>Own price %</b>: this account\'s own 2027 price change from January. Use it only for exceptions, such as a reprice.','<b>Or fixed J$</b>: type the 2027 amount you expect instead of a %.','Everything here rolls into the category, channel, rep and company totals.'])}
+  <div class="tw tall"><table>${ACC_HEAD}<tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>`;
+  update();
+}
+function renderSku(){
+  const st=S(), cats=catsOf(); if(!selCat||!cats.includes(selCat)) selCat=cats[0];
+  if(!selCat){$('#pane').innerHTML='<div class="empty">No categories.</div>';return;}
+  let L=SK[selCat]||[];
+  const counts={all:L.length,focus:L.filter(x=>x.focus).length,tail:L.filter(x=>x.tail).length,dead:L.filter(x=>x.dead).length,marked:L.filter(x=>st.sku[x.id]).length};
+  if(skuFilt!=='all') L=L.filter(x=>skuFilt==='marked'?st.sku[x.id]:x[skuFilt]);
+  if(skuQ) L=L.filter(x=>(x.id+' '+x.d).toLowerCase().includes(skuQ));
+  const shown=L.slice(0,250);
+  const mine=st.newl.map((n,i)=>({n,i})).filter(o=>catsOf().includes(o.n.cat));
+  $('#pane').innerHTML=`<div class="bar"><div class="chips" role="group" aria-label="Category">${cats.map(c=>`<button class="chip" data-act="selcat" data-v="${esc(c)}" aria-pressed="${c===selCat}">${esc(c)}</button>`).join('')}</div>${signoffBar()}</div>
+  <div class="tw" style="margin-bottom:14px"><table class="lite"><thead><tr><th>${esc(selCat)}</th><th class="n">2026 run-rate</th><th class="n">2027 before line changes</th><th class="n">Push</th><th class="n">Delist (not kept)</th><th class="n">New lines</th><th class="n bl">2027 total</th><th class="n">Total growth</th></tr></thead>
+   <tbody><tr><td class="sub">Updates as you change lines</td><td class="n" data-o="cat:${esc(selCat)}:base"></td><td class="n" data-o="cat:${esc(selCat)}:units"></td><td class="n pos" data-o="cat:${esc(selCat)}:push"></td><td class="n neg" data-o="cat:${esc(selCat)}:del"></td><td class="n pos" data-o="cat:${esc(selCat)}:nl"></td><td class="n b27 bl" data-o="cat:${esc(selCat)}:rev"></td><td class="n" data-o="cat:${esc(selCat)}:g"></td></tr></tbody></table></div>
+  <div class="grid2">
+  <div class="card" style="grid-column:1/-1"><h3>Existing lines in ${esc(selCat)}</h3>
+   ${guide('Optional: push or delist individual lines. Leave the rest on Keep.',['<b>Push %</b>: extra growth on this line, on top of the category\'s exp. growth (for example a focus SKU).','<b>Delist</b>: the line stops. <b>Kept %</b> is the share of its sales you expect to move to lines you still sell.','<b>Tail</b>: the smallest lines, together the bottom 2% of the category.'])}
+   <div class="bar" style="margin:0"><div class="chips">${[['all','All'],['focus','Focus'],['tail','Tail'],['dead','Not sold in 2026'],['marked','Changed']].map(([k,l])=>`<button class="chip" data-act="skuf" data-v="${k}" aria-pressed="${skuFilt===k}">${l} (${counts[k]})</button>`).join('')}</div>
+    <input id="skuq" class="pl" type="search" placeholder="Search SKU or description" value="${esc(skuQ)}" data-act="skuq" style="width:230px"></div>
+   <div class="tw tall" style="max-height:calc(100vh - 260px)"><table><thead><tr><th>SKU</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n yo">YoY</th><th class="n">GP% 26</th><th class="n">Customers</th><th>Last sold</th><th class="bl">Action</th><th class="n" title="Extra growth on this line">Push %</th><th class="n" title="Share of a delisted line's sales that moves to other lines">Kept %</th><th class="n">2027 effect</th></tr></thead>
+   <tbody>${shown.map(x=>{const s=st.sku[x.id]||{}, id=slug(x.id), yoy=x.r25y>0?(x.r26-x.r25y)/x.r25y:null;
+     return `<tr class="r"><td><span class="nm">${esc(x.d)}</span><div class="sub">${x.focus?'<span class="tg fo">FOCUS</span>':''}${x.tail?'<span class="tg ti">TAIL</span>':''}${x.dead?'<span class="tg dc">NOT SOLD 2026</span>':''}${x.gp!=null&&x.gp<0.15&&x.base>=100?'<span class="tg rp">LOW GP</span>':''}${esc(x.id)}</div></td>
+     <td class="n">${fm(x.r25)}</td><td class="n">${fm(x.base)}</td><td class="n yo ${cls(yoy)}">${fp(yoy,0)}</td><td class="n">${fg(x.gp)}</td><td class="n">${x.nc}</td><td class="sub">${esc(x.last)}</td>
+     <td class="bl"><select id="sa_${id}" class="lv" data-act="sku" data-f="act" data-k="${esc(x.id)}"${dis()}><option value="">Keep</option><option value="push"${s.act==='push'?' selected':''}>Push</option><option value="delist"${s.act==='delist'?' selected':''}>Delist</option></select></td>
+     <td class="n"><input id="sp_${id}" class="lv pct" data-act="sku" data-f="pct" data-k="${esc(x.id)}" value="${pctIn(s.pct)}"${s.act==='push'?dis():' disabled'}></td>
+     <td class="n"><input id="sr_${id}" class="lv pct" data-act="sku" data-f="ret" data-k="${esc(x.id)}" value="${pctIn(s.ret)}" placeholder="0"${s.act==='delist'?dis():' disabled'}></td>
+     <td class="n" data-o="s:${esc(x.id)}"></td></tr>`;}).join('')||'<tr><td colspan="11" class="empty">No lines match.</td></tr>'}</tbody></table></div>
+   ${L.length>shown.length?`<span class="sub">Showing the first ${shown.length} of ${L.length}. Search to find others.</span>`:''}
+  </div>
+  <div class="card" style="grid-column:1/-1"><h3>New lines for 2027</h3>
+   ${guide('Add lines you plan to launch, with expected 2027 sales and a start month.',['Leave GP% blank to use the category\'s GP%.','New lines are shared out to reps by their share of the category.'])}
+   <div class="fld" style="flex-wrap:wrap"><input id="nn" class="pl" placeholder="Line name" style="width:220px"${dis()}><select id="ncat" class="pl">${cats.map(c=>`<option${c===selCat?' selected':''}>${esc(c)}</option>`).join('')}</select>
+    <input id="namt" class="lv amt" placeholder="e.g. 5m"${dis()}><select id="nm" class="pl">${MONTHS.map((m,i)=>`<option value="${i+1}">From ${m}</option>`).join('')}</select><input id="ngp" class="lv pct" placeholder="GP%"${dis()}><button class="btn sm" data-act="addnew"${dis()}>Add</button></div>
+   <span class="sub">Amounts: type 5m, 500k, or just 5 for J$5M.</span>
+   ${mine.length?`<div class="tw"><table><thead><tr><th>Line</th><th>Category</th><th>Start</th><th class="n">GP%</th><th class="n">2027 J$</th><th></th></tr></thead><tbody>${mine.map(({n,i})=>`<tr><td class="nm">${esc(n.name)}</td><td>${esc(n.cat)}</td><td class="sub">${MONTHS[(n.m||1)-1]}</td><td class="n">${n.gp!=null&&n.gp!==''?pctIn(n.gp)+'%':'<span class="sub">cat.</span>'}</td>
+     <td class="n"><input id="nla_${esc(n.id)}" class="lv amt" data-act="nlamt" data-i="${i}" value="${amtIn(n.amt)}"${dis()}></td><td class="n"><button class="btn ghost sm" data-act="rmnew" data-i="${i}"${dis()}>Remove</button></td></tr>`).join('')}</tbody></table></div>`:''}
+  </div></div>`;
+  update();
+}
+function renderMon(){
+  const cats=catsOf().filter(c=>COMP.catMon[c]&&COMP.catMon[c].some(v=>Math.abs(v)>0.5));
+  const mon=COMP.mon, base=Array(12).fill(0); for(const c of catsOf()){const w=seas(c);for(let i=0;i<12;i++)base[i]+=CAT[c].base*w[i];}
+  const W=900,H=220,pl=46,pb=26,pt=14, mx=Math.max(1,...mon,...base)*1.08, bw=(W-pl-10)/12, y=v=>pt+(H-pt-pb)*(1-v/mx);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="2027 monthly budget" style="width:100%;height:auto;max-width:${W}px">`;
+  for(const t of [0,mx/3,2*mx/3]) svg+=`<line x1="${pl}" x2="${W-10}" y1="${y(t)}" y2="${y(t)}" stroke="#EEF1F8"/><text x="${pl-6}" y="${y(t)+3}" font-size="10" text-anchor="end" fill="#8A95B0">${fm(t)}</text>`;
+  mon.forEach((v,i)=>{const x=pl+i*bw+bw*.18;svg+=`<rect x="${x}" y="${y(Math.max(0,v))}" width="${bw*.64}" height="${Math.max(0,y(0)-y(Math.max(0,v)))}" rx="3" fill="#326BD3"><title>${MONTHS_L[i]} 2027: ${fj(v)}</title></rect><text x="${x+bw*.32}" y="${H-8}" font-size="10.5" text-anchor="middle" fill="#4A5578">${MONTHS[i]}</text><text x="${x+bw*.32}" y="${y(Math.max(0,v))-4}" font-size="9.5" text-anchor="middle" fill="#1A2340" font-weight="700">${fm(v)}</text>`;});
+  svg+=`<polyline fill="none" stroke="#8A95B0" stroke-width="1.5" stroke-dasharray="4 3" points="${base.map((v,i)=>`${pl+i*bw+bw/2},${y(v)}`).join(' ')}"/></svg>`;
+  $('#pane').innerHTML=`${guide('Your 2027 budget by month. Nothing to fill in here.',['Each category follows its 2025 monthly pattern.','Price increases and new lines start in the month you chose.','The dashed line is the 2026 run-rate spread the same way.'])}${svg}
+  <div class="tw" style="margin-top:12px"><table><thead><tr><th>Category</th>${MONTHS.map(m=>`<th class="n">${m}</th>`).join('')}<th class="n">2027</th></tr></thead><tbody>
+  ${cats.map(c=>{const a=COMP.catMon[c];return `<tr><td class="nm">${esc(c)}</td>${a.map(v=>`<td class="n">${fm(v)}</td>`).join('')}<td class="n b27">${fm(a.reduce((p,q)=>p+q,0))}</td></tr>`;}).join('')}</tbody>
+  <tfoot><tr class="tot"><td>Total</td>${mon.map(v=>`<td class="n">${fm(v)}</td>`).join('')}<td class="n">${fm(mon.reduce((p,q)=>p+q,0))}</td></tr></tfoot></table></div>`;
+}
+// ---------- Rep targets: every CM's budget, spread to each rep's stores ----------
+let COMPALL={};
+function computeAll(){const o={};for(const m of CMS)o[m.key]=m===cur&&COMP?COMP:computeCM(m.key,STATES[m.key]||blank(m.key));return o;}
+function unitRes(u){const ow=CAT[u.cat].owner; if(!ow) return {r:u.r26*ANN,gp:0}; // uncoded credits: held flat, sign kept
+  const o=COMPALL[ow.key]; const x=o&&o.unit[u.key]; if(!x) return {r:u.base,gp:0}; const k=(o.cat[u.cat]||{}).k||1; return {r:x.r*k,gp:x.gp*k};}
+const REPLIST=[...new Set(Object.values(STORES).map(s=>s.rep))].sort((a,b)=>a==='No current rep'?1:b==='No current rep'?-1:a.localeCompare(b));
+let repSel='', repQ='', repMode='year'; const repOpen=new Set();
+try{const r=localStorage.getItem('cb.rep');if(r&&REPLIST.includes(r))repSel=r;}catch(e){}
+function renderRep(){
+  if(!repSel) repSel=REPLIST[0]||'';
+  const stores=Object.values(STORES).filter(s=>s.rep===repSel);
+  const catT={}; let T={base:0,rev:0,r25:0};
+  const rows=stores.map(s=>{let b=0,r=0,r25=0; const cs=s.units.map(u=>{const x=unitRes(u), ub=CAT[u.cat].owner?u.base:u.r26*ANN; b+=ub; r+=x.r; r25+=u.r25;
+      const c=catT[u.cat]||(catT[u.cat]={base:0,rev:0,r25:0}); c.base+=ub; c.rev+=x.r; c.r25+=u.r25; return {u,x,ub};}).sort((a,b)=>b.u.base-a.u.base);
+    T.base+=b;T.rev+=r;T.r25+=r25; return {s,b,r,r25,cs};}).sort((a,b)=>b.b-a.b);
+  const g=T.base>0?T.rev/T.base-1:null;
+  let list=rows; if(repQ) list=rows.filter(o=>(o.s.n+' '+o.s.id+' '+o.s.ar+' '+o.s.ch).toLowerCase().includes(repQ));
+  const cats=Object.entries(catT).filter(([,c])=>c.base>0||c.rev>0||c.r25>0).sort((a,b)=>b[1].base-a[1].base);
+  const K=KAMS.find(k=>k.name===repSel), dash=K?list.filter(o=>o.s.kam===K.key):[], other=K?list.filter(o=>o.s.kam!==K.key):list;
+  const mv={}; let mvB=0; for(const s of Object.values(STORES)){ if(s.moved!==repSel) continue; const k=KAMS.find(x=>x.key===s.kam); mv[k.name]=(mv[k.name]||0)+1; mvB+=s.units.reduce((a,u)=>a+u.base,0); }
+  const first=esc(repSel.split(' ')[0]);
+  const movedTxt=Object.keys(mv).length?` ${Object.values(mv).reduce((a,b)=>a+b,0)} stores billed by ${first} (${fj(mvB)}) count toward a key account manager instead: ${Object.entries(mv).map(([n,c])=>`${esc(n.split(' ')[0])} ${c}`).join(', ')}.`:'';
+  const sRow=o=>{const op=repOpen.has(o.s.id), gg=o.b>0?o.r/o.b-1:null;
+      return `<tr class="r" style="cursor:pointer" data-act="repopen" data-c="${esc(o.s.id)}"><td><span class="exp" aria-hidden="true">${op?'▾':'▸'}</span> <span class="nm">${esc(o.s.n)}</span><div class="sub" style="padding-left:18px">${chTag(o.s.ch)}${esc(o.s.ar)}${o.s.prev?' · billed by '+esc(o.s.prev):''}</div></td><td class="n">${fm(o.b)}</td><td class="n b27">${fm(o.r)}</td><td class="n ${cls(gg)}">${fp(gg)}</td></tr>`+
+       (op?o.cs.filter(c=>c.u.base>0||c.x.r>0).map(c=>{const g2=c.u.base>0?c.x.r/c.u.base-1:null;return `<tr><td class="sub" style="padding-left:34px">${esc(c.u.cat)}</td><td class="n sub">${fm(c.ub)}</td><td class="n">${fm(c.x.r)}</td><td class="n ${cls(g2)}">${fp(g2)}</td></tr>`;}).join(''):'');};
+  const grpHead=(t,arr)=>`<tr class="grp"><td colspan="4" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px">${t} · ${arr.length} · ${fj(arr.reduce((a,o)=>a+o.b,0))} → ${fj(arr.reduce((a,o)=>a+o.r,0))}</td></tr>`;
+  const storeBody=K?(grpHead('Dashboard stores ('+esc(K.label)+')',dash)+dash.slice(0,400).map(sRow).join('')+(other.length?grpHead('Other accounts billed under '+first,other)+other.slice(0,400).map(sRow).join(''):''))
+                   :other.slice(0,400).map(sRow).join('');
+  $('#pane').innerHTML=`<div class="bar"><div class="fld"><label for="repSel2">Rep</label><select id="repSel2" class="pl" data-act="repsel" style="font-family:var(--head);font-weight:700">${REPLIST.map(r=>`<option${r===repSel?' selected':''}>${esc(r)}</option>`).join('')}</select></div>
+    <span class="lbl">2026 run-rate <b>${fj(T.base)}</b> → 2027 target <b>${fj(T.rev)}</b> · <span class="${cls(g)}">${fp(g)}</span> · ${rows.length} stores</span>
+    <div class="chips" role="group" aria-label="View">${[['year','Year'],['month','By month']].map(([k,l])=>`<button class="chip" data-act="repmode" data-v="${k}" aria-pressed="${repMode===k}">${l}</button>`).join('')}</div>
+    <div class="signoff"><button class="btn ghost sm" data-act="${repMode==='month'?'mtexport':'export'}" data-scope="rep">Export this rep's targets</button></div></div>
+  <div class="banner" style="margin-bottom:10px"><b>Internal planning view. Not for sharing with reps.</b> These targets change as the category managers work and are not final.</div>
+  ${guide(K?`${first}'s 2027 target: the ${esc(K.label)} on the Key Account dashboard${other.length?`, plus other accounts billed under ${first}`:''}.`:`${first}'s 2027 target, from the category managers' budgets.${movedTxt}`,['It updates as the category managers work.','Stores on a KAM\'s dashboard (Chain, Key, Hospitality) count toward that KAM. All other stores sit with the rep who billed them most in 2026.','Click a store to see its categories.'])}
+  ${repMode==='month'?repMonthHtml(repSel):''}<div class="grid2"${repMode==='month'?' hidden':''}>
+   <div class="card"><h3>By category</h3><div class="tw tall" style="max-height:calc(100vh - 230px)"><table><thead><tr><th>Category</th><th>Owner</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n">2027</th><th class="n">Growth</th></tr></thead><tbody>
+    ${cats.map(([c,o])=>{const gg=o.base>0?o.rev/o.base-1:null;return `<tr class="r"><td class="nm">${esc(c)}</td><td class="sub">${esc((CAT[c].owner||{name:'Held flat'}).name)}</td><td class="n">${fm(o.r25)}</td><td class="n">${fm(o.base)}</td><td class="n b27">${fm(o.rev)}</td><td class="n ${cls(gg)}">${fp(gg)}</td></tr>`;}).join('')}</tbody>
+    <tfoot><tr class="tot"><td>Total</td><td></td><td class="n">${fm(T.r25)}</td><td class="n">${fm(T.base)}</td><td class="n">${fm(T.rev)}</td><td class="n">${fp(g)}</td></tr></tfoot></table></div></div>
+   <div class="card"><h3>By store</h3><input id="repq" class="pl" type="search" placeholder="Search store, area, channel" value="${esc(repQ)}" data-act="repq" style="width:230px">
+    <div class="tw tall" style="max-height:calc(100vh - 270px)"><table><thead><tr><th>Store</th><th class="n">2026 RR</th><th class="n">2027</th><th class="n">Growth</th></tr></thead><tbody>
+    ${storeBody||'<tr><td colspan="4" class="empty">No stores match.</td></tr>'}
+    </tbody></table></div>${list.length>400?`<span class="sub">Showing the top 400 of ${list.length}. Search to find others.</span>`:''}</div>
+  </div>`;
+}
+// ---------- Monthly targets: company months by category, by rep, or one rep ----------
+let mtView='cat', mtRep='';
+function monthlyAll(){
+  COMPALL=computeAll();
+  const catM={}, catB={};
+  for(const m of CMS){const o=COMPALL[m.key]; for(const c of CMCATS[m.key]||[]){catM[c]=o.catMon[c]||Array(12).fill(0); catB[c]=CAT[c].base;}}
+  for(const C of Object.values(CAT)) if(!C.owner){const b=C.r26*ANN, w=seas(C.cat); catM[C.cat]=w.map(x=>b*x); catB[C.cat]=b;}
+  // a rep's month = their share of each category's 2027 total × that category's month, so reps add up exactly to the categories
+  const repM={}, repB={}, repCatM={};
+  for(const s of Object.values(STORES)) for(const u of s.units){
+    let sh=0,b=u.base; const ow=CAT[u.cat].owner;
+    if(ow){const o=COMPALL[ow.key], x=o&&o.unit[u.key], R=o&&o.cat[u.cat]?o.cat[u.cat].units:0; sh=x&&R>0?x.r/R:0;}
+    else {b=u.r26*ANN; sh=CAT[u.cat].r26?u.r26/CAT[u.cat].r26:0;}
+    const cm=catM[u.cat]; if(!cm) continue;
+    const a=repM[s.rep]||(repM[s.rep]=Array(12).fill(0)); repB[s.rep]=(repB[s.rep]||0)+b;
+    const rc=(repCatM[s.rep]||(repCatM[s.rep]={})), ac=rc[u.cat]||(rc[u.cat]={m:Array(12).fill(0),b:0}); ac.b+=b;
+    for(let i=0;i<12;i++){a[i]+=sh*cm[i]; ac.m[i]+=sh*cm[i];}
+  }
+  return {catM,catB,repM,repB,repCatM};
+}
+const sum12=a=>a.reduce((p,q)=>p+q,0);
+function mtRow(label,sub,m,b,cls2){const tot=sum12(m), g=b>0?tot/b-1:null;
+  if(MT_EXPORT) MT_EXPORT.rows.push([label.replace(/&nbsp;/g,'').replace(/&amp;/g,'&').trim(),...m,tot,b]);
+  return `<tr class="${cls2||'r'}"><td class="mt1"><span class="nm">${label}</span>${sub?`<div class="sub">${sub}</div>`:''}</td>${m.map(v=>`<td class="n">${fm(v)}</td>`).join('')}<td class="n b27 bl">${fm(tot)}</td><td class="n">${fm(b)}</td><td class="n ${cls(g)}">${fp(g)}</td></tr>`;}
+function renderMT(){
+  if(mtView==='one') mtView='cat';
+  MT_EXPORT={head:mtView==='rep'?'Rep':'Category',rows:[]};
+  const D=monthlyAll(), co=Array(12).fill(0); let coB=0;
+  for(const c in D.catM){D.catM[c].forEach((v,i)=>co[i]+=v); coB+=D.catB[c];}
+  const reps=Object.keys(D.repM).sort((a,b)=>(D.repB[b]||0)-(D.repB[a]||0));
+  if(!mtRep||!D.repM[mtRep]) mtRep=reps[0]||'';
+  // chart
+  const base=Array(12).fill(0); for(const c in D.catM){const w=seas(c);for(let i=0;i<12;i++)base[i]+=D.catB[c]*w[i];}
+  const W=900,H=200,pl=46,pb=24,pt=14, mx=Math.max(1,...co,...base)*1.08, bw=(W-pl-10)/12, y=v=>pt+(H-pt-pb)*(1-v/mx);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Company 2027 by month" style="width:100%;height:auto;max-width:${W}px">`;
+  for(const t of [0,mx/3,2*mx/3]) svg+=`<line x1="${pl}" x2="${W-10}" y1="${y(t)}" y2="${y(t)}" stroke="#EEF1F8"/><text x="${pl-6}" y="${y(t)+3}" font-size="10" text-anchor="end" fill="#8A95B0">${fm(t)}</text>`;
+  co.forEach((v,i)=>{const x=pl+i*bw+bw*.18;svg+=`<rect x="${x}" y="${y(Math.max(0,v))}" width="${bw*.64}" height="${Math.max(0,y(0)-y(Math.max(0,v)))}" rx="3" fill="#326BD3"><title>${MONTHS_L[i]} 2027: ${fj(v)}</title></rect><text x="${x+bw*.32}" y="${H-7}" font-size="10.5" text-anchor="middle" fill="#4A5578">${MONTHS[i]}</text><text x="${x+bw*.32}" y="${y(Math.max(0,v))-4}" font-size="9.5" text-anchor="middle" fill="#1A2340" font-weight="700">${fm(v)}</text>`;});
+  svg+=`<polyline fill="none" stroke="#8A95B0" stroke-width="1.5" stroke-dasharray="4 3" points="${base.map((v,i)=>`${pl+i*bw+bw/2},${y(v)}`).join(' ')}"/></svg>`;
+  let body='', head='';
+  if(mtView==='cat'){
+    head='Category';
+    for(const m of CMS){const cs=(CMCATS[m.key]||[]).filter(c=>D.catM[c]); if(!cs.length) continue;
+      const mm=Array(12).fill(0); let bb=0; cs.forEach(c=>{D.catM[c].forEach((v,i)=>mm[i]+=v); bb+=D.catB[c];});
+      body+=mtRow(esc(m.name),'',mm,bb,'grp')+cs.map(c=>mtRow('&nbsp;&nbsp;'+esc(c),'',D.catM[c],D.catB[c])).join('');}
+    const jc=Object.values(CAT).filter(C=>!C.owner&&D.catM[C.cat]).map(C=>C.cat);
+    if(jc.length){const mm=Array(12).fill(0); let bb=0; jc.forEach(c=>{D.catM[c].forEach((v,i)=>mm[i]+=v); bb+=D.catB[c];}); body+=mtRow('Uncoded credits &amp; adjustments','held flat',mm,bb,'grp');}
+  } else if(mtView==='rep'){
+    head='Rep';
+    body=reps.map(r=>{const K=KAMS.find(k=>k.name===r); return mtRow(esc(r),K?esc(K.label)+' (KAM)':'',D.repM[r],D.repB[r]||0);}).join('');
+  } else {
+    head='Category';
+    const rc=D.repCatM[mtRep]||{}; const cs=Object.keys(rc).sort((a,b)=>rc[b].b-rc[a].b);
+    body=cs.filter(c=>rc[c].b!==0||sum12(rc[c].m)!==0).map(c=>mtRow(esc(c),esc((CAT[c].owner||{name:'Held flat'}).name),rc[c].m,rc[c].b)).join('');
+  }
+  const tot=mtView==='one'?(D.repM[mtRep]||Array(12).fill(0)):co, totB=mtView==='one'?(D.repB[mtRep]||0):coB;
+  $('#pane').innerHTML=`<div class="bar"><div class="chips" role="group" aria-label="View">${[['cat','By category'],['rep','By rep']].map(([k,l])=>`<button class="chip" data-act="mtview" data-v="${k}" aria-pressed="${mtView===k}">${l}</button>`).join('')}</div>
+    ${mtView==='one'?`<div class="fld"><label for="mtRep">Rep</label><select id="mtRep" class="pl" data-act="mtrep" style="font-family:var(--head);font-weight:700">${reps.map(r=>`<option${r===mtRep?' selected':''}>${esc(r)}</option>`).join('')}</select></div>`:''}
+    <div class="signoff"><button class="btn ghost sm" data-act="mtexport">Export this view</button></div></div>
+  <div class="banner" style="margin-bottom:10px"><b>Internal planning view. Not for sharing with reps.</b> These targets change as the category managers work and are not final.</div>
+  ${guide(mtView==='one'?`${esc(mtRep.split(' ')[0])}'s 2027 targets by month and category.`:`Company 2027 targets by month, ${mtView==='cat'?'by category':'by rep'}.`,['Built from every category manager\'s budget as it stands now.','Each category follows its 2025 monthly pattern. Price increases and new lines start in the month chosen.','Rep months are each rep\'s share of every category, so reps add up exactly to the category totals.','The dashed line on the chart is the 2026 run-rate spread the same way.'])}
+  ${mtView==='one'?'':svg}
+  <div class="tw tall" style="margin-top:10px"><table class="mtt"><thead><tr><th class="mt1">${head}</th>${MONTHS.map(m=>`<th class="n">${m}</th>`).join('')}<th class="n bl">2027</th><th class="n">2026 RR</th><th class="n">Growth</th></tr></thead>
+   <tbody>${body||'<tr><td colspan="16" class="empty">Nothing to show.</td></tr>'}</tbody>
+   <tfoot>${mtRow(mtView==='one'?'Total '+esc(mtRep):'Company',' ',tot,totB,'tot')}</tfoot></table></div>`;
+}
+let MT_EXPORT=null;
+function repMonthHtml(rep){
+  MT_EXPORT={head:'Category',rows:[]};
+  const D=monthlyAll(), rc=D.repCatM[rep]||{}, cs=Object.keys(rc).filter(c=>rc[c].b!==0||sum12(rc[c].m)!==0).sort((a,b)=>rc[b].b-rc[a].b);
+  return `<div class="tw tall"><table class="mtt"><thead><tr><th class="mt1">Category</th>${MONTHS.map(m=>`<th class="n">${m}</th>`).join('')}<th class="n bl">2027</th><th class="n">2026 RR</th><th class="n">Growth</th></tr></thead>
+   <tbody>${cs.map(c=>mtRow(esc(c),esc((CAT[c].owner||{name:'Held flat'}).name),rc[c].m,rc[c].b)).join('')||'<tr><td colspan="16" class="empty">Nothing to show.</td></tr>'}</tbody>
+   <tfoot>${mtRow('Total '+esc(rep),' ',D.repM[rep]||Array(12).fill(0),D.repB[rep]||0,'tot')}</tfoot></table></div>`;
+}
+async function mtExport(btn){
+  if(!DL){btn.textContent='Export not available here';btn.disabled=true;return;}
+  if(!MT_EXPORT) return;
+  const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[[MT_EXPORT.head,...MONTHS_L,'2027 total','2026 run-rate'].join(',')].concat(MT_EXPORT.rows.map(r=>[q(r[0]),...r.slice(1).map(v=>(v*1000).toFixed(2))].join(',')));
+  const name=tab==='rep'?`DFL_Rep_Monthly_Targets_2027_${slug(repSel)}.csv`:`DFL_Monthly_Targets_2027_${mtView==='cat'?'by_category':'by_rep'}.csv`;
+  try{await DL.save({filename:name,data:lines.join('\n')});}catch(e){if(e&&e.code!=='declined')btn.textContent='Export failed, try again';}
+}
+function renderTeam(){
+  const T={base:0,rev:0,gp:0,r25:0,b26:0,g26:0,r26:0,gp26w:0}, RP={};
+  const rows=CMS.map(m=>{const st=STATES[m.key]||blank(m.key), o=computeCM(m.key,st), t=o.t;
+    for(const k of ['base','rev','gp','r25','b26','g26','r26','gp26w']) T[k]+=t[k];
+    for(const [r,v] of Object.entries(o.rep)){const x=RP[r]||(RP[r]={base:0,rev:0});x.base+=v.base;x.rev+=v.rev;}
+    const [c,l]=statusOf(m.key), g=t.base>0?t.rev/t.base-1:null;
+    return `<tr class="r" style="cursor:pointer" data-act="gocm" data-k="${m.key}"><td class="nm">${esc(m.name)}<div class="sub">${(CMCATS[m.key]||[]).slice(0,6).join(', ')}${(CMCATS[m.key]||[]).length>6?'…':''}</div></td><td class="n">${fm(t.r25)}</td><td class="n">${fm(t.base)}</td><td class="n">${fm(t.b26)}</td><td class="n b27">${fm(t.rev)}</td><td class="n ${cls(g)}">${fp(g)}</td><td class="n">${fg(t.base>0?t.gp26w/t.base:null)}</td><td class="n">${fg(t.rev>0?t.gp/t.rev:null)}</td><td class="n">${fm(t.gp)}</td><td><span class="pill ${c}">${l}</span></td></tr>`;}).join('');
+  T.base+=JUNKBASE;T.rev+=JUNKBASE;T.r25+=JUNK25;
+  const tgt=tgtOf(T.base), gap=tgt!=null?T.rev-tgt:null, isAmt=SETTINGS.mode==='amt', dz=IS_OWNER?'':' disabled';
+  const tv=isAmt?amtIn(SETTINGS.amt):pctIn(SETTINGS.target);
+  const eq=tgt==null?'No target set':(isAmt?`= ${fp(T.base>0?tgt/T.base-1:null)} on the 2026 run-rate`:`= ${fj(tgt)}`);
+  const reps=Object.entries(RP).sort((a,b)=>b[1].base-a[1].base);
+  $('#pane').innerHTML=`<div class="bar">
+    <div class="fld"><label for="tgt">Company target</label>
+     <select id="tgtmode" class="pl" data-act="tgtmode" aria-label="Target type"${dz}><option value="pct"${isAmt?'':' selected'}>% growth</option><option value="amt"${isAmt?' selected':''}>J$ total</option></select>
+     <input id="tgt" class="lv ${isAmt?'amt':'pct'}" data-act="tgt" value="${tv}" placeholder="${isAmt?'e.g. 5.5b':'e.g. 8'}" aria-label="Company target"${dz}>
+     <span class="lbl">${eq}</span>${IS_OWNER?'':' <span class="sub">Set by Scott</span>'}</div>
+    <span class="lbl">Built so far: <b>${fj(T.rev)}</b>${gap==null?'':` · <span class="${gap>=0?'pos':'neg'}">${gap>=0?'ahead of':'short of'} target by ${fj(Math.abs(gap))}</span>`}</span>
+    <div class="signoff">${IS_OWNER?`<button class="btn sm ${clearArm==='*'?'':'ghost'}" style="${clearArm==='*'?'background:var(--red);border-color:var(--red)':'color:var(--red);border-color:var(--red)'}" data-act="clearall">${clearArm==='*'?"Click again to clear every CM's inputs":"Clear every CM's inputs"}</button>`:''}<button class="btn ghost sm" data-act="export" data-scope="all">Export all CSV</button></div></div>
+   <div class="tw"><table><thead><tr><th>Owner</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n">2026 bud</th><th class="n">2027</th><th class="n">Growth</th><th class="n">GP% 26</th><th class="n">GP% 27</th><th class="n">GP J$ 27</th><th>Status</th></tr></thead>
+   <tbody>${rows}<tr><td class="sub">Uncoded credits &amp; adjustments (held flat)</td><td class="n sub">${fm(JUNK25)}</td><td class="n sub">${fm(JUNKBASE)}</td><td></td><td class="n sub">${fm(JUNKBASE)}</td><td></td><td></td><td></td><td></td><td></td></tr></tbody>
+   <tfoot><tr class="tot"><td>Company</td><td class="n">${fm(T.r25)}</td><td class="n">${fm(T.base)}</td><td class="n">${fm(T.b26)}</td><td class="n">${fm(T.rev)}</td><td class="n">${fp(T.base>0?T.rev/T.base-1:null)}</td><td class="n">${fg(T.base>0?T.gp26w/T.base:null)}</td><td class="n">${fg(T.rev>0?T.gp/T.rev:null)}</td><td class="n">${fm(T.gp)}</td><td></td></tr></tfoot></table></div>
+   <p class="sub" style="margin-top:8px">Owners not started count at their 2026 run-rate (flat). Click an owner to open their budget. Rep figures are on the Rep targets and Monthly targets tabs.</p>`;
+}
+
+function outVal(key){
+  const p=key.split(':'), t=p[0];
+  if(t==='t'){const T=COMP.t;switch(p[1]){case 'r25':return fm(T.r25);case 'base':return fm(T.base);case 'b26':return fm(T.b26);case 'rev':return fm(T.rev);case 'g':return fp(T.base>0?T.rev/T.base-1:null);case 'gp':return fg(T.rev>0?T.gp/T.rev:null);case 'gp26':return fg(T.base>0?T.gp26w/T.base:null);case 'yoy':{let a=0,b=0;for(const c of catsOf()){a+=CAT[c].r26;b+=CAT[c].r25y;}return fp(b>0?a/b-1:null,0);}}}
+  if(t==='cat'){const c=p.slice(1,-1).join(':'),o=COMP.cat[c];if(!o)return '–';switch(p[p.length-1]){case 'rev':return fm(o.rev);case 'pe':return o.pEff?fp(o.pEff):'–';case 'units':return fm(o.units);case 'base':return fm(o.base);
+      case 'push':return o.push?'+'+fm(o.push):'–';case 'del':return o.del?'−'+fm(-o.del):'–';case 'nl':return o.nl?'+'+fm(o.nl):'–';case 'g':return fp(o.base>0?o.rev/o.base-1:null);case 'gp':return fg(o.rev>0?o.gp/o.rev:null);}}
+  if(t==='u'){const k=p.slice(1,-1).join(':'),o=COMP.unit[k];if(!o)return '–';return p[p.length-1]==='r'?fm(o.r):fg(o.r>0?o.gp/o.r:null);}
+  if(t==='st'||t==='kam'){const cs=new Set(catsOf()), ids=t==='st'?[p[1]]:((KAMS.find(k=>k.key===p[1])||{}).ids||[]); let r=0;
+    for(const id of ids){const s=STORES[id]; if(!s) continue; for(const u of s.units){ if(!cs.has(u.cat)||(selCat!=='*'&&kamSel&&u.cat!==selCat)) continue; const o=COMP.unit[u.key]; if(o) r+=o.r; }} return fm(r);}
+  if(t==='ch'){const o=COMP.chn['*|'+p[1]];return o?fp(o.base>0?o.rev/o.base-1:null):'–';}
+  if(t==='s'){const id=p[1], st=S(), s=st.sku[id]; if(!s||!s.act) return ''; const x=(SK[selCat]||[]).find(z=>z.id===id); if(!x) return ''; const o=COMP.cat[x.cat]||{}; const C=CAT[x.cat], L=st.cat[x.cat]||{}, f=C.base>0?1-(o.one||0)/C.base:1;
+    const v=s.act==='push'?x.base*f*(+s.pct||0)/100*(1+(o.pEff||0)):-x.base*f*(1+(o.vC||0)/100)*(1-(+s.ret||0)/100)*(1+(o.pEff||0)); return (v>=0?'+':'')+fm(v);}
+  return '';
+}
+function companyTotals(){
+  // category managers only receive company totals from the server; swap in their own live figure
+  if(!IS_OWNER&&COMPANY){const mb=COMPANY.mine||{base:0,rev:0}, live=(COMP||{t:{rev:0}}).t;
+    return {base:+COMPANY.base||0, rev:(+COMPANY.rev||0)-(+mb.rev||0)+(live.rev||0), gp:0, started:+COMPANY.started||0};}
+  const T={base:JUNKBASE,rev:JUNKBASE,gp:0,started:0};
+  if(!COMPALL[cur.key]) COMPALL=computeAll();
+  for(const m of CMS){const st=STATES[m.key]||blank(m.key);const t=(COMPALL[m.key]||computeCM(m.key,st)).t;T.base+=t.base;T.rev+=t.rev;T.gp+=t.gp;if(inputList(st).length)T.started++;}
+  return T;
+}
+function renderCo(){
+  const T=companyTotals(), g=T.base>0?T.rev/T.base-1:null, tgt=tgtOf(T.base), gap=tgt!=null?T.rev-tgt:null;
+  $('#co').innerHTML=`<span class="t">Company 2027</span>
+   <div class="s"><span class="sv">${fj(T.rev)} <span class="${g>0.0005?'up':g<-0.0005?'dn':''}" style="font-size:13px;margin-left:2px">${fp(g)}</span></span>
+    ${gap==null?'':`<span class="sl" style="text-transform:none;letter-spacing:0;font-size:11px">${fj(Math.abs(gap))} ${gap>=0?'ahead of':'short of'} the ${tgtLabel(T.base)}</span>`}</div>`;
+}
+function update(){
+  const st=S(); COMP=computeCM(cur.key,st); COMPALL=computeAll(); strip(); renderCo();
+  const nIn=inputList(st).length; document.querySelectorAll('button[data-act=inputs]').forEach(b=>b.textContent=`Inputs (${nIn})`);
+  if(showInputs&&tab!=='team'&&tab!=='rep'&&tab!=='mt') renderBanner();
+  document.querySelectorAll('[data-o]').forEach(el=>{const k=el.dataset.o;
+    if(k.endsWith(':bar')){const c=k.slice(4,-4),o=COMP.cat[c];el.style.width=(o?Math.min(100,o.rev/(+el.dataset.max||1)*100):0).toFixed(1)+'%';return;}
+    el.textContent=outVal(k);
+    if(/:g$/.test(k)||k.startsWith('s:')){const v=el.textContent;el.classList.remove('pos','neg');if(v.startsWith('+')&&v!=='+0.0%')el.classList.add('pos');else if(v.startsWith('-'))el.classList.add('neg');}
+  });
+  // placeholders show the growth that will apply
+  document.querySelectorAll('input[data-act=cat][data-f=v]').forEach(el=>el.placeholder=pctIn(st.def??0)||'0');
+  document.querySelectorAll('input[data-act=ch]').forEach(el=>{const c=el.dataset.k.split('|')[0];el.placeholder=pctIn((st.cat[c]||{}).v??st.def??0)||'0';});
+  document.querySelectorAll('input[data-act=acc][data-f=g]').forEach(el=>{const u=COMP.unit[el.dataset.k];el.placeholder=u&&!(st.acc[el.dataset.k]||{}).g?pctIn(u.g)||'0':el.placeholder;});
+  document.querySelectorAll('input[data-act=acc][data-f=p]').forEach(el=>{const c=el.dataset.k.split('|')[0];el.placeholder=(pEffOf(c,st.cat[c]||{})*100).toFixed(1).replace(/\.0$/,'');});
+  if(tab==='mon') renderMon(); if(tab==='rep') renderRep(); if(tab==='team') renderTeam(); if(tab==='mt') renderMT();
+}
+function render(){
+  // Company view tabs (Summary, Rep targets, Monthly targets) are for the page owner only
+  document.querySelectorAll('[data-owner]').forEach(e=>e.hidden=!IS_OWNER);
+  if(!IS_OWNER&&['team','rep','mt'].includes(tab)) tab='cat';
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===tab)));
+  COMP=computeCM(cur.key,S());
+  ({cat:renderCat,chn:renderChn,acc:renderAcc,sku:renderSku,mon:()=>{renderMon();update();},rep:()=>{renderRep();update();},team:()=>{renderTeam();update();},mt:()=>{update();}})[tab]();
+  renderBanner();
+}
+function renderBanner(){
+  const ap=APPROVALS[cur.key], b=[];
+  if(!DB&&dbChecked) b.push('<div class="banner">Shared saving is not available in this view. Changes are kept on this device only and won\'t reach the roll-up.</div>');
+  if(locked()) b.push(`<div class="banner info">${ap&&ap.status==='approved'?'This budget is approved and locked.':'This budget has been submitted and is locked.'} Ask Scott to send it back if something needs to change.</div>`);
+  if(tab!=='team'&&tab!=='rep'&&tab!=='mt') b.push(inputsPanel());
+  $('#banner').innerHTML=b.join('');
+}
+
+/* ---------- events ---------- */
+function keepFocus(fn){const a=document.activeElement,id=a&&a.id,s=a&&a.selectionStart;fn();if(id){const e=document.getElementById(id);if(e){e.focus();try{if(s!=null)e.setSelectionRange(s,s);}catch(x){}}}}
+const setOr=(obj,k,v)=>{if(v==null||v==='') delete obj[k]; else obj[k]=v;};
+document.addEventListener('change',e=>{
+  const el=e.target, act=el.dataset.act; if(!act) return;
+  if(act==='mtrep'){mtRep=el.value;renderMT();return;}
+  if(act==='kam'){kamSel=el.value;selCat=kamSel?'*':null;accQ='';renderAcc();return;}
+  if(act==='repsel'){repSel=el.value;repOpen.clear();repQ='';try{localStorage.setItem('cb.rep',repSel);}catch(x){}renderRep();return;}
+  if(act==='tgtmode'){if(!IS_OWNER)return;SETTINGS.mode=el.value==='amt'?'amt':'pct';saveSettings();renderCo();renderTeam();return;}
+  if(act==='tgt'){if(!IS_OWNER)return;
+    if(SETTINGS.mode==='amt'){const v=parseAmt(el.value);SETTINGS.amt=v!=null&&v>0?v:null;}else{SETTINGS.target=parsePct(el.value);}
+    saveSettings();renderCo();keepFocus(renderTeam);return;}
+  if(locked()) return;
+  const st=S();
+  switch(act){
+    case 'def': st.def=parsePct(el.value); el.value=pctIn(st.def); break;
+    case 'cat': {const c=el.dataset.k,f=el.dataset.f,L=st.cat[c]||(st.cat[c]={});
+      if(f==='note') setOr(L,'note',el.value.trim()); else if(f==='one'){const v=parseAmt(el.value);setOr(L,'one',v!=null&&v>0?v:null);el.value=amtIn(L.one);}
+      else {const v=parsePct(el.value);setOr(L,f,v);el.value=pctIn(L[f]);if(f==='p'){delete L.q;delete L.qm;}} break;}
+    case 'catpm': {const c=el.dataset.k,L=st.cat[c]||(st.cat[c]={});L.pm=el.value==='Q'?'Q':+el.value;delete L.q;delete L.qm;break;}
+    case 'catq': {const c=el.dataset.k,L=st.cat[c]||(st.cat[c]={});const q=priceQ(L);q[+el.dataset.q]=parsePct(el.value)||0;L.q=q;delete L.p;delete L.pm;
+      if(!q.some(v=>v))delete L.q; el.value=q[+el.dataset.q]?pctIn(q[+el.dataset.q]):''; break;}
+    case 'catqm': {const c=el.dataset.k,L=st.cat[c]||(st.cat[c]={});const qm=priceQM(L);qm[+el.dataset.q]=+el.value;L.qm=qm;if(!L.q&&L.p){L.q=priceQ(L);delete L.p;delete L.pm;}break;}
+    case 'catm': {const [c,f]=el.dataset.k.split('|');const L=st.cat[c]||(st.cat[c]={});L[f]=+el.value;break;}
+    case 'ch': {const v=parsePct(el.value);setOr(st.ch,el.dataset.k,v);el.value=pctIn(v);break;}
+    case 'acc': {const k=el.dataset.k,f=el.dataset.f,a=st.acc[k]||(st.acc[k]={});
+      if(f==='amt'){const v=parseAmt(el.value);setOr(a,'amt',v);el.value=amtIn(a.amt);} else {const v=parsePct(el.value);setOr(a,f,v);el.value=pctIn(a[f]);}
+      if(!Object.keys(a).length) delete st.acc[k]; break;}
+    case 'sku': {const k=el.dataset.k,f=el.dataset.f,s=st.sku[k]||(st.sku[k]={});
+      if(f==='act'){ if(!el.value){delete st.sku[k];} else {s.act=el.value; if(s.act==='push'&&s.pct==null)s.pct=10;} touch(); keepFocus(renderSku); return; }
+      const v=parsePct(el.value); setOr(s,f,v); el.value=pctIn(s[f]); break;}
+    case 'nlamt': {const n=st.newl[+el.dataset.i]; if(!n) return; const v=parseAmt(el.value); if(v!=null&&v>0) n.amt=v; el.value=amtIn(n.amt); break;}
+    default: return;
+  }
+  touch();
+});
+document.addEventListener('input',e=>{const a=e.target.dataset.act;
+  if(a==='accq'){accQ=e.target.value.trim().toLowerCase();keepFocus(renderAcc);}
+  if(a==='skuq'){skuQ=e.target.value.trim().toLowerCase();keepFocus(renderSku);}
+  if(a==='repq'){repQ=e.target.value.trim().toLowerCase();keepFocus(renderRep);}
+  if(a==='chq'){chQ=e.target.value.trim().toLowerCase();renderChList();} });
+document.addEventListener('keydown',e=>{const el=e.target;if(e.key==='Enter'&&el.matches('input.lv')){el.blur();const sel=`input[data-act="${el.dataset.act}"]${el.dataset.f?`[data-f="${el.dataset.f}"]`:''}:not([disabled])`;const ins=[...document.querySelectorAll(sel)];const i=ins.indexOf(el);if(i>=0&&ins[i+1])ins[i+1].focus();}});
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]'); if(!el||['INPUT','SELECT','TEXTAREA'].includes(el.tagName)) return;
+  const act=el.dataset.act, st=S();
+  switch(act){
+    case 'selcat': selCat=el.dataset.v; tab==='acc'?renderAcc():renderSku(); return;
+    case 'repopen': {const c=el.dataset.c; repOpen.has(c)?repOpen.delete(c):repOpen.add(c); renderRep(); return;}
+    case 'skuf': skuFilt=el.dataset.v; renderSku(); return;
+    case 'gocm': setCm(el.dataset.k); tab='cat'; saveUi(); render(); return;
+    case 'export': doExport(el.dataset.scope,el); return;
+    case 'mtview': mtView=el.dataset.v; renderMT(); return;
+    case 'repmode': repMode=el.dataset.v; renderRep(); return;
+    case 'mtexport': mtExport(el); return;
+    case 'inputs': showInputs=!showInputs; clearArm=''; render(); return;
+    case 'clearcm': if(!IS_OWNER) return; if(clearArm!==cur.key){clearArm=cur.key;render();setTimeout(()=>{if(clearArm===cur.key){clearArm='';render();}},5000);return;}
+      clearArm=''; resetCM(cur.key); setSave('pending','Saving…'); clearTimeout(tm); tm=setTimeout(flush,200); render(); return;
+    case 'clearall': if(!IS_OWNER) return; if(clearArm!=='*'){clearArm='*';renderTeam();setTimeout(()=>{if(clearArm==='*'){clearArm='';if(tab==='team')renderTeam();}},5000);return;}
+      clearArm=''; CMS.forEach(m=>{ if(STATES[m.key]&&STATES[m.key].updatedAt) resetCM(m.key); }); setSave('pending','Saving…'); clearTimeout(tm); tm=setTimeout(flush,200); render(); return;
+    case 'approve': if(!IS_OWNER) return; decide(cur.key,'approved'); return;
+    case 'reopen': if(!IS_OWNER) return; decide(cur.key,'draft'); return;
+  }
+  if(locked()) return;
+  switch(act){
+    case 'apre': {const k=el.dataset.k,v=el.dataset.v,a=st.acc[k]||(st.acc[k]={});
+      if(v==='lost'){ if(a.lost) delete a.lost; else a.lost=true; } else { delete a.lost; a.g=+v; }
+      if(!Object.keys(a).length) delete st.acc[k]; touch(); keepFocus(renderAcc); return;}
+    case 'addnew': {const name=$('#nn').value.trim(), amt=parseAmt($('#namt').value), gp=parsePct($('#ngp').value);
+      if(!name){$('#nn').focus();return;} if(amt==null||amt<=0){const f=$('#namt');f.value='';f.placeholder='Enter an amount';f.focus();return;}
+      st.newl.push({id:'n'+Date.now().toString(36),name,cat:$('#ncat').value,amt,m:+$('#nm').value,gp}); touch(); renderSku(); return;}
+    case 'rmnew': st.newl.splice(+el.dataset.i,1); touch(); renderSku(); return;
+    case 'rmin': {const x=inputList(st)[+el.dataset.j]; if(x){removeInput(st,x); touch(); render();} return;}
+    case 'submit': st.status='submitted'; st.submittedAt=new Date().toISOString(); touch(); render(); return;
+  }
+});
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab;saveUi();render();}));
+$('#cmSel').addEventListener('change',e=>{setCm(e.target.value);selCat=null;render();});
+function setCm(k){cur=CMS.find(m=>m.key===k)||cur;cmOptions();saveUi();}
+function saveUi(){try{localStorage.setItem('cb.tab',tab);localStorage.setItem('cb.cm',cur.key);}catch(e){}}
+
+/* ---------- export (budget_2026 layout) ---------- */
+function csvRows(m){
+  const st=STATES[m.key]||blank(m.key), o=computeCM(m.key,st), rows=[];
+  const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const [,status]=statusOf(m.key);
+  for(const cat of CMCATS[m.key]||[]){
+    const C=CAT[cat], oc=o.cat[cat], w=seas(cat), L=st.cat[cat]||{}, ix=priceIdx(L), gpk=oc.gp/(oc.rev||1);
+    for(const u of C.units){const x=o.unit[u.key]; if(!x||!x.r) continue; const r=x.r*oc.k;
+      const ww=w.map((v,i)=>v*ix[i]), s=ww.reduce((p,q)=>p+q,0)||1;
+      const id=u.kind==='n'?u.cid:`GROUP-${slug(u.ch)}-${slug(u.rep)}`, nm=u.kind==='n'?u.n:`Other ${u.ch} accounts (${u.cnt})`;
+      for(let i=0;i<12;i++){const b=r*ww[i]/s*1000; if(Math.abs(b)<0.5) continue;
+        rows.push([id,nm,u.cl||'',cat,u.rep,u.ar||'',u.ch,MONTHS_L[i],i+1,b.toFixed(2),(b*gpk).toFixed(2),m.name,status].map(q).join(','));}}
+  }
+  return rows;
+}
+async function doExport(scope,btn){
+  if(!DL){btn.textContent='Export not available here';btn.disabled=true;return;}
+  const head='customer_id,customer_name,customer_class,item_class,salesperson,area,channel,month,month_number,budget,gp_budget,category_manager,status';
+  const lines=[head]; let name;
+  if(scope==='rep'){
+    COMPALL=computeAll(); const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    for(const s of Object.values(STORES)){ if(s.rep!==repSel) continue;
+      for(const u of s.units){ const x=unitRes(u); if(!x.r) continue; const ow=CAT[u.cat].owner;
+        const L=ow?((STATES[ow.key]||blank(ow.key)).cat[u.cat]||{}):{}, ix=priceIdx(L), w=seas(u.cat), ww=w.map((v,i)=>v*ix[i]), sw=ww.reduce((p,qq)=>p+qq,0)||1, gpk=x.r?x.gp/x.r:0;
+        for(let i=0;i<12;i++){const b=x.r*ww[i]/sw*1000; if(Math.abs(b)<0.5) continue;
+          lines.push([s.id,s.n,s.cl,u.cat,s.rep,s.ar,s.ch,MONTHS_L[i],i+1,b.toFixed(2),(b*gpk).toFixed(2),ow?ow.name:'Held flat',ow?statusOf(ow.key)[1]:''].map(q).join(','));}}}
+    name=`DFL_Rep_Targets_2027_${slug(repSel)}.csv`;
+  } else { (scope==='all'?CMS:[cur]).forEach(m=>lines.push(...csvRows(m))); name=scope==='all'?'DFL_Category_Budget_2027_all.csv':`DFL_Category_Budget_2027_${cur.key}.csv`; }
+  try{await DL.save({filename:name,data:lines.join('\n')});}catch(e){if(e&&e.code!=='declined')btn.textContent='Export failed, try again';}
+}
+
+/* ---------- boot (portal: Supabase RPCs, scoped on the server) ---------- */
+const BOOT=window.CB_BOOT||{};
+DB=true; DL={save:async o=>downloadFile(o.filename,o.data)}; dbChecked=true;
+IS_OWNER=!!(BOOT.me&&BOOT.me.approver);
+for(const r of (BOOT.inputs||[])) applyRemote(r);
+applyCompany(BOOT.company);
+cmOptions(); render(); setSave('saved','All changes saved');
+setInterval(poll,60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) poll(); });
+}
+
+/* ---------- loader: fetch only what this login may see, then start ---------- */
+let CB_STARTED=false;
+async function cbInit(){
+  if(CB_STARTED) return; CB_STARTED=true;
+  const box=document.getElementById('cbLoading');
+  try{
+    const call=f=>sb.rpc(f).then(r=>{ if(r.error) throw r.error; return r.data; });
+    const [me,data,inputs,company]=await Promise.all([call('budget27_me'),call('budget27_data'),call('budget27_inputs'),call('budget27_company')]);
+    if(!me||!(me.cms||[]).length||!data){
+      box.innerHTML='<b>This page is for the category managers.</b><br>If you should have access, ask Scott.'; return; }
+    window.CM_STORES=data.stores||[]; window.CM_SEAS={seas:data.seas||{},seasAll:data.seasAll||[]};
+    window.CM_SKU=data.sku||[]; window.CM_OWNERS=data.owners||{};
+    window.CB_BOOT={me,inputs,company};
+    box.remove(); document.getElementById('cbApp').hidden=false;
+    startApp();
+  }catch(e){ box.textContent='Could not load the budget: '+((e&&e.message)||e)+'. Refresh to try again.'; CB_STARTED=false; }
+}
+document.addEventListener('dfl-auth-ready',()=>cbInit());
+if(window.DFL_PROFILE) cbInit();
+// framed (the guard no-ops in an iframe): start once the shared client has a session
+if(window.self!==window.top) sb.auth.getSession().then(()=>cbInit());
+</script>
+</body>
+</html>
