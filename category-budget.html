@@ -395,6 +395,25 @@ function downloadFile(name,data){
   document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
 }
 
+// ---------- don't lose the last edit when the page is closed ----------
+// Commits the box being typed in, then sends anything unsaved with a keepalive request the browser
+// finishes even as the tab closes. If a save is still in flight, the browser asks before leaving.
+let CB_TOKEN=null;
+sb.auth.getSession().then(r=>{CB_TOKEN=r&&r.data&&r.data.session?r.data.session.access_token:null;}).catch(()=>{});
+if(sb.auth.onAuthStateChange) sb.auth.onAuthStateChange((_e,s)=>{CB_TOKEN=s?s.access_token:null;});
+function commitActive(){const a=document.activeElement; if(a&&a.matches&&a.matches('input.lv,select.lv,textarea.lv')&&!a.disabled){ a.dispatchEvent(new Event('change',{bubbles:true})); a.blur(); }}
+function saveOnExit(){
+  commitActive();
+  if(!pending.size||!CB_TOKEN||typeof SUPABASE_URL==='undefined') return;
+  for(const k of [...pending]){const st=STATES[k]; if(!st) continue; const t=computeCM(k,st).t;
+    try{fetch(SUPABASE_URL+'/rest/v1/rpc/budget27_save',{method:'POST',keepalive:true,
+      headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+CB_TOKEN,'Content-Type':'application/json'},
+      body:JSON.stringify({p_cm:k,p_state:st,p_summary:{base:t.base,rev:t.rev,gp:t.gp,n:inputList(st).length},p_submit:st.status==='submitted'})});}catch(e){}}
+  pending.clear(); clearTimeout(tm);
+}
+window.addEventListener('pagehide',saveOnExit);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveOnExit(); });
+window.addEventListener('beforeunload',e=>{ commitActive(); if(pending.size||saving){ e.preventDefault(); e.returnValue=''; } });
 /* ---------- rendering ---------- */
 let COMP=null;
 function statusOf(key){const st=STATES[key];const ap=APPROVALS[key];
