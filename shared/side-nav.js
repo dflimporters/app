@@ -60,6 +60,8 @@
   // Set by approverCheck() near the bottom. Declared up here because boot()
   // renders before that part of the file runs (a later `let` would throw).
   let isPriceApprover = false;
+  // Same idea for HR Leave, set by hrCheck().
+  let isHr = false;
 
   const LOGO = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png';
 
@@ -120,6 +122,15 @@
       tone: 'gold',
       items: [
         { label: 'Weekly Reports', href: '/weekly-reports.html', icon: '🗂️' }
+      ]
+    },
+    {
+      group: 'HR',
+      tone: 'gold',
+      items: [
+        // hrOnly: routes.js admits admin/management/hr, but only is_hr()
+        // (admins, role hr, public.hr_staff) gets data — see hrCheck() below.
+        { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true }
       ]
     },
     {
@@ -555,6 +566,7 @@
   // shows exactly what the guard would let through, by construction.
   function visible(item, role) {
     if (item.approverOnly && !isPriceApprover) return false;
+    if (item.hrOnly && !isHr) return false;
     if (item.roles) {
       if (!role) return false;                  // no role known — hide gated
       return item.roles.indexOf(role) !== -1;
@@ -792,7 +804,21 @@
     injectCss();
     render(e.detail.profile);
     approverCheck(e.detail.profile);
+    hrCheck(e.detail.profile);
   });
+
+  // HR Leave is shown only when is_hr() says yes (admins, role hr, and
+  // public.hr_staff) — not to every management user the page guard admits.
+  function hrCheck(profile) {
+    if (!profile || ['admin', 'management', 'hr'].indexOf(profile.role) === -1) return;
+    if (typeof sb === 'undefined' || !sb.rpc) return;
+    sb.rpc('is_hr').then(function (res) {
+      if (res && res.data === true && !isHr) {
+        isHr = true;
+        render(profile);
+      }
+    }, function () {});
+  }
 
   // Price Approvals is shown only to people in public.price_approvers. Asked
   // once, only for admins (the only role the page admits), then re-rendered.
