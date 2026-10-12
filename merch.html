@@ -4231,8 +4231,11 @@ function renderTeamLeadOverview(){
 }
 
 function renderAttendanceStats(){
-  const total=overviewRows.length;
-  const present=overviewRows.filter(r=>latestVisitByName[r.name]).length;
+  // Relief merchandisers only work when covering someone, so they aren't
+  // expected to log a visit every day — leave them out of the headcount.
+  const expected=overviewRows.filter(r=>r.role!=='relief_merchandiser');
+  const total=expected.length;
+  const present=expected.filter(r=>latestVisitByName[r.name]).length;
   const pct=total?Math.round(present/total*100):0;
   document.getElementById('ov-att-count').textContent=present+'/'+total;
   document.getElementById('ov-att-pct').textContent=pct+'% logged a visit today';
