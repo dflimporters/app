@@ -540,6 +540,25 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:16px;color:var(--muted)">›</div>
       </div>
 
+      <!-- MY EMPLOYMENT — own HR file (contract, JD, leave balance, credentials). /my-hr.html -->
+      <div id="m-myhr-tile" onclick="location.href='/my-hr.html'" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
+        <div style="font-size:22px">🪪</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--navy)">My Employment</div>
+          <div id="m-myhr-sub" style="font-size:10px;color:var(--muted)">Contract, job description, leave balance &amp; documents</div>
+        </div>
+        <div style="font-size:16px;color:var(--muted)">›</div>
+      </div>
+      <script>
+        // Not launched yet (DFL_MY_HR_LIVE in routes.js): greyed out for everyone but admins.
+        document.addEventListener('dfl-auth-ready', function (e) {
+          if (dflMyHrOpen(e.detail.profile && e.detail.profile.role)) return;
+          var t = document.getElementById('m-myhr-tile');
+          t.onclick = null; t.style.opacity = '.45'; t.style.cursor = 'default'; t.setAttribute('aria-disabled', 'true');
+          document.getElementById('m-myhr-sub').textContent = 'Coming soon';
+        });
+      </script>
+
       <!-- EVENTS & TRAINING — admin-assigned events; sign in as attending. -->
       <div id="m-events-tile" onclick="openEventsModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📅</div>
@@ -3949,11 +3968,11 @@ function restoreAuditDraft(){
 
 const AUDIT_CRITERIA=[
   {id:'shelves_clean',    label:'Shelf cleanliness',        icon:'🧹', desc:'Shelves free of dust, damage and debris'},
-  {id:'shelf_presence',   label:'Shelf presence & space',   icon:'📦', desc:'DFL products adequately spaced and dominant'},
+  {id:'shelf_presence',   label:'Planogram & shelf presence',icon:'📦', desc:'Set as displayed on the planogram or as instructed by the TL; DFL products spaced and dominant'},
   {id:'facing_correct',   label:'Facing & alignment',       icon:'↔️', desc:'All products fully faced and pulled to front'},
   {id:'rotation_correct', label:'Stock rotation (FIFO)',    icon:'🔄', desc:'Older stock at front, newest at back'},
   {id:'pricing_correct',  label:'Pricing accuracy',         icon:'🏷️', desc:'Correct shelf prices, shelf talkers in place'},
-  {id:'pos_materials',    label:'POS & promotional display',icon:'🎯', desc:'Danglers, wobblers, shelf strips present & current'}
+  {id:'pos_materials',    label:'POS & promotional display',icon:'🎯', desc:'All POS (danglers, wobblers, shelf strips, promo material) up & current where applicable/allowed'}
 ];
 
 function openStoreAudit(){

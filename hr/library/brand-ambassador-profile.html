@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="/favicon.ico">
+<style>body { visibility: hidden; }</style>
+<!--
+  Brand Ambassador role profile — a library document (hr_documents,
+  doc_type 'role_profile'), shown to field roles in My Employment and to
+  HR/managers in /hr/. Source of truth for the wording; keep it in step with
+  the Programme Overview and the audit/evaluation criteria in merch.html.
+-->
+<title>DFL · Brand Ambassador Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a single-column role profile, like an HR document — masthead, then ruled sections down one 760px measure */
+:root{
+  --bg:#f0f4f8;
+  --paper:#ffffff;
+  --ink:#1e293b;
+  --muted:#5b6b82;
+  --navy:#0f2044;
+  --accent:#2563eb;
+  --accent-bg:#eaf1fe;
+  --line:#dbe3ee;
+  --good:#15803d; --good-bg:#e7f6ec;
+  --warn:#b45309; --warn-bg:#fdf3e2;
+  --bad:#b91c1c;  --bad-bg:#fdecec;
+  --mast:#0f2044; --mast-fg:#ffffff; --mast-muted:#a9b8d6;
+  --display:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1324; --paper:#121c33; --ink:#e3e9f4; --muted:#93a3bf; --navy:#c9d6f2;
+    --accent:#6a9cff; --accent-bg:#18284d; --line:#24324f;
+    --good:#4ade80; --good-bg:#12301f; --warn:#fbbf24; --warn-bg:#33270e; --bad:#f87171; --bad-bg:#3a1717;
+    --mast:#0a1530; --mast-fg:#ffffff; --mast-muted:#8fa2c7;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b1324; --paper:#121c33; --ink:#e3e9f4; --muted:#93a3bf; --navy:#c9d6f2;
+  --accent:#6a9cff; --accent-bg:#18284d; --line:#24324f;
+  --good:#4ade80; --good-bg:#12301f; --warn:#fbbf24; --warn-bg:#33270e; --bad:#f87171; --bad-bg:#3a1717;
+  --mast:#0a1530; --mast-fg:#ffffff; --mast-muted:#8fa2c7;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:24px 48px}
+.doc{max-width:820px;margin:0 auto;background:var(--paper);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.mast{background:var(--mast);color:var(--mast-fg);padding:32px 40px 28px}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--mast-muted)}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,5vw,40px);line-height:1.1;margin:10px 0 6px;text-wrap:balance}
+.sub{font-size:16px;color:var(--mast-muted);margin:0}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px 24px;margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,.14)}
+.meta dt{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mast-muted)}
+.meta dd{margin:2px 0 0;font-size:13.5px;font-weight:600}
+.content{padding:8px 40px 40px}
+section{padding-block:28px;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+h2{font-family:var(--display);font-weight:700;font-size:20px;color:var(--navy);margin:0 0 4px;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 18px;max-width:65ch}
+h3{font-size:15px;font-weight:700;color:var(--ink);margin:0 0 4px}
+p{margin:0 0 10px;max-width:68ch}
+.purpose{font-size:17px;line-height:1.55;color:var(--ink);border-left:3px solid var(--accent);padding-left:16px;margin:4px 0 0;max-width:62ch}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+.num{background:var(--accent-bg);border-radius:6px;padding:14px 14px 12px}
+.num b{display:block;font-family:var(--display);font-size:24px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;line-height:1.1}
+.num span{font-size:12.5px;color:var(--muted);line-height:1.35;display:block;margin-top:4px}
+.duties{display:grid;gap:18px}
+.duty{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:start}
+.duty .tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);padding-top:2px}
+.duty ul{margin:6px 0 0;padding-left:18px}
+.duty li{margin-bottom:4px}
+.duty>div{min-width:0}
+.steps{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;counter-reset:s}
+.steps li{counter-increment:s;border:1px solid var(--line);border-radius:6px;padding:12px;font-size:13px;line-height:1.45;min-width:0}
+.steps li::before{content:"Step " counter(s);display:block;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.steps strong{display:block;font-size:14px;color:var(--ink);margin-bottom:2px}
+.check{list-style:none;padding:0;margin:8px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px}
+.check li{position:relative;padding-left:24px;font-size:14px}
+.check li::before{content:"";position:absolute;left:2px;top:5px;width:12px;height:7px;border-left:2px solid var(--good);border-bottom:2px solid var(--good);transform:rotate(-45deg)}
+.tablewrap{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:2px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.p-good{background:var(--good-bg);color:var(--good)}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-bad{background:var(--bad-bg);color:var(--bad)}
+.traits{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px}
+.trait h3{color:var(--navy)}
+.trait p{font-size:14px;color:var(--ink);margin:0}
+.criteria{columns:2;column-gap:28px;padding-left:20px;margin:8px 0 14px;font-size:14px}
+.criteria li{break-inside:avoid;margin-bottom:6px}
+.criteria .new{background:var(--accent-bg);border-radius:3px;padding:0 3px}
+.bands{display:flex;flex-wrap:wrap;gap:8px}
+.ladder{list-style:none;padding:0;margin:10px 0 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ladder li{border-radius:6px;padding:12px 14px;font-size:13.5px;line-height:1.45}
+.ladder b{display:block;font-family:var(--display);font-size:14px;margin-bottom:2px}
+.l1{background:var(--warn-bg)} .l1 b{color:var(--warn)}
+.l2{background:var(--bad-bg)} .l2 b{color:var(--bad)}
+.l3{background:var(--bad);color:var(--paper)} .l3 b{color:var(--paper)}
+.note{font-size:13px;color:var(--muted)}
+.callouts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
+.callout{background:var(--accent-bg);border-left:4px solid var(--accent);border-radius:0 6px 6px 0;padding:16px 18px;min-width:0}
+.callout-tag{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.callout h3{font-family:var(--display);font-size:16px;color:var(--navy);margin-bottom:6px}
+.callout p{font-size:14px;margin:0}
+.duty.key{background:var(--accent-bg);border-radius:6px;padding:14px;margin-inline:-14px}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:22px}
+.sign div{border-top:1px solid var(--ink);padding-top:6px;font-size:12px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+@media (max-width:640px){
+  .mast{padding:24px 20px 22px}
+  .content{padding:4px 20px 28px}
+  .nums{grid-template-columns:1fr 1fr}
+  .duty{grid-template-columns:1fr;gap:4px}
+  .steps,.ladder{grid-template-columns:1fr 1fr}
+  .check,.traits,.callouts{grid-template-columns:1fr}
+  .duty.key{margin-inline:-10px;padding:12px 10px}
+  .criteria{columns:1}
+  .sign{grid-template-columns:1fr;gap:30px}
+}
+@media (max-width:420px){ .steps,.ladder{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<article class="doc">
+  <header class="mast">
+    <div class="eyebrow">DFL Importers &amp; Distributors · Field Programme · Role Profile</div>
+    <h1>Brand Ambassador</h1>
+    <p class="sub">Expectations, Ideal Profile and Standards</p>
+    <dl class="meta">
+      <div><dt>Reports to</dt><dd>Team Leader and Account Managers</dd></div>
+      <div><dt>Works with</dt><dd>Sales reps for assigned stores</dd></div>
+      <div><dt>Tools</dt><dd>DFL Merch App (dflhq.com)</dd></div>
+      <div><dt>Version</dt><dd>October 2026</dd></div>
+    </dl>
+  </header>
+
+  <div class="content">
+    <section>
+      <h2>Role purpose</h2>
+      <p class="purpose">The Brand Ambassador represents DFL in every assigned store. They keep DFL products stocked, set to standard and visible on shelf, and they grow sales in each of their stores.</p>
+      <div class="nums">
+        <div class="num"><b>100%</b><span>of assigned stores visited every week</span></div>
+        <div class="num"><b>3–5</b><span>shelf photos on every visit</span></div>
+        <div class="num"><b>80%</b><span>of store target to qualify for commission</span></div>
+        <div class="num"><b>48 hrs</b><span>to resolve a flagged issue</span></div>
+      </div>
+      <div class="callouts">
+        <aside class="callout" aria-label="Replenishment and store relationships">
+          <div class="callout-tag">Replenishment drives results</div>
+          <h3>Own the order. Own the relationship.</h3>
+          <p>The Brand Ambassador is responsible for each store's replenishment order. Strong relationships with the key people in every store are what earn the best order possible.</p>
+        </aside>
+        <aside class="callout" aria-label="Communication standard">
+          <div class="callout-tag">Communication is non-negotiable</div>
+          <h3>Always reachable. Always in the loop.</h3>
+          <p>Your Team Leader and Account Managers must be able to reach you during working hours. Being uncontactable for <strong>more than 24 hours</strong> without a justified reason is grounds for a warning.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section>
+      <h2>What's expected</h2>
+      <p class="lede">These are the core responsibilities of every Brand Ambassador, in every store.</p>
+      <div class="duties">
+        <div class="duty"><div class="tag">Coverage</div><div>
+          <h3>Be at every assigned store, every week</h3>
+          <ul>
+            <li>Visit 100% of assigned stores each week, on each store's service day.</li>
+            <li>Log the first visit of the day before 9am. The Coordinator follows up with anyone who has no activity by then.</li>
+          </ul>
+        </div></div>
+
+        <div class="duty"><div class="tag">Store visit</div><div>
+          <h3>Complete every visit in the app, start to finish</h3>
+          <ol class="steps">
+            <li><strong>Log visit</strong>Tap on arrival. Records the time and GPS location.</li>
+            <li><strong>Stock</strong>Mark each category as stocked or out of stock.</li>
+            <li><strong>Photos</strong>3 to 5, camera only, taken in store once the shelf is fixed.</li>
+            <li><strong>Close out</strong>Set the outcome, report bad goods with a photo, add notes.</li>
+          </ol>
+          <p class="note" style="margin-top:8px">A visit is not finished until it is closed out.</p>
+        </div></div>
+
+        <div class="duty"><div class="tag">Shelf</div><div>
+          <h3>Keep the shelf to standard</h3>
+          <ul class="check">
+            <li>Set as displayed on the planogram, or as instructed by the Team Leader</li>
+            <li>DFL products well spaced and dominant</li>
+            <li>Every product fully faced and pulled to the front</li>
+            <li>First in, first out: older stock at the front</li>
+            <li>Correct shelf prices, with shelf talkers in place</li>
+            <li>All POS (danglers, wobblers, shelf strips, promo material) up and current where applicable or allowed</li>
+            <li>Shelves free of dust, damage and debris</li>
+          </ul>
+        </div></div>
+
+        <div class="duty key"><div class="tag">Replenishment</div><div>
+          <h3>Own every store's replenishment order</h3>
+          <p>Replenishment orders are one of the most important parts of the role. The Brand Ambassador is responsible for making sure every store orders the right products, in the right quantities, on time.</p>
+          <ul>
+            <li>Count storeroom stock after restocking the shelf.</li>
+            <li>Check each SKU's purchase history and build the reorder.</li>
+            <li>Push for the best order possible: full range, enough depth to last until the next visit, and any new or promoted lines.</li>
+            <li>Get the order to the store and the Account Manager, and follow up until it is placed.</li>
+            <li>Watch the "Not Buying" list for key SKUs not bought in 45+ days, and get them back on order.</li>
+          </ul>
+          <p class="note">The standard: no out-of-stocks caused by a missed, late or short order.</p>
+        </div></div>
+
+        <div class="duty key"><div class="tag">Relationships</div><div>
+          <h3>Build strong relationships with the key people in each store</h3>
+          <p>Good relationships give the Brand Ambassador the leverage to secure the best order, the best shelf space and the support to keep DFL products in front of shoppers.</p>
+          <ul>
+            <li>Know the key stakeholders in every store by name: store manager, buyer or purchasing officer, receiving, and department or shelf supervisors.</li>
+            <li>Be professional, dependable and visible on every visit, so they trust your recommendations.</li>
+            <li>Use those relationships to agree orders, win extra space and displays, and get POS put up.</li>
+            <li>Raise store concerns with the Account Manager early, before they become problems.</li>
+          </ul>
+        </div></div>
+
+        <div class="duty"><div class="tag">Reporting</div><div>
+          <h3>Be the rep's eyes in the store</h3>
+          <ul>
+            <li>Report out-of-stocks, bad goods, competitor activity and pricing errors.</li>
+            <li>Make sure each flagged issue is resolved within 48 hours.</li>
+          </ul>
+        </div></div>
+
+        <div class="duty"><div class="tag">Sales</div><div>
+          <h3>Grow sales in every store</h3>
+          <p>Know each store's target and actual in My Stores, and work to push every store past 100%.</p>
+        </div></div>
+
+        <div class="duty key"><div class="tag">Communication</div><div>
+          <h3>Stay reachable and keep everyone informed</h3>
+          <ul>
+            <li>Answer calls, texts and WhatsApp messages from your Team Leader and Account Managers promptly during working hours.</li>
+            <li>Never be uncontactable for more than 24 hours without a justified reason.</li>
+            <li>Tell your Team Leader straight away if you can't make a visit, are running late, or have a phone or transport problem.</li>
+            <li>Keep Account Managers updated on orders, stock and store issues.</li>
+            <li>Request leave through the app so coverage can be arranged.</li>
+          </ul>
+        </div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>How commission is earned</h2>
+      <p class="lede">Commission is paid per store, per month, against that store's sales target. It is visible live in the app.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store result</th><th>Commission for that store</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill p-bad">Below 80%</span></td><td>Nothing</td></tr>
+            <tr><td><span class="pill p-warn">80–99%</span></td><td>0.25% of the store's sales</td></tr>
+            <tr><td><span class="pill p-good">100% or more</span></td><td>0.5% of target, plus 0.75% of sales above target. Roughly three times the 80% tier.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:10px">Shared stores pay half. Route-only stores do not earn commission.</p>
+    </section>
+
+    <section>
+      <h2>The ideal Brand Ambassador</h2>
+      <p class="lede">These are the qualities that set the best Brand Ambassadors apart.</p>
+      <div class="traits">
+        <div class="trait"><h3>Reliable</h3><p>Logs the first visit well before 9am, visits every store on its service day, and never leaves a visit open.</p></div>
+        <div class="trait"><h3>Owns the shelf</h3><p>Every store follows the planogram or the Team Leader's instructions. Shelves are fully faced, rotated, priced and clean, all allowed POS is in place, and the photos prove it.</p></div>
+        <div class="trait"><h3>Owns replenishment</h3><p>Counts stock and secures the best order possible before anything runs out. Chases SKUs the store has stopped buying.</p></div>
+        <div class="trait"><h3>Builds relationships</h3><p>Is known and trusted by the store manager, buyer and staff, and uses that trust to win bigger orders, better space and displays.</p></div>
+        <div class="trait"><h3>Thinks commercially</h3><p>Knows each store's target and actual, and which stores are at risk. Pushes stores past 100%.</p></div>
+        <div class="trait"><h3>An early warning system</h3><p>Flags problems before the rep has to ask. Notes are specific and useful.</p></div>
+        <div class="trait"><h3>Honest data</h3><p>GPS matches the store, photos are real and current, and visit times reflect the actual work done.</p></div>
+        <div class="trait"><h3>Communicative</h3><p>Always easy to reach and quick to respond. Tells the Team Leader about problems before being asked, keeps Account Managers informed, and steps in to cover for teammates.</p></div>
+        <div class="trait"><h3>Keeps improving</h3><p>Builds knowledge of the categories and the industry, and brings ideas to the team.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Standards</h2>
+      <p class="lede">Each Brand Ambassador is measured against these standards.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Area</th><th>Standard</th><th>Checked by</th></tr></thead>
+          <tbody>
+            <tr><td>Store coverage</td><td>100% of assigned stores, every week</td><td>Coordinator, TL</td></tr>
+            <tr><td>Visit quality</td><td>Every visit has 3+ photos, categories marked and an outcome set</td><td>Coordinator, TL</td></tr>
+            <tr><td>Planogram</td><td>Shelf set to the planogram or to the TL's instruction</td><td>TL audit</td></tr>
+            <tr><td>POS</td><td>All POS in place wherever applicable or allowed</td><td>TL audit</td></tr>
+            <tr><td>Replenishment</td><td>An order secured at every store when needed. No out-of-stocks from a missed, late or short order</td><td>TL, Account Manager</td></tr>
+            <tr><td>Store relationships</td><td>Known to the key stakeholders in every store and able to influence orders, space and displays</td><td>TL, Account Manager</td></tr>
+            <tr><td>Store target</td><td>At least 80% of target to qualify for commission</td><td>Category Manager</td></tr>
+            <tr><td>Issue response</td><td>Resolved within 48 hours</td><td>Coordinator</td></tr>
+            <tr><td>Communication</td><td>Reachable during working hours and responds promptly. Never uncontactable for more than 24 hours without a justified reason</td><td>TL, Account Manager</td></tr>
+            <tr><td>TL store audit</td><td><span class="pill p-good">80%+</span> <span class="pill p-warn">60–79%</span> <span class="pill p-bad">Below 60%</span></td><td>TL</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Quarterly evaluation</h2>
+      <p class="lede">Each criterion is scored 1–5, for a total out of 60. The evaluation must be signed off by the Brand Ambassador and a supervisor or manager.</p>
+      <ol class="criteria">
+        <li class="new">Monitoring stock &amp; replenishment orders (stock counts, reorders, stock report to reps)</li>
+        <li>Attendance and punctuality</li>
+        <li>Collaborates with sales reps and team members</li>
+        <li>Rotation of goods</li>
+        <li>Creative and innovative thinking</li>
+        <li>Ability to analyse data and draw conclusions</li>
+        <li>Time management: planning and prioritising</li>
+        <li>Knowledge of industry trends and issues</li>
+        <li class="new">Displaying of goods on shelves (per planogram or as instructed by TL; POS where allowed)</li>
+        <li>Proactive communication (calls, texts, emails answered on time)</li>
+        <li>Shelf maintenance (dusting and wiping goods)</li>
+        <li>Attentive to customer needs, makes product recommendations</li>
+      </ol>
+      <div class="bands">
+        <span class="pill p-bad">12–44 Unsatisfactory</span>
+        <span class="pill p-warn">45–59 Satisfactory</span>
+        <span class="pill p-good">60 Exceptional</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>When standards are not met</h2>
+      <p class="lede">Warnings are documented and escalate in this order.</p>
+      <ol class="ladder">
+        <li class="l1"><b>Warning 1</b>Formal verbal warning, documented.</li>
+        <li class="l2"><b>Warning 2</b>Written warning. A performance improvement plan is agreed.</li>
+        <li class="l3"><b>Warning 3</b>Formal review, scheduled within 5 working days.</li>
+      </ol>
+      <p class="note"><strong>Reasons for a warning include:</strong> missed store visits without reason; poor or missing photos; not flagging out-of-stocks; missed or late replenishment orders; shelves not set to the planogram or the TL's instruction; GPS showing the Brand Ambassador was not at the store; not communicating or not responding to the Team Leader or Account Managers; <strong>not contactable for more than 24 hours without a justified reason</strong>.</p>
+    </section>
+
+    <section>
+      <h2>Acknowledgement</h2>
+      <p>I have read and understand the expectations and standards for the Brand Ambassador role.</p>
+      <div class="sign">
+        <div>Brand Ambassador name &amp; signature</div>
+        <div>Team Leader name &amp; signature</div>
+        <div>Date</div>
+      </div>
+    </section>
+  </div>
+</article>
+<p class="foot">DFL Importers &amp; Distributors Ltd · Brand Ambassador Role Profile · October 2026</p>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+</body>
+</html>
