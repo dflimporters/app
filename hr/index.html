@@ -362,6 +362,7 @@ function docCard(d){
     <div class="meta">${[d.version?'Version '+esc(d.version):'', d.effective_date?'Effective '+H.fmtDate(d.effective_date):'', d.file_name?esc(d.file_name)+(d.size_bytes?' · '+H.fileSize(d.size_bytes):''):(d.external_url?'Portal page':'')].filter(Boolean).join(' · ')}</div>
     <div class="acts">
       <button class="btn sm primary" data-act="open" data-id="${esc(d.id)}">Open</button>
+      <button class="btn sm" data-act="download" data-id="${esc(d.id)}" title="${d.external_url?'Save as PDF':'Download '+esc(d.file_name||'file')}">⬇ Download</button>
       ${WHO.is_hr?`<button class="btn sm" data-act="edit" data-id="${esc(d.id)}">Edit</button>
       <button class="btn sm danger" data-act="del" data-id="${esc(d.id)}">Delete</button>`:''}
     </div>
@@ -372,6 +373,7 @@ async function libClick(e){
   const b = e.target.closest('button[data-act]'); if(!b) return;
   const d = LIB.find(x=>x.id===b.dataset.id); if(!d) return;
   if(b.dataset.act==='open'){ try{ await H.open(d); }catch(err){ alert(err.message); } }
+  if(b.dataset.act==='download'){ try{ await H.download(d); }catch(err){ alert(err.message); } }
   if(b.dataset.act==='edit') docForm(d);
   if(b.dataset.act==='del') confirmDelete(d);
 }
