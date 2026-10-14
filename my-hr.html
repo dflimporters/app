@@ -64,6 +64,10 @@ button.row:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
 .row .sb{font-size:12px;color:var(--ink3)}
 .row .ar{color:var(--ink3);font-size:18px}
 .row.await .tt{color:var(--ink2)}
+.rowbtn{display:flex;align-items:center;gap:12px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.rowbtn:focus-visible,.dlbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.dlbtn{flex-shrink:0;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--blue-t);color:var(--blue);font-size:17px;cursor:pointer}
+.dlbtn:active{background:#d9e5fb}
 .pill{display:inline-block;font:700 10px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .p-good{background:var(--green-t);color:var(--green)} .p-warn{background:var(--amber-t);color:var(--amber)}
 .p-bad{background:var(--red-t);color:var(--red)} .p-grey{background:var(--grey-t);color:var(--grey)}
@@ -149,11 +153,13 @@ function draw(){
   const contractEnd = p.contract_end_date ? H.daysUntil(p.contract_end_date) : null;
 
   const fact = (l, v) => `<div><div class="l">${l}</div><div class="v${v?'':' muted'}">${v || 'Awaiting HR'}</div></div>`;
-  const docRow = d => `<button class="row" data-doc="${esc(d.id)}">
-      <div class="ic" aria-hidden="true">${esc(d.type_icon||'📄')}</div>
-      <div class="tx"><div class="tt">${esc(d.title)}</div>
-        <div class="sb">${[esc(d.type_label), d.effective_date?H.fmtDate(d.effective_date):'', d.version?esc(d.version):''].filter(Boolean).join(' · ')}</div></div>
-      <div class="ar" aria-hidden="true">›</div></button>`;
+  const docRow = d => `<div class="row">
+      <button class="rowbtn" data-doc="${esc(d.id)}">
+        <div class="ic" aria-hidden="true">${esc(d.type_icon||'📄')}</div>
+        <div class="tx"><div class="tt">${esc(d.title)}</div>
+          <div class="sb">${[esc(d.type_label), d.effective_date?H.fmtDate(d.effective_date):'', d.version?esc(d.version):''].filter(Boolean).join(' · ')}</div></div>
+      </button>
+      <button class="dlbtn" data-dl="${esc(d.id)}" aria-label="Download ${esc(d.title)}" title="${d.external_url?'Save as PDF':'Download'}">⬇</button></div>`;
   const awaitRow = (icon, label) => `<div class="row await"><div class="ic" aria-hidden="true">${icon}</div>
       <div class="tx"><div class="tt">${label}</div><div class="sb">HR will add this to your file</div></div><span class="pill p-grey">Awaiting</span></div>`;
 
@@ -239,6 +245,10 @@ function draw(){
   main.querySelectorAll('[data-doc]').forEach(b=>b.addEventListener('click', async ()=>{
     const d = allDocs.find(x=>x.id===b.dataset.doc);
     try{ await H.open(d); }catch(err){ alert(err.message); }
+  }));
+  main.querySelectorAll('[data-dl]').forEach(b=>b.addEventListener('click', async ()=>{
+    const d = allDocs.find(x=>x.id===b.dataset.dl);
+    try{ await H.download(d); }catch(err){ alert(err.message); }
   }));
 }
 </script>

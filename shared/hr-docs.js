@@ -106,6 +106,27 @@
     if (w) w.location = data.signedUrl; else window.location.href = data.signedUrl;
   }
 
+  // Save a document to the device.
+  //  * Uploaded file: a signed URL with Supabase's `download` option, which
+  //    sends Content-Disposition: attachment under the original file name.
+  //  * Portal page (external_url on this site): opens it with #download, and
+  //    the page offers itself as a PDF via the browser's print dialog ("Save
+  //    as PDF"). See hr/library/*.html.
+  async function download(doc) {
+    if (!doc) return;
+    if (doc.external_url) {
+      const sameSite = doc.external_url.charAt(0) === '/';
+      window.open(doc.external_url + (sameSite ? '#download' : ''), '_blank', 'noopener');
+      return;
+    }
+    const name = doc.file_name || (doc.title || 'document').replace(/[^A-Za-z0-9 ._-]+/g, '').trim() || 'document';
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(doc.storage_path, 300, { download: name });
+    if (error || !data) throw new Error('This document could not be downloaded. You may not have access to it.');
+    const a = document.createElement('a');
+    a.href = data.signedUrl; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
   // Upload a File into a folder ('library' or a reps.id). Returns the fields to
   // store on the hr_documents row.
   async function upload(file, folder) {
@@ -126,6 +147,6 @@
   window.DFL_HR = {
     BUCKET, ROLE_LABEL, PUBLISHABLE_ROLES, EMPLOYMENT_TYPE, CREDENTIAL_CATEGORY, ITEM_TYPE, LEAVE_TYPE,
     esc, parse, fmtDate, daysUntil, expiryState, serviceLength, fileSize, roleLabel, notReady,
-    open, upload, remove
+    open, download, upload, remove
   };
 })();

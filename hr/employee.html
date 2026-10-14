@@ -355,6 +355,7 @@ function drawDocs(){
       </div>
       <div class="ac">
         <button class="btn sm primary" data-act="open-doc" data-id="${esc(d.id)}">Open</button>
+        <button class="btn sm" data-act="download-doc" data-id="${esc(d.id)}" title="${d.external_url?'Save as PDF':'Download '+esc(d.file_name||'file')}">⬇ Download</button>
         ${fromLib ? '' : `<button class="btn sm" data-act="edit-doc" data-id="${esc(d.id)}">Edit</button><button class="btn sm danger" data-act="del-doc" data-id="${esc(d.id)}">Delete</button>`}
       </div></div>`;
   const reqRows = req.map(t=>{
@@ -427,7 +428,7 @@ function drawCreds(){
           <td class="num">${x.issued_on?H.fmtDate(x.issued_on):'<span class="sub">—</span>'}</td>
           <td class="num">${x.expires_on?H.fmtDate(x.expires_on):'<span class="sub">—</span>'}</td>
           <td>${state(x)}</td>
-          <td style="white-space:nowrap">${x.document_id?`<button class="btn sm" data-act="open-doc" data-id="${esc(x.document_id)}">Copy</button> `:''}<button class="btn sm" data-act="edit-cred" data-id="${esc(x.id)}">Edit</button></td>
+          <td style="white-space:nowrap">${x.document_id?`<button class="btn sm" data-act="open-doc" data-id="${esc(x.document_id)}">View copy</button> <button class="btn sm" data-act="download-doc" data-id="${esc(x.document_id)}" title="Download copy">⬇</button> `:''}<button class="btn sm" data-act="edit-cred" data-id="${esc(x.id)}">Edit</button></td>
         </tr>`).join('')}</tbody></table></div>`
       : `<div class="empty">No credentials on file yet. Add a driver's licence, food handler's permit, police record or training certificate, with its expiry date, and it will be flagged before it runs out.</div>`}
     </div>`;
@@ -559,6 +560,10 @@ async function onAction(e){
   if(act==='open-doc'){
     const d = [...F.documents, ...F.role_documents].find(x=>x.id===id);
     try{ await H.open(d); }catch(err){ alert(err.message); }
+  }
+  if(act==='download-doc'){
+    const d = [...F.documents, ...F.role_documents].find(x=>x.id===id);
+    try{ await H.download(d); }catch(err){ alert(err.message); }
   }
   if(act==='add-cred') credForm(null);
   if(act==='edit-cred') credForm(F.credentials.find(x=>x.id===id));
