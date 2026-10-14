@@ -130,7 +130,10 @@
       items: [
         // hrOnly: routes.js admits admin/management/hr, but only is_hr()
         // (admins, role hr, public.hr_staff) gets data — see hrCheck() below.
-        { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true }
+        { label: 'HR Records', href: '/hr/', icon: '🗂️', hrOrManager: true },
+        { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true },
+        // myHr: shown as a "Soon" row until DFL_MY_HR_LIVE (routes.js) — admins get the link.
+        { label: 'My Employment', href: '/my-hr.html', icon: '🪪', myHr: true }
       ]
     },
     {
@@ -567,6 +570,8 @@
   function visible(item, role) {
     if (item.approverOnly && !isPriceApprover) return false;
     if (item.hrOnly && !isHr) return false;
+    // HR Records: HR get People + Library; managers get the Library only.
+    if (item.hrOrManager && !isHr && ['admin', 'manager'].indexOf(role) === -1) return false;
     if (item.roles) {
       if (!role) return false;                  // no role known — hide gated
       return item.roles.indexOf(role) !== -1;
@@ -609,7 +614,7 @@
         txt.textContent = it.label;
 
         // Staged page — a <span>, not a link, so it can't be clicked or focused.
-        if (it.soon) {
+        if (it.soon || (it.myHr && !dflMyHrOpen(role))) {
           const row = document.createElement('span');
           row.className = 'dfl-rail__soon';
           row.appendChild(ico);

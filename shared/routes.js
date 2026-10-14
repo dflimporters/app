@@ -69,7 +69,7 @@ const DFL_HOME_BY_ROLE = {
   relief_merchandiser: '/merch.html',
   management:   '/morning-brief.html',
   rep_management: '/index.html',
-  hr:           '/hr-leave.html'
+  hr:           '/hr/index.html'
 };
 
 // ------------------------------------------------------------
@@ -167,8 +167,34 @@ const DFL_PAGE_ROLES = {
   // Postgres by is_hr() (admins, role 'hr', and anyone in public.hr_staff —
   // Paula, who is 'management'), so other management users get through this
   // door but see a "not set up for HR" message.
-  '/hr-leave.html': ['admin', 'management', 'hr']
+  '/hr-leave.html': ['admin', 'management', 'hr'],
+
+  // HR records (_staging/sql/2026-10-14_hr_records.sql). The hub admits
+  // managers for the Document Library tab; the People tab and every employee
+  // file are gated in Postgres by is_hr(), so managers never get file data.
+  '/hr/index.html':    ['admin', 'manager', 'management', 'hr'],
+  '/hr/employee.html': ['admin', 'management', 'hr'],
+  // Each employee's own file — every signed-in staff role (gated below by
+  // DFL_MY_HR_LIVE until launch).
+  '/my-hr.html': ['rep', 'rep_management', 'merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser',
+                  'warehouse', 'manager', 'admin', 'management', 'hr'],
+  // Library documents published as portal pages. Match the roles the
+  // hr_documents row is published to (applies_to_roles), plus HR/managers.
+  '/hr/library/brand-ambassador-profile.html': ['merchandiser', 'relief_merchandiser', 'tl_merch', 'team_leader',
+                                                 'manager', 'admin', 'management', 'hr']
 };
+
+// ------------------------------------------------------------
+// Feature gates
+// ------------------------------------------------------------
+// My Employment (/my-hr.html) is built but not launched. Until this is true,
+// only admins can open it; everyone else sees its tile/link greyed out as
+// "Coming soon" (merch.html, index.html More tab, side-nav.js) and the page
+// itself shows a coming-soon message. Flip to true to go live for all staff.
+const DFL_MY_HR_LIVE = false;
+function dflMyHrOpen(role) {
+  return DFL_MY_HR_LIVE || role === 'admin';
+}
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and
 // hashes are stripped so '/index.html?denied=1' matches '/index.html'.
