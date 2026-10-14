@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · HR Evaluations</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  HR Evaluations — every Brand Ambassador performance evaluation, for HR.
+  Sister page of /hr-leave.html (same look, same access, linked by .hrnav).
+
+  Data:
+    get_hr_evaluations()  every merchandiser_evaluations row (written by
+                          /merch-eval.html), scores/comments as jsonb, plus a
+                          best-effort roster match (area, team leader) on the
+                          free-text employee_name via hr_norm_name().
+    get_hr_eval_roster()  active merchandiser + tl_merch staff with their latest
+                          evaluation — drives "Who's due". Relief excluded, as
+                          merch.html hides the evaluation tile for relief.
+    hr_mark_evaluation()  HR's "filed" marker + note (hr_* columns, trigger-
+                          protected by protect_hr_leave_columns()).
+  All gated by is_hr(): admins, role hr, public.hr_staff.
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+/* HR portal switcher — same markup on hr-leave.html and hr-evaluations.html */
+.hrnav{display:inline-flex;background:#E7EBF3;border-radius:10px;padding:3px;margin:0 0 14px}
+.hrnav a{font:700 12.5px var(--hf);color:var(--ink2);text-decoration:none;padding:7px 14px;border-radius:8px}
+.hrnav a[aria-current="page"]{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+.kpi .v.bad{color:#FF9B9B}
+.kpi:hover .l{color:#fff}
+@media (max-width:640px){.strip{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.kpi .v{font-size:18px}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.filters input:focus,.filters select:focus{border-color:var(--blue)}
+.filters input[type=search]{flex:1 1 200px;min-width:160px}
+.filters label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.count{font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#FAFBFD;white-space:nowrap;cursor:pointer;user-select:none}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:#F8FAFE}
+tbody tr:last-child td{border-bottom:0}
+.who{font-weight:600}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.r-exc{background:var(--green-t);color:var(--green)}
+.r-sat{background:var(--amber-t);color:var(--amber)}
+.r-uns{background:var(--red-t);color:var(--red)}
+.r-none{background:var(--grey-t);color:var(--grey)}
+.dots{display:inline-flex;gap:4px;align-items:center}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:inline-block}
+.dots i.on{background:var(--green)}
+.done{color:var(--green);font-weight:600;font-size:12px;white-space:nowrap}
+.todo{color:var(--ink3);font-size:12px;white-space:nowrap}
+.flag{color:var(--red);font-weight:600;font-size:12px}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink3);margin:10px 2px 0}
+
+@media (max-width:640px){
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  td{border:0;padding:2px 0}
+  td[data-l]::before{content:attr(data-l)": ";color:var(--ink3);font-size:12px}
+}
+
+/* Team scores: average per criterion */
+.crit{display:grid;grid-template-columns:minmax(0,1fr) 180px 44px;gap:12px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--line)}
+.crit:last-child{border-bottom:0}
+.crit .lbl{font-size:13.5px}
+.bar{height:10px;background:var(--grey-t);border-radius:999px;overflow:hidden}
+.bar span{display:block;height:100%;border-radius:999px;background:var(--blue)}
+.bar span.lo{background:var(--red)}
+.bar span.mid{background:var(--amber)}
+.bar span.hi{background:var(--green)}
+.crit .v{font:700 14px var(--hf);text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:640px){.crit{grid-template-columns:1fr 44px}.crit .bar{grid-column:1 / -1;grid-row:2}}
+
+/* Drawer */
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:#fff;z-index:901;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding:22px 22px 40px}
+.drawer h3{font:800 19px var(--hf);margin:0 0 2px;padding-right:40px}
+.drawer .x{position:absolute;top:14px;right:14px;border:0;background:var(--grey-t);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--ink2)}
+.score-hero{display:flex;align-items:baseline;gap:10px;margin:14px 0 4px}
+.score-hero b{font:800 34px var(--hf);font-variant-numeric:tabular-nums}
+.score-hero span{color:var(--ink3)}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:8px 12px;margin:14px 0;font-size:13.5px}
+.dl dt{color:var(--ink3);font-size:12.5px}
+.dl dd{margin:0;word-break:break-word}
+.sect{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:20px 0 8px}
+.dcrit{padding:9px 0;border-bottom:1px solid var(--line)}
+.dcrit .top{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.dcrit .top b{font:700 13px var(--hf);white-space:nowrap}
+.dcrit .bar{height:6px;margin-top:6px}
+.dcrit .cm{font-size:12.5px;color:var(--ink2);margin-top:5px;font-style:italic}
+.quote{background:#FAFBFD;border-left:3px solid var(--blue);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13.5px;white-space:pre-wrap}
+.hrbox{background:#FAFBFD;border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:8px}
+.hrbox textarea{width:100%;min-height:70px;font:13.5px var(--bf);border:1px solid var(--line);border-radius:8px;padding:9px;resize:vertical;margin:8px 0}
+.hrbox .row{display:flex;gap:8px;flex-wrap:wrap}
+.err{color:var(--red);font-size:12.5px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <nav class="hrnav" aria-label="HR"><a href="/hr-leave.html">🌴 Leave</a><a href="/hr-evaluations.html" aria-current="page">📋 Evaluations</a></nav>
+  <h1 class="ptitle">HR Evaluations Dashboard</h1>
+  <p class="psub">Quarterly Brand Ambassador performance evaluations — 12 criteria scored 1–5 (60 max). 60 is Exceptional, 45+ Satisfactory, below 45 Unsatisfactory.</p>
+
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <div class="strip">
+      <button class="kpi" data-quick="quarter"><div class="l">Evaluations this quarter</div><div class="v" id="kQuarter">–</div></button>
+      <button class="kpi" data-quick="quarter"><div class="l">Avg score this quarter</div><div class="v" id="kAvg">–</div></button>
+      <button class="kpi" data-quick="due"><div class="l">Due this quarter</div><div class="v warn" id="kDue">–</div></button>
+      <button class="kpi" data-quick="unsat"><div class="l">Unsatisfactory</div><div class="v bad" id="kUnsat">–</div></button>
+      <button class="kpi" data-quick="signoff"><div class="l">Awaiting sign-off</div><div class="v warn" id="kSign">–</div></button>
+      <button class="kpi" data-quick="unfiled"><div class="l">Not yet filed by HR</div><div class="v warn" id="kUnfiled">–</div></button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="list">All evaluations</button>
+      <button role="tab" aria-selected="false" data-tab="due">Who's due</button>
+      <button role="tab" aria-selected="false" data-tab="scores">Team scores</button>
+    </div>
+
+    <!-- Shared filters for the list and the team-scores tab -->
+    <div class="filters" id="evalFilters">
+      <input type="search" id="fq" placeholder="Search name, reviewer, area…">
+      <select id="fwhen">
+        <option value="quarter">This quarter</option>
+        <option value="lastq">Last quarter</option>
+        <option value="year">This year</option>
+        <option value="all" selected>All dates</option>
+      </select>
+      <select id="frating">
+        <option value="">Any rating</option>
+        <option>Exceptional</option>
+        <option>Satisfactory</option>
+        <option>Unsatisfactory</option>
+      </select>
+      <select id="fsign">
+        <option value="">Any sign-off</option>
+        <option value="complete">Signed off</option>
+        <option value="pending">Awaiting sign-off</option>
+      </select>
+      <select id="fby">
+        <option value="">Filled by anyone</option>
+        <option value="self">Self-evaluation</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="manager">Manager</option>
+      </select>
+      <select id="ftl"><option value="">All team leaders</option></select>
+      <label class="chk"><input type="checkbox" id="funfiled"> Not filed by HR</label>
+      <button class="btn" id="csv">Export CSV</button>
+    </div>
+
+    <section id="tab-list">
+      <p class="count" id="count"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th data-sort="employee_name">Employee</th>
+            <th data-sort="review_period">Period</th>
+            <th data-sort="filled">Filled by</th>
+            <th data-sort="total_score">Score</th>
+            <th data-sort="rating">Rating</th>
+            <th data-sort="signed">Sign-off</th>
+            <th data-sort="created_at">Submitted</th>
+            <th data-sort="hr_processed_at">HR</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-due" class="hidden">
+      <div class="filters">
+        <input type="search" id="dq" placeholder="Search name, area…">
+        <select id="dstate">
+          <option value="due">Not evaluated this quarter</option>
+          <option value="never">Never evaluated</option>
+          <option value="done">Evaluated this quarter</option>
+          <option value="">Everyone</option>
+        </select>
+        <select id="dtl"><option value="">All team leaders</option></select>
+      </div>
+      <p class="count" id="dcount"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th class="nosort">Brand Ambassador</th>
+            <th class="nosort">Team leader</th>
+            <th class="nosort">Last evaluated</th>
+            <th class="nosort">Last result</th>
+            <th class="nosort">Evaluations</th>
+          </tr></thead>
+          <tbody id="drows"></tbody>
+        </table>
+      </div>
+      <p class="note">Active Brand Ambassadors (incl. Team Leader + Brand Ambassador; relief excluded). Evaluations are matched to people by name, since the form takes the name as typed — an evaluation with a misspelt name won't count here until it's corrected.</p>
+    </section>
+
+    <section id="tab-scores" class="hidden">
+      <p class="count" id="scount"></p>
+      <div class="panel" id="crits"></div>
+      <p class="note">Average score per criterion (out of 5) across the evaluations matching the filters above. Red below 3, amber 3–3.9, green 4+.</p>
+    </section>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true"></aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+// Same list, same order and wording as merch-eval.html's CRITERIA.
+const CRITERIA = [
+  ['stock_monitoring','Monitoring stock (providing stock report to reps)'],
+  ['attendance','Attendance and punctuality'],
+  ['collaboration','Collaborates with sales reps and team members to effectively complete tasks'],
+  ['rotation_of_goods','Rotation of goods'],
+  ['creative_thinking','Creative and innovative thinking'],
+  ['data_analysis','Ability to analyze data and draw relevant conclusions'],
+  ['time_management','Time management — planning and prioritizing workloads'],
+  ['industry_knowledge','In-depth knowledge of industry-specific trends and issues'],
+  ['shelf_display','Displaying of goods on shelves'],
+  ['proactive_communication','Proactive communication (calls, texts, emails answered on time)'],
+  ['shelf_maintenance','Shelf maintenance (dusting / wiping goods)'],
+  ['customer_attentiveness','Attentive to customer needs, makes product recommendations']
+];
+const ROLE_LABEL = {merchandiser:'Brand Ambassador', tl_merch:'Team Leader + Brand Ambassador', relief_merchandiser:'Relief Brand Ambassador', team_leader:'Team Leader'};
+
+let EVALS = [], ROSTER = [], ME = null;
+let SORT = {key:'created_at', dir:-1};
+let QUICK_ON = null;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtDate(s){ return s ? new Date(s).toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+function fmtTs(s){ return s ? new Date(s).toLocaleString('en-JM',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+
+// Quarters by submission date — review_period is free text ("June 2026",
+// "September 29 2026", …) so it can't be relied on for grouping.
+const NOW = new Date();
+const Q0 = new Date(NOW.getFullYear(), Math.floor(NOW.getMonth()/3)*3, 1);
+const LQ0 = new Date(Q0.getFullYear(), Q0.getMonth()-3, 1);
+const Y0 = new Date(NOW.getFullYear(), 0, 1);
+const QNAME = 'Q'+(Math.floor(NOW.getMonth()/3)+1)+' '+NOW.getFullYear();
+const inQuarter = s => s && new Date(s) >= Q0;
+const inLastQuarter = s => s && new Date(s) >= LQ0 && new Date(s) < Q0;
+
+// Matches the managers' merch dashboard: signed off once the employee and
+// either the supervisor or the manager have signed.
+const signedOff = r => r.employee_signed && (r.supervisor_signed || r.manager_signed);
+function filledBy(r){
+  if(r.filled_by_role==='employee') return 'self';
+  if(r.manager_signed && !r.supervisor_signed) return 'manager';
+  return 'supervisor';
+}
+const FILLED_LABEL = {self:'Self-evaluation', supervisor:'Supervisor', manager:'Manager'};
+function ratingPill(r){
+  const t = r.rating || 'Not yet scored';
+  const cls = t==='Exceptional'?'r-exc':t==='Satisfactory'?'r-sat':t==='Unsatisfactory'?'r-uns':'r-none';
+  return `<span class="pill ${cls}">${esc(t)}</span>`;
+}
+function barCls(v){ return v<3?'lo':v<4?'mid':'hi'; }
+
+document.addEventListener('dfl-auth-ready', (e) => init(e.detail.profile));
+
+async function init(profile){
+  ME = profile;
+  const [ev, ro] = await Promise.all([sb.rpc('get_hr_evaluations'), sb.rpc('get_hr_eval_roster')]);
+  const gate = document.getElementById('gate');
+  const error = ev.error || ro.error;
+  if(error){
+    gate.innerHTML = /not authorised/i.test(error.message||'')
+      ? `<div class="msg">This dashboard is for HR. You're signed in as <b>${esc(profile.full_name||'')}</b>, who isn't set up for HR access.<br>Ask an admin to add you to <code>hr_staff</code>.</div>`
+      : `<div class="msg">Couldn't load evaluations. Try again shortly.</div>`;
+    return;
+  }
+  EVALS = ev.data || [];
+  ROSTER = ro.data || [];
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  fillTeamLeaders();
+  wire();
+  drawKpis();
+  drawList();
+}
+
+function fillTeamLeaders(){
+  const tls = [...new Set([...EVALS, ...ROSTER].map(r=>r.team_leader).filter(Boolean))].sort();
+  ['ftl','dtl'].forEach(id=>{
+    document.getElementById(id).insertAdjacentHTML('beforeend', tls.map(t=>`<option>${esc(t)}</option>`).join(''));
+  });
+}
+
+function wire(){
+  ['fq','fwhen','frating','fsign','fby','ftl','funfiled'].forEach(id=>{
+    document.getElementById(id).addEventListener(id==='fq'?'input':'change', ()=>{ QUICK_ON=null; redraw(); });
+  });
+  ['dq','dstate','dtl'].forEach(id=>document.getElementById(id).addEventListener(id==='dq'?'input':'change', drawDue));
+  document.getElementById('csv').addEventListener('click', exportCsv);
+  document.querySelectorAll('#tab-list th[data-sort]').forEach(th=>th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    SORT = {key:k, dir: SORT.key===k ? -SORT.dir : (k==='created_at'||k==='total_score' ? -1 : 1)};
+    drawList();
+  }));
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+  document.querySelectorAll('.kpi').forEach(b=>b.addEventListener('click', ()=>quick(b.dataset.quick)));
+  document.getElementById('rows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-id]'); if(tr) openDrawer(tr.dataset.id);
+  });
+  document.getElementById('drows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-name]'); if(!tr) return;
+    // Jump to that person's evaluations.
+    resetFilters(); document.getElementById('fq').value = tr.dataset.name; showTab('list');
+  });
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+}
+
+function currentTab(){ return document.querySelector('.tabs button[aria-selected="true"]').dataset.tab; }
+function showTab(t){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===t)));
+  ['list','due','scores'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('hidden', x!==t));
+  document.getElementById('evalFilters').classList.toggle('hidden', t==='due');
+  redraw();
+}
+function redraw(){
+  const t = currentTab();
+  if(t==='list') drawList(); else if(t==='due') drawDue(); else drawScores();
+}
+
+// ---------- KPIs ----------
+const QUICK = {
+  quarter: r => inQuarter(r.created_at),
+  unsat:   r => r.rating==='Unsatisfactory',
+  signoff: r => !signedOff(r),
+  unfiled: r => !r.hr_processed_at
+};
+function dueThisQuarter(p){ return !inQuarter(p.last_eval_at); }
+
+function drawKpis(){
+  const q = EVALS.filter(QUICK.quarter);
+  const scored = q.filter(r=>r.total_score);
+  document.getElementById('kQuarter').textContent = q.length;
+  document.getElementById('kAvg').textContent = scored.length ? (scored.reduce((s,r)=>s+r.total_score,0)/scored.length).toFixed(1)+' / 60' : '–';
+  document.getElementById('kDue').textContent = ROSTER.filter(dueThisQuarter).length + ' of ' + ROSTER.length;
+  document.getElementById('kUnsat').textContent = EVALS.filter(QUICK.unsat).length;
+  document.getElementById('kSign').textContent = EVALS.filter(QUICK.signoff).length;
+  document.getElementById('kUnfiled').textContent = EVALS.filter(QUICK.unfiled).length;
+}
+
+function resetFilters(){
+  ['fq','frating','fsign','fby','ftl'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fwhen').value='all';
+  document.getElementById('funfiled').checked=false;
+  QUICK_ON = null;
+}
+function quick(k){
+  if(k==='due'){ document.getElementById('dstate').value='due'; showTab('due'); return; }
+  resetFilters();
+  QUICK_ON = k;
+  showTab('list');
+}
+
+// ---------- Evaluations list ----------
+function filtered(){
+  const q = document.getElementById('fq').value.trim().toLowerCase();
+  const when = document.getElementById('fwhen').value;
+  const rating = document.getElementById('frating').value;
+  const sign = document.getElementById('fsign').value;
+  const by = document.getElementById('fby').value;
+  const tl = document.getElementById('ftl').value;
+  const unfiled = document.getElementById('funfiled').checked;
+  return EVALS.filter(r=>{
+    if(QUICK_ON && !QUICK[QUICK_ON](r)) return false;
+    if(when==='quarter' && !inQuarter(r.created_at)) return false;
+    if(when==='lastq' && !inLastQuarter(r.created_at)) return false;
+    if(when==='year' && new Date(r.created_at) < Y0) return false;
+    if(rating && r.rating!==rating) return false;
+    if(sign==='complete' && !signedOff(r)) return false;
+    if(sign==='pending' && signedOff(r)) return false;
+    if(by && filledBy(r)!==by) return false;
+    if(tl && r.team_leader!==tl) return false;
+    if(unfiled && r.hr_processed_at) return false;
+    if(q){
+      const hay = [r.employee_name, r.reviewed_by, r.area, r.team_leader, r.job_position, r.review_period].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function sortVal(r,k){
+  if(k==='filled') return filledBy(r);
+  if(k==='signed') return signedOff(r) ? 1 : 0;
+  const v = r[k]; return typeof v==='string' ? v.toLowerCase() : v;
+}
+
+function drawList(){
+  const list = filtered().sort((a,b)=>{
+    const x=sortVal(a,SORT.key), y=sortVal(b,SORT.key);
+    if(x==y) return (b.created_at||'').localeCompare(a.created_at||'');
+    if(x==null) return 1; if(y==null) return -1;
+    return (x<y?-1:1)*SORT.dir;
+  });
+  const quickName = QUICK_ON ? document.querySelector(`.kpi[data-quick="${QUICK_ON}"] .l`).textContent : '';
+  document.getElementById('count').innerHTML = `${list.length} evaluation${list.length===1?'':'s'}` +
+    (quickName ? ` · showing <b>${esc(quickName)}</b> — change any filter to clear` : '');
+  document.querySelectorAll('#tab-list th[data-sort]').forEach(th=>{
+    th.textContent = th.textContent.replace(/ [▲▼]$/,'') + (th.dataset.sort===SORT.key ? (SORT.dir>0?' ▲':' ▼') : '');
+  });
+  const tb = document.getElementById('rows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="8" class="empty">${EVALS.length?'No evaluations match these filters.':'No evaluations have been submitted yet.'}</td></tr>`; return; }
+  tb.innerHTML = list.map(r=>`<tr class="click" data-id="${esc(r.id)}">
+    <td><div class="who">${esc(r.employee_name||'—')}</div><div class="sub">${esc(ROLE_LABEL[r.roster_role]||r.job_position||'')}${r.area?' · '+esc(r.area):''}${r.rep_id?'':' · <span class="flag" title="Name doesn\'t match anyone on the roster">not on roster</span>'}</div></td>
+    <td data-l="Period">${esc(r.review_period||'—')}</td>
+    <td data-l="Filled by">${esc(FILLED_LABEL[filledBy(r)])}${r.reviewed_by?`<div class="sub">${esc(r.reviewed_by)}</div>`:''}</td>
+    <td data-l="Score" class="num"><b>${r.total_score!=null?esc(r.total_score):'—'}</b><span class="sub"> / 60</span></td>
+    <td data-l="Rating">${ratingPill(r)}</td>
+    <td data-l="Sign-off"><span class="dots" title="Employee · Supervisor · Manager"><i class="${r.employee_signed?'on':''}"></i><i class="${r.supervisor_signed?'on':''}"></i><i class="${r.manager_signed?'on':''}"></i></span>
+      <div class="sub">${signedOff(r)?'Signed off':'Awaiting'}</div></td>
+    <td data-l="Submitted" class="num">${fmtDate(r.created_at)}</td>
+    <td data-l="HR">${r.hr_processed_at?`<span class="done">✓ Filed</span>`:'<span class="todo">Not filed</span>'}</td>
+  </tr>`).join('');
+}
+
+// ---------- Who's due ----------
+function drawDue(){
+  const q = document.getElementById('dq').value.trim().toLowerCase();
+  const st = document.getElementById('dstate').value;
+  const tl = document.getElementById('dtl').value;
+  const list = ROSTER.filter(p=>{
+    if(st==='due' && !dueThisQuarter(p)) return false;
+    if(st==='never' && p.eval_count>0) return false;
+    if(st==='done' && dueThisQuarter(p)) return false;
+    if(tl && p.team_leader!==tl) return false;
+    if(q && ![p.name,p.area,p.team_leader].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=> (a.last_eval_at||'').localeCompare(b.last_eval_at||'') || a.name.localeCompare(b.name));
+  document.getElementById('dcount').textContent = `${list.length} of ${ROSTER.length} Brand Ambassadors · quarter is ${QNAME}`;
+  const tb = document.getElementById('drows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="5" class="empty">Nobody matches.</td></tr>`; return; }
+  tb.innerHTML = list.map(p=>`<tr class="${p.eval_count?'click':''}" ${p.eval_count?`data-name="${esc(p.name)}" title="Show ${esc(p.name)}'s evaluations"`:''}>
+    <td><div class="who">${esc(p.name)}</div><div class="sub">${esc(ROLE_LABEL[p.role]||p.role)}${p.area?' · '+esc(p.area):''}</div></td>
+    <td data-l="Team leader">${esc(p.team_leader||'—')}</td>
+    <td data-l="Last evaluated" class="num">${p.last_eval_at?fmtDate(p.last_eval_at):'<span class="flag">Never</span>'}</td>
+    <td data-l="Last result">${p.last_rating?`${ratingPill({rating:p.last_rating})} <span class="sub">${esc(p.last_total)}/60</span>`:'<span class="sub">—</span>'}</td>
+    <td data-l="Evaluations" class="num">${p.eval_count||0}</td>
+  </tr>`).join('');
+}
+
+// ---------- Team scores ----------
+function drawScores(){
+  const list = filtered();
+  document.getElementById('scount').textContent = `Averaged over ${list.length} evaluation${list.length===1?'':'s'}`;
+  const el = document.getElementById('crits');
+  if(!list.length){ el.innerHTML = `<div class="empty">No evaluations match these filters.</div>`; return; }
+  const rows = CRITERIA.map(([k,label])=>{
+    const vals = list.map(r=>r.scores && r.scores[k]).filter(v=>v!=null);
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    return {label, avg};
+  }).sort((a,b)=>(a.avg??9)-(b.avg??9));
+  el.innerHTML = rows.map(c=>`<div class="crit">
+    <div class="lbl">${esc(c.label)}</div>
+    <div class="bar"><span class="${c.avg!=null?barCls(c.avg):''}" style="width:${c.avg!=null?(c.avg/5*100).toFixed(0):0}%"></span></div>
+    <div class="v">${c.avg!=null?c.avg.toFixed(1):'—'}</div>
+  </div>`).join('');
+}
+
+// ---------- Detail drawer ----------
+function openDrawer(id){
+  const r = EVALS.find(x=>x.id===id); if(!r) return;
+  const dr = document.getElementById('drawer');
+  const row = (k,v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+  const signLine = (who, on) => `${on?'✅':'⬜'} ${who}`;
+  // https only: scan_file_url comes from a table anyone can write to, so a
+  // javascript: URL must never become a live link (same rule as merch-dashboard).
+  const scan = /^https:\/\//i.test(r.scan_file_url||'') ? r.scan_file_url : '';
+  dr.innerHTML = `
+    <button class="x" aria-label="Close" onclick="closeDrawer()">×</button>
+    <h3>${esc(r.employee_name||'Evaluation')}</h3>
+    <div class="sub">${esc(ROLE_LABEL[r.roster_role]||r.job_position||'')}${r.area?' · '+esc(r.area):''}${r.team_leader?' · TL '+esc(r.team_leader):''}</div>
+    <div class="score-hero"><b>${r.total_score!=null?esc(r.total_score):'—'}</b><span>/ 60</span> ${ratingPill(r)}</div>
+    <dl class="dl">
+      ${row('Review period', esc(r.review_period||''))}
+      ${row('Filled by', esc(FILLED_LABEL[filledBy(r)]) + (r.reviewed_by?' · '+esc(r.reviewed_by):''))}
+      ${row('Submitted', fmtTs(r.created_at))}
+      <dt>Sign-off</dt><dd>${signLine('Employee', r.employee_signed)}<br>${signLine('Supervisor', r.supervisor_signed)}<br>${signLine('Manager', r.manager_signed)}</dd>
+      ${row('Paper scan', scan?`<a href="${esc(scan)}" target="_blank" rel="noopener">Open scan</a>`:'')}
+      ${r.rep_id?'':row('Roster', '<span class="flag">Name doesn\'t match anyone on the staff roster</span>')}
+    </dl>
+    <div class="sect">Scores</div>
+    ${CRITERIA.map(([k,label])=>{
+      const v = r.scores ? r.scores[k] : null;
+      const cm = r.comments ? r.comments[k] : null;
+      return `<div class="dcrit">
+        <div class="top"><span>${esc(label)}</span><b>${v!=null?esc(v)+' / 5':'—'}</b></div>
+        <div class="bar"><span class="${v!=null?barCls(v):''}" style="width:${v!=null?v/5*100:0}%"></span></div>
+        ${cm?`<div class="cm">“${esc(cm)}”</div>`:''}
+      </div>`;
+    }).join('')}
+    ${r.employee_feedback?`<div class="sect">Employee's comments</div><div class="quote">${esc(r.employee_feedback)}</div>`:''}
+    ${r.notes?`<div class="sect">Notes</div><div class="quote">${esc(r.notes)}</div>`:''}
+    <div class="sect">HR</div>
+    <div class="hrbox">
+      ${r.hr_processed_at
+        ? `<div class="done">✓ Filed by ${esc(r.hr_processed_by||'HR')} · ${fmtTs(r.hr_processed_at)}</div>`
+        : `<div class="todo">Not yet filed by HR</div>`}
+      <textarea id="hrNote" placeholder="HR note (optional) — e.g. filed to personnel record, follow-up booked…">${esc(r.hr_note||'')}</textarea>
+      <div class="row">
+        ${r.hr_processed_at
+          ? `<button class="btn" onclick="saveHr('${esc(r.id)}', false)">Mark not filed</button>
+             <button class="btn primary" onclick="saveHr('${esc(r.id)}', true)">Save note</button>`
+          : `<button class="btn" onclick="saveHr('${esc(r.id)}', false)">Save note</button>
+             <button class="btn primary" onclick="saveHr('${esc(r.id)}', true)">Mark filed</button>`}
+      </div>
+      <div class="err hidden" id="hrErr"></div>
+    </div>`;
+  dr.classList.remove('hidden');
+  document.getElementById('scrim').classList.remove('hidden');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.add('hidden');
+  document.getElementById('scrim').classList.add('hidden');
+}
+
+async function saveHr(id, processed){
+  const r = EVALS.find(x=>x.id===id); if(!r) return;
+  const note = document.getElementById('hrNote').value.trim();
+  const err = document.getElementById('hrErr');
+  document.querySelectorAll('.hrbox .btn').forEach(b=>b.disabled=true);
+  const { error } = await sb.rpc('hr_mark_evaluation', { p_id:id, p_processed:processed, p_note:note });
+  if(error){
+    err.textContent = 'Could not save: '+(error.message||error); err.classList.remove('hidden');
+    document.querySelectorAll('.hrbox .btn').forEach(b=>b.disabled=false);
+    return;
+  }
+  if(processed && !r.hr_processed_at){ r.hr_processed_at = new Date().toISOString(); r.hr_processed_by = ME.full_name; }
+  if(!processed){ r.hr_processed_at = null; r.hr_processed_by = null; }
+  r.hr_note = note || r.hr_note;
+  drawKpis(); redraw();
+  openDrawer(id);
+}
+
+// ---------- CSV of the filtered evaluations, every criterion included ----------
+function exportCsv(){
+  const cols = [
+    ['Employee', r=>r.employee_name], ['Position', r=>r.job_position], ['Area', r=>r.area], ['Team leader', r=>r.team_leader],
+    ['Review period', r=>r.review_period], ['Filled by', r=>FILLED_LABEL[filledBy(r)]], ['Reviewed by', r=>r.reviewed_by],
+    ['Submitted', r=>(r.created_at||'').slice(0,10)],
+    ...CRITERIA.map(([k,label])=>[label, r=>r.scores&&r.scores[k]]),
+    ['Total score', r=>r.total_score], ['Rating', r=>r.rating],
+    ['Employee signed', r=>r.employee_signed?'Y':'N'], ['Supervisor signed', r=>r.supervisor_signed?'Y':'N'], ['Manager signed', r=>r.manager_signed?'Y':'N'],
+    ['Employee comments', r=>r.employee_feedback], ['HR filed', r=>r.hr_processed_at?r.hr_processed_at.slice(0,10):''], ['HR note', r=>r.hr_note]
+  ];
+  const q = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [cols.map(c=>q(c[0])).join(','), ...filtered().map(r=>cols.map(c=>q(c[1](r))).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'}));
+  a.download = `dfl-evaluations-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+</script>
+</body>
+</html>

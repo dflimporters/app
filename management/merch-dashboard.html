@@ -1616,7 +1616,12 @@ function evalIsComplete(r){ return !!(r.employee_signed && r.supervisor_signed) 
 
 async function loadEvals(){
   try {
-    evalRows = await supa(`merchandiser_evaluations?select=*&order=created_at.desc,id.desc`);
+    // Signed-in client, not supa(): merchandiser_evaluations is readable only by
+    // is_manager()/is_hr() since lock_down_merchandiser_evaluations — the anon key gets nothing.
+    const { data, error } = await sb.from('merchandiser_evaluations').select('*')
+      .order('created_at', {ascending:false}).order('id', {ascending:false});
+    if(error) throw error;
+    evalRows = data || [];
   } catch(e) {
     toast('Evaluations load failed: '+e.message, 'error');
     evalRows = [];

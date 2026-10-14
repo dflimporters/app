@@ -167,7 +167,9 @@ const DFL_PAGE_ROLES = {
   // Postgres by is_hr() (admins, role 'hr', and anyone in public.hr_staff —
   // Paula, who is 'management'), so other management users get through this
   // door but see a "not set up for HR" message.
-  '/hr-leave.html': ['admin', 'management', 'hr']
+  '/hr-leave.html':       ['admin', 'management', 'hr'],
+  // Sister page — Brand Ambassador evaluations, gated the same way (is_hr()).
+  '/hr-evaluations.html': ['admin', 'management', 'hr']
 };
 
 // '/', '/foo/' and '/foo/index.html' all name the same page. Query strings and

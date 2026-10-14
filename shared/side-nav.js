@@ -130,7 +130,8 @@
       items: [
         // hrOnly: routes.js admits admin/management/hr, but only is_hr()
         // (admins, role hr, public.hr_staff) gets data — see hrCheck() below.
-        { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true }
+        { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true },
+        { label: 'HR Evaluations', href: '/hr-evaluations.html', icon: '📋', hrOnly: true }
       ]
     },
     {
