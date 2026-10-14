@@ -1023,6 +1023,13 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr">›</div>
     </button>
 
+    <!-- Shown only while this TL is covering a rep's territory (rep_cover). -->
+    <a class="dash-link" id="tl-rep-cover-link" href="/index.html" style="display:none;border-color:var(--navy);background:var(--blue-lt);margin-bottom:16px">
+      <div class="dash-link-ico">🤝</div>
+      <div><div class="dash-link-title" style="color:var(--navy)" id="tl-rep-cover-title">Rep accounts</div><div class="dash-link-sub">Customers, targets, order history & contacts</div></div>
+      <div class="dash-link-arr" style="color:var(--navy)">›</div>
+    </a>
+
     <button class="dash-link" onclick="openTLTeamStores()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">🏪</div>
       <div><div class="dash-link-title">Team Stores</div><div class="dash-link-sub">Target & sales for every store across your team</div></div>
@@ -1289,6 +1296,18 @@ async function restAll(path){
     if(rows.length<PAGE) break;
   }
   return out;
+}
+
+// Territory cover: a TL filling in for a rep (rep_cover) gets a link into the
+// rep app, which loads that rep's accounts for them. Silent if not covering.
+async function showRepCoverLink(){
+  try{
+    const covers=await restRpc('get_my_rep_cover');
+    if(!Array.isArray(covers)||!covers.length) return;
+    document.getElementById('tl-rep-cover-title').textContent=
+      'Covering for '+covers.map(c=>c.name).join(', ');
+    document.getElementById('tl-rep-cover-link').style.display='flex';
+  }catch(e){ console.warn('rep cover lookup failed',e); }
 }
 
 async function restRpc(fn,params={}){
@@ -1576,6 +1595,7 @@ async function startApp(profile){
     }else if(cu.role==='team_leader'){
       if(!cu.id){ bootError('Your staff record is not linked yet — ask an admin to link your account.'); return; }
       await launchTL(cu);
+      showRepCoverLink();
     }else if(cu.role==='tl_merch'){
       if(!cu.id){ bootError('Your staff record is not linked yet — ask an admin to link your account.'); return; }
       await launchTLMerch(cu);

@@ -79,7 +79,10 @@ const DFL_HOME_BY_ROLE = {
 // provisioned staff member can open it. That means a NEW guarded page is open
 // to all roles until you add it here.
 const DFL_PAGE_ROLES = {
-  '/index.html':           ['admin', 'manager', 'rep', 'rep_management'],
+  // Team leaders are admitted so one can cover a rep's territory (rep_cover /
+  // get_my_rep_cover()). Without an active cover the page shows its
+  // "no personal sales numbers" state — their home stays /merch.html.
+  '/index.html':           ['admin', 'manager', 'rep', 'rep_management', 'team_leader', 'tl_merch'],
   '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'relief_merchandiser'],
   // Quarterly Brand Ambassador evaluation form, framed by merch.html (the guard
   // no-ops in the frame; this entry decides who can open it directly).
@@ -91,13 +94,13 @@ const DFL_PAGE_ROLES = {
   '/admin/events.html':    ['admin', 'manager'],
   '/specials-upload.html': ['admin', 'manager'],
   '/bad-goods.html':       ['rep', 'rep_management', 'admin', 'manager'],
-  '/stock.html':           ['rep', 'rep_management', 'admin', 'manager'],
+  '/stock.html':           ['rep', 'rep_management', 'admin', 'manager', 'team_leader', 'tl_merch'],
   // Deal sheet: everyone who sells can read it; uploading is limited to the
   // can_manage_deals() roles (admin, manager, rep_management) — the page shows
   // the upload panel only to those, and save_deal_sheet() re-checks server-side.
   // Catalogue: open to every role that can sign in (the PDF itself is a public file).
   '/catalogue.html':       ['rep', 'rep_management', 'admin', 'manager', 'merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser', 'warehouse', 'management'],
-  '/deal-sheet.html':      ['rep', 'rep_management', 'admin', 'manager'],
+  '/deal-sheet.html':      ['rep', 'rep_management', 'admin', 'manager', 'team_leader', 'tl_merch'],
   '/planograms.html':      ['merchandiser', 'team_leader', 'tl_merch', 'relief_merchandiser', 'rep', 'rep_management', 'manager', 'admin'],
   '/specials.html':        ['admin', 'manager', 'rep', 'merchandiser', 'team_leader', 'tl_merch', 'warehouse', 'relief_merchandiser', 'rep_management'],
   '/pending.html':         ['pending'],
