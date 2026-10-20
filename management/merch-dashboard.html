@@ -246,6 +246,7 @@ tbody tr.clickable{cursor:pointer}
   <div class="main-tab" id="navTL" onclick="showTL()">🏆 Team Leader Incentive</div>
   <div class="main-tab" id="navPayroll" onclick="showPayroll()">💰 HR Payroll</div>
   <div class="main-tab" id="navVisits" onclick="showVisits()">📍 Visit Log</div>
+  <div class="main-tab" id="navAudits" onclick="showAudits()">✅ Store Audits</div>
   <div class="main-tab" id="navEvals" onclick="showEvals()">📋 Evaluations</div>
   <div class="main-tab" id="navRelief" onclick="showRelief()">🔁 Relief Coverage</div>
 </div>
@@ -420,6 +421,57 @@ tbody tr.clickable{cursor:pointer}
         </tr></thead>
         <tbody id="evalTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- STORE AUDITS — TL Win the Week / Win the Quarter scorecard (get_tl_kpi) and
+     a feed of every audit, newest first. Refreshes every 60s while open so an
+     audit shows up within a minute of the TL submitting it. -->
+<div id="auditsSection" style="display:none">
+  <div class="content">
+    <div class="vd-section-title" style="margin:0 0 8px">Team leader scorecard · <span id="aud-period">—</span></div>
+    <div class="table-wrap" style="border-radius:9px;margin-bottom:22px">
+      <table>
+        <thead><tr>
+          <th>Team leader</th><th>Area</th><th class="td-num">This week</th><th>Week</th><th class="td-num">Quarter</th><th class="td-num">On pace for</th><th class="td-num">Weeks won</th><th class="td-num">Evaluations</th><th>Quarter</th>
+        </tr></thead>
+        <tbody id="audKpiBody"><tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="topbar" style="border-radius:9px 9px 0 0;border:1px solid var(--border);border-bottom:none">
+      <div class="search-wrap" style="max-width:260px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="audSearch" placeholder="Search store, BA or TL…" oninput="renderAuditTable()">
+      </div>
+      <select id="audTlFilter" onchange="renderAuditTable()" style="width:180px;padding-left:9px"><option value="">All team leaders</option></select>
+      <span id="audUpdated" style="margin-left:auto;font-size:10px;color:var(--muted)"></span>
+    </div>
+    <div class="table-wrap" style="border-radius:0 0 9px 9px">
+      <table>
+        <thead><tr>
+          <th>Submitted</th><th>Store</th><th>Brand Ambassador</th><th>Team leader</th><th class="td-num">Score</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="audTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT DETAIL MODAL -->
+<div class="modal-overlay" id="audit-detail-modal" onclick="if(event.target===this)closeAuditDetail()">
+  <div class="modal" style="width:600px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title" id="ad-name">—</div>
+    <div class="modal-sub" id="ad-sub">—</div>
+    <div class="vd-row" id="ad-meta"></div>
+    <div class="vd-section-title">Scorecard</div>
+    <div id="ad-criteria" style="margin-bottom:14px"></div>
+    <div id="ad-notes-wrap" style="display:none">
+      <div class="vd-section-title">Overall notes</div>
+      <div class="vd-notes" id="ad-notes"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-btn-outline" onclick="closeAuditDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -1616,7 +1668,12 @@ function evalIsComplete(r){ return !!(r.employee_signed && r.supervisor_signed) 
 
 async function loadEvals(){
   try {
-    evalRows = await supa(`merchandiser_evaluations?select=*&order=created_at.desc,id.desc`);
+    // Signed-in client, not supa(): evaluations are readable only by
+    // is_manager()/is_hr(), so the anon key gets zero rows back.
+    const { data, error } = await sb.from('merchandiser_evaluations').select('*')
+      .order('created_at', { ascending: false }).order('id', { ascending: false });
+    if(error) throw new Error(error.message);
+    evalRows = data || [];
   } catch(e) {
     toast('Evaluations load failed: '+e.message, 'error');
     evalRows = [];
@@ -1715,11 +1772,131 @@ function exportEvalsCSV(){
 }
 
 // ══════════════════════════════════════════════
+// STORE AUDITS — TL KPI scorecard + audit feed
+// ══════════════════════════════════════════════
+const AUDIT_CRITERIA = [
+  ['shelves_clean','Shelf cleanliness','shelves_clean_notes'],
+  ['shelf_presence','Planogram & shelf presence','shelf_presence_notes'],
+  ['facing_correct','Facing & alignment','facing_notes'],
+  ['rotation_correct','Stock rotation (FIFO)','rotation_notes'],
+  ['pricing_correct','Pricing accuracy','pricing_notes'],
+  ['pos_materials','POS & promotional display','pos_notes']
+];
+let auditRows = [];
+let auditTimer = null;
+
+// The same average the TL sees on submit: mean of the scored criteria, out of 5.
+function auditPct(r){
+  const s = AUDIT_CRITERIA.map(c=>r[c[0]]).filter(v=>v>0);
+  return s.length ? Math.round(s.reduce((a,v)=>a+v,0)/s.length/5*100) : null;
+}
+function auditPill(p){
+  if(p==null) return '<span class="pill pill-grey">—</span>';
+  return `<span class="pill ${p>=80?'pill-green':p>=60?'pill-amber':'pill-red'}">${p}%</span>`;
+}
+
+async function loadAudits(){
+  try {
+    const [kpi, rows] = await Promise.all([
+      sb.rpc('get_tl_kpi', {}),
+      sb.from('merch_store_audits').select('*').order('created_at', { ascending: false }).limit(300)
+    ]);
+    if(kpi.error) throw new Error(kpi.error.message);
+    if(rows.error) throw new Error(rows.error.message);
+    renderAuditKpi(kpi.data || []);
+    auditRows = rows.data || [];
+    const sel = document.getElementById('audTlFilter'), cur = sel.value;
+    const tls = [...new Set(auditRows.map(r=>r.tl_name).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">All team leaders</option>' + tls.map(t=>`<option${t===cur?' selected':''}>${escH(t)}</option>`).join('');
+    renderAuditTable();
+    document.getElementById('audUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-JM',{hour:'numeric',minute:'2-digit'}) + ' · refreshes every minute';
+  } catch(e) {
+    toast('Store audits load failed: '+e.message, 'error');
+  }
+}
+
+function renderAuditKpi(list){
+  const body = document.getElementById('audKpiBody');
+  if(!list.length){ body.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">No team leaders.</td></tr>'; return; }
+  const k0 = list[0];
+  document.getElementById('aud-period').textContent =
+    `${k0.quarter_label} · week ${k0.weeks_elapsed} of ${k0.weeks_in_quarter} · target ${k0.week_target}/week, ${k0.quarter_target}/quarter`;
+  body.innerHTML = list.map(k=>{
+    const weeksWon = (k.weeks||[]).filter(w=>w.done>=k.week_target).length;
+    const pace = k.weeks_elapsed * k.week_target;
+    const evDone = (k.team||[]).filter(b=>b.evaluated_at).length, evAll = (k.team||[]).length;
+    const qWon = k.quarter_done >= k.quarter_target && evDone === evAll;
+    const weekPill = k.week_done >= k.week_target ? '<span class="pill pill-green">WON</span>'
+                   : `<span class="pill pill-amber">${k.week_target - k.week_done} to go</span>`;
+    const qPill = qWon ? '<span class="pill pill-green">WON</span>'
+                : k.quarter_done >= pace && evDone === evAll ? '<span class="pill pill-green">On track</span>'
+                : '<span class="pill pill-red">Behind</span>';
+    return `<tr>
+      <td>${escH(k.tl_name)}</td>
+      <td>${escH(k.area||'—')}</td>
+      <td class="td-num">${k.week_done}/${k.week_target}</td>
+      <td>${weekPill}</td>
+      <td class="td-num">${k.quarter_done}/${k.quarter_target}</td>
+      <td class="td-num">${pace}</td>
+      <td class="td-num">${weeksWon}/${k.weeks_elapsed}</td>
+      <td class="td-num">${evDone}/${evAll}</td>
+      <td>${qPill}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAuditTable(){
+  const q = (document.getElementById('audSearch').value||'').toLowerCase();
+  const tl = document.getElementById('audTlFilter').value;
+  const body = document.getElementById('audTableBody');
+  const rows = auditRows.filter(r=>{
+    if(tl && r.tl_name!==tl) return false;
+    if(q && ![r.store_name,r.merchandiser_name,r.tl_name].some(v=>(v||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">No audits match.</td></tr>'; return; }
+  body.innerHTML = rows.map(r=>{
+    const when = r.created_at ? new Date(r.created_at).toLocaleString('en-JM',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : (r.audit_date||'—');
+    const note = r.overall_notes || '';
+    return `<tr class="clickable" data-id="${escH(r.id)}" onclick="openAuditDetail(this.dataset.id)">
+      <td class="td-id">${escH(when)}</td>
+      <td>${escH(r.store_name||r.customer_id||'—')}</td>
+      <td>${escH(r.merchandiser_name||'—')}</td>
+      <td>${escH(r.tl_name||'—')}</td>
+      <td class="td-num">${auditPill(auditPct(r))}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${escH(note)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openAuditDetail(id){
+  const r = auditRows.find(v=>String(v.id)===String(id));
+  if(!r) return;
+  document.getElementById('ad-name').textContent = r.store_name || 'Store audit';
+  document.getElementById('ad-sub').textContent = `${r.audit_date||''} · audited by ${r.tl_name||'—'}`;
+  document.getElementById('ad-meta').innerHTML = `
+    <div class="vd-item"><b>Brand Ambassador</b>${escH(r.merchandiser_name||'—')}</div>
+    <div class="vd-item"><b>Overall</b>${auditPill(auditPct(r))}</div>
+    <div class="vd-item"><b>Submitted</b>${r.created_at?escH(new Date(r.created_at).toLocaleString('en-JM')):'—'}</div>`;
+  document.getElementById('ad-criteria').innerHTML = AUDIT_CRITERIA.map(([key,label,nk])=>`<div class="ev-crit">
+      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${r[key]!=null?escH(r[key])+'/5':'—'}</div></div>
+      ${r[nk]?`<div class="ev-crit-comment">${escH(r[nk])}</div>`:''}
+    </div>`).join('');
+  const nw = document.getElementById('ad-notes-wrap');
+  if(r.overall_notes){ nw.style.display='block'; document.getElementById('ad-notes').textContent = r.overall_notes; }
+  else nw.style.display='none';
+  document.getElementById('audit-detail-modal').classList.add('open');
+}
+function closeAuditDetail(){ document.getElementById('audit-detail-modal').classList.remove('open'); }
+
+// ══════════════════════════════════════════════
 // MAIN TAB SWITCHING
 // ══════════════════════════════════════════════
 function setMainTab(tab){
   activeTab = tab;
-  ['navMerch','navTL','navPayroll','navVisits','navEvals','navRelief'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  clearInterval(auditTimer); auditTimer = null;
+  ['navMerch','navTL','navPayroll','navVisits','navAudits','navEvals','navRelief'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('auditsSection').style.display = tab==='audits' ? 'block' : 'none';
   document.getElementById('merchSection').style.display = tab==='merch' ? 'block' : 'none';
   document.getElementById('tlSection').style.display = tab==='tl' ? 'block' : 'none';
   document.getElementById('payrollSection').style.display = tab==='payroll' ? 'flex' : 'none';
@@ -1732,6 +1909,7 @@ function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').c
 function showTL(){ setMainTab('tl'); document.getElementById('navTL').classList.add('active'); document.getElementById('headerSub').textContent='2026 · TEAM LEADER INCENTIVE'; renderTLSection(); }
 function showPayroll(){ setMainTab('payroll'); document.getElementById('navPayroll').classList.add('active'); document.getElementById('headerSub').textContent='2026 · HR PAYROLL · CONFIDENTIAL'; renderPayroll(); }
 function showVisits(){ setMainTab('visits'); document.getElementById('navVisits').classList.add('active'); document.getElementById('headerSub').textContent='2026 · VISIT LOG'; loadVisits(); setTimeout(()=>{ if(visitMapInstance) visitMapInstance.invalidateSize(); },50); }
+function showAudits(){ setMainTab('audits'); document.getElementById('navAudits').classList.add('active'); document.getElementById('headerSub').textContent='STORE AUDITS · WIN THE WEEK / WIN THE QUARTER'; loadAudits(); auditTimer=setInterval(()=>{ if(!document.hidden) loadAudits(); },60000); }
 function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR EVALUATIONS'; if(!evalRows.length) loadEvals(); }
 function showRelief(){ setMainTab('relief'); document.getElementById('navRelief').classList.add('active'); document.getElementById('headerSub').textContent='2026 · RELIEF COVERAGE & PAY'; const f=document.getElementById('reliefFrame'); if(!f.getAttribute('src')) f.src='/management/relief-coverage.html'; }
 
