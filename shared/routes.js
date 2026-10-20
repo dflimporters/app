@@ -161,6 +161,8 @@ const DFL_PAGE_ROLES = {
   '/weekly-reports.html': ['manager', 'admin', 'management', 'rep_management'],
   '/report-upload.html':  ['manager', 'admin', 'management', 'rep_management'],
   '/report-viewer.html':  ['manager', 'admin', 'management', 'rep_management'],
+  // CM & KAM weekly plan/update/recap tool — the shell's third tab.
+  '/DFL_Weekly_CM_KAM_Reports.html': ['manager', 'admin', 'management', 'rep_management'],
 
   // ---- HR ----
   // Every leave request from both leave systems. The data itself is gated in

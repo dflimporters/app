@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFL Weekly Reporting — CMs & KAMs</title>
+<!-- Hide until the guard confirms access. Must be the FIRST style rule. -->
+<style>body { visibility: hidden; }</style>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -154,25 +156,27 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============== SUPABASE CLIENT ============== */
-const SUPABASE_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
+/* ============== SUPABASE CLIENT ==============
+   Named CMKAM_SB_* (not SUPABASE_URL) so they don't collide with the consts
+   declared by /shared/supabase-client.js, loaded below for the auth guard. */
+const CMKAM_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
+const CMKAM_SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
 
 async function sbSelect(table, filters, select){
   const params = new URLSearchParams();
   if(select) params.set('select', select);
   Object.keys(filters).forEach(k=>params.set(k, 'eq.'+filters[k]));
-  const resp = await fetch(SUPABASE_URL+'/rest/v1/'+table+'?'+params.toString(), {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer '+SUPABASE_ANON_KEY }
+  const resp = await fetch(CMKAM_SB_URL+'/rest/v1/'+table+'?'+params.toString(), {
+    headers: { apikey: CMKAM_SB_KEY, Authorization: 'Bearer '+CMKAM_SB_KEY }
   });
   if(!resp.ok) throw new Error('Supabase error '+resp.status+': '+(await resp.text()));
   return resp.json();
 }
 async function sbUpsert(table, record, onConflictCols){
-  const resp = await fetch(SUPABASE_URL+'/rest/v1/'+table+'?on_conflict='+onConflictCols, {
+  const resp = await fetch(CMKAM_SB_URL+'/rest/v1/'+table+'?on_conflict='+onConflictCols, {
     method:'POST',
     headers:{
-      apikey: SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY,
+      apikey: CMKAM_SB_KEY, Authorization:'Bearer '+CMKAM_SB_KEY,
       'Content-Type':'application/json',
       'Prefer':'resolution=merge-duplicates,return=minimal'
     },
@@ -181,9 +185,9 @@ async function sbUpsert(table, record, onConflictCols){
   if(!resp.ok) throw new Error('Supabase error '+resp.status+': '+(await resp.text()));
 }
 async function sbRpc(fnName, params){
-  const resp = await fetch(SUPABASE_URL+'/rest/v1/rpc/'+fnName, {
+  const resp = await fetch(CMKAM_SB_URL+'/rest/v1/rpc/'+fnName, {
     method:'POST',
-    headers:{ apikey: SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+    headers:{ apikey: CMKAM_SB_KEY, Authorization:'Bearer '+CMKAM_SB_KEY, 'Content-Type':'application/json' },
     body: JSON.stringify(params)
   });
   if(!resp.ok) throw new Error('Supabase error '+resp.status+': '+(await resp.text()));
@@ -1085,5 +1089,9 @@ function generateRecapSlide(){
 /* ============== INIT ============== */
 render();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
 </body>
 </html>

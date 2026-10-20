@@ -798,15 +798,15 @@ function openOrders(bucket, label){
     </div>`}
     ${rows.length? rows.map(o=>{
       const age = o.order_date? Math.round((today-new Date(o.order_date))/86400000) : null;
-      const tapBack = isBack && o.order_nbr;
+      const tapOrd = !isCred && o.order_nbr;
       const tapCred = isCred && o.customer_id;
-      const tappable = tapBack || tapCred;
-      const onclick = tapBack
-        ? `openBackorderItems('${encQ(o.order_nbr)}','${encQ(o.customer_name)}')`
+      const tappable = tapOrd || tapCred;
+      const onclick = tapOrd
+        ? `openOrderItems('${encQ(o.order_nbr)}','${encQ(o.customer_name)}','${bucket}','${encQ(o.status)}','${+o.order_total||0}')`
         : tapCred
         ? `openCreditNoteItems('${encQ(o.customer_id)}','${encQ(o.customer_name)}')`
         : '';
-      const hint = tapBack ? 'See backordered items ›' : tapCred ? 'See credit note items ›' : '';
+      const hint = tapOrd ? (isBack ? 'See backordered items ›' : 'See what\'s on the order ›') : tapCred ? 'See credit note items ›' : '';
       return `<div class="cust ${tappable?'tap':''}" ${tappable?`onclick="${onclick}"`:''}>
         <div class="crow1">
           <div>
@@ -822,53 +822,73 @@ function openOrders(bucket, label){
   window.scrollTo(0,0);
 }
 
-/* ---------- Back Order line-item detail ----------
+/* ---------- Order line-item detail (Open / Shipping / On Hold / Back Order) ----------
    so_ordered_items has RLS disabled (known, pre-existing — see CLAUDE.md),
    so this anon-key read works the same as everywhere else in this file.
-   Value per line matches the bucket total's own formula (open_qty*unit_price,
-   not ext_price, which is the full line value including already-shipped qty). */
-async function openBackorderItems(orderNbrEnc, customerNameEnc){
-  const orderNbr=decodeURIComponent(orderNbrEnc), customerName=decodeURIComponent(customerNameEnc);
-  showBackorderModal(orderNbr, customerName, null);
+   Open / Shipping / Back Order: the bucket totals come from so_ordered_items
+   itself (refresh_rep_orders_cache: open lines in that status, open_qty*unit_price),
+   so the same filter and formula here ties out to the figure on the list.
+   On Hold: the bucket comes from the sales_orders header instead, whose
+   order_total includes 15% GCT, and the line rows' status often lags the header
+   (a Credit Hold order's lines can still read "Open"). So hold orders show every
+   SO line at ext_price (ex-GCT) and the header total incl. GCT alongside. */
+const ORD_ITEM_META={
+  open:     {icon:"📝", title:"Open order",       note:"still to ship"},
+  shipping: {icon:"🚚", title:"Shipping order",   note:"being shipped"},
+  back:     {icon:"⏳", title:"Back Order items", note:"still on back order"},
+  hold:     {icon:"⛔", title:"On Hold order",     note:"ex-GCT"}
+};
+async function openOrderItems(orderNbrEnc, customerNameEnc, bucket, statusEnc, totalStr){
+  const orderNbr=decodeURIComponent(orderNbrEnc), customerName=decodeURIComponent(customerNameEnc), status=decodeURIComponent(statusEnc||"");
+  const ctx={orderNbr, customerName, bucket, status, headerTotal:+totalStr||0};
+  showOrderItemsModal(ctx, null);
+  const isHold = bucket==="hold";
+  const filt = isHold ? "" : `&order_status=eq.${encodeURIComponent(status)}&open_qty=gt.0`;
   try{
-    const rows=await fetch(`${SB_URL}/rest/v1/so_ordered_items?order_nbr=eq.${encodeURIComponent(orderNbr)}&order_status=eq.${encodeURIComponent("Back Order")}&open_qty=gt.0&order_type=eq.SO&select=inventory_id,line_description,item_class,open_qty,order_qty,unit_price&order=line_nbr.asc`,{headers:H}).then(r=>r.json());
-    showBackorderModal(orderNbr, customerName, Array.isArray(rows)?rows:[]);
-  }catch(e){ showBackorderModal(orderNbr, customerName, []); }
+    const rows=await fetch(`${SB_URL}/rest/v1/so_ordered_items?order_nbr=eq.${encodeURIComponent(orderNbr)}&order_type=eq.SO${filt}&select=inventory_id,line_description,item_class,open_qty,order_qty,unit_price,ext_price,order_status&order=line_nbr.asc`,{headers:H}).then(r=>r.json());
+    showOrderItemsModal(ctx, Array.isArray(rows)?rows:[]);
+  }catch(e){ showOrderItemsModal(ctx, []); }
 }
 
-function showBackorderModal(orderNbr, customerName, items){
-  const existing=document.getElementById('backorderModal'); if(existing) existing.remove();
-  let html='<div style="position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end" id="backorderModal">';
+function showOrderItemsModal(ctx, items){
+  const existing=document.getElementById('orderItemsModal'); if(existing) existing.remove();
+  const meta=ORD_ITEM_META[ctx.bucket]||ORD_ITEM_META.open;
+  const isHold=ctx.bucket==="hold";
+  const lineVal=i=> isHold ? (+i.ext_price||(+i.order_qty||0)*(+i.unit_price||0)) : (+i.open_qty||0)*(+i.unit_price||0);
+  let html='<div style="position:fixed;inset:0;z-index:9995;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end" id="orderItemsModal" onclick="if(event.target===this)closeOrderItemsModal()">';
   html+='<div style="background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:82vh;display:flex;flex-direction:column">';
   html+='<div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:var(--ink);border-radius:18px 18px 0 0">';
-  html+='<div><div style="font-size:15px;font-weight:800;color:#fff">⏳ Back Order items</div>';
-  html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">#'+esc(orderNbr)+(customerName?' · '+esc(customerName):'')+'</div></div>';
-  html+='<button onclick="closeBackorderModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button></div>';
+  html+='<div style="min-width:0"><div style="font-size:15px;font-weight:800;color:#fff">'+meta.icon+' '+meta.title+'</div>';
+  html+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">#'+esc(ctx.orderNbr)+(ctx.status?' · '+esc(ctx.status):'')+(ctx.customerName?' · '+esc(ctx.customerName):'')+'</div></div>';
+  html+='<button onclick="closeOrderItemsModal()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1;flex-shrink:0">×</button></div>';
   html+='<div style="flex:1;overflow-y:auto;padding:4px 18px">';
   if(items===null){
     html+='<div class="spin"></div>';
   }else if(!items.length){
-    html+='<div class="empty">No backordered items found for this order.</div>';
+    html+='<div class="empty">No line items found for this order yet. They sync every few minutes — try again shortly.</div>';
   }else{
-    const total=items.reduce((a,i)=>a+(+i.open_qty||0)*(+i.unit_price||0),0);
-    html+=`<div style="padding:10px 0 4px;font-size:11px;color:var(--mut)">${items.length} item${items.length===1?"":"s"} · ${J(total)} still on back order</div>`;
+    const total=items.reduce((a,i)=>a+lineVal(i),0);
+    const cs=items.reduce((a,i)=>a+(isHold?(+i.order_qty||0):(+i.open_qty||0)),0);
+    html+=`<div style="padding:10px 0 4px;font-size:11px;color:var(--mut)">${items.length} item${items.length===1?"":"s"} · ${fmtQty(cs)} cs · ${J(total)} ${meta.note}${isHold&&ctx.headerTotal?` · <b style="color:var(--ink)">${J(ctx.headerTotal)} incl. GCT</b>`:""}</div>`;
     items.forEach(i=>{
-      const val=(+i.open_qty||0)*(+i.unit_price||0);
+      const open=+i.open_qty||0, ord=+i.order_qty||0;
+      const qtyTxt = isHold ? fmtQty(ord)+' cs'
+        : (open===ord ? fmtQty(ord)+' cs' : fmtQty(open)+' of '+fmtQty(ord)+' cs open');
       html+='<div class="listrow"><div style="flex:1;min-width:0"><div class="lr1">'+esc(i.line_description||i.inventory_id||'')+'</div>';
-      html+='<div class="lr2">'+esc(i.item_class||'')+' · '+(+i.open_qty).toLocaleString()+' of '+(+i.order_qty).toLocaleString()+' cs open</div></div>';
-      html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">'+J(val)+'</div></div></div>';
+      html+='<div class="lr2">'+(i.inventory_id?esc(i.inventory_id)+' · ':'')+(i.item_class?esc(i.item_class)+' · ':'')+qtyTxt+' @ '+J(+i.unit_price||0)+'</div></div>';
+      html+='<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:800;color:var(--ink)">'+J(lineVal(i))+'</div></div></div>';
     });
   }
   html+='</div>';
   html+='<div style="padding:12px 16px;border-top:1px solid var(--line)">';
-  html+='<button onclick="closeBackorderModal()" style="width:100%;padding:12px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Close</button>';
+  html+='<button onclick="closeOrderItemsModal()" style="width:100%;padding:12px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Close</button>';
   html+='</div></div></div>';
   document.body.insertAdjacentHTML('beforeend',html);
 }
-function closeBackorderModal(){ const m=document.getElementById('backorderModal'); if(m) m.remove(); }
+function closeOrderItemsModal(){ const m=document.getElementById('orderItemsModal'); if(m) m.remove(); }
 
 /* ---------- Credit Note line-item detail ----------
-   Mirrors openBackorderItems above. Scoped by salesperson NAME (not
+   Mirrors openOrderItems above. Scoped by salesperson NAME (not
    salesperson_id) because that's the exact join key rep_customer_cache.mtd_credits
    itself is built from — verified live against invoiced_items with zero mismatches
    across every rep/customer before shipping this, so the modal's total always ties
