@@ -1217,6 +1217,15 @@ body.dfl-readonly .readonly-note{display:block}
       <div style="font-size:11px;color:var(--navy);font-weight:700;margin-top:8px;text-align:right">View details →</div>
     </div>
 
+    <!-- Same audit tool as the TL screen; an admin has no team, so the picker
+         starts empty and searches every active store. Saved under the admin's
+         own name — it doesn't count toward any TL's Win the Week. -->
+    <div class="dash-link hide-when-readonly" onclick="openStoreAudit()" style="cursor:pointer;border-color:var(--amber);background:#FFFBEB;margin-bottom:14px">
+      <div class="dash-link-ico">📋</div>
+      <div><div class="dash-link-title" style="color:var(--amber)">Store Audit</div><div class="dash-link-sub">Audit any store — the Brand Ambassador and dashboard see it straight away</div></div>
+      <div class="dash-link-arr" style="color:var(--amber)">›</div>
+    </div>
+
     <!-- This screen has been through two lives. It was the "PIN Directory",
          listing everyone's PIN in plaintext; then a static roster. It is now a
          performance overview across ALL merchandisers that drills into any one
@@ -4161,6 +4170,12 @@ function openStoreAudit(){
 async function loadAuditStores(){
   const listEl=document.getElementById('audit-store-list');
   try{
+    // Admin/manager (or anyone without a roster row): no team to list — search only.
+    if(!cu||!cu.id||!TEAM_LEAD_ROLES.includes(cu.role)){
+      auditAllStores=[];
+      listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">Type 2+ letters above to search any store.</div>';
+      return;
+    }
     listEl.innerHTML='<div class="spinner" style="margin:8px auto"></div>';
     // This TL's merchandisers via the reps.team_lead_id FK — same join as loadTLData.
     const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
@@ -4250,7 +4265,7 @@ function renderAuditStoreList(q){
     listEl.appendChild(btn);
   });
   if(!filtered.length)listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">'+
-    ((q||'').length>=2&&auditSearchDebounce?'Searching all stores…':'No stores match.')+'</div>';
+    ((q||'').length>=2&&auditSearchDebounce?'Searching all stores…':(q||'').length<2?'Type 2+ letters above to search any store.':'No stores match.')+'</div>';
 }
 
 function selectAuditStore(cid,name,merch){
