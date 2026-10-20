@@ -131,10 +131,9 @@ function toggleDay(i) {
   document.getElementById(`day-${i}`).classList.toggle('open');
 }
 
+// Quote-safe (the old textContent trick left " and ' raw, unsafe in attributes).
 function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 </script>
 </body>

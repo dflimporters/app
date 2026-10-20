@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · My Employment</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  My Employment — every staff member's own HR file: job, contract, leave
+  balance, documents (contract, JD, role profile...), credentials and the
+  company items issued to them. Read-only; HR keeps it up to date in /hr/.
+
+  Data: my_employment(year) — keyed by profiles.rep_id, TRN/NIS masked,
+  HR-only notes and documents left out. Files open through shared/hr-docs.js.
+  Linked from merch.html (home tile) and index.html (More tab).
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf);-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+.hdr{background:var(--navy);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.hdr a{color:#fff;text-decoration:none;font-size:24px;line-height:1;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.1)}
+.hdr h1{font:800 16px var(--hf);margin:0}
+.page{max-width:760px;margin:0 auto;padding:16px 16px 48px}
+.hero{background:var(--navy2);color:#fff;border-radius:12px;padding:18px}
+.hero .nm{font:800 20px var(--hf);line-height:1.2}
+.hero .rl{color:#BFCBE6;font-size:13.5px;margin-top:2px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14)}
+.facts .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.facts .v{font:700 14px var(--hf)}
+.facts .v.muted{color:#9FB0D6;font-weight:600}
+h2{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--ink2);margin:22px 2px 8px}
+.leave{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lv{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.lv .lt{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2)}
+.lv .big{font:800 26px var(--hf);color:var(--navy);line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.lv .sub{font-size:11.5px;color:var(--ink3);line-height:1.35}
+.bar{height:5px;background:var(--grey-t);border-radius:3px;overflow:hidden;margin:8px 0 6px}
+.bar i{display:block;height:100%;background:var(--blue)}
+@media (max-width:420px){.lv .big{font-size:22px}.lv{padding:10px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;font:inherit;color:inherit}
+.row:last-child{border-bottom:0}
+button.row{cursor:pointer}
+button.row:active{background:#F5F7FB}
+button.row:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.row .ic{font-size:22px;width:30px;text-align:center;flex-shrink:0}
+.row .tx{flex:1;min-width:0}
+.row .tt{font-weight:600;font-size:14px}
+.row .sb{font-size:12px;color:var(--ink3)}
+.row .ar{color:var(--ink3);font-size:18px}
+.row.await .tt{color:var(--ink2)}
+.rowbtn{display:flex;align-items:center;gap:12px;flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.rowbtn:focus-visible,.dlbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.dlbtn{flex-shrink:0;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--blue-t);color:var(--blue);font-size:17px;cursor:pointer}
+.dlbtn:active{background:#d9e5fb}
+.pill{display:inline-block;font:700 10px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-good{background:var(--green-t);color:var(--green)} .p-warn{background:var(--amber-t);color:var(--amber)}
+.p-bad{background:var(--red-t);color:var(--red)} .p-grey{background:var(--grey-t);color:var(--grey)}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:8px 12px;margin:0;padding:14px;font-size:13.5px}
+.dl dt{color:var(--ink3);font-size:12.5px}
+.dl dd{margin:0;word-break:break-word}
+.none{color:var(--ink3)}
+.note{font-size:12.5px;color:var(--ink2);background:var(--blue-t);border-radius:10px;padding:12px 14px;margin-top:22px}
+.empty{padding:16px 14px;color:var(--ink3);font-size:13px}
+.alert{background:var(--amber-t);color:#7A4A0B;border-radius:10px;padding:12px 14px;margin-top:12px;font-size:13px}
+.alert.bad{background:var(--red-t);color:#8A1F1F}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--ink2)}
+.msg h3{font:800 16px var(--hf);color:var(--ink);margin:0 0 6px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+.hist td{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.hist tr:last-child td{border-bottom:0}
+.hist table{width:100%;border-collapse:collapse}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a href="#" id="back" aria-label="Back">‹</a>
+  <h1>My Employment</h1>
+</header>
+
+<div class="page">
+  <div id="gate"><div class="spin"></div></div>
+  <div id="main" class="hidden"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/hr-docs.js"></script>
+<script>
+const H = DFL_HR, esc = H.esc;
+let D = null;
+const fmtN = n => n==null ? '' : (Math.round(Number(n)*10)/10).toString();
+
+document.getElementById('back').addEventListener('click', e=>{
+  e.preventDefault();
+  if(document.referrer && new URL(document.referrer).origin===location.origin) history.back();
+  else location.href = dflHome();
+});
+document.addEventListener('dfl-auth-ready', init);
+
+async function init(e){
+  const gate = document.getElementById('gate');
+  // Not launched yet — see DFL_MY_HR_LIVE in shared/routes.js.
+  if(!dflMyHrOpen(e.detail.profile && e.detail.profile.role)){
+    gate.innerHTML = `<div class="msg"><h3>Coming soon</h3>Your employment file — contract, job description, leave balance and documents — will be available here soon.</div>`;
+    return;
+  }
+  const { data, error } = await sb.rpc('my_employment', {});
+  if(error){
+    gate.innerHTML = H.notReady(error)
+      ? `<div class="msg"><h3>Coming soon</h3>Your employment file isn't switched on yet. HR is setting it up.</div>`
+      : `<div class="msg">Couldn't load your file. Try again shortly.</div>`;
+    return;
+  }
+  if(!data || !data.linked){
+    gate.innerHTML = `<div class="msg"><h3>Your file isn't linked yet</h3>Your login hasn't been connected to the staff roster. Ask your Team Leader or HR to link it.</div>`;
+    return;
+  }
+  D = data;
+  draw();
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+}
+
+function draw(){
+  const r = D.rep, p = D.profile || {};
+  const leave = D.leave || [], docs = D.documents || [], roleDocs = D.role_documents || [];
+  const creds = D.credentials || [], items = D.assets || [], hist = D.leave_history || [];
+  const contractDoc = docs.find(d=>d.doc_type==='contract');
+  const jdDoc = docs.find(d=>d.doc_type==='job_description') || roleDocs.find(d=>d.doc_type==='job_description');
+  const expired = creds.filter(c=>H.expiryState(c.expires_on)==='expired');
+  const expiring = creds.filter(c=>H.expiryState(c.expires_on)==='expiring');
+  const contractEnd = p.contract_end_date ? H.daysUntil(p.contract_end_date) : null;
+
+  const fact = (l, v) => `<div><div class="l">${l}</div><div class="v${v?'':' muted'}">${v || 'Awaiting HR'}</div></div>`;
+  const docRow = d => `<div class="row">
+      <button class="rowbtn" data-doc="${esc(d.id)}">
+        <div class="ic" aria-hidden="true">${esc(d.type_icon||'📄')}</div>
+        <div class="tx"><div class="tt">${esc(d.title)}</div>
+          <div class="sb">${[esc(d.type_label), d.effective_date?H.fmtDate(d.effective_date):'', d.version?esc(d.version):''].filter(Boolean).join(' · ')}</div></div>
+      </button>
+      <button class="dlbtn" data-dl="${esc(d.id)}" aria-label="Download ${esc(d.title)}" title="${d.external_url?'Save as PDF':'Download'}">⬇</button></div>`;
+  const awaitRow = (icon, label) => `<div class="row await"><div class="ic" aria-hidden="true">${icon}</div>
+      <div class="tx"><div class="tt">${label}</div><div class="sb">HR will add this to your file</div></div><span class="pill p-grey">Awaiting</span></div>`;
+
+  // Order: contract, JD, role profile/policies, then everything else.
+  const allDocs = [...docs, ...roleDocs.filter(d=>!docs.some(x=>x.id===d.id))];
+  const extra = allDocs.filter(d=>d!==contractDoc && d!==jdDoc);
+
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="hero">
+      <div class="nm">${esc(r.name)}</div>
+      <div class="rl">${esc(p.job_title || H.roleLabel(r.role))}${r.area?' · '+esc(r.area):''}</div>
+      <div class="facts">
+        ${fact('Started', p.start_date ? H.fmtDate(p.start_date) : '')}
+        ${fact('Time with DFL', p.start_date ? esc(H.serviceLength(p.start_date)) : '')}
+        ${fact('Employment', p.employment_type ? esc(H.EMPLOYMENT_TYPE[p.employment_type]||p.employment_type) : '')}
+        ${fact('Reports to', esc(p.reports_to || r.team_lead || ''))}
+        ${p.probation_end_date && H.daysUntil(p.probation_end_date)>=0 ? fact('Probation ends', H.fmtDate(p.probation_end_date)) : ''}
+        ${p.contract_end_date ? fact('Contract ends', H.fmtDate(p.contract_end_date)) : ''}
+      </div>
+    </div>
+
+    ${expired.length ? `<div class="alert bad"><b>${expired.map(c=>esc(c.name)).join(', ')}</b> ${expired.length===1?'has':'have'} expired. Please renew and send a copy to HR.</div>` : ''}
+    ${expiring.length ? `<div class="alert"><b>${expiring.map(c=>esc(c.name)).join(', ')}</b> ${expiring.length===1?'expires':'expire'} soon. Start the renewal now.</div>` : ''}
+    ${contractEnd!=null && contractEnd>=0 && contractEnd<=60 ? `<div class="alert">Your contract ends on <b>${H.fmtDate(p.contract_end_date)}</b>. Speak to HR about renewal.</div>` : ''}
+
+    <h2>Leave in ${D.year}</h2>
+    <div class="leave">${leave.map(l=>{
+      const pct = l.entitled ? Math.min(100, Math.round(Number(l.approved)/Number(l.entitled)*100)) : 0;
+      return `<div class="lv"><div class="lt">${esc(H.LEAVE_TYPE[l.leave_type]||l.leave_type)}</div>
+        ${l.entitled!=null
+          ? `<div class="big">${fmtN(l.remaining)}</div><div class="sub">days left of ${fmtN(l.entitled)}</div><div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>`
+          : `<div class="big">–</div><div class="sub">Not set by HR yet</div><div class="bar" aria-hidden="true"></div>`}
+        <div class="sub">${fmtN(l.approved)} taken${Number(l.pending)?' · '+fmtN(l.pending)+' pending':''}</div></div>`;
+    }).join('')}</div>
+
+    <h2>My documents</h2>
+    <div class="card">
+      ${contractDoc ? docRow(contractDoc) : awaitRow('✍️','Employment contract')}
+      ${jdDoc ? docRow(jdDoc) : awaitRow('📄','Job description')}
+      ${extra.map(docRow).join('')}
+    </div>
+
+    <h2>Licences &amp; certificates</h2>
+    <div class="card">
+      ${creds.length ? creds.map(c=>{
+        const s = H.expiryState(c.expires_on);
+        const pill = {expired:'<span class="pill p-bad">Expired</span>', expiring:`<span class="pill p-warn">${H.daysUntil(c.expires_on)} days</span>`, valid:'<span class="pill p-good">Valid</span>', none:''}[s];
+        const inner = `<div class="ic" aria-hidden="true">🎓</div><div class="tx"><div class="tt">${esc(c.name)}</div>
+          <div class="sb">${[esc(H.CREDENTIAL_CATEGORY[c.category]||''), c.number?'No. '+esc(c.number):'', c.expires_on?'Expires '+H.fmtDate(c.expires_on):'No expiry'].filter(Boolean).join(' · ')}</div></div>${pill}`;
+        return c.document_id && docs.some(d=>d.id===c.document_id) ? `<button class="row" data-doc="${esc(c.document_id)}">${inner}</button>` : `<div class="row">${inner}</div>`;
+      }).join('') : '<div class="empty">No licences or certificates on file. If you hold a driver\'s licence, food handler\'s permit or police record, send a copy to HR.</div>'}
+    </div>
+
+    <h2>Issued to me</h2>
+    <div class="card">
+      ${items.length ? items.map(a=>`<div class="row"><div class="ic" aria-hidden="true">${({phone:'📱',sim:'📶',uniform:'👕',id_card:'🪪',merch_tools:'🧰',vehicle:'🚗',laptop:'💻'})[a.item_type]||'📦'}</div>
+        <div class="tx"><div class="tt">${esc(H.ITEM_TYPE[a.item_type]||a.item_type)}${a.description?' — '+esc(a.description):''}</div>
+        <div class="sb">${[a.identifier?esc(a.identifier):'', a.issued_on?'Issued '+H.fmtDate(a.issued_on):''].filter(Boolean).join(' · ')}</div></div></div>`).join('')
+        : '<div class="empty">Nothing recorded yet. Company phones, uniforms, ID cards and tools issued to you will show here.</div>'}
+    </div>
+
+    <h2>My details</h2>
+    <div class="card">
+      <dl class="dl">
+        <dt>Phone</dt><dd>${r.phone?esc(r.phone):'<span class="none">Not on file</span>'}</dd>
+        <dt>Email</dt><dd>${(p.personal_email||r.email)?esc(p.personal_email||r.email):'<span class="none">Not on file</span>'}</dd>
+        <dt>Address</dt><dd>${p.home_address?esc(p.home_address):'<span class="none">Not on file</span>'}</dd>
+        <dt>Date of birth</dt><dd>${p.date_of_birth?H.fmtDate(p.date_of_birth):'<span class="none">Not on file</span>'}</dd>
+        <dt>TRN</dt><dd>${p.trn_masked?esc(p.trn_masked):'<span class="none">Not on file</span>'}</dd>
+        <dt>NIS</dt><dd>${p.nis_masked?esc(p.nis_masked):'<span class="none">Not on file</span>'}</dd>
+        <dt>Emergency contact</dt><dd>${p.emergency_contact_name?esc(p.emergency_contact_name)+(p.emergency_contact_relation?' ('+esc(p.emergency_contact_relation)+')':'')+(p.emergency_contact_phone?'<br>'+esc(p.emergency_contact_phone):''):'<span class="none">Not on file</span>'}</dd>
+      </dl>
+    </div>
+
+    ${hist.length ? `<h2>My leave requests</h2><div class="card hist"><table><tbody>
+      ${hist.slice(0,12).map(h=>`<tr><td>${H.fmtDate(h.from_date)} → ${H.fmtDate(h.to_date)}<div class="sb" style="font-size:12px;color:var(--ink3)">${esc(h.leave_type||'')}${h.days!=null?' · '+fmtN(h.days)+' days':''}</div></td>
+        <td style="text-align:right"><span class="pill ${h.status==='approved'?'p-good':h.status==='pending'?'p-warn':'p-grey'}">${esc(h.status||'')}</span></td></tr>`).join('')}
+    </tbody></table></div>` : ''}
+
+    <div class="note">Something missing or out of date? Tell your Team Leader or HR and they'll update your file.</div>`;
+
+  main.querySelectorAll('[data-doc]').forEach(b=>b.addEventListener('click', async ()=>{
+    const d = allDocs.find(x=>x.id===b.dataset.doc);
+    try{ await H.open(d); }catch(err){ alert(err.message); }
+  }));
+  main.querySelectorAll('[data-dl]').forEach(b=>b.addEventListener('click', async ()=>{
+    const d = allDocs.find(x=>x.id===b.dataset.dl);
+    try{ await H.download(d); }catch(err){ alert(err.message); }
+  }));
+}
+</script>
+</body>
+</html>

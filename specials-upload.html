@@ -354,6 +354,14 @@
 
   let allItems = [];
 
+  // ── ESCAPING ──
+  // Every specials field is escaped before it reaches innerHTML, ids reach the
+  // row buttons via data-id (never inside an inline handler's string), and
+  // image URLs are limited to https:// so javascript:/data: never lands in src.
+  const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isHttps = u => typeof u === 'string' && /^https:\/\//i.test(u);
+  const safeHttps = u => isHttps(u) ? escH(u) : '';
+
   function showTab(name, btn) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
@@ -476,23 +484,24 @@
     const today = new Date(); today.setHours(0,0,0,0);
     list.innerHTML = `<div class="items-list">${items.map(i => {
       const isExpired = i.valid_until && new Date(i.valid_until) < today;
-      return `<div class="item-row${isExpired ? ' expired' : ''}" id="row-${i.id}">
-        <input type="checkbox" class="item-checkbox" data-id="${i.id}" onchange="onCheckChange()">
-        <div class="item-img">${i.image_url ? `<img src="${i.image_url}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
+      const id = escH(i.id);
+      return `<div class="item-row${isExpired ? ' expired' : ''}" id="row-${id}">
+        <input type="checkbox" class="item-checkbox" data-id="${id}" onchange="onCheckChange()">
+        <div class="item-img">${isHttps(i.image_url) ? `<img src="${safeHttps(i.image_url)}" onerror="this.parentElement.innerHTML='📦'">` : '📦'}</div>
         <div class="item-info">
-          <div class="item-name">${i.name}</div>
+          <div class="item-name">${escH(i.name)}</div>
           <div class="item-meta">
-            <span class="badge badge-${i.type.toLowerCase()}">${i.type}</span>
-            <span class="badge badge-${i.active ? 'active' : 'inactive'}" id="badge-${i.id}">${i.active ? 'Active' : 'Hidden'}</span>
+            <span class="badge badge-${escH(String(i.type).toLowerCase())}">${escH(i.type)}</span>
+            <span class="badge badge-${i.active ? 'active' : 'inactive'}" id="badge-${id}">${i.active ? 'Active' : 'Hidden'}</span>
             ${isExpired ? `<span class="badge badge-expired">Expired</span>` : ''}
-            ${i.category ? `<span>· ${i.category}</span>` : ''}
+            ${i.category ? `<span>· ${escH(i.category)}</span>` : ''}
             ${i.valid_until ? `<span>· Until ${new Date(i.valid_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>` : ''}
           </div>
         </div>
         <div class="item-actions">
-          <button class="btn-action" onclick="openEdit('${i.id}')">Edit</button>
-          <button class="btn-action" onclick="toggleActive('${i.id}', ${i.active})" id="togbtn-${i.id}">${i.active ? 'Hide' : 'Show'}</button>
-          <button class="btn-action danger" onclick="confirmDelete('${i.id}', '${i.name.replace(/'/g,"\\'")}')">Delete</button>
+          <button class="btn-action" data-id="${id}" onclick="openEdit(this.dataset.id)">Edit</button>
+          <button class="btn-action" data-id="${id}" onclick="toggleActive(this.dataset.id, ${i.active ? 'true' : 'false'})" id="togbtn-${id}">${i.active ? 'Hide' : 'Show'}</button>
+          <button class="btn-action danger" data-id="${id}" onclick="confirmDelete(this.dataset.id)">Delete</button>
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -566,7 +575,7 @@
     document.getElementById('e-image').value = i.image_url || '';
     const zone = document.getElementById('editUploadZone');
     const preview = document.getElementById('editUploadPreview');
-    if (i.image_url) { preview.src = i.image_url; zone.classList.add('has-image'); }
+    if (isHttps(i.image_url)) { preview.src = i.image_url; zone.classList.add('has-image'); }
     else { preview.src = ''; zone.classList.remove('has-image'); }
     document.getElementById('editUploadStatus').textContent = '';
     document.getElementById('editUploadStatus').className = 'upload-status';
@@ -603,7 +612,10 @@
   }
 
   // ── DELETE ──
-  function confirmDelete(id, name) {
+  function confirmDelete(id) {
+    // Name comes from the loaded list, not the button, so no data rides in the handler
+    const item = allItems.find(i => i.id === id);
+    const name = item ? item.name : 'This item';
     document.getElementById('confirmMsg').textContent = `"${name}" will be permanently deleted.`;
     document.getElementById('confirmDeleteBtn').onclick = () => doDelete(id);
     document.getElementById('confirmOverlay').classList.add('open');

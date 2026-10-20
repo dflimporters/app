@@ -343,12 +343,18 @@
   // sandboxed with no allow-same-origin, since a sandboxed frame with no
   // allow-same-origin gets an opaque origin regardless of blob ancestry, so a
   // hostile department upload still can't reach into this page.
-  async function fetchAsBlobUrl(url, mimeType) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Could not fetch file (HTTP ${res.status})`);
-    const raw = await res.blob();
-    return URL.createObjectURL(new Blob([raw], { type: mimeType }));
+  //
+  // The bytes come through the shared client (sb.storage.download) rather than
+  // a public URL, so they work both while the bucket is public and after it is
+  // made private — the request carries the signed-in user's token either way.
+  async function fetchAsBlobUrl(path, mimeType) {
+    const { data, error } = await sb.storage.from(BUCKET).download(path);
+    if (error) throw new Error(`Could not fetch file (${error.message})`);
+    return URL.createObjectURL(new Blob([data], { type: mimeType }));
   }
+
+  // week_label comes from the database and is rendered into innerHTML below.
+  const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function revokeActiveBlobUrl() {
     if (activeBlobUrl) { URL.revokeObjectURL(activeBlobUrl); activeBlobUrl = null; }
@@ -486,8 +492,6 @@
     document.getElementById('dept-download-btn').style.display = 'inline-flex';
     document.getElementById('dept-late-badge').style.display = sub.is_late ? 'inline-flex' : 'none';
 
-    const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
-    const publicUrl = urlData.publicUrl;
     const ext = (sub.file_type || '').toLowerCase();
 
     empty.style.display = 'none';
@@ -505,12 +509,12 @@
         // sandboxed PDF engine, a security boundary the iframe's `sandbox`
         // attribute was never what enforced in the first place.
         frame.removeAttribute('sandbox');
-        activeBlobUrl = await fetchAsBlobUrl(publicUrl, 'application/pdf');
+        activeBlobUrl = await fetchAsBlobUrl(sub.storage_path, 'application/pdf');
         frame.src = activeBlobUrl;
       } else if (ext === 'html' || ext === 'htm') {
         // No allow-same-origin: keeps a hostile upload from reaching this page.
         frame.setAttribute('sandbox', 'allow-scripts allow-popups');
-        activeBlobUrl = await fetchAsBlobUrl(publicUrl, 'text/html');
+        activeBlobUrl = await fetchAsBlobUrl(sub.storage_path, 'text/html');
         frame.src = activeBlobUrl;
       } else {
         // Only reachable via old data from before uploads were locked to
@@ -534,13 +538,17 @@
     const sub = currentSub();
     if (!sub) return;
     const ext = (sub.file_type || '').toLowerCase();
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
-    const publicUrl = data.publicUrl;
 
     if (ext !== 'pdf' && ext !== 'html' && ext !== 'htm') {
       // Only reachable via old data — nothing new can produce this. No blob
-      // treatment needed/possible to verify, so best-effort raw link.
-      window.open(publicUrl, '_blank');
+      // treatment needed/possible to verify, so best-effort short-lived link.
+      const legacyWin = window.open('', '_blank');
+      sb.storage.from(BUCKET).createSignedUrl(sub.storage_path, 60)
+        .then(({ data, error }) => {
+          if (error || !data) throw new Error(error ? error.message : 'no link');
+          if (legacyWin) legacyWin.location.href = data.signedUrl;
+        })
+        .catch(err => { if (legacyWin) legacyWin.close(); alert('Could not open report: ' + err.message); });
       return;
     }
 
@@ -550,9 +558,25 @@
     // has to run synchronously in this click handler or the popup blocker
     // kills it — so open a blank tab now and fill it in once the blob's
     // ready, rather than awaiting the fetch first and opening after.
+    //
+    // A blob: URL opened as the new tab's own location takes THIS page's origin,
+    // so an uploaded HTML report would run with access to the signed-in
+    // session. HTML therefore goes into a sandboxed iframe (no allow-same-origin,
+    // like the inline preview) hosted by the blank tab; only PDFs are opened
+    // directly (the native viewer runs no page script).
     const win = window.open('', '_blank');
-    fetchAsBlobUrl(publicUrl, ext === 'pdf' ? 'application/pdf' : 'text/html')
-      .then(blobUrl => { if (win) win.location.href = blobUrl; })
+    fetchAsBlobUrl(sub.storage_path, ext === 'pdf' ? 'application/pdf' : 'text/html')
+      .then(blobUrl => {
+        if (!win) return;
+        if (ext === 'pdf') { win.location.href = blobUrl; return; }
+        win.document.title = sub.file_name || 'Report';
+        win.document.body.style.margin = '0';
+        const f = win.document.createElement('iframe');
+        f.setAttribute('sandbox', 'allow-scripts allow-popups');
+        f.style.cssText = 'border:0;width:100vw;height:100vh;display:block';
+        f.src = blobUrl;
+        win.document.body.appendChild(f);
+      })
       .catch(err => {
         if (win) win.close();
         alert('Could not open report: ' + err.message);
@@ -585,12 +609,11 @@
   async function downloadCurrent() {
     const sub = currentSub();
     if (!sub) return;
-    const { data } = sb.storage.from(BUCKET).getPublicUrl(sub.storage_path);
     try {
       // The storage URL is cross-origin, so a plain <a download> is silently
       // ignored by the browser (it just navigates instead of saving). Routing
       // through a same-tab blob: URL is what makes `download` actually stick.
-      const blobUrl = await fetchAsBlobUrl(data.publicUrl, 'application/octet-stream');
+      const blobUrl = await fetchAsBlobUrl(sub.storage_path, 'application/octet-stream');
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = sub.file_name;
@@ -616,8 +639,8 @@
       card.innerHTML = `
         <div class="archive-dot"></div>
         <div class="archive-card-text">
-          <div class="archive-card-week">${r.week_label}</div>
-          <div class="archive-card-meta">${r.dept_count} dept${r.dept_count !== 1 ? 's' : ''} · ${compiled.toLocaleDateString('en-JM', { day: 'numeric', month: 'short' })}</div>
+          <div class="archive-card-week">${escH(r.week_label)}</div>
+          <div class="archive-card-meta">${escH(r.dept_count)} dept${r.dept_count !== 1 ? 's' : ''} · ${compiled.toLocaleDateString('en-JM', { day: 'numeric', month: 'short' })}</div>
         </div>`;
       list.appendChild(card);
     });

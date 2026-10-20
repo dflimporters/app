@@ -220,7 +220,7 @@ function renderPhotos() {
   const grid = document.getElementById('photoGrid');
   grid.innerHTML = photos.map((p, i) => `
     <div class="photo-thumb">
-      <img src="${p.url}">
+      <img src="${thumbSrc(p.url)}">
       <button type="button" class="rm" onclick="removePhoto(${i})">✕</button>
     </div>`).join('');
   document.getElementById('photoCount').textContent =
@@ -256,10 +256,14 @@ function renderNotes() {
     </div>`).join('');
 }
 
+// Quote-safe (the old textContent trick left " and ' raw, unsafe in attributes).
 function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Previews are only ever our own blob: URLs or canvas data:image thumbs (some
+// read back from localStorage) — anything else is dropped rather than rendered.
+function thumbSrc(u) {
+  return (typeof u === 'string' && (u.indexOf('blob:') === 0 || u.indexOf('data:image/') === 0)) ? escapeHtml(u) : '';
 }
 
 // ─── BLOB <-> BASE64 ─────────────────────────────────────────────
@@ -298,12 +302,12 @@ function renderRecent() {
   wrap.style.display = 'block';
   items.innerHTML = list.map(r => `
     <div class="recent-item">
-      <div class="ri-thumbs">${(r.photo_thumbs||[]).slice(0,3).map(t => `<img src="${t}">`).join('')}</div>
+      <div class="ri-thumbs">${(r.photo_thumbs||[]).slice(0,3).map(t => `<img src="${thumbSrc(t)}">`).join('')}</div>
       <div class="ri-info">
         <div class="ri-store">${escapeHtml(r.store_name)}</div>
-        <div class="ri-meta">${r.visit_date} · ${r.notes.length} note${r.notes.length!==1?'s':''}, ${(r.photo_thumbs||[]).length} photo${(r.photo_thumbs||[]).length!==1?'s':''}</div>
+        <div class="ri-meta">${escapeHtml(r.visit_date)} · ${r.notes.length} note${r.notes.length!==1?'s':''}, ${(r.photo_thumbs||[]).length} photo${(r.photo_thumbs||[]).length!==1?'s':''}</div>
       </div>
-      <button type="button" class="ri-edit" onclick="editRecent('${r.id}')">Edit</button>
+      <button type="button" class="ri-edit" data-id="${escapeHtml(r.id)}" onclick="editRecent(this.dataset.id)">Edit</button>
     </div>`).join('');
 }
 
@@ -342,9 +346,17 @@ function getQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
   catch(e) { return []; }
 }
+// Returns false when the phone's storage is full (queued visits carry base64
+// photos, so this can happen) — callers must not tell the user it was saved.
 function saveQueue(q) {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  } catch (err) {
+    console.error('Could not persist the offline queue:', err);
+    return false;
+  }
   renderQueue();
+  return true;
 }
 function renderQueue() {
   const q = getQueue();
@@ -367,7 +379,7 @@ function renderQueue() {
       <div class="qi-dot"></div>
       <div class="qi-info">
         <div class="qi-store">${escapeHtml(item.store_name)}</div>
-        <div class="qi-meta">${item.new_photos_base64.length} new photos, ${item.notes.length} notes · ${item.visit_date}</div>
+        <div class="qi-meta">${item.new_photos_base64.length} new photos, ${item.notes.length} notes · ${escapeHtml(item.visit_date)}</div>
       </div>
     </div>`).join('');
 }
@@ -439,11 +451,20 @@ async function handleSubmit(e) {
       id, your_name: yourName, store_name: storeName, area, visit_date: visitDate,
       notes: currentNotes, kept_photo_paths: keptPaths, new_photos_base64, queued_at: Date.now()
     });
-    saveQueue(q);
-    showBanner('No connection — saved on this phone, will sync automatically.', 'queued');
-    editingId = null;
-    document.getElementById('cancelEditBtn').style.display = 'none';
-    resetForm();
+    if (!saveQueue(q)) {
+      showBanner('Phone storage is full — this visit was NOT saved. Remove some photos or connect to the internet and try again.', 'error');
+    } else {
+      // Say what actually failed: a rejection from the server (permission,
+      // validation, outage) is not "no connection", and telling people it is
+      // hides a problem that retrying will never fix.
+      const offline = !navigator.onLine || (err && (err instanceof TypeError || /fetch|network/i.test(String(err.message || ''))));
+      showBanner(offline
+        ? 'No connection — saved on this phone, will sync automatically.'
+        : 'Couldn’t save to the server (' + String((err && (err.message || err.code)) || 'error').slice(0, 80) + ') — kept on this phone and will retry.', 'queued');
+      editingId = null;
+      document.getElementById('cancelEditBtn').style.display = 'none';
+      resetForm();
+    }
   }
 
   btn.disabled = false;

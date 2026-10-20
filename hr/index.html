@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · HR</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  HR hub — People (every employee's file, HR only) and the Document Library
+  (role profiles, JDs, policies, templates — HR and managers; HR edits).
+
+  Data: hr_whoami() decides which tabs show. hr_people() feeds People;
+  hr_library() feeds the library; hr_save_document()/hr_delete_document()
+  write it. Files go to the private `hr-documents` bucket via shared/hr-docs.js.
+  Schema + RPCs: _staging/sql/2026-10-14_hr_records.sql.
+  Clicking a person opens /hr/employee.html?id=<reps.id>.
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B} .kpi .v.bad{color:#FF9B9B}
+.kpi:hover .l{color:#fff}
+@media (max-width:640px){.strip{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.kpi .v{font-size:18px}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button,.tabs a{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.tabs [aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select,.fld input,.fld select,.fld textarea{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.filters input:focus,.filters select:focus,.fld :focus{border-color:var(--blue)}
+.filters input[type=search]{flex:1 1 200px;min-width:160px}
+label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.sm{padding:6px 10px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.kpi:focus-visible,.tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.count{font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#FAFBFD;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr.link{cursor:pointer}
+tbody tr.link:hover{background:#F8FAFE}
+tbody tr:last-child td{border-bottom:0}
+.who{font-weight:600}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap;margin:1px 2px 1px 0}
+.p-good{background:var(--green-t);color:var(--green)} .p-warn{background:var(--amber-t);color:var(--amber)}
+.p-bad{background:var(--red-t);color:var(--red)} .p-grey{background:var(--grey-t);color:var(--grey)} .p-blue{background:var(--blue-t);color:var(--blue)}
+.arrow{color:var(--ink3);font-size:18px;text-align:right}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2);max-width:640px;margin:0 auto}
+.msg h2{font:800 17px var(--hf);color:var(--ink);margin:0 0 6px}
+@media (max-width:640px){
+  #tab-people thead{display:none}
+  #tab-people table,#tab-people tbody,#tab-people tr,#tab-people td{display:block;width:100%}
+  #tab-people tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  #tab-people td{border:0;padding:2px 0}
+  #tab-people td.arrow{display:none}
+}
+
+/* Library */
+.libgroup{margin-bottom:22px}
+.libgroup h3{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:0 0 8px;display:flex;gap:6px;align-items:center}
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.doc .t{font:700 14.5px var(--hf);color:var(--ink);line-height:1.3}
+.doc .d{font-size:13px;color:var(--ink2)}
+.doc .meta{font-size:12px;color:var(--ink3)}
+.doc .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+
+/* Drawer + form */
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:#fff;z-index:901;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding:22px 22px 40px}
+.drawer h3{font:800 19px var(--hf);margin:0 0 14px;padding-right:40px}
+.drawer .x{position:absolute;top:14px;right:14px;border:0;background:var(--grey-t);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--ink2)}
+.form{display:grid;gap:12px}
+.fld{display:grid;gap:4px}
+.fld>span{font:600 12px var(--bf);color:var(--ink2)}
+.fld textarea{min-height:80px;resize:vertical}
+.fld .hint{font-size:12px;color:var(--ink3)}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.seg{display:flex;gap:6px}
+.seg label{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.err{color:var(--red);font-size:12.5px}
+.formacts{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1 class="ptitle">HR</h1>
+  <p class="psub" id="psub">Employee files, role documents and leave in one place.</p>
+
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="people" id="tabBtnPeople">People</button>
+      <button role="tab" aria-selected="false" data-tab="library" id="tabBtnLibrary">Document library</button>
+      <a href="/hr-leave.html" id="tabLeave">Leave ↗</a>
+    </div>
+
+    <!-- PEOPLE (HR only) -->
+    <section id="tab-people">
+      <div class="strip">
+        <button class="kpi" data-quick="all"><div class="l">Staff</div><div class="v" id="kAll">–</div></button>
+        <button class="kpi" data-quick="missing"><div class="l">Files missing documents</div><div class="v warn" id="kMissing">–</div></button>
+        <button class="kpi" data-quick="noprofile"><div class="l">Details not entered</div><div class="v warn" id="kNoProfile">–</div></button>
+        <button class="kpi" data-quick="expired"><div class="l">Expired credentials</div><div class="v bad" id="kExpired">–</div></button>
+        <button class="kpi" data-quick="expiring"><div class="l">Expiring in 60 days</div><div class="v warn" id="kExpiring">–</div></button>
+        <button class="kpi" data-quick="noleave"><div class="l">Leave entitlement not set</div><div class="v warn" id="kNoLeave">–</div></button>
+      </div>
+      <div class="filters">
+        <input type="search" id="fq" placeholder="Search name, job title, area…" aria-label="Search people">
+        <select id="frole" aria-label="Role"><option value="">All roles</option></select>
+        <select id="farea" aria-label="Area"><option value="">All areas</option></select>
+        <label class="chk"><input type="checkbox" id="finactive"> Include inactive</label>
+      </div>
+      <p class="count" id="count"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th>Employee</th><th>Job</th><th>File</th><th>Credentials</th><th>Vacation left</th><th></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LIBRARY (HR + managers; HR edits) -->
+    <section id="tab-library" class="hidden">
+      <div class="filters">
+        <input type="search" id="lq" placeholder="Search documents…" aria-label="Search documents">
+        <select id="ltype" aria-label="Document type"><option value="">All types</option></select>
+        <select id="lrole" aria-label="Applies to"><option value="">Any role</option></select>
+        <span style="flex:1"></span>
+        <button class="btn primary hidden" id="addDoc">+ Add document</button>
+      </div>
+      <div id="lib"></div>
+    </section>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true"></aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script src="/shared/hr-docs.js"></script>
+<script>
+const H = DFL_HR, esc = H.esc;
+let WHO = {is_hr:false, can_library:false}, PEOPLE = [], LIB = [], TYPES = [], ME = null, QUICK = null;
+
+document.addEventListener('dfl-auth-ready', e => init(e.detail.profile));
+
+async function init(profile){
+  ME = profile;
+  const gate = document.getElementById('gate');
+  const who = await sb.rpc('hr_whoami');
+  if(who.error){
+    gate.innerHTML = H.notReady(who.error)
+      ? `<div class="msg"><h2>HR records aren't switched on yet</h2>The pages are built and waiting. The database setup needs to be applied first${profile.role==='admin'?' — <code>_staging/sql/2026-10-14_hr_records.sql</code>':''}.</div>`
+      : `<div class="msg">Couldn't load HR. Try again shortly.</div>`;
+    return;
+  }
+  WHO = who.data || WHO;
+  if(!WHO.is_hr && !WHO.can_library){
+    gate.innerHTML = `<div class="msg"><h2>Not set up for HR</h2>You're signed in as <b>${esc(profile.full_name||'')}</b>, who doesn't have HR access. Ask an admin to add you to HR.</div>`;
+    return;
+  }
+  const types = await sb.rpc('hr_doc_type_list');
+  TYPES = types.data || [];
+
+  document.getElementById('tabBtnPeople').classList.toggle('hidden', !WHO.is_hr);
+  document.getElementById('tabLeave').classList.toggle('hidden', !WHO.is_hr);
+  document.getElementById('addDoc').classList.toggle('hidden', !WHO.is_hr);
+  if(!WHO.is_hr) document.getElementById('psub').textContent = 'Role profiles, job descriptions and policies.';
+
+  wire();
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  if(WHO.is_hr){ await loadPeople(); showTab(location.hash==='#library'?'library':'people'); }
+  else showTab('library');
+}
+
+function wire(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+  ['fq','frole','farea'].forEach(id=>document.getElementById(id).addEventListener(id==='fq'?'input':'change', ()=>{QUICK=null; drawPeople();}));
+  document.getElementById('finactive').addEventListener('change', loadPeople);
+  document.querySelectorAll('.kpi').forEach(b=>b.addEventListener('click', ()=>{ QUICK = b.dataset.quick==='all'?null:b.dataset.quick; drawPeople(); }));
+  document.getElementById('rows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-id]'); if(tr) location.href = '/hr/employee.html?id='+encodeURIComponent(tr.dataset.id);
+  });
+  document.getElementById('rows').addEventListener('keydown', e=>{
+    const tr = e.target.closest('tr[data-id]'); if(tr && e.key==='Enter') tr.click();
+  });
+  ['lq','ltype','lrole'].forEach(id=>document.getElementById(id).addEventListener(id==='lq'?'input':'change', drawLib));
+  document.getElementById('addDoc').addEventListener('click', ()=>docForm(null));
+  document.getElementById('lib').addEventListener('click', libClick);
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+
+  // Filter options
+  const lt = document.getElementById('ltype');
+  TYPES.filter(t=>t.scope!=='employee').forEach(t=>lt.insertAdjacentHTML('beforeend', `<option value="${esc(t.code)}">${esc(t.label)}</option>`));
+  const lr = document.getElementById('lrole');
+  H.PUBLISHABLE_ROLES.forEach(r=>lr.insertAdjacentHTML('beforeend', `<option value="${r}">${esc(H.roleLabel(r))}</option>`));
+}
+
+function showTab(t){
+  if(t==='people' && !WHO.is_hr) t='library';
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===t)));
+  document.getElementById('tab-people').classList.toggle('hidden', t!=='people');
+  document.getElementById('tab-library').classList.toggle('hidden', t!=='library');
+  if(t==='library') loadLib();
+}
+
+// ---------- People ----------
+const QUICKS = {
+  missing:   p => (p.missing_required||[]).length>0,
+  noprofile: p => !p.has_profile,
+  expired:   p => p.creds_expired>0,
+  expiring:  p => p.creds_expiring>0,
+  noleave:   p => !p.vacation || p.vacation.entitled==null
+};
+
+async function loadPeople(){
+  const inc = document.getElementById('finactive').checked;
+  const { data, error } = await sb.rpc('hr_people', { p_include_inactive: inc });
+  if(error){ document.getElementById('rows').innerHTML = `<tr><td colspan="6" class="empty">Couldn't load people: ${esc(error.message)}</td></tr>`; return; }
+  PEOPLE = data || [];
+  const fill = (id, vals, label) => {
+    const el = document.getElementById(id), cur = el.value;
+    el.innerHTML = `<option value="">${label}</option>` + [...new Set(vals.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)))
+      .map(v=>`<option value="${esc(v)}">${esc(id==='frole'?H.roleLabel(v):v)}</option>`).join('');
+    el.value = cur;
+  };
+  fill('frole', PEOPLE.map(p=>p.role), 'All roles');
+  fill('farea', PEOPLE.map(p=>p.area), 'All areas');
+  const n = k => PEOPLE.filter(QUICKS[k]).length;
+  document.getElementById('kAll').textContent = PEOPLE.length;
+  document.getElementById('kMissing').textContent = n('missing');
+  document.getElementById('kNoProfile').textContent = n('noprofile');
+  document.getElementById('kExpired').textContent = n('expired');
+  document.getElementById('kExpiring').textContent = n('expiring');
+  document.getElementById('kNoLeave').textContent = n('noleave');
+  drawPeople();
+}
+
+function drawPeople(){
+  const q = document.getElementById('fq').value.trim().toLowerCase();
+  const role = document.getElementById('frole').value, area = document.getElementById('farea').value;
+  const list = PEOPLE.filter(p=>{
+    if(QUICK && !QUICKS[QUICK](p)) return false;
+    if(role && p.role!==role) return false;
+    if(area && p.area!==area) return false;
+    if(q && ![p.name, p.job_title, p.area, H.roleLabel(p.role), p.department].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const quickName = QUICK ? document.querySelector(`.kpi[data-quick="${QUICK}"] .l`).textContent : '';
+  document.getElementById('count').innerHTML = `${list.length} ${list.length===1?'person':'people'}` +
+    (quickName ? ` · showing <b>${esc(quickName)}</b> — change any filter to clear` : '');
+  const tb = document.getElementById('rows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">Nobody matches these filters.</td></tr>`; return; }
+  tb.innerHTML = list.map(p=>{
+    const miss = p.missing_required||[];
+    const file = !p.has_profile && !p.doc_count && miss.length
+      ? '<span class="pill p-grey">Not started</span>'
+      : (miss.length ? miss.map(m=>`<span class="pill p-warn">No ${esc(m.toLowerCase())}</span>`).join('') : '<span class="pill p-good">Complete</span>')
+        + (!p.has_profile ? '<span class="pill p-grey">No details</span>' : '');
+    const cred = (p.creds_expired?`<span class="pill p-bad">${p.creds_expired} expired</span>`:'') +
+                 (p.creds_expiring?`<span class="pill p-warn">${p.creds_expiring} expiring</span>`:'') ||
+                 '<span class="sub">—</span>';
+    const v = p.vacation;
+    const vac = v && v.entitled!=null
+      ? `<span class="num"><b>${fmtN(v.remaining)}</b> of ${fmtN(v.entitled)}</span>${v.pending?`<div class="sub">${fmtN(v.pending)} pending</div>`:''}`
+      : '<span class="sub">Not set</span>';
+    return `<tr class="link" data-id="${esc(p.rep_id)}" tabindex="0">
+      <td><div class="who">${esc(p.name)}${p.active?'':' <span class="pill p-grey">Inactive</span>'}</div><div class="sub">${esc(H.roleLabel(p.role))}${p.area?' · '+esc(p.area):''}</div></td>
+      <td>${p.job_title?esc(p.job_title):'<span class="sub">—</span>'}${p.start_date?`<div class="sub">Since ${H.fmtDate(p.start_date)}</div>`:''}</td>
+      <td>${file}</td>
+      <td>${cred}</td>
+      <td>${vac}</td>
+      <td class="arrow">›</td>
+    </tr>`;
+  }).join('');
+}
+function fmtN(n){ return n==null ? '' : (Math.round(Number(n)*10)/10).toString(); }
+
+// ---------- Library ----------
+async function loadLib(){
+  const el = document.getElementById('lib');
+  el.innerHTML = '<div class="spin"></div>';
+  const { data, error } = await sb.rpc('hr_library');
+  if(error){ el.innerHTML = `<div class="msg">Couldn't load the library: ${esc(error.message)}</div>`; return; }
+  LIB = data || [];
+  drawLib();
+}
+
+function drawLib(){
+  const q = document.getElementById('lq').value.trim().toLowerCase();
+  const ty = document.getElementById('ltype').value, ro = document.getElementById('lrole').value;
+  const list = LIB.filter(d=>{
+    if(ty && d.doc_type!==ty) return false;
+    if(ro && !(d.applies_to_roles||[]).includes(ro)) return false;
+    if(q && ![d.title, d.description, d.type_label].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const el = document.getElementById('lib');
+  if(!list.length){
+    el.innerHTML = `<div class="msg">${LIB.length ? 'No documents match these filters.' : (WHO.is_hr ? 'The library is empty. Add role profiles, job descriptions and policies with <b>+ Add document</b>.' : 'No documents have been published yet.')}</div>`;
+    return;
+  }
+  const groups = new Map();
+  list.forEach(d=>{ if(!groups.has(d.doc_type)) groups.set(d.doc_type, {label:d.type_label, icon:d.type_icon, docs:[]}); groups.get(d.doc_type).docs.push(d); });
+  el.innerHTML = [...groups.values()].map(g=>`
+    <div class="libgroup">
+      <h3><span aria-hidden="true">${esc(g.icon||'')}</span>${esc(g.label)} <span class="sub" style="text-transform:none;letter-spacing:0">(${g.docs.length})</span></h3>
+      <div class="docs">${g.docs.map(docCard).join('')}</div>
+    </div>`).join('');
+}
+
+function docCard(d){
+  const roles = (d.applies_to_roles||[]);
+  return `<div class="doc">
+    <div class="t">${esc(d.title)}</div>
+    ${d.status!=='active'?`<div><span class="pill ${d.status==='draft'?'p-warn':'p-grey'}">${esc(d.status)}</span></div>`:''}
+    ${d.description?`<div class="d">${esc(d.description)}</div>`:''}
+    <div>${roles.length ? roles.map(r=>`<span class="pill p-blue">${esc(H.roleLabel(r))}</span>`).join('') : '<span class="sub">Not published to staff (HR & managers only)</span>'}</div>
+    <div class="meta">${[d.version?'Version '+esc(d.version):'', d.effective_date?'Effective '+H.fmtDate(d.effective_date):'', d.file_name?esc(d.file_name)+(d.size_bytes?' · '+H.fileSize(d.size_bytes):''):(d.external_url?'Portal page':'')].filter(Boolean).join(' · ')}</div>
+    <div class="acts">
+      <button class="btn sm primary" data-act="open" data-id="${esc(d.id)}">Open</button>
+      <button class="btn sm" data-act="download" data-id="${esc(d.id)}" title="${d.external_url?'Save as PDF':'Download '+esc(d.file_name||'file')}">⬇ Download</button>
+      ${WHO.is_hr?`<button class="btn sm" data-act="edit" data-id="${esc(d.id)}">Edit</button>
+      <button class="btn sm danger" data-act="del" data-id="${esc(d.id)}">Delete</button>`:''}
+    </div>
+  </div>`;
+}
+
+async function libClick(e){
+  const b = e.target.closest('button[data-act]'); if(!b) return;
+  const d = LIB.find(x=>x.id===b.dataset.id); if(!d) return;
+  if(b.dataset.act==='open'){ try{ await H.open(d); }catch(err){ alert(err.message); } }
+  if(b.dataset.act==='download'){ try{ await H.download(d); }catch(err){ alert(err.message); } }
+  if(b.dataset.act==='edit') docForm(d);
+  if(b.dataset.act==='del') confirmDelete(d);
+}
+
+// ---------- Drawer: add / edit a library document ----------
+function openDrawer(html){
+  const dr = document.getElementById('drawer');
+  dr.innerHTML = `<button class="x" aria-label="Close" onclick="closeDrawer()">×</button>` + html;
+  dr.classList.remove('hidden'); document.getElementById('scrim').classList.remove('hidden');
+  const f = dr.querySelector('input,select,textarea'); if(f) f.focus();
+}
+function closeDrawer(){ document.getElementById('drawer').classList.add('hidden'); document.getElementById('scrim').classList.add('hidden'); }
+
+function docForm(d){
+  const isNew = !d; d = d || {status:'active', applies_to_roles:[], visible_to_employee:true};
+  const typeOpts = TYPES.filter(t=>t.scope!=='employee').map(t=>`<option value="${esc(t.code)}"${t.code===d.doc_type?' selected':''}>${esc(t.label)}</option>`).join('');
+  const roleChecks = H.PUBLISHABLE_ROLES.map(r=>`<label class="chk"><input type="checkbox" name="role" value="${r}"${(d.applies_to_roles||[]).includes(r)?' checked':''}> ${esc(H.roleLabel(r))}</label>`).join('');
+  const src = d.external_url ? 'link' : 'file';
+  openDrawer(`
+    <h3>${isNew?'Add a library document':'Edit document'}</h3>
+    <form class="form" id="docForm">
+      <label class="fld"><span>Type</span><select id="dType" required>${typeOpts}</select></label>
+      <label class="fld"><span>Title</span><input id="dTitle" required value="${esc(d.title||'')}" placeholder="e.g. Brand Ambassador — Job Description"></label>
+      <label class="fld"><span>Description</span><textarea id="dDesc" placeholder="What this document covers">${esc(d.description||'')}</textarea></label>
+      <div class="fld"><span>Show in My Employment for</span><div class="roles">${roleChecks}</div><div class="hint">Staff in these roles see it in their own app. Leave all unticked to keep it to HR and managers.</div></div>
+      <div class="fld"><span>Source</span>
+        <div class="seg">
+          <label><input type="radio" name="src" value="file"${src==='file'?' checked':''}> Upload a file</label>
+          <label><input type="radio" name="src" value="link"${src==='link'?' checked':''}> Link</label>
+        </div>
+      </div>
+      <label class="fld" id="fileFld"><span>File${d.file_name?' (current: '+esc(d.file_name)+')':''}</span><input type="file" id="dFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.html"><span class="hint">PDF works best for staff on phones. Up to 25 MB.</span></label>
+      <label class="fld hidden" id="linkFld"><span>Link</span><input id="dUrl" value="${esc(d.external_url||'')}" placeholder="/hr/library/… or https://…"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label class="fld"><span>Version</span><input id="dVer" value="${esc(d.version||'')}" placeholder="e.g. October 2026"></label>
+        <label class="fld"><span>Effective date</span><input type="date" id="dEff" value="${esc(d.effective_date||'')}"></label>
+      </div>
+      <label class="fld"><span>Status</span><select id="dStatus">
+        ${['active','draft','archived'].map(s=>`<option value="${s}"${d.status===s?' selected':''}>${s[0].toUpperCase()+s.slice(1)}${s==='draft'?' (HR only)':''}</option>`).join('')}
+      </select></label>
+      <div class="err hidden" id="dErr"></div>
+      <div class="formacts">
+        <button type="button" class="btn" onclick="closeDrawer()">Cancel</button>
+        <button type="submit" class="btn primary" id="dSave">${isNew?'Add document':'Save changes'}</button>
+      </div>
+    </form>`);
+  const sync = () => {
+    const v = document.querySelector('input[name=src]:checked').value;
+    document.getElementById('fileFld').classList.toggle('hidden', v!=='file');
+    document.getElementById('linkFld').classList.toggle('hidden', v!=='link');
+  };
+  document.querySelectorAll('input[name=src]').forEach(r=>r.addEventListener('change', sync)); sync();
+  document.getElementById('docForm').addEventListener('submit', ev=>{ ev.preventDefault(); saveDoc(d, isNew); });
+}
+
+async function saveDoc(d, isNew){
+  const err = document.getElementById('dErr'), btn = document.getElementById('dSave');
+  const showErr = m => { err.textContent = m; err.classList.remove('hidden'); btn.disabled = false; };
+  btn.disabled = true; err.classList.add('hidden');
+  const src = document.querySelector('input[name=src]:checked').value;
+  const file = document.getElementById('dFile').files[0];
+  const url = document.getElementById('dUrl').value.trim();
+  if(src==='file' && !file && !d.storage_path) return showErr('Choose a file to upload.');
+  if(src==='link' && !url) return showErr('Enter the link.');
+  const p = {
+    id: d.id || '', doc_type: document.getElementById('dType').value,
+    title: document.getElementById('dTitle').value.trim(), description: document.getElementById('dDesc').value.trim(),
+    applies_to_roles: [...document.querySelectorAll('input[name=role]:checked')].map(c=>c.value),
+    version: document.getElementById('dVer').value.trim(), effective_date: document.getElementById('dEff').value,
+    status: document.getElementById('dStatus').value, rep_id: ''
+  };
+  if(!p.title) return showErr('Give the document a title.');
+  let oldPath = null;
+  try{
+    if(src==='file' && file){ Object.assign(p, await H.upload(file, 'library')); p.external_url = ''; oldPath = d.storage_path; }
+    if(src==='link'){ p.external_url = url; }
+  }catch(e){ return showErr(e.message); }
+  const { error } = await sb.rpc('hr_save_document', { p });
+  if(error) return showErr('Could not save: '+error.message);
+  if(oldPath && oldPath!==p.storage_path) H.remove(oldPath);
+  closeDrawer(); loadLib();
+}
+
+function confirmDelete(d){
+  openDrawer(`<h3>Delete this document?</h3>
+    <p><b>${esc(d.title)}</b> will be removed from the library${(d.applies_to_roles||[]).length?' and from staff apps':''}. This can't be undone.</p>
+    <div class="err hidden" id="xErr"></div>
+    <div class="formacts"><button class="btn" onclick="closeDrawer()">Keep it</button><button class="btn primary" style="background:var(--red);border-color:var(--red)" id="xGo">Delete</button></div>`);
+  document.getElementById('xGo').addEventListener('click', async ()=>{
+    const { data, error } = await sb.rpc('hr_delete_document', { p_id: d.id });
+    if(error){ const e=document.getElementById('xErr'); e.textContent='Could not delete: '+error.message; e.classList.remove('hidden'); return; }
+    if(data) H.remove(data);
+    closeDrawer(); loadLib();
+  });
+}
+</script>
+</body>
+</html>

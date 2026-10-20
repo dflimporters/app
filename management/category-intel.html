@@ -582,9 +582,15 @@ async function get(tbl,params){
   if(!r.ok) throw new Error(`${tbl} ${r.status}: ${await r.text()}`);
   return r.json();
 }
+// Offset paging: the server returns at most 1000 rows per request whatever limit
+// we send, so the page size must be <= 1000 or the 'short page = last page' test
+// ends the loop after one page (FE-D-15). Every cat_* cache has a primary key
+// 'id', appended to the order so rows can't repeat or vanish at page edges.
 async function getAll(tbl,params,ps=1000){
+  ps=Math.min(ps,1000);
+  const order=params.order?(/(^|,)id\./.test(params.order)?params.order:params.order+',id.asc'):'id.asc';
   let off=0,all=[];
-  while(true){const rows=await get(tbl,{...params,limit:ps,offset:off});all=all.concat(rows);if(rows.length<ps)break;off+=ps;}
+  while(true){const rows=await get(tbl,{...params,order,limit:ps,offset:off});all=all.concat(rows);if(rows.length<ps)break;off+=ps;}
   return all;
 }
 
@@ -620,7 +626,7 @@ async function loadAll(){
     setLdr('Fetching not yet purchased…');
     D.skuNotYet=mode==='cur'?await getAll('cat_sku_not_yet_cache',{select:'inventory_id,item_class,customer_id,customer_name,area,tier,ytd_avg_rev,ytd_avg_cases,last_purchase_date',financial_period:fp}):[];
     setLdr('Fetching key accounts…');
-    D.keyAccts=await getAll('cat_key_accounts_cache',{select:'id,item_class,customer_id,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date',financial_period:fp,order:'id.asc'},2000);
+    D.keyAccts=await getAll('cat_key_accounts_cache',{select:'id,item_class,customer_id,customer_name,salesperson,area,tier,budget_full,budget_mtd,actual_mtd,pct_to_budget,gap_mtd,pace_gap,last_purchase_date',financial_period:fp,order:'id.asc'});
     const mo=new Date(parseInt(per.slice(0,4)),parseInt(per.slice(4,6))-1,1).toLocaleString('default',{month:'long',year:'numeric'});
     document.getElementById('periodPill').textContent=mode==='cur'?`${mo} MTD (Day ${now.getDate()})`:mo;
     if(D.sum[0]){const ra=new Date(D.sum[0].refreshed_at);document.getElementById('cacheLbl').textContent=`Cache: ${ra.toLocaleDateString()} ${ra.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;}

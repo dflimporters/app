@@ -212,6 +212,13 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .reddot{background:var(--bad)}.amberdot{background:var(--warn)}
 .lr1{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.3}
 .lr2{font-size:11px;color:var(--mut);margin-top:1px}
+.cbtn{flex-shrink:0;align-self:center;padding:7px 12px;border:1.5px solid var(--ink);border-radius:8px;font-size:12px;font-weight:800;color:var(--ink);text-decoration:none;background:var(--card)}
+.crtag{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:8px;background:#fff5f5;color:var(--bad);vertical-align:1px}
+.histdoc{border-bottom:1px solid #f1f5f9}.histdoc:last-child{border-bottom:none}.histdoc .listrow{border-bottom:none}
+.histlines{margin:2px 0 10px;font-size:12px}.histlines td{vertical-align:top}.histlines td:first-child{font-weight:600}
+.histlines td .lr2{font-weight:400}
+.coverbar{background:#eef4ff;border:1.5px solid #326BD3;color:var(--ink);border-radius:12px;padding:10px 12px;margin:10px 0 4px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.coverbar button{flex-shrink:0;background:#326BD3;border:none;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:8px;cursor:pointer}
 .crow1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .cname{font-weight:700;font-size:14px;line-height:1.25}
 .cid{font-size:11px;color:var(--mut);margin-top:1px}
@@ -276,6 +283,8 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
         <div class="hdr-actions"><!-- Sales/Merch switcher — admin/manager only, see /shared/section-switcher.js --><div data-dfl-switcher></div><div data-dfl-hub-button></div><div data-dfl-user-menu></div></div>
       </div>
     </header>
+    <!-- Territory cover notice (rep_cover) — filled by showCoverBar() -->
+    <div class="wrap" id="coverwrap" style="display:none;padding-bottom:0"></div>
     <div class="wrap" id="content"><div class="spin"></div></div>
   </div>
 
@@ -463,6 +472,15 @@ async function initApp(profile){
   IS_REP_MANAGEMENT = profile.role==="rep_management";
   document.getElementById("nav-admin").style.display=isAdmin?"":"none";
 
+  // Territory cover (rep_cover): someone filling in for a rep — e.g. a team
+  // leader covering a rep on leave — sees that rep's accounts, targets and
+  // customer drilldown. Keyed on the signed-in user (auth.uid()), so it goes
+  // through the shared client, not the anon-key H headers.
+  try{
+    const {data,error}=await sb.rpc('get_my_rep_cover');
+    COVERS=(!error&&Array.isArray(data))?data:[];
+  }catch(e){ COVERS=[]; }
+
   // `profiles` doesn't carry the canonical `name`/`area` that the cache
   // tables are keyed on — look those up from `reps` via salesperson_id.
   if(profile.salesperson_id){
@@ -477,9 +495,22 @@ async function initApp(profile){
         // wins over whatever the profile-based greeting above showed first.
         updateGreeting(repRow.name);
         loadData(REP);
+        showCoverBar();
         return;
       }
     }catch(e){ /* falls through to the no-numbers state below */ }
+  }
+
+  // No numbers of their own but covering someone: that rep's app IS their app
+  // for the duration, so load it as the base view (no "Exit" — there's nothing
+  // to exit back to).
+  if(COVERS.length){
+    const c=COVERS[0];
+    REP={name:c.name, salesperson_id:c.salesperson_id, area:c.area};
+    COVER_ONLY=true;
+    loadData(REP);
+    showCoverBar();
+    return;
   }
 
   // Admin/manager with no personal sales numbers (e.g. Joel's own
@@ -579,13 +610,13 @@ function drawAdmin(){
       const rcls=r.pct>=expPace-2?"good":r.pct>=expPace-10?"warn":"bad";
       const rcolor=rcls==="good"?"var(--good)":rcls==="warn"?"#d9920a":"var(--bad)";
       const p=Math.max(0,Math.min(r.pct,100));
-      return `<div class="cust tap" onclick="viewAsRep('${encodeURIComponent(r.name)}','${r.sp_id}')">
+      return `<div class="cust tap" onclick="viewAsRep('${encQ(r.name)}','${encQ(r.sp_id)}')">
         <div class="crow1">
           <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)}</div></div>
           <div class="cgap"><div class="g" style="color:${rcolor}">${r.pct.toFixed(0)}%</div><div class="gl">achieved</div></div>
         </div>
         <div class="cbar"><span class="${rcls}" style="width:${p}%"></span></div>
-        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${r.pace||''} ›</span></div>
+        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${esc(r.pace)} ›</span></div>
       </div>`;
     }).join("")}
     <div class="foot">Figures in JMD · directional for GP.<br>Team pace based on ${sd.done} of ${sd.total} selling days</div>`;
@@ -593,14 +624,33 @@ function drawAdmin(){
 
 function setAdminSort(s){ ADMINSORT=s; drawAdmin(); }
 
-async function viewAsRep(encName, spId){
-  const name=decodeURIComponent(encName);
+async function viewAsRep(encName, spIdEnc){
+  const name=decodeURIComponent(encName), spId=decodeURIComponent(spIdEnc);
   VIEWAS={name, salesperson_id:spId};
   planLoaded=false;                         // force plan reload for this rep
   document.getElementById("planframe").src="";
   await loadData(VIEWAS);
   switchTab('home');
   showViewAsBanner(name);
+  showCoverBar();
+}
+
+/* ---------- Territory cover (rep_cover) ---------- */
+let COVERS=[], COVER_ONLY=false;
+// Whose numbers are on screen right now.
+function shownRepName(){ return (VIEWAS||REP||{}).name||""; }
+function showCoverBar(){
+  const w=document.getElementById("coverwrap"); if(!w) return;
+  if(!COVERS.length){ w.style.display="none"; return; }
+  const shown=shownRepName();
+  const cur=COVERS.find(c=>c.name===shown);
+  const others=COVERS.filter(c=>c.name!==shown);
+  const since=c=>c.starts_on?` since ${fmtDate(c.starts_on+"T12:00:00")}`:"";
+  const btns=others.map(c=>`<button onclick="viewAsRep('${encQ(c.name)}','${encQ(c.salesperson_id)}')">View ${esc(c.name.split(" ")[0])}'s accounts</button>`).join("");
+  w.innerHTML=`<div class="coverbar"><div>${cur
+      ?`🤝 Covering for <b>${esc(cur.name)}</b>${since(cur)} — these are their accounts, targets and customers.`
+      :`🤝 You're covering for <b>${others.map(c=>esc(c.name)).join(", ")}</b>.`}</div>${btns?`<div style="display:flex;flex-direction:column;gap:6px">${btns}</div>`:""}</div>`;
+  w.style.display="";
 }
 function showViewAsBanner(name){
   let b=document.getElementById("viewasbar");
@@ -617,7 +667,10 @@ function exitViewAs(){
   }else{
     document.getElementById("content").innerHTML=`<div class="empty" style="padding:60px 20px">No personal sales numbers to show for your account.</div>`;
   }
-  goAdmin();
+  planLoaded=false;
+  showCoverBar();
+  // A rep or cover user got here from the cover bar, not the Admin tab.
+  if(IS_MANAGER) goAdmin(); else switchTab('home');
 }
 function goCusts(){        // Customers nav button: always land on the account list
   switchTab('custs');
@@ -635,12 +688,13 @@ const MORE_PAGES = [
   { key:'calendar', title:'My Week', sub:'Your submitted plan, day by day', icon:'📅', src:'calendar.html', topLevel:true, hideFromManager:true },
   { key:'debrief', title:'Store Debrief', sub:'How did your last store visit go?', icon:'📝', src:'debrief.html', topLevel:true },
   { key:'bad-goods', title:'Report Bad Goods', sub:'Damaged product or bad batch', icon:'📦', src:'bad-goods.html', topLevel:true },
-  { key:'stock', title:'Stock & Prices', sub:'What we have on hand & list prices', icon:'🏷️', src:'stock.html', topLevel:true },
-  { key:'deal-sheet', title:'Deal Sheet', sub:'Volume deals at today\'s list prices', icon:'🤝', src:'deal-sheet.html', topLevel:true },
-  { key:'catalogue', title:'Catalogue', sub:'Browse the full DFL product catalogue', icon:'📖', src:'catalogue.html', topLevel:true },
-  { key:'planograms', title:'Planograms', sub:'Shelf placement reference, by category', icon:'📐', src:'planograms.html', topLevel:true },
+  { key:'stock', title:'Stock & Prices', sub:'What we have on hand & list prices', icon:'🏷️', src:'stock.html', topLevel:true, coverOk:true },
+  { key:'deal-sheet', title:'Deal Sheet', sub:'Volume deals at today\'s list prices', icon:'🤝', src:'deal-sheet.html', topLevel:true, coverOk:true },
+  { key:'catalogue', title:'Catalogue', sub:'Browse the full DFL product catalogue', icon:'📖', src:'catalogue.html', topLevel:true, coverOk:true },
+  { key:'planograms', title:'Planograms', sub:'Shelf placement reference, by category', icon:'📐', src:'planograms.html', topLevel:true, coverOk:true },
   { key:'leave-request', title:'Going on Leave', sub:'Submit a leave request & coverage plan', icon:'🌴', src:'leave-request.html', topLevel:true },
-  { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html' },
+  { key:'my-hr', title:'My Employment', sub:'Contract, job description, leave balance & documents', icon:'🪪', src:'my-hr.html', topLevel:true, myHr:true },
+  { key:'specials', title:'Specials & Flyers', sub:'Current deals & promo flyers', icon:'🎯', src:'specials.html', coverOk:true },
   { key:'specials-upload', title:'Upload Specials', sub:'Add & manage deals and flyers', icon:'📤', src:'specials-upload.html', managerOnly:true, topLevel:true },
   { key:'price-requests', title:'Price Requests', sub:'Ask for a lower price & track decisions', icon:'💲', src:'price-requests.html', cmOnly:true, topLevel:true },
   // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
@@ -654,13 +708,21 @@ function goMore(){ switchTab('more'); showMoreLauncher(); }
 function buildMoreLauncher(){
   const pages = MORE_PAGES.filter(p =>
     (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER) &&
-    (!p.cmOnly || IS_MANAGER || IS_REP_MANAGEMENT));
-  document.getElementById('launchGrid').innerHTML = pages.map(p => `
-    <button class="launch-card" onclick="openMorePage('${p.key}')">
+    (!p.cmOnly || IS_MANAGER || IS_REP_MANAGEMENT) &&
+    // Someone here only to cover a territory (rep_cover) gets the reference
+    // pages; the rest act as the signed-in person (their own leave, debriefs,
+    // hot list), which isn't the rep they're covering.
+    (!COVER_ONLY || p.coverOk));
+  const role = (window.DFL_PROFILE || {}).role;
+  document.getElementById('launchGrid').innerHTML = pages.map(p => {
+    // Not launched yet (DFL_MY_HR_LIVE in routes.js): greyed out, not clickable.
+    const soon = p.myHr && !dflMyHrOpen(role);
+    return `
+    <button class="launch-card" ${soon ? 'disabled aria-disabled="true" style="opacity:.45;cursor:default"' : `onclick="openMorePage('${p.key}')"`}>
       <span class="launch-ico">${p.icon}</span>
       <span class="launch-title">${p.title}</span>
-      <span class="launch-sub">${p.sub}</span>
-    </button>`).join('');
+      <span class="launch-sub">${soon ? 'Coming soon' : p.sub}</span>
+    </button>`; }).join('');
   moreBuilt = true;
 }
 
@@ -740,9 +802,9 @@ function openOrders(bucket, label){
       const tapCred = isCred && o.customer_id;
       const tappable = tapOrd || tapCred;
       const onclick = tapOrd
-        ? `openOrderItems('${encodeURIComponent(o.order_nbr)}','${encodeURIComponent(o.customer_name||'')}','${bucket}','${encodeURIComponent(o.status||'')}','${+o.order_total||0}')`
+        ? `openOrderItems('${encQ(o.order_nbr)}','${encQ(o.customer_name)}','${bucket}','${encQ(o.status)}','${+o.order_total||0}')`
         : tapCred
-        ? `openCreditNoteItems('${encodeURIComponent(o.customer_id)}','${encodeURIComponent(o.customer_name||'')}')`
+        ? `openCreditNoteItems('${encQ(o.customer_id)}','${encQ(o.customer_name)}')`
         : '';
       const hint = tapOrd ? (isBack ? 'See backordered items ›' : 'See what\'s on the order ›') : tapCred ? 'See credit note items ›' : '';
       return `<div class="cust ${tappable?'tap':''}" ${tappable?`onclick="${onclick}"`:''}>
@@ -1029,7 +1091,7 @@ function paceChip(s){
   const st=(s.pace_status||"").toLowerCase();
   const cls=st.includes("ahead")||st==="on-pace"?"good":st.includes("watch")?"warn":st.includes("behind")?"bad":"warn";
   const label=s.pace_status?s.pace_status.replace(/-/g," "):"—";
-  return `<span class="chip ${cls}">${label.charAt(0).toUpperCase()+label.slice(1)}</span>`;
+  return `<span class="chip ${cls}">${esc(label.charAt(0).toUpperCase()+label.slice(1))}</span>`;
 }
 
 function catCard(elapsed){
@@ -1044,7 +1106,7 @@ function catCard(elapsed){
   return `<div class="dcard" style="margin-top:16px">
     <div class="dlbl">Item class · MTD</div>
     <table class="ctable" style="table-layout:fixed"><thead><tr><th style="width:auto">Category</th><th style="width:64px">Budget</th><th style="width:64px">Actual</th><th style="width:44px">%</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td><div class="catrow"><span class="catname">${r.cat}</span><div class="catbar"><span class="${catCls(r.pct)}" style="width:${Math.max(0,Math.min(r.pct,100))}%"></span><i class="barmark" style="left:${mark}%"></i></div></div></td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+      ${rows.map(r=>`<tr><td><div class="catrow"><span class="catname">${esc(r.cat)}</span><div class="catbar"><span class="${catCls(r.pct)}" style="width:${Math.max(0,Math.min(r.pct,100))}%"></span><i class="barmark" style="left:${mark}%"></i></div></div></td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
     </tbody></table>
   </div>`;
 }
@@ -1116,7 +1178,7 @@ function drawTeaser(){
   if(!rows.length){t.innerHTML=`<div class="empty">No open gaps — nice work. 🎯</div>`;return;}
   t.innerHTML=rows.map(x=>{
     const bud=+x.monthly_budget, net=+x.net_sales, gap=bud-net, pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
-    return `<div class="cust tap" onclick="openCustFromHome('${x.customer_id}')">
+    return `<div class="cust tap" onclick="openCustFromHome(decodeURIComponent('${encQ(x.customer_id)}'))">
       <div class="crow1">
         <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
         <div class="cgap"><div class="g">${Jk(gap)}</div><div class="gl">to budget</div></div>
@@ -1157,7 +1219,7 @@ function drawList(){
     const pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
     const met=bud>0&&net>=bud;
     const last=x.last_order_date?fmtDate(x.last_order_date):"No order yet";
-    return `<div class="cust tap" onclick="openCust('${x.customer_id}')">
+    return `<div class="cust tap" onclick="openCust(decodeURIComponent('${encQ(x.customer_id)}'))">
       <div class="crow1">
         <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
         <div class="cgap">
@@ -1197,22 +1259,22 @@ async function openCust(cid){
   const mnum=new Date().getMonth()+1;
   try{
     const [cacheR,budR,mbudR,skuR,visitR,stockR,hotR]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${cid}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${cid}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${encodeURIComponent(cid)}&select=*`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${encodeURIComponent(cid)}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
       fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
       KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json()),
       // Merch app activity for this store — same customer_id, no rep linkage needed.
-      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${cid}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${encodeURIComponent(cid)}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
       // One save writes one row per SKU sharing the same counted_at — fetch a
       // batch, then keep just the rows matching the latest timestamp so the
       // rep can see the full itemized count, not only its date.
       // Limit by date, not rows: a count is often 70+ SKUs, so a row limit of 60 cut
       // the latest count short and dropped flagged reorders from the suggested order.
-      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${cid}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${encodeURIComponent(cid)}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:H}).then(r=>r.json()).catch(()=>[]),
       // Same source as the Hot List page (gap_closer_reco_cache) — surfaced
       // here too so a rep sees it while already looking at the account,
       // not only on a separate page.
-      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${cid}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(cid)}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
     ]);
     KEYSKUS=Array.isArray(skuR)?skuR:[];
     const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
@@ -1228,7 +1290,7 @@ async function openCust(cid){
     let reportR=[];
     if(reportName){
       try{
-        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(reportName)}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
+        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(String(reportName).replace(/[*%]/g,''))}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
       }catch(e){ reportR=[]; }
     }
     const stockRows=Array.isArray(stockR)?stockR:[];
@@ -1240,6 +1302,10 @@ async function openCust(cid){
     };
 const hot=Array.isArray(hotR)?hotR:[];
     renderCustDetail(cid, cache, budget, mbudget, merch, hot);
+    // Contact + YTD order history fill in after the brief renders, so a big
+    // account's invoice lines never hold up the rest of the page.
+    loadCustContact(cid);
+    loadCustHistory(cid);
   }catch(e){ c.innerHTML=`<div class="empty">Couldn't load this account. <span class="link" onclick="switchToCustList()">Back</span></div>`; }
   window.scrollTo(0,0);
 }
@@ -1254,7 +1320,10 @@ function hotReason(r){
 }
 
 function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
-  CURCUST={cid, cache, budget, mbudget, merch, hot};
+  // Contact and order history load separately (loadCustContact/loadCustHistory);
+  // keep them across re-renders of the same account (the YTD/MTD toggle).
+  const keep=CURCUST&&CURCUST.cid===cid?CURCUST:{};
+  CURCUST={cid, cache, budget, mbudget, merch, hot, contact:keep.contact, hist:keep.hist};
   const c=document.getElementById("custcontent");
   const today=new Date();
   const name=cache?cache.customer_name:cid;
@@ -1324,6 +1393,8 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
       <div class="dtags">${cache&&cache.segment?`<span class="dtag">${esc(cache.segment)}</span>`:""}${cache&&cache.area?`<span class="dtag">${esc(cache.area)}</span>`:""}${overdue?`<span class="dtag od">⚠ Overdue ${Math.abs(daysToNext)}d</span>`:""}</div>
     </div>
 
+    <div class="dcard" id="custContact">${custContactHtml()}</div>
+
     <div class="dcard" style="border:1.5px solid var(--ink);cursor:pointer" onclick="openOrderBuilder()">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div style="min-width:0">
@@ -1366,6 +1437,8 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
       </div>
     </div>
 
+    <div class="dcard" id="custHist">${custHistHtml()}</div>
+
     <div class="dcard">
       <div class="dlbl">Merch activity</div>
       <div class="timing" style="grid-template-columns:1fr 1fr">
@@ -1379,7 +1452,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     <div class="dcard">
       <div class="dlbl">Budget by category · ${isY?'YTD':'MTD'}</div>
       ${catRows.length?`<table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
-        ${catRows.map(r=>`<tr><td>${r.cat}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+        ${catRows.map(r=>`<tr><td>${esc(r.cat)}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
       </tbody></table>`:`<div class="empty" style="padding:16px">No category budget set.</div>`}
     </div>
 
@@ -1390,21 +1463,174 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
 
     <div class="dcard">
       <div class="dlbl amber">Category gaps · longest since purchase</div>
-      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${g.cat}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
+      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${esc(g.cat)}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
     </div>
 
     <div class="dcard">
       <div class="dlbl green">Replenishment due</div>
-      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${it.item_class} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
+      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(it.item_class)} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
     </div>
 
     <div class="dcard">
       <div class="dlbl red">Key SKU opportunities</div>
-      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${r.sku.posting_class||""} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
+      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.sku.posting_class)} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
     </div>
 
     <div class="foot">Figures in JMD · directional for GP.<br>Account data updated ${cache&&cache.refreshed_at?fmtDate(cache.refreshed_at):"daily"}</div>`;
 }
+
+/* ---------- Customer contact + YTD order history ----------
+   Both read by customer_id with no salesperson filter: whoever is looking at
+   the account (its rep, a manager, or someone covering via rep_cover) sees the
+   whole account history, not only lines stamped with their own name. */
+function escA(s){return esc(String(s==null?"":s)).replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function telHref(p){return "tel:"+String(p).replace(/[^\d+]/g,"");}
+
+async function loadCustContact(cid){
+  let contact;
+  try{
+    const enc=encodeURIComponent(cid);
+    const [cR,dR]=await Promise.all([
+      fetch(`${SB_URL}/rest/v1/customers?customer_id=eq.${enc}&select=customer_name,phone1,phone2,email,address_line1,address_line2,city,terms,customer_status,owner:raw->>Owner,phone_alt:raw->>Phone1_2,email_alt:raw->>Email&limit=1`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/customers_detrack?customer_id=eq.${enc}&select=clean_address,clean_city,parish,phone,email,instructions&limit=1`,{headers:H}).then(r=>r.json()).catch(()=>[])
+    ]);
+    const c=Array.isArray(cR)&&cR[0]?cR[0]:{}, d=Array.isArray(dR)&&dR[0]?dR[0]:{};
+    const uniq=a=>[...new Set(a.map(x=>(x||"").trim()).filter(Boolean))];
+    contact={
+      owner:(c.owner||"").trim(),
+      phones:uniq([c.phone1,c.phone2,c.phone_alt,d.phone]),
+      emails:uniq([c.email,c.email_alt,d.email]),
+      address:uniq([c.address_line1,c.address_line2,c.city]).join(", ")||uniq([d.clean_address,d.clean_city,d.parish]).join(", "),
+      terms:c.terms||"", status:c.customer_status||"", instructions:(d.instructions||"").trim()
+    };
+  }catch(e){ contact={error:true}; }
+  if(!CURCUST||CURCUST.cid!==cid) return;      // rep already moved to another account
+  CURCUST.contact=contact;
+  const el=document.getElementById("custContact"); if(el) el.innerHTML=custContactHtml();
+}
+
+function custContactHtml(){
+  const k=CURCUST&&CURCUST.contact;
+  const head=`<div class="dlbl">📇 Contact</div>`;
+  if(!k) return head+`<div class="lr2">Loading…</div>`;
+  if(k.error) return head+`<div class="lr2">Couldn't load contact details.</div>`;
+  const rows=[];
+  if(k.owner) rows.push(`<div class="listrow"><div><div class="lr2">Contact</div><div class="lr1">${esc(k.owner)}</div></div></div>`);
+  k.phones.forEach(p=>rows.push(`<div class="listrow"><div style="flex:1"><div class="lr2">Phone</div><div class="lr1">${esc(p)}</div></div><a class="cbtn" href="${escA(telHref(p))}">Call</a></div>`));
+  k.emails.forEach(m=>rows.push(`<div class="listrow"><div style="flex:1;min-width:0"><div class="lr2">Email</div><div class="lr1" style="word-break:break-all">${esc(m)}</div></div><a class="cbtn" href="mailto:${escA(m)}">Email</a></div>`));
+  if(k.address) rows.push(`<div class="listrow"><div style="flex:1"><div class="lr2">Address</div><div class="lr1">${esc(k.address)}</div></div><a class="cbtn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(k.address+", Jamaica")}">Map</a></div>`);
+  const meta=[k.terms&&("Terms: "+k.terms), k.status&&k.status!=="Active"&&("Status: "+k.status)].filter(Boolean).join(" · ");
+  if(meta) rows.push(`<div class="lr2" style="margin-top:8px">${esc(meta)}</div>`);
+  if(k.instructions) rows.push(`<div class="lr2" style="margin-top:4px">Delivery notes: ${esc(k.instructions)}</div>`);
+  return head+(rows.length?rows.join(""):`<div class="lr2">No contact details on file in Acumatica.</div>`);
+}
+
+async function loadCustHistory(cid){
+  const yr=new Date().getFullYear();
+  const base=`${SB_URL}/rest/v1/invoiced_items?customer_id=eq.${encodeURIComponent(cid)}&invoice_date=gte.${yr}-01-01&tran_type=in.(INV,CRM,DRM)`
+    +`&select=reference_number,line_nbr,tran_type,invoice_date,inventory_id,description,item_class,quantity,uom,unit_price,ext_amount,salesperson`
+    +`&order=invoice_date.desc,reference_number.desc,line_nbr.asc`;
+  let hist;
+  try{
+    const rows=[]; const PAGE=1000;
+    for(let off=0; off<20000; off+=PAGE){         // biggest account is ~1.4k lines YTD
+      const r=await fetch(`${base}&limit=${PAGE}&offset=${off}`,{headers:H});
+      if(!r.ok) throw new Error(r.status);
+      const page=await r.json(); rows.push(...page);
+      if(page.length<PAGE) break;
+    }
+    hist={rows, view:(CURCUST&&CURCUST.hist&&CURCUST.hist.view)||"inv", open:{}, q:""};
+  }catch(e){ hist={error:true}; }
+  if(!CURCUST||CURCUST.cid!==cid) return;
+  CURCUST.hist=hist;
+  drawCustHist();
+}
+function drawCustHist(){ const el=document.getElementById("custHist"); if(el) el.innerHTML=custHistHtml(); }
+function setHistView(v){ if(CURCUST&&CURCUST.hist){ CURCUST.hist.view=v; drawCustHist(); } }
+function toggleHistInv(i){ const h=CURCUST&&CURCUST.hist; if(!h) return; h.open[i]=!h.open[i]; drawCustHist(); }
+function setHistQ(v){
+  const h=CURCUST&&CURCUST.hist; if(!h) return; h.q=v;
+  const list=document.getElementById("histSkuList"); if(list) list.innerHTML=histSkuRows(h);
+}
+
+function custHistHtml(){
+  const h=CURCUST&&CURCUST.hist;
+  const yr=new Date().getFullYear();
+  if(!h) return `<div class="dlbl">🧾 Order history · ${yr} YTD</div><div class="lr2">Loading invoices…</div>`;
+  if(h.error) return `<div class="dlbl">🧾 Order history · ${yr} YTD</div><div class="lr2">Couldn't load order history.</div>`;
+  // Group lines into documents (one invoice / credit note each)
+  const docs=[]; const byRef={};
+  h.rows.forEach(r=>{
+    const key=r.tran_type+"|"+r.reference_number;
+    let d=byRef[key];
+    if(!d){ d=byRef[key]={ref:r.reference_number, type:r.tran_type, date:r.invoice_date, sp:r.salesperson, lines:[], total:0}; docs.push(d); }
+    d.lines.push(r); d.total+=Number(r.ext_amount)||0;
+  });
+  h.docs=docs;
+  const invs=docs.filter(d=>d.type!=="CRM");
+  const net=docs.reduce((s,d)=>s+d.total,0);
+  const credits=docs.filter(d=>d.type==="CRM").reduce((s,d)=>s+d.total,0);
+  const isInv=h.view!=="sku";
+  return `
+    <div class="dlbl" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🧾 Order history · ${yr} YTD</span>
+      <span class="ptoggle">
+        <button class="pbtn ${isInv?'on':''}" onclick="setHistView('inv')">Invoices</button>
+        <button class="pbtn ${!isInv?'on':''}" onclick="setHistView('sku')">Products</button>
+      </span>
+    </div>
+    <div class="timing" style="margin-bottom:10px">
+      <div><div class="tk">Net sales</div><div class="tv">${Jk(net)}</div><div class="ts">YTD</div></div>
+      <div><div class="tk">Invoices</div><div class="tv">${invs.length}</div><div class="ts">avg ${invs.length?Jk(invs.reduce((s,d)=>s+d.total,0)/invs.length):"—"}</div></div>
+      <div><div class="tk">Credits</div><div class="tv" style="color:${credits<0?'var(--bad)':'var(--ink)'}">${credits<0?Jk(credits):"—"}</div><div class="ts">${docs.length-invs.length} notes</div></div>
+    </div>
+    ${!docs.length?`<div class="empty" style="padding:12px">No invoices yet this year.</div>`:isInv?histInvRows(h,docs):`
+      <input class="search" style="margin:4px 0 8px" placeholder="Search products…" value="${escA(h.q)}" oninput="setHistQ(this.value)">
+      <div id="histSkuList">${histSkuRows(h)}</div>`}`;
+}
+
+function histInvRows(h,docs){
+  return docs.map((d,i)=>{
+    const cr=d.type==="CRM", open=!!h.open[i];
+    return `<div class="histdoc">
+      <div class="listrow tap" style="cursor:pointer" onclick="toggleHistInv(${i})">
+        <div style="flex:1;min-width:0">
+          <div class="lr1">${fmtDateY(d.date)} · ${esc(d.ref)}${cr?' <span class="crtag">Credit</span>':d.type==="DRM"?' <span class="crtag">Debit</span>':''}</div>
+          <div class="lr2">${d.lines.length} line${d.lines.length!==1?'s':''}${d.sp?' · '+esc(d.sp):''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0"><div class="lr1" style="color:${cr?'var(--bad)':'var(--ink)'}">${J(d.total)}</div><div class="lr2">${open?'Hide ▴':'Lines ▾'}</div></div>
+      </div>
+      ${open?`<table class="ctable histlines"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
+        ${d.lines.map(l=>`<tr><td>${esc(l.description||l.inventory_id||(cr?"Credit / adjustment":"—"))}<div class="lr2">${esc(l.inventory_id||'')}${l.uom?' · '+esc(l.uom):''}</div></td><td class="num">${fmtQty(l.quantity)}</td><td class="num">${J(l.unit_price||0)}</td><td class="num">${J(l.ext_amount||0)}</td></tr>`).join("")}
+      </tbody></table>`:''}
+    </div>`;
+  }).join("");
+}
+
+// Per-product YTD summary: invoiced qty and average price paid (credits excluded,
+// so a return doesn't distort the price), plus when it was last bought.
+function histSkuRows(h){
+  const m={};
+  h.rows.forEach(r=>{
+    if(r.tran_type!=="INV") return;
+    const k=r.inventory_id||r.description;
+    const s=m[k]||(m[k]={id:r.inventory_id, desc:r.description||r.inventory_id, cls:r.item_class, qty:0, amt:0, last:null, lastPrice:null, refs:new Set()});
+    const q=Number(r.quantity)||0; s.qty+=q; s.amt+=Number(r.ext_amount)||0; s.refs.add(r.reference_number);
+    // Last price ignores no-charge lines ($0), which ride along on the same invoice.
+    const up=Number(r.unit_price)||0;
+    if(up>0&&(!s.last||r.invoice_date>s.last)){ s.last=r.invoice_date; s.lastPrice=up; }
+  });
+  const q=(h.q||"").trim().toLowerCase();
+  let list=Object.values(m).sort((a,b)=>b.amt-a.amt);
+  if(q) list=list.filter(s=>((s.desc||"")+" "+(s.id||"")+" "+(s.cls||"")).toLowerCase().includes(q));
+  if(!list.length) return `<div class="empty" style="padding:12px">${q?"No products match.":"No products invoiced yet this year."}</div>`;
+  return `<table class="ctable histlines"><thead><tr><th>Product</th><th>Qty</th><th>Avg price</th><th>Total</th></tr></thead><tbody>
+    ${list.map(s=>`<tr><td>${esc(s.desc)}<div class="lr2">${esc(s.cls||'')} · ${s.refs.size} order${s.refs.size!==1?'s':''}${s.last?` · last ${fmtDateY(s.last)} @ ${J(s.lastPrice)}`:' · no charge'}</div></td><td class="num">${fmtQty(s.qty)}</td><td class="num">${s.qty?J(s.amt/s.qty):'—'}</td><td class="num">${Jk(s.amt)}</td></tr>`).join("")}
+  </tbody></table>`;
+}
+function fmtQty(n){ n=Math.abs(Number(n)||0); return Number.isInteger(n)?n.toLocaleString():n.toLocaleString(undefined,{maximumFractionDigits:2}); }
+// invoice_date is midnight UTC; read the calendar date itself so Jamaica (UTC-5) doesn't show the day before.
+function fmtDateY(s){ if(!s) return "—"; const d=new Date(String(s).slice(0,10)+"T12:00:00"); return d.toLocaleDateString("en-JM",{day:"numeric",month:"short",year:"2-digit"}); }
 
 function viewCustStockCount(){
   const msc=CURCUST&&CURCUST.merch&&CURCUST.merch.lastStockCount;
@@ -1521,7 +1747,12 @@ function sellingDays(){
 }
 function lastRefresh(){const r=CUST[0]&&CUST[0].refreshed_at;if(!r)return"just now";const d=new Date(r);return d.toLocaleString("en-JM",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"});}
 function fmtDate(s){const d=new Date(s);return d.toLocaleDateString("en-JM",{day:"numeric",month:"short"});}
-function esc(s){return(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+// Quote-safe, so it is also correct inside attributes, and tolerates non-strings.
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+// For a value placed inside a quoted JS string in an inline onclick:
+// encodeURIComponent leaves ' ( ) ! * alone, so a name like O'Brien broke the
+// handler (and a crafted one could run script). Decode it on the other side.
+function encQ(s){return encodeURIComponent(s==null?"":String(s)).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());}
 
 </script>
 </body>

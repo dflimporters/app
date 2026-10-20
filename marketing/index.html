@@ -373,7 +373,10 @@
   document.getElementById('todayLine').textContent =
     new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
 
-  function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+  // Quote-safe: the result goes into attributes too, so " and ' must be escaped.
+  function escapeHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // Request statuses that have a .req-status CSS class; anything else gets no class.
+  const REQ_STATUSES = ['pending_review', 'approved', 'declined'];
 
   // ---- Auth ----
   const signinScreen = document.getElementById('signinScreen');
@@ -557,7 +560,7 @@
       list.forEach(g => { (byRegion[g.r] = byRegion[g.r] || []).push(g); });
       select.innerHTML = '<option value="">Select a store…</option>' +
         Object.keys(byRegion).sort().map(region => `<optgroup label="${escapeHtml(region)}">` +
-          byRegion[region].map(g => `<option value="${g.id}">${escapeHtml(g.s)}${g.loc ? ' — ' + escapeHtml(g.loc) : ''} (${escapeHtml(g.a)})</option>`).join('') +
+          byRegion[region].map(g => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.s)}${g.loc ? ' — ' + escapeHtml(g.loc) : ''} (${escapeHtml(g.a)})</option>`).join('') +
           '</optgroup>').join('');
     }).catch(err => {
       console.error(err);
@@ -605,7 +608,7 @@
 
   function attachmentLinkHtml(r) {
     if (!r.attachment_path) return '';
-    return `<div class="req-attachment"><a href="#" data-path="${r.attachment_path}" class="attachment-link">📎 ${escapeHtml(r.attachment_name || 'View attachment')}</a></div>`;
+    return `<div class="req-attachment"><a href="#" data-path="${escapeHtml(r.attachment_path)}" class="attachment-link">📎 ${escapeHtml(r.attachment_name || 'View attachment')}</a></div>`;
   }
   function wireAttachmentLinks(container) {
     container.querySelectorAll('.attachment-link').forEach(a => {
@@ -680,7 +683,7 @@
       <div class="req-card ${r.kind}">
         <div class="req-top">
           <span class="req-type ${r.kind}">${r.kind === 'donation' ? 'Donation' : 'Promotion'}</span>
-          <span class="req-status ${r.status}">${r.status.replace('_',' ')}</span>
+          <span class="req-status ${REQ_STATUSES.includes(r.status) ? r.status : ''}">${escapeHtml(String(r.status||'').replace('_',' '))}</span>
         </div>
         <div class="req-who">${escapeHtml(r.requester_name || r.requester_email)} · ${new Date(r.created_at).toLocaleDateString()}</div>
         <div class="req-text">${escapeHtml(r.raw_input)}</div>
@@ -744,8 +747,8 @@
         <div class="req-text">${escapeHtml(r.raw_input)}</div>
         ${attachmentLinkHtml(r)}
         <div class="req-actions">
-          <button class="req-btn approve" data-id="${r.id}" data-table="${r.table}" data-action="approved">Approve</button>
-          <button class="req-btn decline" data-id="${r.id}" data-table="${r.table}" data-action="declined">Decline</button>
+          <button class="req-btn approve" data-id="${escapeHtml(r.id)}" data-table="${r.table}" data-action="approved">Approve</button>
+          <button class="req-btn decline" data-id="${escapeHtml(r.id)}" data-table="${r.table}" data-action="declined">Decline</button>
         </div>
       </div>`).join('');
     wireAttachmentLinks(list);
@@ -776,10 +779,10 @@
         <div class="wtitle">${escapeHtml(t.title)}</div>
         <div class="wnext">${escapeHtml(t.next_action || t.waiting_on || '')}</div>
         <div class="wfoot">
-          <select class="bucket-move" data-id="${t.id}">
+          <select class="bucket-move" data-id="${escapeHtml(t.id)}">
             ${Object.entries(BUCKET_LABEL).map(([k,v]) => `<option value="${k}" ${k===t.bucket?'selected':''}>${v}</option>`).join('')}
           </select>
-          <button class="done-btn" data-id="${t.id}">Done</button>
+          <button class="done-btn" data-id="${escapeHtml(t.id)}">Done</button>
         </div>
         <div class="wperson">${escapeHtml(t.project||'')}</div>
       </div>`).join('');
@@ -813,7 +816,7 @@
     if (rows.length === 0) { list.innerHTML = '<div class="empty-note">No stops added for this week yet.</div>'; return; }
     list.innerHTML = rows.map(r => `
       <div class="check-item ${r.done?'done':''}">
-        <input type="checkbox" data-id="${r.id}" ${r.done?'checked':''}>
+        <input type="checkbox" data-id="${escapeHtml(r.id)}" ${r.done?'checked':''}>
         <label>${escapeHtml(r.store_name)}${r.note?' — '+escapeHtml(r.note):''}</label>
       </div>`).join('');
     list.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', async () => {
@@ -892,7 +895,7 @@
       const photos = photosByGondola.get(g.id);
       const hasPhoto = !!photos;
       const thumb = hasPhoto
-        ? `<img class="gondola-thumb" src="${sb.storage.from('gondola-photos').getPublicUrl(photos[0].storage_path).data.publicUrl}" alt="">`
+        ? `<img class="gondola-thumb" src="${escapeHtml(sb.storage.from('gondola-photos').getPublicUrl(photos[0].storage_path).data.publicUrl)}" alt="">`
         : `<div class="gondola-thumb placeholder">—</div>`;
       return `<div class="gondola-row">
         ${thumb}

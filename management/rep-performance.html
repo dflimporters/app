@@ -750,7 +750,7 @@ function onMonthChange() {
     loadHistoricalMonth(SELECTED_PERIOD).catch(e => {
       document.getElementById('dash-meta').textContent = 'Error: ' + e.message;
       document.getElementById('rep-list').innerHTML =
-        '<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">Error: ' + e.message + '</div>';
+        '<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">Error: ' + escH(e.message) + '</div>';
     });
   }
 }
@@ -787,7 +787,10 @@ function calcPaceForPeriod(period) {
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-const pct  = (a, b) => b > 0 ? Math.min(Math.round(a / b * 100), 100) : 0;
+// HTML-escape for anything DB- or error-sourced that lands in innerHTML or an
+// attribute. weekly_plans and rep_followups are anon-writable (FE-D-02).
+const escH = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pct  =(a, b) => b > 0 ? Math.min(Math.round(a / b * 100), 100) : 0;
 const fmtM = n => {
   const v = Math.abs(Number(n));
   if (v >= 1_000_000) return (n < 0 ? '-' : '') + '$' + (v / 1_000_000).toFixed(1) + 'M';
@@ -972,13 +975,16 @@ function renderRow(rep) {
     ? new Date(rep.last_invoice_date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
     : '—';
 
-  const rowId = 'rep-' + rep.salesperson.replace(/\s+/g, '-');
+  // Escaped once here: rowId is only ever used inside attributes below, and the
+  // parser decodes it back, so getElementById('…' + rawRowId) still matches.
+  const rowId = escH('rep-' + rep.salesperson.replace(/\s+/g, '-'));
+  const repH  = escH(rep.salesperson);
 
   return `
-    <div class="rep-row" id="${rowId}" onclick="toggleExpand('${rep.salesperson.replace(/'/g,"\\'")}')">
+    <div class="rep-row" id="${rowId}" data-rep="${repH}" onclick="toggleExpand(this.dataset.rep)">
       <div>
-        <div class="rep-name">${rep.salesperson}</div>
-        <div class="rep-area">${rep.area || 'Unassigned'}</div>
+        <div class="rep-name">${repH}</div>
+        <div class="rep-area">${escH(rep.area || 'Unassigned')}</div>
       </div>
       <div><span class="badge" style="background:${sc.bg};color:${sc.color}">${sc.label}</span></div>
       <div style="text-align:right">
@@ -991,16 +997,16 @@ function renderRow(rep) {
         <div style="font-size:14px;font-weight:800;color:${bc}">${pctDisplay}%</div>
       </div>
       <div style="text-align:center">
-        <div class="metric-main" style="color:var(--navy);font-size:13px">${rep.active_customers_mtd}</div>
+        <div class="metric-main" style="color:var(--navy);font-size:13px">${escH(rep.active_customers_mtd)}</div>
       </div>
       <div style="text-align:center">
-        <div class="metric-main" style="color:${rep.new_accounts_mtd > 0 ? '#16a34a' : 'var(--navy)'};font-size:13px">${rep.new_accounts_mtd}</div>
+        <div class="metric-main" style="color:${rep.new_accounts_mtd > 0 ? '#16a34a' : 'var(--navy)'};font-size:13px">${escH(rep.new_accounts_mtd)}</div>
       </div>
       <div>
         <div class="metric-main" style="font-size:12px">${lastDate}</div>
       </div>
       <div style="text-align:center">
-        <div class="metric-main" style="font-size:13px">${rep.days_active_mtd}</div>
+        <div class="metric-main" style="font-size:13px">${escH(rep.days_active_mtd)}</div>
       </div>
       <div style="display:flex;align-items:center;justify-content:center">
         <div id="plan-dot-${rowId}" title="Checking plan..."
@@ -1037,9 +1043,9 @@ function renderRow(rep) {
         </div>
         <div class="expand-stat-block">
           <div class="expand-label">Activity This Month</div>
-          <div class="expand-line"><span>Active customers</span><strong>${rep.active_customers_mtd}</strong></div>
-          <div class="expand-line"><span>New accounts</span><strong>${rep.new_accounts_mtd}</strong></div>
-          <div class="expand-line"><span>Days invoiced</span><strong>${rep.days_active_mtd}</strong></div>
+          <div class="expand-line"><span>Active customers</span><strong>${escH(rep.active_customers_mtd)}</strong></div>
+          <div class="expand-line"><span>New accounts</span><strong>${escH(rep.new_accounts_mtd)}</strong></div>
+          <div class="expand-line"><span>Days invoiced</span><strong>${escH(rep.days_active_mtd)}</strong></div>
           <div class="expand-line"><span>Last invoice</span><strong>${lastDate}</strong></div>
         </div>
         <div class="expand-stat-block">
@@ -1059,13 +1065,13 @@ function renderRow(rep) {
       <div style="margin:4px 0 18px">
         <button class="report-btn" id="report-btn-${rowId}"
           onclick="downloadRepReport(event,this.dataset.rep,this.dataset.rowid,this)"
-          data-rep="${rep.salesperson}" data-rowid="${rowId}">
+          data-rep="${repH}" data-rowid="${rowId}">
           📊 Performance Report
         </button>
       </div>
       <div class="action-row">
-        <button class="act-btn" data-rep="${rep.salesperson}" onclick="event.stopPropagation();logFollowup(this.dataset.rep)">📞 Log Follow-up</button>
-        <button class="act-btn ghost" data-rowid="${rowId}" data-rep="${rep.salesperson}" onclick="event.stopPropagation();toggleHistory(this.dataset.rowid,this.dataset.rep)">View History</button>
+        <button class="act-btn" data-rep="${repH}" onclick="event.stopPropagation();logFollowup(this.dataset.rep)">📞 Log Follow-up</button>
+        <button class="act-btn ghost" data-rowid="${rowId}" data-rep="${repH}" onclick="event.stopPropagation();toggleHistory(this.dataset.rowid,this.dataset.rep)">View History</button>
         <button class="act-btn ghost">Send Reminder</button>
       </div>
       <div class="followup-history" id="history-${rowId}" style="display:none;flex-direction:column;gap:6px;margin-top:12px"></div>
@@ -1113,17 +1119,17 @@ async function loadIntelligence(salesperson, rowId) {
         ? new Date(rawDate).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})
         : null;
       return `
-      <div class="insight-row ${ins.insight_type}">
+      <div class="insight-row ${escH(ins.insight_type)}">
         <span class="insight-type-pill">${
           ins.insight_type === 'lapsed'       ? 'Gone Quiet'   :
           ins.insight_type === 'below-trend'  ? 'Below Trend'  : 'White Space'
         }</span>
-        <span class="insight-customer">${ins.customer_name}</span>
+        <span class="insight-customer">${escH(ins.customer_name)}</span>
         <span class="insight-detail">
-          ${ins.detail_text}
+          ${escH(ins.detail_text)}
           ${lastInv ? `<span style="display:inline-block;margin-left:6px;padding:1px 7px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;font-size:10px;color:var(--text2);font-weight:600">📅 ${lastInv}</span>` : ''}
         </span>
-        <span class="insight-value">${ins.value_text}</span>
+        <span class="insight-value">${escH(ins.value_text)}</span>
       </div>`;
     }).join('');
 
@@ -1162,9 +1168,9 @@ async function loadWeeklyTrend(salesperson, rowId) {
       html += `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
         <div style="font-size:8px;color:var(--muted);font-weight:700;margin-bottom:3px">${fmtK(rev)}</div>
         <div style="width:100%;height:60px;display:flex;align-items:flex-end">
-          <div style="width:100%;background:${barColor};height:${barPx}px;border-radius:3px 3px 0 0" title="${w.week_start}: ${fmtK(rev)}"></div>
+          <div style="width:100%;background:${barColor};height:${barPx}px;border-radius:3px 3px 0 0" title="${escH(w.week_start)}: ${fmtK(rev)}"></div>
         </div>
-        <div style="font-size:8px;color:var(--dim);margin-top:3px">${w.week_start}${w.is_current?' •':''}</div>
+        <div style="font-size:8px;color:var(--dim);margin-top:3px">${escH(w.week_start)}${w.is_current?' •':''}</div>
       </div>`;
     });
     html += '</div>';
@@ -1221,10 +1227,10 @@ async function loadWeeklyPlan(salesperson, rowId) {
         const stores = Array.isArray(d.stores) ? d.stores : (d.stores ? d.stores.split(', ') : []);
         html += '<div style="margin-bottom:6px">'
           + '<span style="font-family:Montserrat,sans-serif;font-weight:700;color:var(--blue);font-size:10px">'
-          + d.day.slice(0,3).toUpperCase() + '</span> '
-          + '<span style="color:var(--muted)">' + (d.zones || []).join(', ') + '</span>';
+          + escH(String(d.day||'').slice(0,3).toUpperCase()) + '</span> '
+          + '<span style="color:var(--muted)">' + escH((d.zones || []).join(', ')) + '</span>';
         if (stores.length) {
-          html += '<div style="color:var(--text2);padding-left:8px;font-size:11px">' + stores.join(', ') + '</div>';
+          html += '<div style="color:var(--text2);padding-left:8px;font-size:11px">' + escH(stores.join(', ')) + '</div>';
         }
         html += '</div>';
       });
@@ -1235,7 +1241,7 @@ async function loadWeeklyPlan(salesperson, rowId) {
         + 'padding:10px 12px;border-radius:8px">'
         + '<div style="font-family:Montserrat,sans-serif;font-size:9px;font-weight:800;letter-spacing:1px;'
         + 'text-transform:uppercase;color:#92400e;margin-bottom:4px">⚠️ Blockers / Flags Raised</div>'
-        + '<div style="color:#78350f;font-size:12px;line-height:1.5">' + plan.flags + '</div></div>';
+        + '<div style="color:#78350f;font-size:12px;line-height:1.5">' + escH(plan.flags) + '</div></div>';
     } else {
       html += '<div style="margin-top:12px;background:#f0fdf4;border:1px solid #bbf7d0;'
         + 'padding:8px 12px;border-radius:8px;color:#166534;font-size:11px">'
@@ -1381,7 +1387,7 @@ async function loadTierMix(salesperson, rowId) {
   } catch(e) {
     console.error('Tier mix error:', e);
     el.innerHTML = `<div style="font-size:11px;color:var(--red);font-weight:600">
-      Could not load tier data: ${e.message || 'Unknown error'}
+      Could not load tier data: ${escH(e.message || 'Unknown error')}
     </div>`;
   }
 }
@@ -1535,7 +1541,7 @@ async function saveFollowup() {
     document.getElementById('modal-form-body').style.display = 'none';
     document.getElementById('modal-success-body').style.display = 'block';
     document.getElementById('modal-success-msg').innerHTML =
-      `Follow-up with <strong>${currentFollowupRep}</strong> logged for today.`;
+      `Follow-up with <strong>${escH(currentFollowupRep)}</strong> logged for today.`;
 
     // Refresh history strip in the open expand panel
     const rowId = 'rep-' + currentFollowupRep.replace(/\s+/g, '-');
@@ -1609,10 +1615,10 @@ async function loadFollowupHistory(salesperson, rowId) {
       return;
     }
     el.innerHTML = data.map(f => `
-      <div class="followup-history-item" id="followup-item-${f.id}">
+      <div class="followup-history-item" id="followup-item-${escH(f.id)}">
         <div class="followup-history-date">${new Date(f.follow_up_date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
-        <div class="followup-history-note">${f.note || '<em style="color:var(--dim)">No notes added</em>'}</div>
-        <button class="followup-delete-btn" data-id="${f.id}" data-rowid="${rowId}" data-rep="${salesperson}"
+        <div class="followup-history-note">${f.note ? escH(f.note) : '<em style="color:var(--dim)">No notes added</em>'}</div>
+        <button class="followup-delete-btn" data-id="${escH(f.id)}" data-rowid="${escH(rowId)}" data-rep="${escH(salesperson)}"
           onclick="deleteFollowup(this.dataset.id, this.dataset.rowid, this.dataset.rep)"
           title="Delete this follow-up">✕</button>
       </div>`).join('');
@@ -1674,7 +1680,7 @@ async function loadHistoricalMonth(period) {
     console.error('Historical load error:', e);
     document.getElementById('rep-list').innerHTML =
       `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">
-        Could not load historical data: ${e.message}
+        Could not load historical data: ${escH(e.message)}
       </div>`;
   }
 }
@@ -1783,7 +1789,7 @@ async function loadHistoricalMonth_OLD(period) {
     console.error('Historical load error:', e);
     document.getElementById('rep-list').innerHTML =
       `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px">
-        Could not load historical data: ${e.message}
+        Could not load historical data: ${escH(e.message)}
       </div>`;
   }
 }
@@ -1981,7 +1987,7 @@ async function init() {
     document.getElementById('rep-list').innerHTML =
       `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
         Could not load dashboard data.<br>
-        <strong style="font-size:11px;color:var(--text2)">${errMsg}</strong><br><br>
+        <strong style="font-size:11px;color:var(--text2)">${escH(errMsg)}</strong><br><br>
         <button onclick="init()" style="background:var(--blue);border:none;color:#fff;
           font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;
           text-transform:uppercase;padding:10px 20px;border-radius:7px;cursor:pointer">
@@ -2006,7 +2012,7 @@ async function testConnection() {
       document.getElementById('rep-list').innerHTML =
         `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
           Supabase returned error <strong>${res.status}</strong>.<br>
-          <span style="font-size:11px;color:var(--muted)">${body}</span><br><br>
+          <span style="font-size:11px;color:var(--muted)">${escH(body)}</span><br><br>
           <button onclick="init()" style="background:var(--blue);border:none;color:#fff;
             font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;
             text-transform:uppercase;padding:10px 20px;border-radius:7px;cursor:pointer">Retry</button>
@@ -2018,7 +2024,7 @@ async function testConnection() {
     document.getElementById('rep-list').innerHTML =
       `<div style="text-align:center;padding:40px;color:var(--red);font-size:13px;line-height:2">
         Cannot reach Supabase.<br>
-        <strong style="font-size:11px">${e.message}</strong><br>
+        <strong style="font-size:11px">${escH(e.message)}</strong><br>
         <span style="font-size:11px;color:var(--muted)">This is usually a network or CORS issue.<br>
         Make sure the file is served from a web server, not opened as a local file.</span><br><br>
         <button onclick="testConnection()" style="background:var(--blue);border:none;color:#fff;
@@ -2086,7 +2092,7 @@ async function downloadRepReport(evt, salesperson, rowId, btn) {
       '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()">' +
       '<div style="background:#fff;padding:24px 28px;border-radius:12px;max-width:500px;text-align:center">' +
       '<div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:8px">Report Error</div>' +
-      '<div style="font-size:13px;color:#374151;word-break:break-word">' + msg + '</div>' +
+      '<div style="font-size:13px;color:#374151;word-break:break-word">' + escH(msg) + '</div>' +
       '<div style="font-size:11px;color:#94a3b8;margin-top:8px">Click anywhere to dismiss</div>' +
       '</div></div>';
     setTimeout(() => { btn.style.background=''; btn.innerHTML='📊 Performance Report'; }, 8000);
@@ -2149,8 +2155,8 @@ function showRepModal(salesperson, period, rep, data) {
       <!-- Header -->
       <div class="rep-modal-header">
         <div>
-          <div style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:900">${salesperson}</div>
-          <div style="font-size:11px;color:#8fa8d0;margin-top:2px;letter-spacing:1px">${rep.area||''} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Key Challenges</div>
+          <div style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:900">${escH(salesperson)}</div>
+          <div style="font-size:11px;color:#8fa8d0;margin-top:2px;letter-spacing:1px">${escH(rep.area||'')} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Key Challenges</div>
         </div>
         <button class="rep-modal-close" onclick="closeRepModal()">✕</button>
       </div>
@@ -2199,7 +2205,7 @@ function showRepModal(salesperson, period, rep, data) {
                 return `
                 <div class="rep-modal-row" style="background:${i%2===0?'#fff':'#fff5f5'}">
                   <div style="flex:1">
-                    <div class="rep-modal-row-name">${tierSym(c.tier)} ${c.customer_name}</div>
+                    <div class="rep-modal-row-name">${tierSym(c.tier)} ${escH(c.customer_name)}</div>
                     <div class="rep-modal-row-sub">
                       Last ordered: <strong>${lastD}</strong>${daysSince !== null ? ' · '+daysSince+'d ago' : ''}
                     </div>
@@ -2229,7 +2235,7 @@ function showRepModal(salesperson, period, rep, data) {
                   const p = Math.round((Number(c.mtd_rev)/Number(c.budget))*100);
                   const gap = Number(c.budget) - Number(c.mtd_rev);
                   return `<div style="padding:10px 12px;border-bottom:1px solid #f1f5f9;${i%3!==2?'border-right:1px solid #f1f5f9;':''}background:${i%2===0?'#fff':'#fffbeb'}">
-                    <div style="font-size:11px;font-weight:800;color:var(--navy)">${c.item_class}</div>
+                    <div style="font-size:11px;font-weight:800;color:var(--navy)">${escH(c.item_class)}</div>
                     <div style="font-family:'Montserrat',sans-serif;font-size:15px;font-weight:900;color:#d97706;margin-top:2px">${p}%</div>
                     <div style="font-size:10px;color:#94a3b8;margin-top:2px">${fmt(c.mtd_rev)} of ${fmt(c.budget)}</div>
                     <div style="font-size:10px;color:#dc2626;font-weight:600">↓ ${fmt(gap)} gap</div>
@@ -2258,10 +2264,10 @@ function showRepModal(salesperson, period, rep, data) {
                   const bCol = bPct === null ? '#94a3b8' : bPct >= 70 ? '#16a34a' : bPct >= 40 ? '#d97706' : '#dc2626';
                   return `<div class="rep-modal-row" style="background:${i%2===0?'#fff':'#f8fafc'}">
                     <div style="flex:1">
-                      <div class="rep-modal-row-name">${tierSym(v.tier)} ${v.customer_name}
+                      <div class="rep-modal-row-name">${tierSym(v.tier)} ${escH(v.customer_name)}
                         <span style="background:${uc}15;color:${uc};font-family:'Montserrat',sans-serif;font-size:8px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:6px">${ul}</span>
                       </div>
-                      <div class="rep-modal-row-sub">${v.shipping_zone||''} · ${v.days_since}d since last order · avg ${v.avg_cycle}d cycle</div>
+                      <div class="rep-modal-row-sub">${escH(v.shipping_zone||'')} · ${escH(v.days_since)}d since last order · avg ${escH(v.avg_cycle)}d cycle</div>
                       <div style="margin-top:5px">
                         ${cBud > 0
                           ? `<span style="font-size:11px;color:#0D1B3E"><strong style="color:${bCol}">${fmt(cMtd)}</strong> of <strong>${fmt(cBud)}</strong> budget <span style="color:${bCol};font-weight:700">(${bPct}%)</span></span>`
@@ -2269,7 +2275,7 @@ function showRepModal(salesperson, period, rep, data) {
                       </div>
                     </div>
                     <div style="text-align:right;margin-left:12px;flex-shrink:0">
-                      ${cats.map(c=>`<span style="background:#eef2fa;color:#326BD3;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:4px;display:inline-block;margin-bottom:3px">${c}</span>`).join('')}
+                      ${cats.map(c=>`<span style="background:#eef2fa;color:#326BD3;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:4px;display:inline-block;margin-bottom:3px">${escH(c)}</span>`).join('')}
                     </div>
                   </div>`;}).join('')}
           </div>

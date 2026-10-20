@@ -108,7 +108,9 @@ function showNotFound(){
 function addChip(row, href, label, iconPath){
   const a = document.createElement('a');
   a.href = href; a.className = 'contact-chip';
-  a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg><span>${label}</span>`;
+  a.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconPath}</svg>`;
+  // label comes from the DB: textContent, never innerHTML
+  const span = document.createElement('span'); span.textContent = label; a.appendChild(span);
   row.appendChild(a);
 }
 

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · Employee file</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  One employee's HR file: details, documents, credentials, company items and
+  leave. HR only (is_hr()).
+
+  /hr/employee.html?id=<reps.id>
+  Data: hr_person(id, year). Writes: hr_save_profile, hr_save_document,
+  hr_delete_document, hr_save_credential, hr_delete_credential,
+  hr_save_asset, hr_delete_asset, hr_set_entitlement.
+  Files: shared/hr-docs.js → private bucket hr-documents, folder = reps.id.
+  Schema + RPCs: _staging/sql/2026-10-14_hr_records.sql.
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
+.back{display:inline-block;font:700 12px var(--hf);color:var(--blue);text-decoration:none;margin-bottom:12px}
+.head{background:var(--navy2);color:#fff;border-radius:10px;padding:18px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.av{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font:800 20px var(--hf);flex-shrink:0}
+.head .nm{font:800 21px var(--hf);line-height:1.2}
+.head .rl{color:#BFCBE6;font-size:13.5px}
+.head .ct{color:#BFCBE6;font-size:12.5px;margin-top:4px;display:flex;gap:14px;flex-wrap:wrap}
+.head .ct a{color:#fff}
+.head .who{flex:1;min-width:220px}
+.chips{display:flex;gap:18px;flex-wrap:wrap}
+.chip .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.chip .v{font:700 16px var(--hf)}
+.chip .v.warn{color:#FFC76B} .chip .v.bad{color:#FF9B9B} .chip .v.good{color:#8EE3B0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:16px 0;overflow-x:auto}
+.tabs button{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.tabs .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--amber-t);color:var(--amber);font-size:10px;margin-left:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;min-width:0}
+.card h2{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 .sp{flex:1}
+.dl{display:grid;grid-template-columns:150px 1fr;gap:7px 12px;margin:0;font-size:13.5px}
+.dl dt{color:var(--ink3);font-size:12.5px}
+.dl dd{margin:0;word-break:break-word;min-width:0}
+.none{color:var(--ink3);font-style:italic}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--blue);color:#fff}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn.sm{padding:5px 10px;font-size:11px}
+.btn.link{border:0;padding:0;background:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-good{background:var(--green-t);color:var(--green)} .p-warn{background:var(--amber-t);color:var(--amber)}
+.p-bad{background:var(--red-t);color:var(--red)} .p-grey{background:var(--grey-t);color:var(--grey)} .p-blue{background:var(--blue-t);color:var(--blue)}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column}
+.item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.item:last-child{border-bottom:0}
+.item .ic{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.item .tx{flex:1;min-width:180px}
+.item .tt{font-weight:600}
+.item .ac{display:flex;gap:6px;flex-wrap:wrap}
+.item.await .tt{color:var(--ink2)}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.empty{color:var(--ink3);padding:18px 0;text-align:center}
+.leave{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media (max-width:760px){.leave{grid-template-columns:1fr}}
+.lv{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.lv .lt{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--ink2)}
+.lv .big{font:800 28px var(--hf);color:var(--navy);line-height:1.1;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.lv .row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.lv input{width:90px;font:13px var(--bf);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.bar{height:6px;background:var(--grey-t);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--blue)}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2);max-width:640px;margin:20px auto}
+.msg h2{font:800 17px var(--hf);color:var(--ink);margin:0 0 6px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
+
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(540px,100%);background:#fff;z-index:901;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding:22px 22px 40px}
+.drawer h3{font:800 19px var(--hf);margin:0 0 14px;padding-right:40px}
+.drawer .x{position:absolute;top:14px;right:14px;border:0;background:var(--grey-t);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--ink2)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form .full{grid-column:1/-1}
+.form h4{grid-column:1/-1;font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:8px 0 0}
+@media (max-width:480px){.form{grid-template-columns:1fr}}
+.fld{display:grid;gap:4px;min-width:0}
+.fld>span{font:600 12px var(--bf);color:var(--ink2)}
+.fld input,.fld select,.fld textarea{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none;width:100%}
+.fld :focus{border-color:var(--blue)}
+.fld textarea{min-height:70px;resize:vertical}
+.fld .hint{font-size:12px;color:var(--ink3)}
+label.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);cursor:pointer}
+.err{color:var(--red);font-size:12.5px;grid-column:1/-1}
+.formacts{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <a class="back" href="/hr/">‹ All people</a>
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <header class="head">
+      <div class="av" id="av" aria-hidden="true"></div>
+      <div class="who">
+        <div class="nm" id="hName"></div>
+        <div class="rl" id="hRole"></div>
+        <div class="ct" id="hContact"></div>
+      </div>
+      <div class="chips" id="hChips"></div>
+    </header>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-tab="documents" aria-selected="false">Documents <span class="badge hidden" id="bDocs"></span></button>
+      <button role="tab" data-tab="credentials" aria-selected="false">Credentials <span class="badge hidden" id="bCreds"></span></button>
+      <button role="tab" data-tab="items" aria-selected="false">Company items</button>
+      <button role="tab" data-tab="leave" aria-selected="false">Leave</button>
+    </div>
+
+    <section id="tab-overview"></section>
+    <section id="tab-documents" class="hidden"></section>
+    <section id="tab-credentials" class="hidden"></section>
+    <section id="tab-items" class="hidden"></section>
+    <section id="tab-leave" class="hidden"></section>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true"></aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script src="/shared/hr-docs.js"></script>
+<script>
+const H = DFL_HR, esc = H.esc;
+const REP_ID = new URLSearchParams(location.search).get('id');
+let F = null, TYPES = [], YEAR = new Date().getFullYear(), TAB = 'overview', SHOW_IDS = false;
+
+document.addEventListener('dfl-auth-ready', init);
+
+async function init(){
+  const gate = document.getElementById('gate');
+  if(!REP_ID){ gate.innerHTML = `<div class="msg">No employee selected. <a href="/hr/">Back to People</a></div>`; return; }
+  const t = await sb.rpc('hr_doc_type_list');
+  if(t.error && H.notReady(t.error)){
+    gate.innerHTML = `<div class="msg"><h2>HR records aren't switched on yet</h2>The database setup needs to be applied first.</div>`; return;
+  }
+  TYPES = t.data || [];
+  wire();
+  await load();
+  if(!F) return;
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  const h = location.hash.slice(1); if(['overview','documents','credentials','items','leave'].includes(h)) showTab(h);
+}
+
+async function load(){
+  const { data, error } = await sb.rpc('hr_person', { p_rep: REP_ID, p_year: YEAR });
+  if(error){
+    document.getElementById('gate').innerHTML = /not authorised/i.test(error.message)
+      ? `<div class="msg"><h2>HR only</h2>Employee files are only visible to HR.</div>`
+      : `<div class="msg">Couldn't load this file: ${esc(error.message)}</div>`;
+    F = null; return;
+  }
+  F = data;
+  document.title = 'DFL · ' + F.rep.name;
+  drawHead(); drawOverview(); drawDocs(); drawCreds(); drawItems(); drawLeave();
+}
+
+function wire(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+  document.getElementById('main').addEventListener('click', onAction);
+}
+function showTab(t){
+  TAB = t;
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===t)));
+  ['overview','documents','credentials','items','leave'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('hidden', x!==t));
+  history.replaceState(null, '', '#'+t);
+}
+
+// ---------- Header ----------
+function missingRequired(){
+  const have = new Set([...F.documents.filter(d=>d.status==='active'), ...F.role_documents].map(d=>d.doc_type));
+  return TYPES.filter(t=>t.required && !have.has(t.code));
+}
+function drawHead(){
+  const r = F.rep, p = F.profile || {};
+  document.getElementById('av').textContent = r.name.split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('hName').innerHTML = esc(r.name) + (r.active?'':' <span class="pill p-grey">Inactive</span>');
+  document.getElementById('hRole').textContent = [p.job_title || H.roleLabel(r.role), r.area, r.team_lead ? 'Team Leader: '+r.team_lead : ''].filter(Boolean).join(' · ');
+  document.getElementById('hContact').innerHTML = [
+    r.phone ? `📞 <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>` : '',
+    r.email ? `✉️ ${esc(r.email)}` : '',
+    r.has_login ? 'App login: yes' : 'No app login yet'
+  ].filter(Boolean).map(s=>`<span>${s}</span>`).join('');
+  const miss = missingRequired();
+  const expired = F.credentials.filter(c=>H.expiryState(c.expires_on)==='expired').length;
+  const expiring = F.credentials.filter(c=>H.expiryState(c.expires_on)==='expiring').length;
+  const vac = F.leave.find(l=>l.leave_type==='vacation');
+  document.getElementById('hChips').innerHTML = `
+    <div class="chip"><div class="l">Service</div><div class="v">${p.start_date ? esc(H.serviceLength(p.start_date)) : '<span class="warn">Start date not set</span>'}</div></div>
+    <div class="chip"><div class="l">File</div><div class="v ${miss.length?'warn':'good'}">${miss.length ? miss.length+' missing' : 'Complete'}</div></div>
+    <div class="chip"><div class="l">Credentials</div><div class="v ${expired?'bad':expiring?'warn':''}">${expired?expired+' expired':expiring?expiring+' expiring':F.credentials.length+' on file'}</div></div>
+    <div class="chip"><div class="l">Vacation ${YEAR}</div><div class="v ${vac&&vac.entitled!=null?'':'warn'}">${vac&&vac.entitled!=null ? fmtN(vac.remaining)+' of '+fmtN(vac.entitled)+' left' : 'Not set'}</div></div>`;
+  const bd = document.getElementById('bDocs'); bd.textContent = miss.length; bd.classList.toggle('hidden', !miss.length);
+  const bc = document.getElementById('bCreds'); bc.textContent = expired+expiring; bc.classList.toggle('hidden', !(expired+expiring));
+}
+function fmtN(n){ return n==null ? '' : (Math.round(Number(n)*10)/10).toString(); }
+const v = x => x ? esc(x) : '<span class="none">Not on file</span>';
+const vd = x => x ? H.fmtDate(x) : '<span class="none">Not on file</span>';
+
+// ---------- Overview ----------
+function drawOverview(){
+  const r = F.rep, p = F.profile || {};
+  const id = x => !x ? '<span class="none">Not on file</span>' : esc(SHOW_IDS ? x : '•'.repeat(Math.max(x.length-3,0))+x.slice(-3));
+  document.getElementById('tab-overview').innerHTML = `
+    ${!F.profile ? `<div class="card" style="margin-bottom:14px;background:var(--amber-t);border-color:#F1D9B5">
+      <b>Employment details haven't been entered yet.</b> Add the job title, start date and contract type to complete this file.
+      <div style="margin-top:8px"><button class="btn primary sm" data-act="edit-profile">Enter details</button></div></div>` : ''}
+    <div class="grid2">
+      <div class="card">
+        <h2>Employment <span class="sp"></span><button class="btn sm" data-act="edit-profile">Edit</button></h2>
+        <dl class="dl">
+          <dt>Job title</dt><dd>${v(p.job_title)}</dd>
+          <dt>Role in app</dt><dd>${esc(H.roleLabel(r.role))}</dd>
+          <dt>Department</dt><dd>${v(p.department)}</dd>
+          <dt>Employment type</dt><dd>${p.employment_type ? esc(H.EMPLOYMENT_TYPE[p.employment_type]||p.employment_type) : v(null)}</dd>
+          <dt>Start date</dt><dd>${vd(p.start_date)}${p.start_date?`<div class="sub">${esc(H.serviceLength(p.start_date))}</div>`:''}</dd>
+          <dt>Probation ends</dt><dd>${p.probation_end_date ? H.fmtDate(p.probation_end_date) : '<span class="sub">—</span>'}</dd>
+          <dt>Contract ends</dt><dd>${p.contract_end_date ? H.fmtDate(p.contract_end_date) + expiryPill(p.contract_end_date) : '<span class="sub">—</span>'}</dd>
+          <dt>Reports to</dt><dd>${p.reports_to ? esc(p.reports_to) : (r.team_lead ? esc(r.team_lead)+' <span class="sub">(from roster)</span>' : v(null))}</dd>
+          <dt>Work location</dt><dd>${p.work_location ? esc(p.work_location) : (r.area ? esc(r.area)+' <span class="sub">(from roster)</span>' : v(null))}</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>Personal <span class="sp"></span><button class="btn sm" data-act="edit-profile">Edit</button></h2>
+        <dl class="dl">
+          <dt>Date of birth</dt><dd>${vd(p.date_of_birth)}</dd>
+          <dt>Work phone</dt><dd>${v(r.phone)}</dd>
+          <dt>Personal email</dt><dd>${v(p.personal_email)}</dd>
+          <dt>Home address</dt><dd>${v(p.home_address)}</dd>
+          <dt>TRN</dt><dd>${id(p.trn)}</dd>
+          <dt>NIS</dt><dd>${id(p.nis)}</dd>
+        </dl>
+        ${(p.trn||p.nis)?`<button class="btn link sm" data-act="toggle-ids" style="margin-top:8px">${SHOW_IDS?'Hide':'Show'} TRN / NIS</button>`:''}
+      </div>
+      <div class="card">
+        <h2>Emergency contact <span class="sp"></span><button class="btn sm" data-act="edit-profile">Edit</button></h2>
+        <dl class="dl">
+          <dt>Name</dt><dd>${v(p.emergency_contact_name)}</dd>
+          <dt>Relationship</dt><dd>${v(p.emergency_contact_relation)}</dd>
+          <dt>Phone</dt><dd>${v(p.emergency_contact_phone)}</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h2>HR notes <span class="sp"></span><button class="btn sm" data-act="edit-profile">Edit</button></h2>
+        <div style="white-space:pre-wrap;font-size:13.5px">${p.notes ? esc(p.notes) : '<span class="none">No notes. Only HR can see notes.</span>'}</div>
+        ${p.updated_at?`<div class="sub" style="margin-top:10px">Last updated ${H.fmtDate(p.updated_at)}${p.updated_by_name?' by '+esc(p.updated_by_name):''}</div>`:''}
+      </div>
+    </div>`;
+}
+function expiryPill(d){
+  const s = H.expiryState(d), n = H.daysUntil(d);
+  if(s==='expired') return ' <span class="pill p-bad">Expired</span>';
+  if(s==='expiring') return ` <span class="pill p-warn">${n} days left</span>`;
+  return '';
+}
+
+function profileForm(){
+  const p = F.profile || {};
+  const f = (k,l,t='text',full=false,extra='') => `<label class="fld${full?' full':''}"><span>${l}</span>${t==='textarea'
+      ? `<textarea id="pf_${k}">${esc(p[k]||'')}</textarea>`
+      : `<input type="${t}" id="pf_${k}" value="${esc(p[k]||'')}" ${extra}>`}</label>`;
+  openDrawer(`<h3>Employment details — ${esc(F.rep.name)}</h3>
+    <form class="form" id="pform">
+      <h4>Employment</h4>
+      ${f('job_title','Job title','text',false,`placeholder="${esc(H.roleLabel(F.rep.role))}"`)}
+      ${f('department','Department','text',false,'placeholder="e.g. Merchandising"')}
+      <label class="fld"><span>Employment type</span><select id="pf_employment_type"><option value="">Not set</option>
+        ${Object.entries(H.EMPLOYMENT_TYPE).map(([k,l])=>`<option value="${k}"${p.employment_type===k?' selected':''}>${l}</option>`).join('')}</select></label>
+      ${f('start_date','Start date','date')}
+      ${f('probation_end_date','Probation ends','date')}
+      ${f('contract_end_date','Contract ends','date')}
+      ${f('reports_to','Reports to','text',false,`placeholder="${esc(F.rep.team_lead||'')}"`)}
+      ${f('work_location','Work location','text',false,`placeholder="${esc(F.rep.area||'')}"`)}
+      <h4>Personal</h4>
+      ${f('date_of_birth','Date of birth','date')}
+      ${f('personal_email','Personal email','email')}
+      ${f('home_address','Home address','textarea',true)}
+      ${f('trn','TRN')}
+      ${f('nis','NIS')}
+      <h4>Emergency contact</h4>
+      ${f('emergency_contact_name','Name')}
+      ${f('emergency_contact_relation','Relationship')}
+      ${f('emergency_contact_phone','Phone','tel')}
+      <h4>HR notes</h4>
+      ${f('notes','Notes (HR only)','textarea',true)}
+      <div class="err hidden" id="pErr"></div>
+      <div class="formacts"><button type="button" class="btn" onclick="closeDrawer()">Cancel</button><button type="submit" class="btn primary" id="pSave">Save details</button></div>
+    </form>`);
+  document.getElementById('pform').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const keys = ['job_title','department','employment_type','start_date','probation_end_date','contract_end_date','reports_to','work_location',
+      'date_of_birth','personal_email','home_address','trn','nis','emergency_contact_name','emergency_contact_relation','emergency_contact_phone','notes'];
+    const payload = {}; keys.forEach(k=>payload[k] = document.getElementById('pf_'+k).value.trim());
+    await save('pSave','pErr', sb.rpc('hr_save_profile', { p_rep: REP_ID, p: payload }));
+  });
+}
+
+// ---------- Documents ----------
+function drawDocs(){
+  const mine = F.documents, role = F.role_documents;
+  const req = TYPES.filter(t=>t.required);
+  const docRow = (d, fromLib) => `<div class="item">
+      <div class="ic" aria-hidden="true">${esc(d.type_icon||'📄')}</div>
+      <div class="tx"><div class="tt">${esc(d.title)}</div>
+        <div class="sub">${[esc(d.type_label), fromLib?'From the library · applies to '+esc(H.roleLabel(F.rep.role)):'',
+          d.effective_date?'Effective '+H.fmtDate(d.effective_date):'', d.expiry_date?'Expires '+H.fmtDate(d.expiry_date):'',
+          d.file_name?esc(d.file_name):''].filter(Boolean).join(' · ')}</div>
+        <div style="margin-top:3px">${d.status!=='active'?`<span class="pill p-grey">${esc(d.status)}</span> `:''}${!fromLib?(d.visible_to_employee?'<span class="pill p-blue">Employee can see</span>':'<span class="pill p-grey">HR only</span>'):''}${d.expiry_date?expiryPill(d.expiry_date):''}</div>
+      </div>
+      <div class="ac">
+        <button class="btn sm primary" data-act="open-doc" data-id="${esc(d.id)}">Open</button>
+        <button class="btn sm" data-act="download-doc" data-id="${esc(d.id)}" title="${d.external_url?'Save as PDF':'Download '+esc(d.file_name||'file')}">⬇ Download</button>
+        ${fromLib ? '' : `<button class="btn sm" data-act="edit-doc" data-id="${esc(d.id)}">Edit</button><button class="btn sm danger" data-act="del-doc" data-id="${esc(d.id)}">Delete</button>`}
+      </div></div>`;
+  const reqRows = req.map(t=>{
+    const have = mine.find(d=>d.doc_type===t.code && d.status==='active') || role.find(d=>d.doc_type===t.code);
+    return have ? '' : `<div class="item await"><div class="ic" aria-hidden="true">${esc(t.icon||'📄')}</div>
+      <div class="tx"><div class="tt">${esc(t.label)}</div><div class="sub">Required for every employee · awaiting upload</div></div>
+      <div class="ac"><span class="pill p-warn">Awaiting</span><button class="btn sm primary" data-act="add-doc" data-type="${esc(t.code)}">Upload</button></div></div>`;
+  }).join('');
+  document.getElementById('tab-documents').innerHTML = `
+    ${reqRows ? `<div class="card" style="margin-bottom:14px"><h2>Still needed</h2><div class="list">${reqRows}</div></div>` : ''}
+    <div class="card" style="margin-bottom:14px">
+      <h2>${esc(F.rep.name.split(' ')[0])}'s documents <span class="sp"></span><button class="btn sm primary" data-act="add-doc">+ Add document</button></h2>
+      <div class="list">${mine.length ? mine.map(d=>docRow(d,false)).join('') : '<div class="empty">No personal documents yet. Contracts, offer letters, evaluations and warnings go here.</div>'}</div>
+    </div>
+    <div class="card">
+      <h2>Role documents</h2>
+      <div class="list">${role.length ? role.map(d=>docRow(d,true)).join('') : `<div class="empty">No library documents are published to ${esc(H.roleLabel(F.rep.role))}s yet. <a href="/hr/#library">Open the library</a></div>`}</div>
+    </div>`;
+}
+
+function docForm(d, presetType){
+  const isNew = !d; d = d || {doc_type: presetType || 'contract', status:'active', visible_to_employee:true};
+  const opts = TYPES.filter(t=>t.scope!=='library').map(t=>`<option value="${esc(t.code)}" data-vis="${t.visible_to_employee_default}"${t.code===d.doc_type?' selected':''}>${esc(t.label)}</option>`).join('');
+  openDrawer(`<h3>${isNew?'Add a document':'Edit document'} — ${esc(F.rep.name)}</h3>
+    <form class="form" id="dform">
+      <label class="fld full"><span>Type</span><select id="dType">${opts}</select></label>
+      <label class="fld full"><span>Title</span><input id="dTitle" required value="${esc(d.title||'')}" placeholder="e.g. Employment contract 2026"></label>
+      <label class="fld full"><span>File${d.file_name?' (current: '+esc(d.file_name)+')':''}</span><input type="file" id="dFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"><span class="hint">PDF or photo. Up to 25 MB.${isNew?'':' Leave empty to keep the current file.'}</span></label>
+      <label class="fld"><span>Effective / signed date</span><input type="date" id="dEff" value="${esc(d.effective_date||'')}"></label>
+      <label class="fld"><span>Expiry date</span><input type="date" id="dExp" value="${esc(d.expiry_date||'')}"></label>
+      <label class="fld full"><span>Notes</span><textarea id="dDesc">${esc(d.description||'')}</textarea></label>
+      <label class="chk full"><input type="checkbox" id="dVis"${d.visible_to_employee?' checked':''}> ${esc(F.rep.name.split(' ')[0])} can see this in My Employment</label>
+      <div class="err hidden" id="dErr"></div>
+      <div class="formacts"><button type="button" class="btn" onclick="closeDrawer()">Cancel</button><button type="submit" class="btn primary" id="dSave">${isNew?'Add document':'Save changes'}</button></div>
+    </form>`);
+  const sel = document.getElementById('dType');
+  if(isNew){ const syncVis = ()=>{ document.getElementById('dVis').checked = sel.selectedOptions[0].dataset.vis==='true'; }; sel.addEventListener('change', syncVis); syncVis();
+    if(!d.title) document.getElementById('dTitle').value = sel.selectedOptions[0].textContent; sel.addEventListener('change', ()=>{ const t=document.getElementById('dTitle'); if(!t.dataset.touched) t.value = sel.selectedOptions[0].textContent; });
+    document.getElementById('dTitle').addEventListener('input', e=>e.target.dataset.touched='1'); }
+  document.getElementById('dform').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const err = document.getElementById('dErr'), btn = document.getElementById('dSave');
+    const file = document.getElementById('dFile').files[0];
+    if(!file && !d.storage_path && !d.external_url){ err.textContent='Choose a file to upload.'; err.classList.remove('hidden'); return; }
+    btn.disabled = true;
+    const p = { id:d.id||'', rep_id:REP_ID, doc_type:sel.value, title:document.getElementById('dTitle').value.trim(),
+      description:document.getElementById('dDesc').value.trim(), effective_date:document.getElementById('dEff').value,
+      expiry_date:document.getElementById('dExp').value, visible_to_employee:document.getElementById('dVis').checked, status:d.status||'active' };
+    let oldPath = null;
+    try{ if(file){ Object.assign(p, await H.upload(file, REP_ID)); oldPath = d.storage_path; } }
+    catch(e){ err.textContent = e.message; err.classList.remove('hidden'); btn.disabled=false; return; }
+    const ok = await save('dSave','dErr', sb.rpc('hr_save_document', { p }));
+    if(ok && oldPath && oldPath!==p.storage_path) H.remove(oldPath);
+  });
+}
+
+// ---------- Credentials ----------
+function drawCreds(){
+  const c = F.credentials;
+  const state = x => ({expired:'<span class="pill p-bad">Expired</span>', expiring:`<span class="pill p-warn">${H.daysUntil(x.expires_on)} days left</span>`,
+    valid:'<span class="pill p-good">Valid</span>', none:'<span class="pill p-grey">No expiry</span>'})[H.expiryState(x.expires_on)];
+  document.getElementById('tab-credentials').innerHTML = `
+    <div class="card">
+      <h2>Licences, certificates &amp; permits <span class="sp"></span><button class="btn sm primary" data-act="add-cred">+ Add credential</button></h2>
+      ${c.length ? `<div class="tablewrap"><table>
+        <thead><tr><th>Credential</th><th>Number</th><th>Issued</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+        <tbody>${c.map(x=>`<tr>
+          <td><b>${esc(x.name)}</b><div class="sub">${esc(H.CREDENTIAL_CATEGORY[x.category]||x.category)}${x.issuer?' · '+esc(x.issuer):''}</div></td>
+          <td class="num">${x.number?esc(x.number):'<span class="sub">—</span>'}</td>
+          <td class="num">${x.issued_on?H.fmtDate(x.issued_on):'<span class="sub">—</span>'}</td>
+          <td class="num">${x.expires_on?H.fmtDate(x.expires_on):'<span class="sub">—</span>'}</td>
+          <td>${state(x)}</td>
+          <td style="white-space:nowrap">${x.document_id?`<button class="btn sm" data-act="open-doc" data-id="${esc(x.document_id)}">View copy</button> <button class="btn sm" data-act="download-doc" data-id="${esc(x.document_id)}" title="Download copy">⬇</button> `:''}<button class="btn sm" data-act="edit-cred" data-id="${esc(x.id)}">Edit</button></td>
+        </tr>`).join('')}</tbody></table></div>`
+      : `<div class="empty">No credentials on file yet. Add a driver's licence, food handler's permit, police record or training certificate, with its expiry date, and it will be flagged before it runs out.</div>`}
+    </div>`;
+}
+
+function credForm(x){
+  const isNew = !x; x = x || {category:'licence'};
+  openDrawer(`<h3>${isNew?'Add a credential':'Edit credential'} — ${esc(F.rep.name)}</h3>
+    <form class="form" id="cform">
+      <label class="fld"><span>Category</span><select id="cCat">${Object.entries(H.CREDENTIAL_CATEGORY).map(([k,l])=>`<option value="${k}"${x.category===k?' selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="fld"><span>Name</span><input id="cName" required value="${esc(x.name||'')}" placeholder="e.g. Driver's licence"></label>
+      <label class="fld"><span>Number</span><input id="cNum" value="${esc(x.number||'')}"></label>
+      <label class="fld"><span>Issued by</span><input id="cIss" value="${esc(x.issuer||'')}" placeholder="e.g. Tax Administration Jamaica"></label>
+      <label class="fld"><span>Issued on</span><input type="date" id="cOn" value="${esc(x.issued_on||'')}"></label>
+      <label class="fld"><span>Expires on</span><input type="date" id="cExp" value="${esc(x.expires_on||'')}"></label>
+      <label class="fld full"><span>Copy of the credential${x.document_id?' (one is on file — choose a file to replace it)':''}</span><input type="file" id="cFile" accept=".pdf,.png,.jpg,.jpeg"></label>
+      <label class="fld full"><span>Notes</span><textarea id="cNotes">${esc(x.notes||'')}</textarea></label>
+      <div class="err hidden" id="cErr"></div>
+      <div class="formacts">${isNew?'':'<button type="button" class="btn danger" id="cDel" style="margin-right:auto">Delete</button>'}<button type="button" class="btn" onclick="closeDrawer()">Cancel</button><button type="submit" class="btn primary" id="cSave">${isNew?'Add credential':'Save changes'}</button></div>
+    </form>`);
+  if(!isNew) document.getElementById('cDel').addEventListener('click', ()=>save('cDel','cErr', sb.rpc('hr_delete_credential', { p_id:x.id })));
+  document.getElementById('cform').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const err = document.getElementById('cErr'), btn = document.getElementById('cSave'); btn.disabled = true;
+    const name = document.getElementById('cName').value.trim();
+    let docId = x.document_id || '';
+    const file = document.getElementById('cFile').files[0];
+    try{
+      if(file){
+        const up = await H.upload(file, REP_ID);
+        const r = await sb.rpc('hr_save_document', { p: Object.assign({ rep_id:REP_ID, doc_type:'certificate', title:name || 'Credential',
+          expiry_date:document.getElementById('cExp').value, visible_to_employee:true }, up) });
+        if(r.error) throw new Error(r.error.message);
+        docId = r.data;
+      }
+    }catch(e){ err.textContent = e.message; err.classList.remove('hidden'); btn.disabled=false; return; }
+    await save('cSave','cErr', sb.rpc('hr_save_credential', { p:{ id:x.id||'', rep_id:REP_ID, category:document.getElementById('cCat').value, name,
+      number:document.getElementById('cNum').value.trim(), issuer:document.getElementById('cIss').value.trim(),
+      issued_on:document.getElementById('cOn').value, expires_on:document.getElementById('cExp').value,
+      document_id:docId, notes:document.getElementById('cNotes').value.trim() } }));
+  });
+}
+
+// ---------- Company items ----------
+function drawItems(){
+  const a = F.assets;
+  document.getElementById('tab-items').innerHTML = `
+    <div class="card">
+      <h2>Issued by DFL <span class="sp"></span><button class="btn sm primary" data-act="add-item">+ Add item</button></h2>
+      ${a.length ? `<div class="tablewrap"><table>
+        <thead><tr><th>Item</th><th>Serial / ID</th><th>Issued</th><th>Status</th><th></th></tr></thead>
+        <tbody>${a.map(x=>`<tr>
+          <td><b>${esc(H.ITEM_TYPE[x.item_type]||x.item_type)}</b>${x.description?`<div class="sub">${esc(x.description)}</div>`:''}</td>
+          <td class="num">${x.identifier?esc(x.identifier):'<span class="sub">—</span>'}</td>
+          <td class="num">${x.issued_on?H.fmtDate(x.issued_on):'<span class="sub">—</span>'}</td>
+          <td>${x.returned_on?`<span class="pill p-grey">Returned ${H.fmtDate(x.returned_on)}</span>`:'<span class="pill p-blue">With employee</span>'}${x.condition?`<div class="sub">${esc(x.condition)}</div>`:''}</td>
+          <td><button class="btn sm" data-act="edit-item" data-id="${esc(x.id)}">Edit</button></td>
+        </tr>`).join('')}</tbody></table></div>`
+      : `<div class="empty">Nothing recorded yet. Log phones, SIM cards, uniforms, ID cards, merch tools and vehicles issued to ${esc(F.rep.name.split(' ')[0])}, so they can be collected if they leave.</div>`}
+    </div>`;
+}
+
+function itemForm(x){
+  const isNew = !x; x = x || {item_type:'phone', issued_on:new Date().toISOString().slice(0,10)};
+  openDrawer(`<h3>${isNew?'Record an item':'Edit item'} — ${esc(F.rep.name)}</h3>
+    <form class="form" id="iform">
+      <label class="fld"><span>Item</span><select id="iType">${Object.entries(H.ITEM_TYPE).map(([k,l])=>`<option value="${k}"${x.item_type===k?' selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="fld"><span>Serial / IMEI / plate / size</span><input id="iId" value="${esc(x.identifier||'')}"></label>
+      <label class="fld full"><span>Description</span><input id="iDesc" value="${esc(x.description||'')}" placeholder="e.g. Samsung A15, black"></label>
+      <label class="fld"><span>Issued on</span><input type="date" id="iOn" value="${esc(x.issued_on||'')}"></label>
+      <label class="fld"><span>Returned on</span><input type="date" id="iRet" value="${esc(x.returned_on||'')}"></label>
+      <label class="fld full"><span>Condition</span><input id="iCond" value="${esc(x.condition||'')}" placeholder="e.g. New, Good, Damaged screen"></label>
+      <label class="fld full"><span>Notes</span><textarea id="iNotes">${esc(x.notes||'')}</textarea></label>
+      <div class="err hidden" id="iErr"></div>
+      <div class="formacts">${isNew?'':'<button type="button" class="btn danger" id="iDel" style="margin-right:auto">Delete</button>'}<button type="button" class="btn" onclick="closeDrawer()">Cancel</button><button type="submit" class="btn primary" id="iSave">${isNew?'Add item':'Save changes'}</button></div>
+    </form>`);
+  if(!isNew) document.getElementById('iDel').addEventListener('click', ()=>save('iDel','iErr', sb.rpc('hr_delete_asset', { p_id:x.id })));
+  document.getElementById('iform').addEventListener('submit', ev=>{
+    ev.preventDefault();
+    save('iSave','iErr', sb.rpc('hr_save_asset', { p:{ id:x.id||'', rep_id:REP_ID, item_type:document.getElementById('iType').value,
+      identifier:document.getElementById('iId').value.trim(), description:document.getElementById('iDesc').value.trim(),
+      issued_on:document.getElementById('iOn').value, returned_on:document.getElementById('iRet').value,
+      condition:document.getElementById('iCond').value.trim(), notes:document.getElementById('iNotes').value.trim() } }));
+  });
+}
+
+// ---------- Leave ----------
+function drawLeave(){
+  const cur = new Date().getFullYear();
+  const yearOpts = [cur+1, cur, cur-1, cur-2].map(y=>`<option${y===YEAR?' selected':''}>${y}</option>`).join('');
+  const hist = F.leave_history || [];
+  document.getElementById('tab-leave').innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <label class="fld" style="grid-template-columns:auto auto;align-items:center;gap:8px"><span>Year</span><select id="lYear" style="width:auto">${yearOpts}</select></label>
+      <span class="sub" style="flex:1">Set how many days ${esc(F.rep.name.split(' ')[0])} is entitled to. Days used come from approved leave in both leave systems.</span>
+      <a class="btn sm" href="/hr-leave.html">HR Leave dashboard ↗</a>
+    </div>
+    <div class="leave">${F.leave.map(l=>{
+      const pct = l.entitled ? Math.min(100, Math.round(Number(l.approved)/Number(l.entitled)*100)) : 0;
+      return `<div class="lv">
+        <div class="lt">${esc(H.LEAVE_TYPE[l.leave_type]||l.leave_type)}</div>
+        <div class="big">${l.entitled!=null ? fmtN(l.remaining) : '–'}</div>
+        <div class="sub">${l.entitled!=null ? 'days left of '+fmtN(l.entitled) : 'Entitlement not set'}</div>
+        ${l.entitled!=null?`<div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>`:''}
+        <div class="sub" style="margin-top:6px">${fmtN(l.approved)} taken${Number(l.pending)?' · '+fmtN(l.pending)+' pending':''}</div>
+        <div class="row"><label class="sub" for="ent_${l.leave_type}">Entitled</label><input type="number" min="0" step="0.5" id="ent_${l.leave_type}" value="${l.entitled!=null?esc(l.entitled):''}" placeholder="days">
+          <button class="btn sm" data-act="save-ent" data-type="${esc(l.leave_type)}">Save</button></div>
+      </div>`; }).join('')}</div>
+    <div class="err hidden" id="lErr" style="margin-top:8px"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>Leave requests (field app)</h2>
+      ${hist.length ? `<div class="tablewrap"><table><thead><tr><th>Dates</th><th>Type</th><th>Days</th><th>Status</th></tr></thead><tbody>
+        ${hist.map(h=>`<tr><td class="num">${H.fmtDate(h.from_date)} → ${H.fmtDate(h.to_date)}</td><td>${esc(h.leave_type||'')}</td><td class="num">${h.days!=null?fmtN(h.days):''}</td>
+          <td><span class="pill ${h.status==='approved'?'p-good':h.status==='pending'?'p-warn':'p-grey'}">${esc(h.status||'')}</span></td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">No leave requests from the field app. Sales-team leave is on the HR Leave dashboard.</div>'}
+    </div>`;
+  document.getElementById('lYear').addEventListener('change', async e=>{ YEAR = Number(e.target.value); await load(); showTab('leave'); });
+}
+
+// ---------- Actions ----------
+async function onAction(e){
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  if(act==='edit-profile') profileForm();
+  if(act==='toggle-ids'){ SHOW_IDS = !SHOW_IDS; drawOverview(); }
+  if(act==='add-doc') docForm(null, b.dataset.type);
+  if(act==='edit-doc') docForm(F.documents.find(d=>d.id===id));
+  if(act==='del-doc') delDoc(F.documents.find(d=>d.id===id));
+  if(act==='open-doc'){
+    const d = [...F.documents, ...F.role_documents].find(x=>x.id===id);
+    try{ await H.open(d); }catch(err){ alert(err.message); }
+  }
+  if(act==='download-doc'){
+    const d = [...F.documents, ...F.role_documents].find(x=>x.id===id);
+    try{ await H.download(d); }catch(err){ alert(err.message); }
+  }
+  if(act==='add-cred') credForm(null);
+  if(act==='edit-cred') credForm(F.credentials.find(x=>x.id===id));
+  if(act==='add-item') itemForm(null);
+  if(act==='edit-item') itemForm(F.assets.find(x=>x.id===id));
+  if(act==='save-ent'){
+    const t = b.dataset.type, raw = document.getElementById('ent_'+t).value.trim();
+    b.disabled = true;
+    const { error } = await sb.rpc('hr_set_entitlement', { p_rep:REP_ID, p_year:YEAR, p_type:t, p_days: raw===''?null:Number(raw), p_notes:null });
+    if(error){ const er=document.getElementById('lErr'); er.textContent='Could not save: '+error.message; er.classList.remove('hidden'); b.disabled=false; return; }
+    await load(); showTab('leave');
+  }
+}
+
+function delDoc(d){
+  openDrawer(`<h3>Delete this document?</h3><p><b>${esc(d.title)}</b> will be removed from ${esc(F.rep.name)}'s file. This can't be undone.</p>
+    <div class="err hidden" id="xErr"></div>
+    <div class="formacts" style="display:flex"><button class="btn" onclick="closeDrawer()">Keep it</button><button class="btn primary" style="background:var(--red);border-color:var(--red)" id="xGo">Delete</button></div>`);
+  document.getElementById('xGo').addEventListener('click', async ()=>{
+    const { data, error } = await sb.rpc('hr_delete_document', { p_id:d.id });
+    if(error){ const e=document.getElementById('xErr'); e.textContent='Could not delete: '+error.message; e.classList.remove('hidden'); return; }
+    if(data) H.remove(data);
+    closeDrawer(); const t = TAB; await load(); showTab(t);
+  });
+}
+
+// Run an RPC from a drawer form; on success close and reload, staying on the same tab.
+async function save(btnId, errId, call){
+  const btn = document.getElementById(btnId), err = document.getElementById(errId);
+  btn.disabled = true; err.classList.add('hidden');
+  const { error } = await call;
+  if(error){ err.textContent = 'Could not save: '+error.message; err.classList.remove('hidden'); btn.disabled = false; return false; }
+  closeDrawer(); const t = TAB; await load(); showTab(t);
+  return true;
+}
+
+function openDrawer(html){
+  const dr = document.getElementById('drawer');
+  dr.innerHTML = `<button class="x" aria-label="Close" onclick="closeDrawer()">×</button>` + html;
+  dr.classList.remove('hidden'); document.getElementById('scrim').classList.remove('hidden');
+  const f = dr.querySelector('input:not([type=file]),select,textarea'); if(f) f.focus();
+}
+function closeDrawer(){ document.getElementById('drawer').classList.add('hidden'); document.getElementById('scrim').classList.add('hidden'); }
+</script>
+</body>
+</html>

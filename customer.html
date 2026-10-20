@@ -86,6 +86,9 @@ async function init() {
       fetch(`${SB_URL}/rest/v1/rep_debrief_items?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H }),
       fetch(`${SB_URL}/rest/v1/customer_contacts?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H })
     ]);
+    // A 401/403 body is an object, which render() would show as "nothing here".
+    const bad = [recoRes, debriefRes, contactRes].find(r => !r.ok);
+    if (bad) throw new Error('customer data request failed (HTTP ' + bad.status + ')');
     const recos = await recoRes.json();
     const debriefItems = await debriefRes.json();
     const contacts = await contactRes.json();
@@ -139,30 +142,29 @@ function render(customerId, recos, debriefItems, contacts) {
         <div class="reco-card">
           <span class="badge ${badgeClass(r.priority_label)}">${escapeHtml(r.priority_label)}</span>
           <div class="p-desc">${escapeHtml(r.description || r.inventory_id)}</div>
-          <div class="p-class">${escapeHtml(r.item_class || '')} · ${r.days_overdue > 0 ? r.days_overdue + ' days overdue' : 'dormant ' + (r.days_since_last || '?') + ' days'}</div>
+          <div class="p-class">${escapeHtml(r.item_class || '')} · ${r.days_overdue > 0 ? escapeHtml(r.days_overdue) + ' days overdue' : 'dormant ' + escapeHtml(r.days_since_last || '?') + ' days'}</div>
         </div>
       `).join('')}
     ` : ''}
 
     <div class="section-label">Debrief history ${debriefItems.length ? `(${debriefItems.length})` : ''}</div>
     ${debriefItems.length ? debriefItems.map(d => `
-      <div class="debrief-card sentiment-${d.sentiment || 'neutral'}">
+      <div class="debrief-card sentiment-${['positive','negative','neutral'].includes(d.sentiment) ? d.sentiment : 'neutral'}">
         <div class="d-top">
           <span class="d-date">${new Date(d.created_at).toLocaleDateString('en-JM', { month:'short', day:'numeric', year:'numeric' })}</span>
           <span class="d-sentiment">${escapeHtml(d.sentiment || '')}${d.match_status === 'needs_review' ? '<span class="review-pill">Needs review</span>' : ''}</span>
         </div>
         <div class="d-summary">${escapeHtml(d.summary || d.customer_name_raw || '')}</div>
-        ${d.action_needed ? `<div class="d-action">📌 ${escapeHtml(d.action_needed)}${d.suggested_due_date ? ` — by ${d.suggested_due_date}` : ''}</div>` : ''}
+        ${d.action_needed ? `<div class="d-action">📌 ${escapeHtml(d.action_needed)}${d.suggested_due_date ? ` — by ${escapeHtml(d.suggested_due_date)}` : ''}</div>` : ''}
         <div class="d-status">${escapeHtml(d.status || 'open')}</div>
       </div>
     `).join('') : '<div class="empty" style="padding:20px 0">No debriefs have mentioned this customer yet.</div>'}
   `;
 }
 
+// Quote-safe, so it is also safe inside attribute values.
 function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s == null ? '' : String(s);
-  return d.innerHTML;
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 </script>
 </body>
