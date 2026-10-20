@@ -481,6 +481,14 @@ body.dfl-readonly .readonly-note{display:block}
         <div id="m-pending-route-list" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
+      <!-- STORE AUDITS OF MY STORES — what the TL scored, as soon as it's
+           submitted (last 30 days). Hidden when there are none. loadMyAudits(). -->
+      <div id="m-audits-card" style="display:none;background:#FFFBEB;border:1.5px solid var(--amber);border-radius:var(--rad-sm);padding:12px 14px;margin-bottom:4px">
+        <div style="font-size:13px;font-weight:800;color:var(--amber);margin-bottom:2px">📋 Store audits of your stores</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Your team leader's scores — tap one to see the notes.</div>
+        <div id="m-audits-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+
       <!-- SECONDARY ACTIONS -->
       <div onclick="goTab('tab-stock');setNav('n-stock')" style="background:var(--red-lt);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--red);margin-bottom:4px">
         <div style="font-size:24px">⚠️</div>
@@ -939,6 +947,51 @@ body.dfl-readonly .readonly-note{display:block}
   </div>
   <div class="scroll-body">
     <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="tl-terr"></div>
+
+    <!-- WIN THE WEEK / WIN THE QUARTER — every number from get_tl_kpi() (SQL),
+         the same function the management dashboard's Store Audits tab reads. -->
+    <div class="merch-card" id="tl-kpi-card" style="margin-bottom:14px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div class="sec-hdr" style="margin:0">🏆 Win the Week</div>
+        <div style="font-size:11px;color:var(--muted)" id="tl-kpi-wk-range"></div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-top:8px">
+        <div style="font-size:30px;font-weight:900;line-height:1" id="tl-kpi-wk-done">–</div>
+        <div style="font-size:13px;color:var(--muted);font-weight:700" id="tl-kpi-wk-target">/ 10 store audits</div>
+      </div>
+      <div style="height:10px;border-radius:6px;background:var(--border);margin-top:8px;overflow:hidden">
+        <div id="tl-kpi-wk-bar" style="height:100%;width:0%;border-radius:6px;transition:width .4s"></div>
+      </div>
+      <div id="tl-kpi-wk-msg" style="margin-top:8px;font-size:13px;font-weight:700"></div>
+      <button class="hide-when-readonly" onclick="openStoreAudit()" style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:var(--rad-sm);background:var(--amber);color:#fff;font-size:13px;font-weight:800;cursor:pointer">📋 Start a store audit</button>
+      <div id="tl-kpi-wk-list" style="margin-top:10px"></div>
+
+      <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div class="sec-hdr" style="margin:0">🥇 Win the Quarter <span id="tl-kpi-q-label" style="color:var(--muted);font-weight:700"></span></div>
+        <div id="tl-kpi-q-pill" style="font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tl-kpi-q-sub"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:10px">
+        <div style="font-size:12px;font-weight:800;color:var(--navy)">Store audits</div>
+        <div style="font-size:13px;font-weight:800"><span id="tl-kpi-q-done">–</span> <span style="color:var(--muted)">/ <span id="tl-kpi-q-target">–</span></span></div>
+      </div>
+      <div style="position:relative;height:10px;border-radius:6px;background:var(--border);margin-top:6px;overflow:hidden">
+        <div id="tl-kpi-q-bar" style="height:100%;width:0%;border-radius:6px;transition:width .4s"></div>
+        <div id="tl-kpi-q-pace" title="Where you should be by the end of this week" style="position:absolute;top:0;bottom:0;width:2px;background:var(--navy)"></div>
+      </div>
+      <div id="tl-kpi-q-pacemsg" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+      <div id="tl-kpi-q-weeks" style="display:flex;gap:3px;margin-top:8px;flex-wrap:wrap"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--navy)">Brand Ambassador evaluations</div>
+        <div style="font-size:13px;font-weight:800"><span id="tl-kpi-ev-done">–</span> <span style="color:var(--muted)">/ <span id="tl-kpi-ev-all">–</span></span></div>
+      </div>
+      <div id="tl-kpi-ev-list" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
     <div class="stats-grid">
       <div class="stat-box"><div class="stat-lbl">Brand Ambassadors</div><div class="stat-val c-navy" id="tl-tot">–</div></div>
       <div class="stat-box"><div class="stat-lbl">Qualifying</div><div class="stat-val c-green" id="tl-qual">–</div></div>
@@ -1665,6 +1718,7 @@ async function launchMerch(u){
   document.getElementById('m-terr').textContent=(u.territory||'')+(u.team_lead?' · TL: '+u.team_lead:'');
   goTab('tab-home');setNav('n-home');
   applyReliefUI();
+  loadMyAudits();
   // Dual role (tl_merch) — add a button to switch back to the TL screen.
   if(u&&u.role==='tl_merch'&&!document.getElementById('merch-tl-switch-btn')){
     const hdrActions=document.querySelector('#s-merch .hdr-actions');
@@ -2526,6 +2580,106 @@ async function loadTLOwnCommission(u, period){
   }catch(e){ console.warn('own commission load failed:',e); card.style.display='none'; }
 }
 
+// ── WIN THE WEEK / WIN THE QUARTER ──
+// Week = Mon–Sun (Jamaica). Win the week = 10+ different stores audited.
+// Win the quarter = 10 × weeks in the quarter in total (so a big week can
+// make up for a short one) AND every BA on the team evaluated this quarter.
+// All the counting is get_tl_kpi() in SQL; this only draws it.
+const fmtShortDate=d=>new Date(d+'T12:00:00').toLocaleDateString('en-JM',{weekday:'short',day:'numeric',month:'short'});
+async function loadTLKpi(){
+  const card=document.getElementById('tl-kpi-card');
+  if(!card||!cu||!cu.id) return;
+  try{
+    const k=((await restRpc('get_tl_kpi',{p_tl_rep_id:cu.id}))||[])[0];
+    if(!k){ card.style.display='none'; return; }
+    card.style.display='block';
+    const green='var(--green)', amber='var(--amber)', red='var(--red)';
+
+    // Week
+    const wDone=k.week_done, wT=k.week_target, wWon=wDone>=wT;
+    const daysLeft=Math.max(0, Math.round((new Date(k.week_end+'T12:00:00')-new Date(k.today+'T12:00:00'))/864e5)+1);
+    document.getElementById('tl-kpi-wk-range').textContent=fmtShortDate(k.week_start)+' – '+fmtShortDate(k.week_end);
+    const wEl=document.getElementById('tl-kpi-wk-done');
+    wEl.textContent=wDone; wEl.style.color=wWon?green:'var(--navy)';
+    document.getElementById('tl-kpi-wk-target').textContent='/ '+wT+' store audits';
+    const wBar=document.getElementById('tl-kpi-wk-bar');
+    wBar.style.width=Math.min(100,wDone/wT*100)+'%'; wBar.style.background=wWon?green:amber;
+    const wMsg=document.getElementById('tl-kpi-wk-msg');
+    wMsg.style.color=wWon?green:'var(--text)';
+    wMsg.textContent=wWon
+      ? '🏆 Week won! '+(wDone>wT?(wDone-wT)+' extra — every one counts toward the quarter.':'Every extra audit counts toward the quarter.')
+      : (wT-wDone)+' more '+(wT-wDone===1?'audit':'audits')+' to win the week · '+daysLeft+' '+(daysLeft===1?'day':'days')+' left';
+    loadTLWeekAudits(k.week_start, k.week_end);
+
+    // Quarter — audits
+    const qDone=k.quarter_done, qT=k.quarter_target, pace=k.weeks_elapsed*wT;
+    const team=k.team||[], evDone=team.filter(b=>b.evaluated_at).length, evAll=team.length;
+    document.getElementById('tl-kpi-q-label').textContent='· '+k.quarter_label;
+    document.getElementById('tl-kpi-q-sub').textContent='Week '+k.weeks_elapsed+' of '+k.weeks_in_quarter+' · '+fmtShortDate(k.quarter_start)+' – '+fmtShortDate(k.quarter_end);
+    document.getElementById('tl-kpi-q-done').textContent=qDone;
+    document.getElementById('tl-kpi-q-target').textContent=qT;
+    const qBar=document.getElementById('tl-kpi-q-bar');
+    qBar.style.width=Math.min(100,qDone/qT*100)+'%'; qBar.style.background=qDone>=pace?green:amber;
+    document.getElementById('tl-kpi-q-pace').style.left=Math.min(100,pace/qT*100)+'%';
+    document.getElementById('tl-kpi-q-pacemsg').textContent=qDone>=qT
+      ? '✓ Quarter audit target reached'
+      : qDone>=pace ? 'On pace — '+pace+' needed by Sunday, you have '+qDone
+      : (pace-qDone)+' behind pace — need '+pace+' by Sunday to stay on track';
+    document.getElementById('tl-kpi-q-weeks').innerHTML=Array.from({length:k.weeks_in_quarter},(_,i)=>{
+      const w=(k.weeks||[])[i], cur=i===k.weeks_elapsed-1;
+      let bg='var(--border)', fg='var(--muted)', txt=String(i+1);
+      if(w){
+        if(w.done>=wT){ bg=green; fg='#fff'; txt='✓'; }
+        else if(!cur){ bg=red; fg='#fff'; txt=String(w.done); }
+        else { bg='#fff'; fg='var(--navy)'; txt=String(w.done); }
+      }
+      return '<div title="Week '+(i+1)+(w?': '+w.done+' audits':'')+'" style="flex:1;min-width:18px;height:22px;border-radius:5px;background:'+bg+';color:'+fg+';font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;'+(cur?'outline:2px solid var(--navy);outline-offset:-2px':'')+'">'+txt+'</div>';
+    }).join('');
+
+    // Quarter — evaluations
+    document.getElementById('tl-kpi-ev-done').textContent=evDone;
+    document.getElementById('tl-kpi-ev-all').textContent=evAll;
+    document.getElementById('tl-kpi-ev-list').innerHTML=team.length? team.map(b=>
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:'+(b.evaluated_at?'var(--green-lt)':'var(--card)')+'">'+
+        '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+escapeHtmlM(b.name)+'</div>'+
+        (b.evaluated_at
+          ? '<div style="font-size:11px;font-weight:700;color:var(--green)">✓ '+new Date(b.evaluated_at).toLocaleDateString('en-JM',{day:'numeric',month:'short'})+'</div>'
+          : '<button class="hide-when-readonly" data-id="'+escapeHtmlM(b.rep_id)+'" data-name="'+escapeHtmlM(b.name)+'" onclick="openEvaluationTool(this.dataset.id,this.dataset.name)" style="padding:5px 10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer">Evaluate</button>')+
+      '</div>').join('')
+      : '<div style="font-size:12px;color:var(--muted)">No brand ambassadors on your team.</div>';
+
+    // Overall quarter status
+    const qPill=document.getElementById('tl-kpi-q-pill');
+    const evOk=evDone===evAll;
+    if(qDone>=qT && evOk){ qPill.textContent='🏆 QUARTER WON'; qPill.style.background='var(--green-lt)'; qPill.style.color=green; }
+    else if(qDone>=pace && evOk){ qPill.textContent='ON TRACK'; qPill.style.background='var(--green-lt)'; qPill.style.color=green; }
+    else if(qDone>=pace){ qPill.textContent=(evAll-evDone)+' EVALS TO DO'; qPill.style.background='var(--amber-lt)'; qPill.style.color=amber; }
+    else { qPill.textContent='BEHIND'; qPill.style.background='var(--red-lt)'; qPill.style.color=red; }
+  }catch(e){ console.warn('TL KPI load failed:',e); card.style.display='none'; }
+}
+
+// The stores this TL has audited this week, so they can see what's counted.
+async function loadTLWeekAudits(from, to){
+  const el=document.getElementById('tl-kpi-wk-list');
+  try{
+    const rows=await rest(`merch_store_audits?tl_rep_id=eq.${cu.id}&audit_date=gte.${from}&audit_date=lte.${to}&select=customer_id,store_name,merchandiser_name,audit_date,shelves_clean,shelf_presence,facing_correct,rotation_correct,pricing_correct,pos_materials&order=created_at.desc`);
+    if(!rows||!rows.length){ el.innerHTML=''; return; }
+    // Newest first; a store's earlier audit this week is the one that counted.
+    const firstIdx={};
+    rows.forEach((r,i)=>{ firstIdx[r.customer_id]=i; });
+    el.innerHTML='<div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Audited this week</div>'+
+      rows.map((r,i)=>{
+        const s=AUDIT_CRITERIA.map(c=>r[c.id]).filter(v=>v>0);
+        const pct=s.length?Math.round(s.reduce((a,v)=>a+v,0)/s.length/5*100):null;
+        const dup=firstIdx[r.customer_id]!==i;
+        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">'+
+          '<div><div style="font-weight:700">'+escapeHtmlM(r.store_name||r.customer_id)+(dup?' <span style="font-size:10px;color:var(--muted);font-weight:600">(repeat — counted once)</span>':'')+'</div>'+
+          '<div style="font-size:10px;color:var(--muted)">'+fmtShortDate(r.audit_date)+(r.merchandiser_name?' · '+escapeHtmlM(r.merchandiser_name):'')+'</div></div>'+
+          '<div style="font-weight:800;color:'+(pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)')+'">'+(pct==null?'—':pct+'%')+'</div></div>';
+      }).join('');
+  }catch(e){ console.warn('week audits load failed:',e); el.innerHTML=''; }
+}
+
 async function loadTLData(u){
   try{
     const now=new Date(); const period=String(now.getFullYear())+String(now.getMonth()+1).padStart(2,'0');
@@ -2537,6 +2691,7 @@ async function loadTLData(u){
     // up front rather than after the early-return for an empty team.
     loadTLIncentive(u, period);
     loadTLOwnCommission(u, period);
+    loadTLKpi();
     loadMyEvents(u);
 
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
@@ -3978,6 +4133,10 @@ const AUDIT_CRITERIA=[
 function openStoreAudit(){
   document.getElementById('audit-store-search').value='';
   document.getElementById('audit-modal').style.display='flex';
+  // submitAudit() hides the button and leaves it on "Saving..." — put it back,
+  // or the second audit of the day can't be submitted without a reload.
+  const subBtn=document.getElementById('audit-submit-btn');
+  subBtn.style.display=''; subBtn.textContent='Submit audit';
   const draft=restoreAuditDraft();
   if(draft){
     auditState=draft.auditState;
@@ -4007,7 +4166,8 @@ async function loadAuditStores(){
     const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     if(!myNames.length){
-      listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No brand ambassadors in your team.</div>';
+      auditAllStores=[];
+      listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No team stores — search above for any store.</div>';
       return;
     }
     const allStores=[];
@@ -4041,21 +4201,56 @@ async function loadAuditStores(){
   }
 }
 
+// Team stores filter instantly; from 2 characters the whole active customer
+// list is searched too (merch_search_stores — same search as "Reassign a
+// store"), so a TL can audit any store, not just their own team's.
+let auditSearchDebounce=null, auditSearchExtra=[];
 function filterAuditStores(q){
+  q=(q||'').trim();
+  clearTimeout(auditSearchDebounce);
+  auditSearchExtra=[];
+  renderAuditStoreList(q);
+  if(q.length<2) return;
+  auditSearchDebounce=setTimeout(async()=>{
+    try{
+      const rows=await restRpc('merch_search_stores',{p_query:q});
+      if(document.getElementById('audit-store-search').value.trim()!==q) return; // typed on
+      auditSearchDebounce=null;
+      const mine={}; auditAllStores.forEach(s=>{ mine[s.customer_id]=true; });
+      auditSearchExtra=(rows||[]).filter(r=>!mine[r.customer_id]).map(r=>({
+        customer_id:r.customer_id,
+        store_name:r.customer_name||r.customer_id,
+        // First holder only — merchandiser_name is one name on the audit row.
+        merchandiser_name:(r.current_holder||'').split(',')[0].trim(),
+        city:r.city||'',
+        other:true
+      }));
+      renderAuditStoreList(q);
+    }catch(e){ console.warn('audit store search failed:',e); auditSearchDebounce=null; renderAuditStoreList(q); }
+  },300);
+}
+
+function renderAuditStoreList(q){
   const listEl=document.getElementById('audit-store-list');
-  const filtered=q?auditAllStores.filter(s=>s.store_name.toLowerCase().includes(q.toLowerCase())):auditAllStores;
+  const ql=(q||'').toLowerCase();
+  const mineMatches=ql?auditAllStores.filter(s=>s.store_name.toLowerCase().includes(ql)):auditAllStores;
+  const filtered=mineMatches.slice(0,20).concat(auditSearchExtra.slice(0,20));
   listEl.innerHTML='';
-  filtered.slice(0,20).forEach(s=>{
+  filtered.forEach(s=>{
     const btn=document.createElement('div');
     btn.dataset.cid=s.customer_id;
     btn.dataset.name=s.store_name;
     btn.dataset.merch=s.merchandiser_name;
     btn.style.cssText='padding:8px 12px;border-radius:8px;border:1.5px solid '+(auditState.customer_id===s.customer_id?'var(--amber)':'var(--border)')+';font-size:13px;cursor:pointer;background:'+(auditState.customer_id===s.customer_id?'#FFFBEB':'#fff')+';margin-bottom:2px';
-    btn.innerHTML='<div style="font-weight:700">'+escapeHtmlM(s.store_name)+'</div><div style="font-size:10px;color:var(--muted)">'+escapeHtmlM(s.merchandiser_name)+'</div>';
+    const sub=s.other
+      ? (s.city?s.city+' · ':'')+(s.merchandiser_name?'Brand Ambassador: '+s.merchandiser_name:'Not on any route')+' · other team'
+      : s.merchandiser_name;
+    btn.innerHTML='<div style="font-weight:700">'+escapeHtmlM(s.store_name)+'</div><div style="font-size:10px;color:var(--muted)">'+escapeHtmlM(sub)+'</div>';
     btn.onclick=function(){selectAuditStore(this.dataset.cid,this.dataset.name,this.dataset.merch);};
     listEl.appendChild(btn);
   });
-  if(!filtered.length)listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">No stores match.</div>';
+  if(!filtered.length)listEl.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px">'+
+    ((q||'').length>=2&&auditSearchDebounce?'Searching all stores…':'No stores match.')+'</div>';
 }
 
 function selectAuditStore(cid,name,merch){
@@ -4064,8 +4259,8 @@ function selectAuditStore(cid,name,merch){
   auditState.merchandiser_name=merch;
   auditState.scores={};
   auditState.notes={};
-  document.getElementById('audit-store-lbl').textContent=name+' · '+merch;
-  filterAuditStores(document.getElementById('audit-store-search').value);
+  document.getElementById('audit-store-lbl').textContent=name+(merch?' · '+merch:'');
+  renderAuditStoreList(document.getElementById('audit-store-search').value.trim());
   renderAuditForm();
   document.getElementById('audit-score-display').style.display='block';
   updateAuditScore();
@@ -4146,7 +4341,9 @@ async function submitAudit(){
       store_name:          auditState.store_name,
       tl_name:             cu?cu.full_name:'',
       merchandiser_name:   auditState.merchandiser_name,
-      audit_date:          new Date().toISOString().slice(0,10),
+      // Jamaica date, not UTC — toISOString() put every audit after 7pm on
+      // tomorrow, which on a Sunday night moved it into next week's count.
+      audit_date:          new Date().toLocaleDateString('en-CA',{timeZone:'America/Jamaica'}),
       shelves_clean:       auditState.scores.shelves_clean    ||null,
       shelves_clean_notes: auditState.notes.shelves_clean     ||null,
       shelf_presence:      auditState.scores.shelf_presence   ||null,
@@ -4163,6 +4360,7 @@ async function submitAudit(){
     };
     await rest('merch_store_audits',{method:'POST',prefer:'return=minimal',body:payload});
     clearAuditDraft();
+    loadTLKpi();
     const pctText=document.getElementById('audit-score-display').textContent;
     document.getElementById('audit-form-body').innerHTML=
       '<div style="text-align:center;padding:40px 24px">'+
@@ -4182,6 +4380,45 @@ async function submitAudit(){
 function closeAudit(){
   document.getElementById('audit-modal').style.display='none';
 }
+
+// A BA's view of audits on their stores (merchandiser_rep_id, stamped by the
+// DB on insert). Re-read whenever the app comes back to the foreground, so an
+// audit the TL just did with them in the store shows up straight away.
+async function loadMyAudits(){
+  const card=document.getElementById('m-audits-card');
+  if(!card||!cu||!cu.id) return;
+  try{
+    const since=new Date(Date.now()-30*864e5).toLocaleDateString('en-CA',{timeZone:'America/Jamaica'});
+    const rows=await rest(`merch_store_audits?merchandiser_rep_id=eq.${cu.id}&audit_date=gte.${since}&select=*&order=created_at.desc&limit=10`);
+    if(!rows||!rows.length){ card.style.display='none'; return; }
+    card.style.display='block';
+    document.getElementById('m-audits-list').innerHTML=rows.map(r=>{
+      const s=AUDIT_CRITERIA.map(c=>r[c.id]).filter(v=>v>0);
+      const pct=s.length?Math.round(s.reduce((a,v)=>a+v,0)/s.length/5*100):null;
+      const col=pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
+      const noteKey={shelves_clean:'shelves_clean_notes',shelf_presence:'shelf_presence_notes',facing_correct:'facing_notes',rotation_correct:'rotation_notes',pricing_correct:'pricing_notes',pos_materials:'pos_notes'};
+      const detail=AUDIT_CRITERIA.map(c=>
+        '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0"><span>'+c.icon+' '+c.label+'</span><b>'+(r[c.id]?r[c.id]+'/5':'—')+'</b></div>'+
+        (r[noteKey[c.id]]?'<div style="font-size:11px;color:var(--muted);margin:0 0 4px 20px">'+escapeHtmlM(r[noteKey[c.id]])+'</div>':'')
+      ).join('')+(r.overall_notes?'<div style="font-size:11px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><b>Notes:</b> '+escapeHtmlM(r.overall_notes)+'</div>':'');
+      return '<div onclick="const d=this.querySelector(\'.aud-d\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer">'+
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">'+
+          '<div><div style="font-size:12px;font-weight:700;color:var(--navy)">'+escapeHtmlM(r.store_name||r.customer_id)+'</div>'+
+          '<div style="font-size:10px;color:var(--muted)">'+fmtShortDate(r.audit_date)+' · by '+escapeHtmlM(r.tl_name||'Team leader')+'</div></div>'+
+          '<div style="font-size:16px;font-weight:900;color:'+col+'">'+(pct==null?'—':pct+'%')+'</div>'+
+        '</div>'+
+        '<div class="aud-d" style="display:none;margin-top:6px;border-top:1px solid var(--border);padding-top:6px">'+detail+'</div>'+
+      '</div>';
+    }).join('');
+  }catch(e){ console.warn('my audits load failed:',e); card.style.display='none'; }
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden||!cu) return;
+  const merchOn=document.getElementById('s-merch')?.classList.contains('active');
+  const tlOn=document.getElementById('s-tl')?.classList.contains('active');
+  if(merchOn) loadMyAudits();
+  if(tlOn) loadTLKpi();
+});
 
 // ── ADMIN / MANAGER — oversight roster ──
 // Was the "PIN Directory", which printed every user's PIN in plaintext. PINs
@@ -6598,19 +6835,25 @@ window.addEventListener('offline', updateLiveDot);
 </div>
 
 <script>
-let _evalFrameLoaded = false;
-function openEvaluationTool(){
+// With a BA (from the TL's Win the Quarter list) the tool opens already set to
+// "Supervisor evaluating <name>", carrying their reps.id so the evaluation
+// counts toward the quarter regardless of how the name is typed.
+let _evalFrameSrc = '';
+function openEvaluationTool(repId, name){
   const modal = document.getElementById('eval-modal');
   const frame = document.getElementById('eval-iframe');
-  if(!_evalFrameLoaded){
-    frame.src = '/merch-eval.html';
-    _evalFrameLoaded = true;
-  }
+  const src = repId
+    ? '/merch-eval.html?for='+encodeURIComponent(repId)+'&name='+encodeURIComponent(name||'')+'&reviewer='+encodeURIComponent(cu&&cu.full_name||'')
+    : '/merch-eval.html';
+  if(src !== _evalFrameSrc || repId){ frame.src = src; _evalFrameSrc = src; }
   modal.style.display = 'flex';
 }
 function closeEvaluationTool(){
   document.getElementById('eval-modal').style.display = 'none';
 }
+window.addEventListener('message', e=>{
+  if(e.origin===location.origin && e.data==='dfl-eval-submitted' && typeof loadTLKpi==='function') loadTLKpi();
+});
 
 // ══════════════════════════════════════════════
 // STOCK COUNT FEATURE
@@ -7101,8 +7344,8 @@ function openOrderSummary(){
       </div>
     </div>
     <div style="flex-shrink:0;padding:10px 16px;border-bottom:1px solid var(--border);background:#FFFBEB">
-      <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Select store to audit</div>
-      <input type="text" id="audit-store-search" placeholder="Search store name..." oninput="filterAuditStores(this.value)"
+      <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Select store to audit — your team's, or search any store</div>
+      <input type="text" id="audit-store-search" placeholder="🔍 Search any store…" autocomplete="off" oninput="filterAuditStores(this.value)"
         style="width:100%;padding:9px 12px;border:1.5px solid var(--amber);border-radius:8px;font-size:13px;font-family:inherit">
       <div id="audit-store-list" style="margin-top:6px;max-height:140px;overflow-y:auto"></div>
     </div>
