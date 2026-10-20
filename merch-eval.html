@@ -291,7 +291,25 @@ const state = {
   employee_name:"", position:"", review_period:"", reviewed_by:"",
   scores:{}, comments:{}, employee_feedback:"",
   employee_signed:false, supervisor_signed:false, manager_signed:false,
+  employee_rep_id:null,     // reps.id when opened for a named BA (?for=) — what Win the Quarter counts
 };
+
+// Opened from a TL's Win the Quarter list: straight to "Supervisor evaluating
+// <name>", period defaulted to this quarter. The DB stamps the reviewer itself.
+(function(){
+  const qs = new URLSearchParams(location.search);
+  const forId = qs.get("for");
+  if(!forId) return;
+  const now = new Date();
+  state.filled_by_role = "supervisor_manager";
+  state.completed_by = "supervisor";
+  state.supervisor_signed = true;
+  state.employee_rep_id = forId;
+  state.employee_name = qs.get("name") || "";
+  state.reviewed_by = qs.get("reviewer") || "";
+  state.position = "Brand Ambassador";
+  state.review_period = "Q" + (Math.floor(now.getMonth()/3)+1) + " " + now.getFullYear();
+})();
 
 function renderRolePicker(){
   const app = document.getElementById("app");
@@ -522,6 +540,11 @@ async function submitForm(){
     supervisor_signed: state.supervisor_signed,
     manager_signed: state.manager_signed,
   };
+  // Only while the name is still the one we were opened for — if it's been
+  // edited, let the DB match the typed name instead.
+  if(state.employee_rep_id && state.employee_name.trim() === (new URLSearchParams(location.search).get("name")||"").trim()){
+    payload.employee_rep_id = state.employee_rep_id;
+  }
   CRITERIA.forEach(c=>{
     payload[`score_${c.key}`] = state.scores[c.key]||null;
     payload[`comments_${c.key}`] = state.comments[c.key]||null;
@@ -536,6 +559,9 @@ async function submitForm(){
     console.error(error);
     return;
   }
+
+  // Tell merch.html (when framed) to refresh the TL's Win the Quarter card.
+  if(window.parent !== window) window.parent.postMessage("dfl-eval-submitted", location.origin);
 
   const isEmployee = state.filled_by_role==="employee";
   const waitingOn = isEmployee ? "your supervisor and/or manager" : "the employee";
