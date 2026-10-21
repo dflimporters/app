@@ -1126,23 +1126,18 @@ async function refreshFromDB(){
   icon.outerHTML = '<span class="spinner" id="refreshIcon"></span>';
   try {
     toast('Refreshing actuals from Supabase...');
-    const rpcHeaders = Object.assign({}, HDR, {'Prefer': 'resolution=merge-duplicates'});
+    // Signed-in client (user token): refresh_current_month is manager-only server-side.
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55000);
-    let resp;
+    let rpcRes;
     try {
-      resp = await fetch(`${SUPA}/rest/v1/rpc/refresh_current_month`, {
-        method: 'POST',
-        headers: rpcHeaders,
-        body: JSON.stringify({}),
-        signal: controller.signal
-      });
+      rpcRes = await sb.rpc('refresh_current_month').abortSignal(controller.signal);
     } finally {
       clearTimeout(timeout);
     }
-    if(!resp.ok){
-      const errText = await resp.text();
-      if(errText.includes('57014') || errText.includes('timeout') || errText.includes('canceling')){
+    if(rpcRes.error){
+      const errText = [rpcRes.error.code, rpcRes.error.message].filter(Boolean).join(' ');
+      if(errText.includes('57014') || errText.includes('timeout') || errText.includes('canceling') || errText.includes('Abort')){
         toast('Refresh running - reloading data...');
         await new Promise(r => setTimeout(r, 2000));
         await loadData();
@@ -1152,7 +1147,7 @@ async function refreshFromDB(){
       }
       throw new Error(errText.slice(0, 200));
     }
-    const result = await resp.json();
+    const result = rpcRes.data || {};
     const period = result.period || '';
     const msg = period ? (MONTHS[period]||period) + ': ' + result.customers + ' stores, $' + result.total_m + 'M' : 'Actuals updated';
     toast('Refreshed! ' + msg, 'success');
