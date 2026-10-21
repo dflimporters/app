@@ -162,12 +162,16 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 const CMKAM_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const CMKAM_SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
 
+// Signed-in user's token for every call (no fallback to the public key: with no session this throws).
+// The shared client (sb) loads at the bottom of this page, so these run only after DOMContentLoaded.
+async function cmkamToken(){ const { data: { session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return session.access_token; }
+
 async function sbSelect(table, filters, select){
   const params = new URLSearchParams();
   if(select) params.set('select', select);
   Object.keys(filters).forEach(k=>params.set(k, 'eq.'+filters[k]));
   const resp = await fetch(CMKAM_SB_URL+'/rest/v1/'+table+'?'+params.toString(), {
-    headers: { apikey: CMKAM_SB_KEY, Authorization: 'Bearer '+CMKAM_SB_KEY }
+    headers: { apikey: CMKAM_SB_KEY, Authorization: 'Bearer '+await cmkamToken() }
   });
   if(!resp.ok) throw new Error('Supabase error '+resp.status+': '+(await resp.text()));
   return resp.json();
@@ -176,7 +180,7 @@ async function sbUpsert(table, record, onConflictCols){
   const resp = await fetch(CMKAM_SB_URL+'/rest/v1/'+table+'?on_conflict='+onConflictCols, {
     method:'POST',
     headers:{
-      apikey: CMKAM_SB_KEY, Authorization:'Bearer '+CMKAM_SB_KEY,
+      apikey: CMKAM_SB_KEY, Authorization:'Bearer '+await cmkamToken(),
       'Content-Type':'application/json',
       'Prefer':'resolution=merge-duplicates,return=minimal'
     },
@@ -187,7 +191,7 @@ async function sbUpsert(table, record, onConflictCols){
 async function sbRpc(fnName, params){
   const resp = await fetch(CMKAM_SB_URL+'/rest/v1/rpc/'+fnName, {
     method:'POST',
-    headers:{ apikey: CMKAM_SB_KEY, Authorization:'Bearer '+CMKAM_SB_KEY, 'Content-Type':'application/json' },
+    headers:{ apikey: CMKAM_SB_KEY, Authorization:'Bearer '+await cmkamToken(), 'Content-Type':'application/json' },
     body: JSON.stringify(params)
   });
   if(!resp.ok) throw new Error('Supabase error '+resp.status+': '+(await resp.text()));
@@ -1087,7 +1091,8 @@ function generateRecapSlide(){
 }
 
 /* ============== INIT ============== */
-render();
+// Wait for DOMContentLoaded: render() loads saved records, which need the shared client (sb) that loads after this script.
+document.addEventListener("DOMContentLoaded", render);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/shared/supabase-client.js"></script>
