@@ -59,6 +59,7 @@
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token, for `reps`
 const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
 document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
@@ -69,7 +70,7 @@ async function init(profile) {
     return;
   }
   try {
-    const repRes = await fetch(`${SB_URL}/rest/v1/reps?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=name`, { headers: H });
+    const repRes = await fetch(`${SB_URL}/rest/v1/reps?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=name`, { headers: await userH() });
     const repRows = await repRes.json();
     const name = Array.isArray(repRows) && repRows[0] ? repRows[0].name : null;
     if (!name) { renderEmpty("No weekly plan to show for your account."); return; }
