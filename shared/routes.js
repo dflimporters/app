@@ -173,6 +173,7 @@ const DFL_PAGE_ROLES = {
   // Sister pages — evaluations and store audits, gated the same way (is_hr()).
   '/hr-evaluations.html': ['admin', 'management', 'hr'],
   '/hr-audits.html':      ['admin', 'management', 'hr'],
+  '/hr-issues.html':      ['admin', 'management', 'hr'],
 
   // HR records (_staging/sql/2026-10-14_hr_records.sql). The hub admits
   // managers for the Document Library tab; the People tab and every employee
