@@ -990,6 +990,16 @@ body.dfl-readonly .readonly-note{display:block}
         <div style="font-size:13px;font-weight:800"><span id="tl-kpi-ev-done">–</span> <span style="color:var(--muted)">/ <span id="tl-kpi-ev-all">–</span></span></div>
       </div>
       <div id="tl-kpi-ev-list" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
+
+      <!-- Any active Brand Ambassador, not just this TL's team — covering,
+           relief, or someone with no team leader on the roster. -->
+      <div class="hide-when-readonly" style="margin-top:12px">
+        <div style="font-size:12px;font-weight:800;color:var(--navy);margin-bottom:4px">Evaluate another Brand Ambassador</div>
+        <div class="store-search-wrap" style="margin-bottom:0">
+          <input type="text" id="tl-ev-any-input" placeholder="🔍 Search any Brand Ambassador…" autocomplete="off" onfocus="loadAllBAs()" oninput="renderAnyBA(this.value)" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;background:var(--card);color:var(--text)">
+          <div class="store-dropdown" id="tl-ev-any-drop"></div>
+        </div>
+      </div>
     </div>
 
     <div class="stats-grid">
@@ -2665,6 +2675,34 @@ async function loadTLKpi(){
     else if(qDone>=pace){ qPill.textContent=(evAll-evDone)+' EVALS TO DO'; qPill.style.background='var(--amber-lt)'; qPill.style.color=amber; }
     else { qPill.textContent='BEHIND'; qPill.style.background='var(--red-lt)'; qPill.style.color=red; }
   }catch(e){ console.warn('TL KPI load failed:',e); card.style.display='none'; }
+}
+
+// Every active Brand Ambassador (incl. relief and TL + BA), for "Evaluate
+// another Brand Ambassador". Loaded once, on first focus of the search box.
+let allBAs=null;
+async function loadAllBAs(){
+  if(allBAs) return;
+  try{
+    allBAs=await rest(`reps?active=eq.true&${roleIn(MERCH_FIELD_ROLES)}&select=id,name,area,team_lead_id&order=name`)||[];
+  }catch(e){ console.warn('BA list load failed:',e); allBAs=null; }
+}
+function renderAnyBA(q){
+  const drop=document.getElementById('tl-ev-any-drop');
+  q=(q||'').trim().toLowerCase();
+  if(q.length<2||!allBAs){ drop.innerHTML=''; drop.classList.remove('open'); return; }
+  const hits=allBAs.filter(b=>b.id!==cu.id && (b.name.toLowerCase().includes(q)||(b.area||'').toLowerCase().includes(q))).slice(0,15);
+  drop.innerHTML=hits.length
+    ? hits.map(b=>`<div class="store-opt" data-id="${escapeHtmlM(b.id)}" data-name="${escapeHtmlM(b.name)}" onclick="pickAnyBA(this)">
+        <div class="so-name">${escapeHtmlM(b.name)}</div>
+        <div class="so-city">${escapeHtmlM(b.area||'')}${b.team_lead_id===cu.id?' · your team':''}</div></div>`).join('')
+    : '<div class="store-none">No Brand Ambassador matches</div>';
+  drop.classList.add('open');
+}
+function pickAnyBA(el){
+  const drop=document.getElementById('tl-ev-any-drop');
+  drop.innerHTML=''; drop.classList.remove('open');
+  document.getElementById('tl-ev-any-input').value='';
+  openEvaluationTool(el.dataset.id, el.dataset.name);
 }
 
 // The stores this TL has audited this week, so they can see what's counted.
