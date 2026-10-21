@@ -126,6 +126,8 @@ tbody tr:last-child td{border-bottom:0}
       <button role="tab" aria-selected="true" data-tab="people" id="tabBtnPeople">People</button>
       <button role="tab" aria-selected="false" data-tab="library" id="tabBtnLibrary">Document library</button>
       <a href="/hr-leave.html" id="tabLeave">Leave ↗</a>
+      <a href="/hr-evaluations.html" id="tabEvals">Evaluations ↗</a>
+      <a href="/hr-audits.html" id="tabAudits">Store Audits ↗</a>
     </div>
 
     <!-- PEOPLE (HR only) -->
@@ -205,6 +207,8 @@ async function init(profile){
 
   document.getElementById('tabBtnPeople').classList.toggle('hidden', !WHO.is_hr);
   document.getElementById('tabLeave').classList.toggle('hidden', !WHO.is_hr);
+  document.getElementById('tabEvals').classList.toggle('hidden', !WHO.is_hr);
+  document.getElementById('tabAudits').classList.toggle('hidden', !WHO.is_hr);
   document.getElementById('addDoc').classList.toggle('hidden', !WHO.is_hr);
   if(!WHO.is_hr) document.getElementById('psub').textContent = 'Role profiles, job descriptions and policies.';
 
