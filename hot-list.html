@@ -69,7 +69,6 @@
 <script>
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token, for `reps`
 const MANAGER_LIMIT = 150; // a curated top-N, not an exhaustive audit view
 
@@ -108,7 +107,7 @@ function getParam(name) {
 async function fetchSalespersonRecos(name, label) {
   const recoRes = await fetch(
     `${SB_URL}/rest/v1/gap_closer_reco_cache?salesperson=eq.${encodeURIComponent(name)}&order=rank_order.asc&select=*`,
-    { headers: H }
+    { headers: await userH() }
   );
   const recos = await recoRes.json();
   render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, label);
@@ -178,7 +177,7 @@ async function init(profile) {
       const catList = scope.categories.map(encodeURIComponent).join(',');
       const recoRes = await fetch(
         `${SB_URL}/rest/v1/gap_closer_reco_cache?item_class=in.(${catList})&order=rank_order.asc&limit=${MANAGER_LIMIT}&select=*`,
-        { headers: H }
+        { headers: await userH() }
       );
       const recos = await recoRes.json();
       render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, scope.label);
@@ -186,7 +185,7 @@ async function init(profile) {
     }
 
     // key_accounts: resolve this manager's assigned accounts via customers.bdm
-    const custRes = await fetch(`${SB_URL}/rest/v1/customers?bdm=eq.${encodeURIComponent(name)}&select=customer_id`, { headers: H });
+    const custRes = await fetch(`${SB_URL}/rest/v1/customers?bdm=eq.${encodeURIComponent(name)}&select=customer_id`, { headers: await userH() });
     const custRows = await custRes.json();
     const ids = (Array.isArray(custRows) ? custRows : []).map(c => c.customer_id);
     if (ids.length === 0) {
@@ -196,7 +195,7 @@ async function init(profile) {
     const idList = ids.map(encodeURIComponent).join(',');
     const recoRes = await fetch(
       `${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=in.(${idList})&order=rank_order.asc&limit=${MANAGER_LIMIT}&select=*`,
-      { headers: H }
+      { headers: await userH() }
     );
     const recos = await recoRes.json();
     render(Array.isArray(recos) ? recos : [], recos[0]?.refreshed_at, scope.label);

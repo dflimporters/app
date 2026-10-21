@@ -162,9 +162,9 @@ const FIELD_ROLE_LABEL={merchandiser:'Brand Ambassador', relief_merchandiser:'Re
 // names into covered_by, which is what the Leave & Coverage Tracker reads.
 async function fetchCoverers(excludeStaffId){
   const [staffPoolR, fieldR, legacyR] = await Promise.all([
-    fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()),
-    fetch(`${SB_URL}/rest/v1/rpc/get_leave_coverers`,{method:'POST',headers:H,body:'{}'}).then(r=>r.json()).catch(()=>null),
-    fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:H}).then(r=>r.json()).catch(()=>[])
+    fetch(`${SB_URL}/rest/v1/leave_tracker_staff?role=in.(${encodeURIComponent('Field Rep')},${encodeURIComponent('Category Manager')},${encodeURIComponent('Key Account Manager')})&select=id,name&order=name.asc`,{headers:await userH()}).then(r=>r.json()),
+    fetch(`${SB_URL}/rest/v1/rpc/get_leave_coverers`,{method:'POST',headers:await userH(),body:'{}'}).then(r=>r.json()).catch(()=>null),
+    fetch(`${SB_URL}/rest/v1/merchandisers?active=eq.true&select=id,name&order=name.asc`,{headers:await userH()}).then(r=>r.json()).catch(()=>[])
   ]);
   const key=n=>(n||'').trim().toLowerCase();
   const legacy=Array.isArray(legacyR)?legacyR:[];
@@ -211,7 +211,7 @@ async function init(profile){
     return;
   }
   try{
-    const staffR = await fetch(`${SB_URL}/rest/v1/leave_tracker_staff?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=id,name,territory,role`,{headers:H}).then(r=>r.json());
+    const staffR = await fetch(`${SB_URL}/rest/v1/leave_tracker_staff?salesperson_id=eq.${encodeURIComponent(profile.salesperson_id)}&select=id,name,territory,role`,{headers:await userH()}).then(r=>r.json());
     STAFF=(Array.isArray(staffR)&&staffR[0])?staffR[0]:null;
     COVERERS = await fetchCoverers(STAFF&&STAFF.id);
     if(!STAFF){
@@ -246,11 +246,11 @@ async function init(profile){
 // (never by name — see CLAUDE.md gotcha 7 on name-keyed joins).
 async function loadStoreOverlapLeave(){
   if(!PROFILE || !PROFILE.full_name) return [];
-  const custRows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(PROFILE.full_name)}&select=customer_id`,{headers:H}).then(r=>r.json());
+  const custRows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(PROFILE.full_name)}&select=customer_id`,{headers:await userH()}).then(r=>r.json());
   const custIds = [...new Set((Array.isArray(custRows)?custRows:[]).map(r=>r.customer_id).filter(Boolean))];
   if(!custIds.length) return [];
 
-  const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=${pgIn(custIds)}&select=merchandiser_name`,{headers:H}).then(r=>r.json());
+  const mapRows = await fetch(`${SB_URL}/rest/v1/merchandiser_map?customer_id=${pgIn(custIds)}&select=merchandiser_name`,{headers:await userH()}).then(r=>r.json());
   const names = [...new Set((Array.isArray(mapRows)?mapRows:[]).map(r=>r.merchandiser_name).filter(Boolean))];
   if(!names.length) return [];
 
@@ -259,7 +259,7 @@ async function loadStoreOverlapLeave(){
   if(!ids.length) return [];
 
   const today = new Date().toISOString().slice(0,10);
-  const rows = await fetch(`${SB_URL}/rest/v1/leave_requests?requester_id=in.(${ids.join(',')})&status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`,{headers:H}).then(r=>r.json());
+  const rows = await fetch(`${SB_URL}/rest/v1/leave_requests?requester_id=in.(${ids.join(',')})&status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`,{headers:await userH()}).then(r=>r.json());
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -340,7 +340,7 @@ function renderMerchLeaveSection(){
 }
 
 async function loadRequests(){
-  const r = await fetch(`${SB_URL}/rest/v1/leave_tracker_records?staff_id=eq.${STAFF.id}&select=*&order=start_date.desc`,{headers:H});
+  const r = await fetch(`${SB_URL}/rest/v1/leave_tracker_records?staff_id=eq.${STAFF.id}&select=*&order=start_date.desc`,{headers:await userH()});
   REQUESTS = await r.json();
   if(!Array.isArray(REQUESTS)) REQUESTS=[];
 }
@@ -451,11 +451,11 @@ async function loadKeyStores(){
   // used cat_key_accounts_cache.tier, which is an unrelated per-category
   // ranking — it happened to return real Tier 1 stores but had zero Tier 2
   // rows for reps like Clerett who do have real Chain accounts.)
-  const spRow = await fetch(`${SB_URL}/rest/v1/salespersons?sp_code=eq.${encodeURIComponent(PROFILE.salesperson_id)}&select=acumatica_numeric_id`,{headers:H}).then(r=>r.json());
+  const spRow = await fetch(`${SB_URL}/rest/v1/salespersons?sp_code=eq.${encodeURIComponent(PROFILE.salesperson_id)}&select=acumatica_numeric_id`,{headers:await userH()}).then(r=>r.json());
   const numId = Array.isArray(spRow) && spRow[0] ? spRow[0].acumatica_numeric_id : null;
   if(numId==null) return [];
   const url = `${SB_URL}/rest/v1/customers?salesperson_id=eq.${numId}&segment=in.(Key,Chain)&select=customer_id,customer_name,segment&order=segment.asc,customer_name.asc`;
-  const rows = await fetch(url,{headers:H}).then(r=>r.json());
+  const rows = await fetch(url,{headers:await userH()}).then(r=>r.json());
   if(!Array.isArray(rows)) return [];
   return rows.map(r=>({customer_id:r.customer_id, customer_name:r.customer_name, tier:r.segment}));
 }

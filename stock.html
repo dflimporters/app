@@ -52,10 +52,10 @@ h1,.mont{font-family:'Montserrat',sans-serif}
 // avg_cost is denied to clients by the DB (column grants; selecting it 401s).
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token
 
 const STOCK=DFL_STOCK.mount(document.getElementById('stock'),{
-  get: async path=>{ const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:H}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); },
+  get: async path=>{ const r=await fetch(`${SB_URL}/rest/v1/${path}`,{headers:await userH()}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); },
   theme:{ink:'var(--ink)',text:'var(--ink)',muted:'var(--mut)',line:'var(--line)',card:'var(--card)',good:'var(--good)',bad:'var(--bad)',shadow:'var(--shadow)'}
 });
 document.addEventListener('dfl-auth-ready', () => { STOCK.load(false); });
