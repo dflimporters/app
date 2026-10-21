@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · HR Store Audits</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  HR Store Audits — the full log of every store audit, for HR.
+  Sister page of /hr-leave.html and /hr-evaluations.html (same look, same
+  access, linked by .hrnav).
+
+  Data:
+    get_hr_store_audits()  every merch_store_audits row (written by merch.html's
+                           Store Audit tool), auditor and BA resolved through
+                           tl_rep_id / merchandiser_rep_id, scores/notes as jsonb.
+    get_tl_kpi()           each team leader's Win the Week / Win the Quarter —
+                           the same numbers the TL sees on their own screen.
+  Both admit is_hr() (admins, role hr, public.hr_staff); get_tl_kpi() also managers.
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.hrnav{display:inline-flex;flex-wrap:wrap;background:#E7EBF3;border-radius:10px;padding:3px;margin:0 0 14px}
+.hrnav a{font:700 12.5px var(--hf);color:var(--ink2);text-decoration:none;padding:7px 14px;border-radius:8px}
+.hrnav a[aria-current="page"]{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+.kpi .v.bad{color:#FF9B9B}
+.kpi:hover .l{color:#fff}
+@media (max-width:640px){.strip{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.kpi .v{font-size:18px}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{font:700 12px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);background:none;border:0;border-bottom:3px solid transparent;padding:12px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.filters input:focus,.filters select:focus{border-color:var(--blue)}
+.filters input[type=search]{flex:1 1 200px;min-width:160px}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue)}
+.count{font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#FAFBFD;white-space:nowrap;cursor:pointer;user-select:none}
+th.nosort{cursor:default}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:#F8FAFE}
+tbody tr:last-child td{border-bottom:0}
+.who{font-weight:600}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-hi{background:var(--green-t);color:var(--green)}
+.p-mid{background:var(--amber-t);color:var(--amber)}
+.p-lo{background:var(--red-t);color:var(--red)}
+.p-none{background:var(--grey-t);color:var(--grey)}
+.clip{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2);font-size:12.5px}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink3);margin:10px 2px 0}
+.wk{display:inline-flex;gap:2px}
+.wk i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--grey-t)}
+.wk i.won{background:var(--green)} .wk i.miss{background:var(--red)} .wk i.cur{background:#fff;outline:2px solid var(--navy);outline-offset:-2px}
+
+@media (max-width:640px){
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  td{border:0;padding:2px 0}
+  td[data-l]::before{content:attr(data-l)": ";color:var(--ink3);font-size:12px}
+  .clip{max-width:none;white-space:normal}
+}
+
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:900}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:#fff;z-index:901;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding:22px 22px 40px}
+.drawer h3{font:800 19px var(--hf);margin:0 0 2px;padding-right:40px}
+.drawer .x{position:absolute;top:14px;right:14px;border:0;background:var(--grey-t);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--ink2)}
+.score-hero{display:flex;align-items:baseline;gap:10px;margin:14px 0 4px}
+.score-hero b{font:800 34px var(--hf);font-variant-numeric:tabular-nums}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:8px 12px;margin:14px 0;font-size:13.5px}
+.dl dt{color:var(--ink3);font-size:12.5px}
+.dl dd{margin:0;word-break:break-word}
+.sect{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--blue);margin:20px 0 8px}
+.dcrit{padding:9px 0;border-bottom:1px solid var(--line)}
+.dcrit .top{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.dcrit .top b{font:700 13px var(--hf);white-space:nowrap}
+.bar{height:6px;background:var(--grey-t);border-radius:999px;overflow:hidden;margin-top:6px}
+.bar span{display:block;height:100%;border-radius:999px}
+.bar span.lo{background:var(--red)} .bar span.mid{background:var(--amber)} .bar span.hi{background:var(--green)}
+.dcrit .cm{font-size:12.5px;color:var(--ink2);margin-top:5px;font-style:italic}
+.quote{background:#FAFBFD;border-left:3px solid var(--blue);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13.5px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <nav class="hrnav" aria-label="HR"><a href="/hr-leave.html">🌴 Leave</a><a href="/hr-evaluations.html">📋 Evaluations</a><a href="/hr-audits.html" aria-current="page">✅ Store Audits</a></nav>
+  <h1 class="ptitle">HR Store Audits</h1>
+  <p class="psub">Every store audit by team leaders and managers — six areas scored 1–5. Team leaders must audit 10 different stores a week (Mon–Sun) to win the week.</p>
+
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <div class="strip">
+      <button class="kpi" data-quick="week"><div class="l">Audits this week</div><div class="v" id="kWeek">–</div></button>
+      <button class="kpi" data-quick="quarter"><div class="l">Audits this quarter</div><div class="v" id="kQuarter">–</div></button>
+      <button class="kpi" data-quick="quarter"><div class="l">Avg score this quarter</div><div class="v" id="kAvg">–</div></button>
+      <button class="kpi" data-quick="quarter"><div class="l">Stores audited this quarter</div><div class="v" id="kStores">–</div></button>
+      <button class="kpi" data-quick="low"><div class="l">Scored under 60% (quarter)</div><div class="v bad" id="kLow">–</div></button>
+      <button class="kpi" data-quick="tl"><div class="l">TLs winning this week</div><div class="v warn" id="kWin">–</div></button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="list">All audits</button>
+      <button role="tab" aria-selected="false" data-tab="tl">Team leader scorecard</button>
+    </div>
+
+    <section id="tab-list">
+      <div class="filters">
+        <input type="search" id="fq" placeholder="Search store, Brand Ambassador, auditor, area…">
+        <select id="fwhen">
+          <option value="week">This week</option>
+          <option value="quarter">This quarter</option>
+          <option value="lastq">Last quarter</option>
+          <option value="year">This year</option>
+          <option value="all" selected>All dates</option>
+        </select>
+        <select id="fby"><option value="">Audited by anyone</option></select>
+        <select id="fscore">
+          <option value="">Any score</option>
+          <option value="hi">80% and up</option>
+          <option value="mid">60–79%</option>
+          <option value="lo">Under 60%</option>
+        </select>
+        <button class="btn" id="csv">Export CSV</button>
+      </div>
+      <p class="count" id="count"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th data-sort="created_at">Submitted</th>
+            <th data-sort="store_name">Store</th>
+            <th data-sort="merchandiser_name">Brand Ambassador</th>
+            <th data-sort="auditor_name">Audited by</th>
+            <th data-sort="score_pct">Score</th>
+            <th class="nosort">Notes</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-tl" class="hidden">
+      <p class="count" id="tcount"></p>
+      <div class="panel">
+        <table>
+          <thead><tr>
+            <th class="nosort">Team leader</th>
+            <th class="nosort">This week</th>
+            <th class="nosort">Quarter audits</th>
+            <th class="nosort">Weeks</th>
+            <th class="nosort">Evaluations</th>
+            <th class="nosort">Quarter</th>
+          </tr></thead>
+          <tbody id="trows"></tbody>
+        </table>
+      </div>
+      <p class="note">Win the Week = 10 different stores audited Mon–Sun. Win the Quarter = 10 × weeks in the quarter in total, plus every Brand Ambassador on the team evaluated this quarter. "On track" = at or ahead of 10 a week so far.</p>
+    </section>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true"></aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+// Same areas, order and wording as merch.html's AUDIT_CRITERIA.
+const AUDIT_CRITERIA = [
+  ['shelves_clean','Shelf cleanliness'],
+  ['shelf_presence','Planogram & shelf presence'],
+  ['facing_correct','Facing & alignment'],
+  ['rotation_correct','Stock rotation (FIFO)'],
+  ['pricing_correct','Pricing accuracy'],
+  ['pos_materials','POS & promotional display']
+];
+const ROLE_LABEL = {team_leader:'Team Leader', tl_merch:'Team Leader + Brand Ambassador', admin:'Admin', manager:'Manager', merchandiser:'Brand Ambassador', relief_merchandiser:'Relief Brand Ambassador'};
+
+let AUDITS = [], KPI = [];
+let SORT = {key:'created_at', dir:-1};
+let QUICK_ON = null;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtDate(s){ return s ? new Date(String(s).length===10 ? s+'T12:00:00' : s).toLocaleDateString('en-JM',{day:'numeric',month:'short',year:'numeric'}) : ''; }
+function fmtTs(s){ return s ? new Date(s).toLocaleString('en-JM',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+function pill(p){ return p==null ? '<span class="pill p-none">—</span>' : `<span class="pill ${p>=80?'p-hi':p>=60?'p-mid':'p-lo'}">${p}%</span>`; }
+function band(p){ return p==null ? '' : p>=80 ? 'hi' : p>=60 ? 'mid' : 'lo'; }
+
+// Week and quarter exactly as get_tl_kpi() counts them: Mon–Sun in Jamaica
+// time; a quarter is the weeks whose Monday falls in it. Filled from the KPI
+// rows once loaded (they carry the server's own boundaries).
+let WK0 = '', WK1 = '', Q0 = '', Q1 = '', LQ0 = '', Y0 = '';
+const inRange = (d,a,b) => d && d >= a && d <= b;
+
+document.addEventListener('dfl-auth-ready', (e) => init(e.detail.profile));
+
+async function init(profile){
+  const [au, k] = await Promise.all([sb.rpc('get_hr_store_audits'), sb.rpc('get_tl_kpi', {})]);
+  const gate = document.getElementById('gate');
+  const error = au.error || k.error;
+  if(error){
+    gate.innerHTML = /not authorised/i.test(error.message||'')
+      ? `<div class="msg">This dashboard is for HR. You're signed in as <b>${esc(profile.full_name||'')}</b>, who isn't set up for HR access.<br>Ask an admin to add you to <code>hr_staff</code>.</div>`
+      : `<div class="msg">Couldn't load store audits. Try again shortly.</div>`;
+    return;
+  }
+  AUDITS = au.data || [];
+  KPI = k.data || [];
+  const k0 = KPI[0];
+  if(k0){ WK0 = k0.week_start; WK1 = k0.week_end; Q0 = k0.quarter_start; Q1 = k0.quarter_end; }
+  else {
+    const t = new Date().toLocaleDateString('en-CA',{timeZone:'America/Jamaica'});
+    WK0 = WK1 = Q0 = Q1 = t;
+  }
+  const q0 = new Date(Q0+'T12:00:00'); q0.setDate(q0.getDate()-91);
+  LQ0 = q0.toLocaleDateString('en-CA');
+  Y0 = Q1.slice(0,4)+'-01-01';
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  const by = [...new Set(AUDITS.map(a=>a.auditor_name).filter(Boolean))].sort();
+  document.getElementById('fby').insertAdjacentHTML('beforeend', by.map(n=>`<option>${esc(n)}</option>`).join(''));
+  wire();
+  drawKpis();
+  drawList();
+  drawTl();
+}
+
+function wire(){
+  ['fq','fwhen','fby','fscore'].forEach(id=>{
+    document.getElementById(id).addEventListener(id==='fq'?'input':'change', ()=>{ QUICK_ON=null; drawList(); });
+  });
+  document.getElementById('csv').addEventListener('click', exportCsv);
+  document.querySelectorAll('#tab-list th[data-sort]').forEach(th=>th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    SORT = {key:k, dir: SORT.key===k ? -SORT.dir : (k==='created_at'||k==='score_pct' ? -1 : 1)};
+    drawList();
+  }));
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>showTab(b.dataset.tab)));
+  document.querySelectorAll('.kpi').forEach(b=>b.addEventListener('click', ()=>quick(b.dataset.quick)));
+  document.getElementById('rows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-id]'); if(tr) openDrawer(tr.dataset.id);
+  });
+  document.getElementById('trows').addEventListener('click', e=>{
+    const tr = e.target.closest('tr[data-tl]'); if(!tr) return;
+    resetFilters(); document.getElementById('fby').value = tr.dataset.tl; document.getElementById('fwhen').value='quarter';
+    showTab('list');
+  });
+  document.getElementById('scrim').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+}
+
+function showTab(t){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===t)));
+  ['list','tl'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('hidden', x!==t));
+  if(t==='list') drawList();
+}
+
+const QUICK = {
+  week:    a => inRange(a.audit_date, WK0, WK1),
+  quarter: a => inRange(a.audit_date, Q0, Q1),
+  low:     a => inRange(a.audit_date, Q0, Q1) && a.score_pct!=null && a.score_pct<60
+};
+function resetFilters(){
+  ['fq','fby','fscore'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fwhen').value='all';
+  QUICK_ON = null;
+}
+function quick(k){
+  if(k==='tl'){ showTab('tl'); return; }
+  resetFilters(); QUICK_ON = k; showTab('list');
+}
+
+function drawKpis(){
+  const q = AUDITS.filter(QUICK.quarter), scored = q.filter(a=>a.score_pct!=null);
+  document.getElementById('kWeek').textContent = AUDITS.filter(QUICK.week).length;
+  document.getElementById('kQuarter').textContent = q.length;
+  document.getElementById('kAvg').textContent = scored.length ? Math.round(scored.reduce((s,a)=>s+a.score_pct,0)/scored.length)+'%' : '–';
+  document.getElementById('kStores').textContent = new Set(q.map(a=>a.customer_id)).size;
+  document.getElementById('kLow').textContent = AUDITS.filter(QUICK.low).length;
+  document.getElementById('kWin').textContent = KPI.filter(k=>k.week_done>=k.week_target).length + ' of ' + KPI.length;
+}
+
+function filtered(){
+  const q = document.getElementById('fq').value.trim().toLowerCase();
+  const when = document.getElementById('fwhen').value;
+  const by = document.getElementById('fby').value;
+  const sc = document.getElementById('fscore').value;
+  return AUDITS.filter(a=>{
+    if(QUICK_ON && !QUICK[QUICK_ON](a)) return false;
+    if(when==='week' && !QUICK.week(a)) return false;
+    if(when==='quarter' && !QUICK.quarter(a)) return false;
+    if(when==='lastq' && !(a.audit_date >= LQ0 && a.audit_date < Q0)) return false;
+    if(when==='year' && a.audit_date < Y0) return false;
+    if(by && a.auditor_name!==by) return false;
+    if(sc && band(a.score_pct)!==sc) return false;
+    if(q){
+      const hay = [a.store_name, a.customer_id, a.merchandiser_name, a.auditor_name, a.area, a.ba_team_leader, a.overall_notes].join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function drawList(){
+  const list = filtered().sort((a,b)=>{
+    let x=a[SORT.key], y=b[SORT.key];
+    if(typeof x==='string') x=x.toLowerCase(); if(typeof y==='string') y=y.toLowerCase();
+    if(x==y) return (b.created_at||'').localeCompare(a.created_at||'');
+    if(x==null) return 1; if(y==null) return -1;
+    return (x<y?-1:1)*SORT.dir;
+  });
+  const quickName = QUICK_ON ? document.querySelector(`.kpi[data-quick="${QUICK_ON}"] .l`).textContent : '';
+  document.getElementById('count').innerHTML = `${list.length} audit${list.length===1?'':'s'} · ${(n=>n+(n===1?" store":" stores"))(new Set(list.map(a=>a.customer_id)).size)}` +
+    (quickName ? ` · showing <b>${esc(quickName)}</b> — change any filter to clear` : '');
+  document.querySelectorAll('#tab-list th[data-sort]').forEach(th=>{
+    th.textContent = th.textContent.replace(/ [▲▼]$/,'') + (th.dataset.sort===SORT.key ? (SORT.dir>0?' ▲':' ▼') : '');
+  });
+  const tb = document.getElementById('rows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">${AUDITS.length?'No audits match these filters.':'No store audits have been submitted yet.'}</td></tr>`; return; }
+  tb.innerHTML = list.map(a=>`<tr class="click" data-id="${esc(a.id)}">
+    <td data-l="Submitted" class="num">${fmtTs(a.created_at)}</td>
+    <td><div class="who">${esc(a.store_name||a.customer_id)}</div><div class="sub">${esc(a.customer_id||'')}</div></td>
+    <td data-l="Brand Ambassador">${esc(a.merchandiser_name||'—')}${a.area||a.ba_team_leader?`<div class="sub">${esc(a.area||'')}${a.ba_team_leader?' · TL '+esc(a.ba_team_leader):''}</div>`:''}</td>
+    <td data-l="Audited by">${esc(a.auditor_name||'—')}${a.auditor_role?`<div class="sub">${esc(ROLE_LABEL[a.auditor_role]||a.auditor_role)}</div>`:''}</td>
+    <td data-l="Score">${pill(a.score_pct)}</td>
+    <td${a.overall_notes?' data-l="Notes"':''}><div class="clip">${esc(a.overall_notes||'')}</div></td>
+  </tr>`).join('');
+}
+
+function drawTl(){
+  const k0 = KPI[0];
+  document.getElementById('tcount').textContent = k0
+    ? `${k0.quarter_label} · week ${k0.weeks_elapsed} of ${k0.weeks_in_quarter} · ${fmtDate(k0.week_start)} – ${fmtDate(k0.week_end)}`
+    : 'No active team leaders.';
+  const tb = document.getElementById('trows');
+  if(!KPI.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">No active team leaders.</td></tr>`; return; }
+  tb.innerHTML = KPI.map(k=>{
+    const pace = k.weeks_elapsed*k.week_target;
+    const team = k.team||[], evDone = team.filter(b=>b.evaluated_at).length;
+    const evOk = evDone===team.length;
+    const qPill = k.quarter_done>=k.quarter_target && evOk ? '<span class="pill p-hi">Won</span>'
+                : k.quarter_done>=pace && evOk ? '<span class="pill p-hi">On track</span>'
+                : k.quarter_done>=pace ? `<span class="pill p-mid">${team.length-evDone} evals to do</span>`
+                : '<span class="pill p-lo">Behind</span>';
+    const weeks = Array.from({length:k.weeks_in_quarter},(_,i)=>{
+      const w=(k.weeks||[])[i]; if(!w) return '<i></i>';
+      const cur = i===k.weeks_elapsed-1;
+      return `<i class="${w.done>=k.week_target?'won':cur?'cur':'miss'}" title="Week ${i+1}: ${w.done}"></i>`;
+    }).join('');
+    return `<tr class="click" data-tl="${esc(k.tl_name)}" title="Show ${esc(k.tl_name)}'s audits this quarter">
+      <td><div class="who">${esc(k.tl_name)}</div><div class="sub">${esc(k.area||'')}</div></td>
+      <td data-l="This week" class="num"><b>${k.week_done}</b> / ${k.week_target} ${k.week_done>=k.week_target?'<span class="pill p-hi">Won</span>':''}</td>
+      <td data-l="Quarter audits" class="num"><b>${k.quarter_done}</b> / ${k.quarter_target}<div class="sub">${pace} by this Sunday</div></td>
+      <td data-l="Weeks"><span class="wk">${weeks}</span></td>
+      <td data-l="Evaluations" class="num">${evDone} / ${team.length}</td>
+      <td data-l="Quarter">${qPill}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openDrawer(id){
+  const a = AUDITS.find(x=>x.id===id); if(!a) return;
+  const dr = document.getElementById('drawer');
+  const row = (k,v) => v ? `<dt>${k}</dt><dd>${v}</dd>` : '';
+  dr.innerHTML = `
+    <button class="x" aria-label="Close" onclick="closeDrawer()">×</button>
+    <h3>${esc(a.store_name||a.customer_id)}</h3>
+    <div class="sub">${esc(a.customer_id||'')}</div>
+    <div class="score-hero">${pill(a.score_pct)}<span>overall score</span></div>
+    <dl class="dl">
+      ${row('Audit date', fmtDate(a.audit_date))}
+      ${row('Submitted', fmtTs(a.created_at))}
+      ${row('Audited by', esc(a.auditor_name||'') + (a.auditor_role?' · '+esc(ROLE_LABEL[a.auditor_role]||a.auditor_role):''))}
+      ${row('Brand Ambassador', esc(a.merchandiser_name||''))}
+      ${row('Area', esc(a.area||''))}
+      ${row("BA's team leader", esc(a.ba_team_leader||''))}
+    </dl>
+    <div class="sect">Scores</div>
+    ${AUDIT_CRITERIA.map(([k,label])=>{
+      const v = a.scores ? a.scores[k] : null, cm = a.notes ? a.notes[k] : null;
+      const cls = v==null?'':v<3?'lo':v<4?'mid':'hi';
+      return `<div class="dcrit">
+        <div class="top"><span>${esc(label)}</span><b>${v!=null?esc(v)+' / 5':'—'}</b></div>
+        <div class="bar"><span class="${cls}" style="width:${v!=null?v/5*100:0}%"></span></div>
+        ${cm?`<div class="cm">“${esc(cm)}”</div>`:''}
+      </div>`;
+    }).join('')}
+    ${a.overall_notes?`<div class="sect">Overall notes</div><div class="quote">${esc(a.overall_notes)}</div>`:''}`;
+  dr.classList.remove('hidden');
+  document.getElementById('scrim').classList.remove('hidden');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.add('hidden');
+  document.getElementById('scrim').classList.add('hidden');
+}
+
+function exportCsv(){
+  const cols = [
+    ['Audit date', a=>a.audit_date], ['Submitted', a=>(a.created_at||'').slice(0,16).replace('T',' ')],
+    ['Store', a=>a.store_name], ['Customer ID', a=>a.customer_id],
+    ['Brand Ambassador', a=>a.merchandiser_name], ['Area', a=>a.area], ["BA's team leader", a=>a.ba_team_leader],
+    ['Audited by', a=>a.auditor_name], ['Auditor role', a=>ROLE_LABEL[a.auditor_role]||a.auditor_role],
+    ...AUDIT_CRITERIA.map(([k,label])=>[label, a=>a.scores&&a.scores[k]]),
+    ['Score %', a=>a.score_pct],
+    ...AUDIT_CRITERIA.map(([k,label])=>[label+' notes', a=>a.notes&&a.notes[k]]),
+    ['Overall notes', a=>a.overall_notes]
+  ];
+  const q = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [cols.map(c=>q(c[0])).join(','), ...filtered().map(a=>cols.map(c=>q(c[1](a))).join(','))].join('\r\n');
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'}));
+  el.download = `dfl-store-audits-${new Date().toISOString().slice(0,10)}.csv`;
+  el.click();
+  setTimeout(()=>URL.revokeObjectURL(el.href), 1000);
+}
+</script>
+</body>
+</html>
