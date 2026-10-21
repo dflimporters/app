@@ -169,7 +169,10 @@ const DFL_PAGE_ROLES = {
   // Postgres by is_hr() (admins, role 'hr', and anyone in public.hr_staff —
   // Paula, who is 'management'), so other management users get through this
   // door but see a "not set up for HR" message.
-  '/hr-leave.html': ['admin', 'management', 'hr'],
+  '/hr-leave.html':       ['admin', 'management', 'hr'],
+  // Sister pages — evaluations and store audits, gated the same way (is_hr()).
+  '/hr-evaluations.html': ['admin', 'management', 'hr'],
+  '/hr-audits.html':      ['admin', 'management', 'hr'],
 
   // HR records (_staging/sql/2026-10-14_hr_records.sql). The hub admits
   // managers for the Document Library tab; the People tab and every employee

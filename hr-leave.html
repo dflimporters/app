@@ -39,6 +39,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
 .page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
 .ptitle{font:800 22px var(--hf);margin:0 0 4px}
 .psub{color:var(--ink2);margin:0 0 16px}
+/* HR portal switcher — same markup on hr-leave.html and hr-evaluations.html */
+.hrnav{display:inline-flex;background:#E7EBF3;border-radius:10px;padding:3px;margin:0 0 14px}
+.hrnav a{font:700 12.5px var(--hf);color:var(--ink2);text-decoration:none;padding:7px 14px;border-radius:8px}
+.hrnav a[aria-current="page"]{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
 .strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
 .kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
 .kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
@@ -141,6 +145,7 @@ tbody tr:last-child td{border-bottom:0}
 <body>
 
 <div class="page">
+  <nav class="hrnav" aria-label="HR"><a href="/hr-leave.html" aria-current="page">🌴 Leave</a><a href="/hr-evaluations.html">📋 Evaluations</a><a href="/hr-audits.html">✅ Store Audits</a></nav>
   <h1 class="ptitle">HR Leave Dashboard</h1>
   <p class="psub">All leave requests from the field team (Brand Ambassadors &amp; Team Leaders) and the sales team (Reps, CMs &amp; KAMs).</p>
 
