@@ -191,6 +191,14 @@
 const FLEET_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const FLEET_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
 const headers = { apikey: FLEET_SB_KEY, Authorization: `Bearer ${FLEET_SB_KEY}` };
+// Fleet document writes (file upload, row insert, approve) go out as the signed-in
+// user; the anon key can no longer write fleet_documents or the fleet-documents bucket.
+// Never fall back to `headers` here.
+async function userHeaders(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) throw new Error('not signed in');
+  return { apikey: FLEET_SB_KEY, Authorization: `Bearer ${session.access_token}` };
+}
 
 /* Fleet rows are anon-writable, so every DB string is escaped at the sink,
    and document links only ever point into our own fleet-documents bucket
@@ -397,13 +405,14 @@ async function uploadDoc(type){
   try{
     const ext = file.name.split('.').pop();
     const path = `${currentVehicle.reg_number}/${type}-${Date.now()}.${ext}`;
+    const uh = await userHeaders();
     const uploadRes = await fetch(`${FLEET_SB_URL}/storage/v1/object/fleet-documents/${path}`, {
-      method:'POST', headers:{...headers, 'Content-Type': file.type || 'application/octet-stream'}, body:file
+      method:'POST', headers:{...uh, 'Content-Type': file.type || 'application/octet-stream'}, body:file
     });
     if(!uploadRes.ok) throw new Error('upload failed');
     const fileUrl = `${FLEET_SB_URL}/storage/v1/object/public/fleet-documents/${path}`;
     const docRes = await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents`, {
-      method:'POST', headers:{...headers, 'Content-Type':'application/json', Prefer:'return=minimal'},
+      method:'POST', headers:{...uh, 'Content-Type':'application/json', Prefer:'return=minimal'},
       body: JSON.stringify({ vehicle_id: currentVehicle.id, doc_type: type, file_url: fileUrl, expiry_date: dateInput.value || null, status: 'pending_review', uploaded_by: 'public_lookup' })
     });
     if(!docRes.ok) throw new Error('save failed');
@@ -587,7 +596,7 @@ async function openVehicle(id){
 async function approveDoc(docId, vehicleId){
   try{
     await mustOk(await fetch(`${FLEET_SB_URL}/rest/v1/fleet_documents?id=eq.${docId}`, {
-      method:'PATCH', headers:{...headers,'Content-Type':'application/json',Prefer:'return=minimal'},
+      method:'PATCH', headers:{...(await userHeaders()),'Content-Type':'application/json',Prefer:'return=minimal'},
       body: JSON.stringify({status:'approved', reviewed_at: new Date().toISOString()})
     }), 'approve');
   }catch(e){ console.error(e); toast('Could not approve the document', true); return; }

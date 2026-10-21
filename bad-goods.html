@@ -127,6 +127,13 @@ const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_STORAGE=SB_URL+"/storage/v1";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
+// Writes (photo upload/delete, the report row) go out as the signed-in user; the anon
+// key can no longer write bad_goods_reports or bad-goods-photos. Never fall back to H.
+async function userH(extra){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) throw new Error('not signed in');
+  return Object.assign({apikey:SB_KEY,Authorization:'Bearer '+session.access_token}, extra||{});
+}
 
 let ME=null;       // {id, full_name, role} — from the dfl-auth-ready profile
 let MY_STORES=[];  // {id,name} from rep_customer_cache
@@ -223,7 +230,7 @@ async function uploadPhoto(kind, i){
     const cid = storeSelected.id||'unknown';
     const path = uname+'/'+cid+'/'+Date.now()+'_'+kind+'_'+i+'.'+ext;
     const res = await fetch(SB_STORAGE+'/object/bad-goods-photos/'+path,{
-      method:'POST', headers:Object.assign({},H,{'Content-Type':p.file.type,'x-upsert':'true'}), body:p.file
+      method:'POST', headers:await userH({'Content-Type':p.file.type,'x-upsert':'true'}), body:p.file
     });
     if(!res.ok) throw new Error(await res.text());
     p.uploadedUrl = SB_STORAGE+'/object/public/bad-goods-photos/'+path;
@@ -255,7 +262,7 @@ function removePhoto(kind, i){
   if(p.previewUrl) URL.revokeObjectURL(p.previewUrl);
   if(p.uploadedUrl){
     const path=p.uploadedUrl.split('/bad-goods-photos/')[1];
-    if(path) fetch(SB_STORAGE+'/object/bad-goods-photos/'+path,{method:'DELETE',headers:H,body:'{}'}).catch(function(){});
+    if(path) userH().then(function(h){ return fetch(SB_STORAGE+'/object/bad-goods-photos/'+path,{method:'DELETE',headers:h,body:'{}'}); }).catch(function(){});
   }
   PHOTOS[kind].splice(i,1);
   renderThumbs(kind); updateGating();
@@ -286,7 +293,7 @@ async function submitBadGoods(){
     await ensureAllUploaded();
     const res = await fetch(SB_URL+'/rest/v1/bad_goods_reports',{
       method:'POST',
-      headers:Object.assign({},H,{'Content-Type':'application/json','Prefer':'return=minimal'}),
+      headers:await userH({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({
         reported_by_id: ME.id, reported_by_name: ME.full_name, reported_by_role: ME.role,
         customer_id: storeSelected.id, customer_name: storeSelected.name,
