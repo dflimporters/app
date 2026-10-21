@@ -126,9 +126,8 @@ textarea{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radi
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_STORAGE=SB_URL+"/storage/v1";
 const SB_KEY="sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
-// Writes (photo upload/delete, the report row) go out as the signed-in user; the anon
-// key can no longer write bad_goods_reports or bad-goods-photos. Never fall back to H.
+// Every call goes out as the signed-in user: the anon key can no longer write
+// bad_goods_reports or bad-goods-photos, and reads of rep_customer_cache use the user token too.
 async function userH(extra){
   const { data:{ session } } = await sb.auth.getSession();
   if(!session) throw new Error('not signed in');
@@ -145,7 +144,7 @@ document.addEventListener('dfl-auth-ready', (e) => { initPage(e.detail.profile);
 async function initPage(profile){
   ME = {id: profile.rep_id, full_name: profile.full_name, role: profile.role};
   try{
-    const rows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(profile.full_name)}&select=customer_id,customer_name&order=customer_name`,{headers:H}).then(r=>r.json());
+    const rows = await fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${encodeURIComponent(profile.full_name)}&select=customer_id,customer_name&order=customer_name`,{headers:await userH()}).then(r=>r.json());
     MY_STORES = (Array.isArray(rows)?rows:[]).map(r=>({id:r.customer_id,name:r.customer_name}));
   }catch(e){ console.error('customer list load failed:',e); }
   document.getElementById('boot-msg').style.display='none';

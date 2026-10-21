@@ -402,7 +402,6 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
-const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY};
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token, for `reps`
 const J=n=>"$"+Math.round(n).toLocaleString("en-JM");
 const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return "$"+(n/1e3).toFixed(0)+"K";return "$"+Math.round(n)};
@@ -552,7 +551,7 @@ async function renderAdmin(){
     c.innerHTML=`<div class="spin"></div>`;
     try{
       const [dashR,repR]=await Promise.all([
-        fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?select=*`,{headers:H}).then(r=>r.json()),
+        fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?select=*`,{headers:await userH()}).then(r=>r.json()),
         // role=in.(rep,rep_management): rep_management is a rep who also has
         // management access, with a salesperson_id and a budget like any other
         // rep. role=eq.rep silently left them off this leaderboard.
@@ -846,7 +845,7 @@ async function openOrderItems(orderNbrEnc, customerNameEnc, bucket, statusEnc, t
   const isHold = bucket==="hold";
   const filt = isHold ? "" : `&order_status=eq.${encodeURIComponent(status)}&open_qty=gt.0`;
   try{
-    const rows=await fetch(`${SB_URL}/rest/v1/so_ordered_items?order_nbr=eq.${encodeURIComponent(orderNbr)}&order_type=eq.SO${filt}&select=inventory_id,line_description,item_class,open_qty,order_qty,unit_price,ext_price,order_status&order=line_nbr.asc`,{headers:H}).then(r=>r.json());
+    const rows=await fetch(`${SB_URL}/rest/v1/so_ordered_items?order_nbr=eq.${encodeURIComponent(orderNbr)}&order_type=eq.SO${filt}&select=inventory_id,line_description,item_class,open_qty,order_qty,unit_price,ext_price,order_status&order=line_nbr.asc`,{headers:await userH()}).then(r=>r.json());
     showOrderItemsModal(ctx, Array.isArray(rows)?rows:[]);
   }catch(e){ showOrderItemsModal(ctx, []); }
 }
@@ -904,7 +903,7 @@ async function openCreditNoteItems(cidEnc, nameEnc){
   const today=new Date();
   const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
   try{
-    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?customer_id=eq.${encodeURIComponent(cid)}&salesperson=eq.${nameEncForQuery}&tran_type=eq.CRM&financial_period=eq.${fp}&select=reference_number,invoice_date,description,item_class,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:H}).then(r=>r.json());
+    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?customer_id=eq.${encodeURIComponent(cid)}&salesperson=eq.${nameEncForQuery}&tran_type=eq.CRM&financial_period=eq.${fp}&select=reference_number,invoice_date,description,item_class,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:await userH()}).then(r=>r.json());
     const list=Array.isArray(rows)?rows:[];
     const byRef={};
     list.forEach(r=>{
@@ -958,13 +957,13 @@ async function loadData(rep){
     const today=new Date();
     const fp=`${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}`;
     const [sumR,custR,ordR,ordListR,catR,delR,ytdR]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?salesperson=eq.${name}&select=*`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_customer_cache?salesperson=eq.${name}&select=*`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_order_status_cache?salesperson_id=eq.${spid}&select=*`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rep_orders_cache?salesperson_id=eq.${spid}&select=order_nbr,customer_name,status,bucket,order_total,order_date&order=order_total.desc`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/cat_rep_cache?salesperson=eq.${name}&financial_period=eq.${fp}&select=item_class,budget_full,actual_mtd`,{headers:await userH()}).then(r=>r.json()),
       fetchDeliveryReport(spid, todayISO()),
-      fetch(`${SB_URL}/rest/v1/rpc/get_ytd_actuals`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:"{}"}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/rpc/get_ytd_actuals`,{method:"POST",headers:{...await userH(),"Content-Type":"application/json"},body:"{}"}).then(r=>r.json()).catch(()=>[])
     ]);
     const s=Array.isArray(sumR)&&sumR[0]?sumR[0]:null;
     CUST=Array.isArray(custR)?custR:[];
@@ -1003,13 +1002,13 @@ async function fetchDeliveryReport(spidEnc, dateISO){
   if(!spidEnc) return empty;
   try{
     const next=addDaysISO(dateISO,1);
-    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?salesperson_id=eq.${spidEnc}&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:H}).then(r=>r.json());
+    const rows=await fetch(`${SB_URL}/rest/v1/invoiced_items?salesperson_id=eq.${spidEnc}&tran_type=eq.INV&invoice_date=gte.${dateISO}&invoice_date=lt.${next}&select=reference_number,line_nbr,customer_name,customer_id,description,quantity,unit_price,ext_amount&order=reference_number.asc,line_nbr.asc`,{headers:await userH()}).then(r=>r.json());
     const list=Array.isArray(rows)?rows:[];
     if(!list.length) return empty;
     const refs=[...new Set(list.map(r=>r.reference_number))];
     const viaMap={};
     try{
-      const viaRows=await fetch(`${SB_URL}/rest/v1/so_invoices?reference_number=in.(${refs.map(encodeURIComponent).join(',')})&select=reference_number,ship_via_description`,{headers:H}).then(r=>r.json());
+      const viaRows=await fetch(`${SB_URL}/rest/v1/so_invoices?reference_number=in.(${refs.map(encodeURIComponent).join(',')})&select=reference_number,ship_via_description`,{headers:await userH()}).then(r=>r.json());
       (Array.isArray(viaRows)?viaRows:[]).forEach(v=>{viaMap[v.reference_number]=v.ship_via_description;});
     }catch(e){ /* Via just shows blank if this lookup fails */ }
     const byRef={};
@@ -1260,22 +1259,22 @@ async function openCust(cid){
   const mnum=new Date().getMonth()+1;
   try{
     const [cacheR,budR,mbudR,skuR,visitR,stockR,hotR]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${encodeURIComponent(cid)}&select=*`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${encodeURIComponent(cid)}&select=item_class,total_budget`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
-      KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:H}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_cache?customer_id=eq.${encodeURIComponent(cid)}&select=*`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/precall_budget_cache?customer_id=eq.${encodeURIComponent(cid)}&select=item_class,total_budget`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/rpc/get_customer_month_budget`,{method:"POST",headers:{...await userH(),"Content-Type":"application/json"},body:JSON.stringify({p_customer_id:cid,p_month_number:mnum})}).then(r=>r.json()),
+      KEYSKUS?Promise.resolve(KEYSKUS):fetch(`${SB_URL}/rest/v1/key_skus?select=inventory_id,description,posting_class&limit=300`,{headers:await userH()}).then(r=>r.json()),
       // Merch app activity for this store — same customer_id, no rep linkage needed.
-      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${encodeURIComponent(cid)}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_visit_log?customer_id=eq.${encodeURIComponent(cid)}&order=visit_date.desc,created_at.desc&limit=1&select=visit_date,outcome,user_name,store_name`,{headers:await userH()}).then(r=>r.json()).catch(()=>[]),
       // One save writes one row per SKU sharing the same counted_at — fetch a
       // batch, then keep just the rows matching the latest timestamp so the
       // rep can see the full itemized count, not only its date.
       // Limit by date, not rows: a count is often 70+ SKUs, so a row limit of 60 cut
       // the latest count short and dropped flagged reorders from the suggested order.
-      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${encodeURIComponent(cid)}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:H}).then(r=>r.json()).catch(()=>[]),
+      fetch(`${SB_URL}/rest/v1/merch_stock_counts?customer_id=eq.${encodeURIComponent(cid)}&counted_at=gte.${new Date(Date.now()-28*86400000).toISOString().slice(0,10)}T00:00:00Z&order=counted_at.desc&limit=1000&select=counted_at,description,item_class,stock_on_hand,suggested_reorder,merchandiser_name,inventory_id`,{headers:await userH()}).then(r=>r.json()).catch(()=>[]),
       // Same source as the Hot List page (gap_closer_reco_cache) — surfaced
       // here too so a rep sees it while already looking at the account,
       // not only on a separate page.
-      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(cid)}&order=rank_order.asc&select=*`,{headers:H}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(cid)}&order=rank_order.asc&select=*`,{headers:await userH()}).then(r=>r.json()).catch(()=>[])
     ]);
     KEYSKUS=Array.isArray(skuR)?skuR:[];
     const cache=Array.isArray(cacheR)&&cacheR[0]?cacheR[0]:null;
@@ -1291,7 +1290,7 @@ async function openCust(cid){
     let reportR=[];
     if(reportName){
       try{
-        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(String(reportName).replace(/[*%]/g,''))}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:H}).then(r=>r.json());
+        reportR=await fetch(`${SB_URL}/rest/v1/merch_stock_reports?store_name=ilike.${encodeURIComponent(String(reportName).replace(/[*%]/g,''))}&order=report_date.desc&limit=1&select=report_date,flagged_skus`,{headers:await userH()}).then(r=>r.json());
       }catch(e){ reportR=[]; }
     }
     const stockRows=Array.isArray(stockR)?stockR:[];
@@ -1492,8 +1491,8 @@ async function loadCustContact(cid){
   try{
     const enc=encodeURIComponent(cid);
     const [cR,dR]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/customers?customer_id=eq.${enc}&select=customer_name,phone1,phone2,email,address_line1,address_line2,city,terms,customer_status,owner:raw->>Owner,phone_alt:raw->>Phone1_2,email_alt:raw->>Email&limit=1`,{headers:H}).then(r=>r.json()),
-      fetch(`${SB_URL}/rest/v1/customers_detrack?customer_id=eq.${enc}&select=clean_address,clean_city,parish,phone,email,instructions&limit=1`,{headers:H}).then(r=>r.json()).catch(()=>[])
+      fetch(`${SB_URL}/rest/v1/customers?customer_id=eq.${enc}&select=customer_name,phone1,phone2,email,address_line1,address_line2,city,terms,customer_status,owner:raw->>Owner,phone_alt:raw->>Phone1_2,email_alt:raw->>Email&limit=1`,{headers:await userH()}).then(r=>r.json()),
+      fetch(`${SB_URL}/rest/v1/customers_detrack?customer_id=eq.${enc}&select=clean_address,clean_city,parish,phone,email,instructions&limit=1`,{headers:await userH()}).then(r=>r.json()).catch(()=>[])
     ]);
     const c=Array.isArray(cR)&&cR[0]?cR[0]:{}, d=Array.isArray(dR)&&dR[0]?dR[0]:{};
     const uniq=a=>[...new Set(a.map(x=>(x||"").trim()).filter(Boolean))];
@@ -1535,7 +1534,7 @@ async function loadCustHistory(cid){
   try{
     const rows=[]; const PAGE=1000;
     for(let off=0; off<20000; off+=PAGE){         // biggest account is ~1.4k lines YTD
-      const r=await fetch(`${base}&limit=${PAGE}&offset=${off}`,{headers:H});
+      const r=await fetch(`${base}&limit=${PAGE}&offset=${off}`,{headers:await userH()});
       if(!r.ok) throw new Error(r.status);
       const page=await r.json(); rows.push(...page);
       if(page.length<PAGE) break;
@@ -1712,7 +1711,7 @@ function openOrderBuilder(){
     lines:buildSuggestedLines(),
     pool:orderPool(),
     textHeader:'🛒 Order — '+store+'\n'+(who&&who.name?'Rep: '+who.name+' · ':'')+today,
-    pricing:{get:path=>fetch(SB_URL+'/rest/v1/'+path,{headers:H}).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })},
+    pricing:{get:async path=>fetch(SB_URL+'/rest/v1/'+path,{headers:await userH()}).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })},
     allowFree:true, chips:true,
     searchPlaceholder:'Search this account\'s items or key SKUs…',
     notePlaceholder:'PO #, delivery day, special instructions…',

@@ -65,7 +65,7 @@
 <script>
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token
 
 document.addEventListener('dfl-auth-ready', () => { init(); });
 
@@ -82,9 +82,9 @@ async function init() {
 
   try {
     const [recoRes, debriefRes, contactRes] = await Promise.all([
-      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(customerId)}&order=rank_order.asc&select=*`, { headers: H }),
-      fetch(`${SB_URL}/rest/v1/rep_debrief_items?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H }),
-      fetch(`${SB_URL}/rest/v1/customer_contacts?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: H })
+      fetch(`${SB_URL}/rest/v1/gap_closer_reco_cache?customer_id=eq.${encodeURIComponent(customerId)}&order=rank_order.asc&select=*`, { headers: await userH() }),
+      fetch(`${SB_URL}/rest/v1/rep_debrief_items?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: await userH() }),
+      fetch(`${SB_URL}/rest/v1/customer_contacts?customer_id=eq.${encodeURIComponent(customerId)}&order=created_at.desc&select=*`, { headers: await userH() })
     ]);
     // A 401/403 body is an object, which render() would show as "nothing here".
     const bad = [recoRes, debriefRes, contactRes].find(r => !r.ok);

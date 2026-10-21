@@ -1100,6 +1100,7 @@ const ZONE_STORES = {
 // ── Supabase config ──────────────────────────────────────────────────────────
 const PLAN_SB_URL = 'https://hzagwndglwhcepsirafi.supabase.co';
 const PLAN_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4';
+async function planToken(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return session.access_token; } // signed-in token; the public key is only the apikey header
 
 // ── Shipping zones (real, field-relevant only) ─────────────────────────────
 const SHIPPING_ZONES = [
@@ -2153,7 +2154,7 @@ async function submitPlan() {
     // duplicated (or failed to update) the week's plan.
     const existingRes = await fetch(
       `${PLAN_SB_URL}/rest/v1/weekly_plans?salesperson=eq.${encRep}&week_commencing=eq.${encWeek}&select=id`,
-      { headers: { 'apikey': PLAN_SB_KEY, 'Authorization': `Bearer ${PLAN_SB_KEY}` } }
+      { headers: { 'apikey': PLAN_SB_KEY, 'Authorization': `Bearer ${await planToken()}` } }
     );
     if (!existingRes.ok) throw new Error('Could not check for an existing plan (HTTP ' + existingRes.status + ')');
     const existing = await existingRes.json();
@@ -2168,7 +2169,7 @@ async function submitPlan() {
           method: 'PATCH',
           headers: {
             'apikey':        PLAN_SB_KEY,
-            'Authorization': `Bearer ${PLAN_SB_KEY}`,
+            'Authorization': `Bearer ${await planToken()}`,
             'Content-Type':  'application/json',
             'Prefer':        'return=minimal',
           },
@@ -2181,7 +2182,7 @@ async function submitPlan() {
         method: 'POST',
         headers: {
           'apikey':        PLAN_SB_KEY,
-          'Authorization': `Bearer ${PLAN_SB_KEY}`,
+          'Authorization': `Bearer ${await planToken()}`,
           'Content-Type':  'application/json',
           'Prefer':        'return=minimal',
         },
@@ -2485,7 +2486,7 @@ async function fetchSupabase(path) {
   const res = await fetch(`${PLAN_SB_URL}/rest/v1/${path}`, {
     headers: {
       'apikey': PLAN_SB_KEY,
-      'Authorization': `Bearer ${PLAN_SB_KEY}`,
+      'Authorization': `Bearer ${await planToken()}`,
       'Accept': 'application/json',
     }
   });

@@ -58,7 +58,6 @@
 <script>
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token, for `reps`
 const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -77,7 +76,7 @@ async function init(profile) {
 
     const planRes = await fetch(
       `${SB_URL}/rest/v1/weekly_plans?salesperson=eq.${encodeURIComponent(name)}&order=submitted_at.desc&limit=1&select=*`,
-      { headers: H }
+      { headers: await userH() }
     );
     const planRows = await planRes.json();
     const plan = Array.isArray(planRows) && planRows[0] ? planRows[0] : null;

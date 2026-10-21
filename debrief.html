@@ -60,6 +60,7 @@
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
 const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
+async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token
 const ANALYZE_FN_URL = `${SB_URL}/functions/v1/analyze-debrief`;
 
 let REP_ID = null;
@@ -81,7 +82,7 @@ async function init(profile) {
     const today = new Date().toISOString().slice(0, 10);
     const res = await fetch(
       `${SB_URL}/rest/v1/rep_debriefs?rep_id=eq.${encodeURIComponent(REP_ID)}&debrief_date=eq.${today}&select=submitted_at,raw_text&order=submitted_at.desc`,
-      { headers: H }
+      { headers: await userH() }
     );
     const rows = await res.json();
     todaysLog = Array.isArray(rows) ? rows : [];
