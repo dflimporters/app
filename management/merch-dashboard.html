@@ -1862,10 +1862,18 @@ function renderAuditTable(){
       <td>${escH(r.merchandiser_name||'—')}</td>
       <td>${escH(r.tl_name||'—')}</td>
       <td class="td-num">${auditPill(auditPct(r))}</td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${escH(note)}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)">${auditPhotoTotal(r)?`📷 ${auditPhotoTotal(r)} · `:""}${escH(note)}</td>
     </tr>`;
   }).join('');
 }
+
+// A section's supporting photos (criterion_photos), own storage URLs only.
+function auditPhotos(r, key){
+  const urls = ((r.criterion_photos||{})[key]||[]).map(safeUrl).filter(Boolean);
+  return urls.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${urls.map(u=>
+    `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>`).join('')}</div>` : '';
+}
+const auditPhotoTotal = r => Object.values(r.criterion_photos||{}).reduce((n,a)=>n+(Array.isArray(a)?a.filter(u=>safeUrl(u)).length:0),0);
 
 function openAuditDetail(id){
   const r = auditRows.find(v=>String(v.id)===String(id));
@@ -1879,6 +1887,7 @@ function openAuditDetail(id){
   document.getElementById('ad-criteria').innerHTML = AUDIT_CRITERIA.map(([key,label,nk])=>`<div class="ev-crit">
       <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${r[key]!=null?escH(r[key])+'/5':'—'}</div></div>
       ${r[nk]?`<div class="ev-crit-comment">${escH(r[nk])}</div>`:''}
+      ${auditPhotos(r, key)}
     </div>`).join('');
   const nw = document.getElementById('ad-notes-wrap');
   if(r.overall_notes){ nw.style.display='block'; document.getElementById('ad-notes').textContent = r.overall_notes; }
