@@ -59,7 +59,6 @@
 <script>
 const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
-const H = { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY };
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token
 const ANALYZE_FN_URL = `${SB_URL}/functions/v1/analyze-debrief`;
 
@@ -185,7 +184,7 @@ async function handleSubmit(e) {
   try {
     const insRes = await fetch(`${SB_URL}/rest/v1/rep_debriefs`, {
       method: 'POST',
-      headers: { ...H, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      headers: { ...await userH(), 'Content-Type': 'application/json', Prefer: 'return=representation' },
       body: JSON.stringify({
         rep_id: REP_ID,
         input_type: usedVoice ? 'speech' : 'typed',
@@ -198,7 +197,7 @@ async function handleSubmit(e) {
     // Fire-and-forget: analysis happens server-side, the rep doesn't wait on it.
     fetch(ANALYZE_FN_URL, {
       method: 'POST',
-      headers: { ...H, 'Content-Type': 'application/json' },
+      headers: { ...await userH(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ debrief_id: row.id })
     }).catch(err => console.warn('analyze-debrief call failed (will remain pending):', err));
 
