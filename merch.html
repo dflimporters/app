@@ -4126,7 +4126,7 @@ function drawMerchDeliveryReport(data){
 // ══════════════════════════════════════════════
 // STORE AUDIT (Team Leader / tl_merch only)
 // ══════════════════════════════════════════════
-let auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{}};
+let auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{},photos:{}};
 let auditAllStores=[];
 
 // ── IN-PROGRESS AUDIT DRAFT ──
@@ -4184,6 +4184,7 @@ function openStoreAudit(){
   // or the second audit of the day can't be submitted without a reload.
   const subBtn=document.getElementById('audit-submit-btn');
   subBtn.style.display=''; subBtn.textContent='Submit audit';
+  auditPhotoPending={};
   const draft=restoreAuditDraft();
   if(draft){
     auditState=draft.auditState;
@@ -4194,7 +4195,7 @@ function openStoreAudit(){
     document.getElementById('audit-score-display').style.display='block';
     updateAuditScore();
   } else {
-    auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{}};
+    auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{},photos:{}};
     document.getElementById('audit-store-lbl').textContent='Select a store to audit';
     document.getElementById('audit-score-display').style.display='none';
     document.getElementById('audit-submit-btn').disabled=true;
@@ -4312,6 +4313,7 @@ function selectAuditStore(cid,name,merch){
   auditState.merchandiser_name=merch;
   auditState.scores={};
   auditState.notes={};
+  auditState.photos={};
   document.getElementById('audit-store-lbl').textContent=name+(merch?' · '+merch:'');
   renderAuditStoreList(document.getElementById('audit-store-search').value.trim());
   renderAuditForm();
@@ -4346,8 +4348,16 @@ function renderAuditForm(){
       '<div style="display:flex;gap:5px;margin-bottom:8px">'+btnHTML+'</div>'+
       '<textarea data-crit="'+crit.id+'" placeholder="Notes (optional)..." oninput="auditState.notes[this.dataset.crit]=this.value;saveAuditDraft()" '+
         'style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:52px">'+
-        (auditState.notes[crit.id]||'')+'</textarea>';
+        escapeHtmlM(auditState.notes[crit.id]||'')+'</textarea>'+
+      // Optional supporting photos for this section (up to AUDIT_MAX_PHOTOS).
+      '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
+        '<button type="button" data-crit="'+crit.id+'" onclick="auditTakePhoto(this.dataset.crit)" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer">📷 Take photo</button>'+
+        '<button type="button" data-crit="'+crit.id+'" onclick="auditPickPhoto(this.dataset.crit)" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer">🖼️ Upload</button>'+
+        '<span style="font-size:10px;color:var(--muted)">Optional · up to '+AUDIT_MAX_PHOTOS+'</span>'+
+      '</div>'+
+      '<div id="audit-photos-'+crit.id+'" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>';
     body.appendChild(section);
+    renderAuditPhotos(crit.id);
   });
   const overall=document.createElement('div');
   overall.innerHTML=
@@ -4355,6 +4365,67 @@ function renderAuditForm(){
     '<textarea id="audit-overall-notes" placeholder="General observations, competitor activity, anything else..." oninput="saveAuditDraft()" '+
       'style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:80px"></textarea>';
   body.appendChild(overall);
+}
+
+// ── Supporting photos per audit section ──
+// Uploaded URLs live in auditState.photos[crit] (so the draft keeps them);
+// in-flight uploads only in auditPhotoPending[crit] (previews die with the page).
+const AUDIT_MAX_PHOTOS=3;
+let auditPhotoTarget=null, auditPhotoPending={};
+const auditPhotoCount=c=>((auditState.photos||{})[c]||[]).length+((auditPhotoPending[c]||[]).length);
+function auditPhotoRoom(c){
+  if(auditPhotoCount(c)<AUDIT_MAX_PHOTOS) return true;
+  alert('Up to '+AUDIT_MAX_PHOTOS+' photos per section — remove one first (tap its ×).');
+  return false;
+}
+function auditTakePhoto(c){
+  if(!auditPhotoRoom(c)) return;
+  auditPhotoTarget=c;
+  const crit=AUDIT_CRITERIA.find(x=>x.id===c);
+  dflOpenCamera(blob=>auditAddPhoto(c,blob), {fallbackInputId:'audit-photo-camera', label:'Audit photo — '+(crit?crit.label:''), closeAfterOne:true});
+}
+function auditPickPhoto(c){
+  if(!auditPhotoRoom(c)) return;
+  auditPhotoTarget=c;
+  const inp=document.getElementById('audit-photo-gallery'); inp.value=''; inp.click();
+}
+function auditHandlePhotoFiles(files){
+  const c=auditPhotoTarget; if(!c||!files||!files.length) return;
+  [...files].slice(0, AUDIT_MAX_PHOTOS-auditPhotoCount(c)).forEach(f=>compressImage(f).then(b=>auditAddPhoto(c,b)));
+}
+async function auditAddPhoto(c,blob){
+  if(auditPhotoCount(c)>=AUDIT_MAX_PHOTOS) return;
+  const p={previewUrl:URL.createObjectURL(blob)};
+  (auditPhotoPending[c]=auditPhotoPending[c]||[]).push(p);
+  renderAuditPhotos(c); updateAuditScore();
+  try{
+    const folder=(cu&&cu.id||'staff')+'/'+(auditState.customer_id||'store');
+    const url=await uploadPhotoToStorage(blob,'audit-photos',folder,c);
+    auditState.photos=auditState.photos||{};
+    (auditState.photos[c]=auditState.photos[c]||[]).push(url);
+    saveAuditDraft();
+  }catch(e){ console.error('audit photo upload:',e); alert('Photo did not upload — check your connection and try again.'); }
+  auditPhotoPending[c]=(auditPhotoPending[c]||[]).filter(x=>x!==p);
+  URL.revokeObjectURL(p.previewUrl);
+  renderAuditPhotos(c); updateAuditScore();
+}
+function auditRemovePhoto(c,i){
+  const url=((auditState.photos||{})[c]||[])[i]; if(!url) return;
+  auditState.photos[c].splice(i,1);
+  const path=url.split('/audit-photos/')[1];
+  if(path) restHeaders().then(h=>fetch(SB_STORAGE+'/object/audit-photos/'+path,{method:'DELETE',headers:h,body:'{}'}).catch(()=>{}));
+  saveAuditDraft(); renderAuditPhotos(c);
+}
+function renderAuditPhotos(c){
+  const el=document.getElementById('audit-photos-'+c); if(!el) return;
+  const thumb='position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--bg)';
+  el.innerHTML=((auditState.photos||{})[c]||[]).map((u,i)=>
+    '<div style="'+thumb+'"><img src="'+safeStorageUrl(u)+'" style="width:100%;height:100%;object-fit:cover">'+
+    '<button type="button" onclick="auditRemovePhoto(\''+c+'\','+i+')" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:1;cursor:pointer">×</button></div>'
+  ).join('')+(auditPhotoPending[c]||[]).map(p=>
+    '<div style="'+thumb+'"><img src="'+p.previewUrl+'" style="width:100%;height:100%;object-fit:cover;opacity:.5">'+
+    '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--navy)">Uploading…</div></div>'
+  ).join('');
 }
 
 function setAuditScore(critId,score){
@@ -4380,8 +4451,12 @@ function updateAuditScore(){
     disp.textContent=pct!==null?pct+'%':'--%';
     disp.style.background=pct>=80?'rgba(22,163,74,.3)':pct>=60?'rgba(234,179,8,.3)':'rgba(239,68,68,.3)';
   }
-  const ready=scores.length>=3&&auditState.customer_id;
-  if(btn){btn.disabled=!ready;btn.style.opacity=ready?'1':'.5';}
+  const uploading=Object.values(auditPhotoPending).some(a=>a&&a.length);
+  const ready=scores.length>=3&&auditState.customer_id&&!uploading;
+  if(btn&&btn.textContent!=='Saving...'){
+    btn.disabled=!ready;btn.style.opacity=ready?'1':'.5';
+    btn.textContent=uploading?'Uploading photos…':'Submit audit';
+  }
 }
 
 async function submitAudit(){
@@ -4409,7 +4484,8 @@ async function submitAudit(){
       pricing_notes:       auditState.notes.pricing_correct   ||null,
       pos_materials:       auditState.scores.pos_materials    ||null,
       pos_notes:           auditState.notes.pos_materials     ||null,
-      overall_notes:       overallEl?overallEl.value:null
+      overall_notes:       overallEl?overallEl.value:null,
+      criterion_photos:    auditState.photos||{}
     };
     await rest('merch_store_audits',{method:'POST',prefer:'return=minimal',body:payload});
     clearAuditDraft();
@@ -4437,6 +4513,15 @@ function closeAudit(){
 // A BA's view of audits on their stores (merchandiser_rep_id, stamped by the
 // DB on insert). Re-read whenever the app comes back to the foreground, so an
 // audit the TL just did with them in the store shows up straight away.
+// Thumbnails of one section's supporting photos; tap opens full size.
+function auditPhotoStrip(photos, critId){
+  const urls=((photos||{})[critId]||[]).map(safeStorageUrl).filter(Boolean);
+  if(!urls.length) return '';
+  return '<div style="display:flex;gap:4px;flex-wrap:wrap;margin:2px 0 6px 20px">'+urls.map(u=>
+    '<a href="'+u+'" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="'+u+'" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>'
+  ).join('')+'</div>';
+}
+
 async function loadMyAudits(){
   const card=document.getElementById('m-audits-card');
   if(!card||!cu||!cu.id) return;
@@ -4452,7 +4537,8 @@ async function loadMyAudits(){
       const noteKey={shelves_clean:'shelves_clean_notes',shelf_presence:'shelf_presence_notes',facing_correct:'facing_notes',rotation_correct:'rotation_notes',pricing_correct:'pricing_notes',pos_materials:'pos_notes'};
       const detail=AUDIT_CRITERIA.map(c=>
         '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0"><span>'+c.icon+' '+c.label+'</span><b>'+(r[c.id]?r[c.id]+'/5':'—')+'</b></div>'+
-        (r[noteKey[c.id]]?'<div style="font-size:11px;color:var(--muted);margin:0 0 4px 20px">'+escapeHtmlM(r[noteKey[c.id]])+'</div>':'')
+        (r[noteKey[c.id]]?'<div style="font-size:11px;color:var(--muted);margin:0 0 4px 20px">'+escapeHtmlM(r[noteKey[c.id]])+'</div>':'')+
+        auditPhotoStrip(r.criterion_photos, c.id)
       ).join('')+(r.overall_notes?'<div style="font-size:11px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><b>Notes:</b> '+escapeHtmlM(r.overall_notes)+'</div>':'');
       return '<div onclick="const d=this.querySelector(\'.aud-d\');d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer">'+
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">'+
@@ -7401,6 +7487,8 @@ function openOrderSummary(){
       <input type="text" id="audit-store-search" placeholder="🔍 Search any store…" autocomplete="off" oninput="filterAuditStores(this.value)"
         style="width:100%;padding:9px 12px;border:1.5px solid var(--amber);border-radius:8px;font-size:13px;font-family:inherit">
       <div id="audit-store-list" style="margin-top:6px;max-height:140px;overflow-y:auto"></div>
+      <input type="file" id="audit-photo-gallery" accept="image/*" multiple onchange="auditHandlePhotoFiles(this.files)" style="display:none">
+      <input type="file" id="audit-photo-camera" accept="image/*" capture="environment" onchange="auditHandlePhotoFiles(this.files)" style="display:none">
     </div>
     <div style="flex:1;overflow-y:auto;padding:14px 16px" id="audit-form-body">
       <div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Select a store above to start the audit</div>
