@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<title>DFL · HR Issue Log</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  HR Issue Log — every "Report an Issue" from the field app (phone, uniform,
+  merch tools, transport, other), for HR. View only: resolving stays with
+  admins/managers in merch.html (UPDATE policy is is_manager()).
+  Sister page of /hr-leave.html, /hr-evaluations.html, /hr-audits.html (.hrnav).
+
+  Data: equipment_issue_reports, read with the signed-in client (SELECT is open
+  to authenticated). Page access is routes.js only — admin, management, hr.
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --grey:#6B7489; --grey-t:#EEF0F4;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+.ptitle{font:800 22px var(--hf);margin:0 0 4px}
+.psub{color:var(--ink2);margin:0 0 16px}
+.hrnav{display:inline-flex;flex-wrap:wrap;background:#E7EBF3;border-radius:10px;padding:3px;margin:0 0 14px}
+.hrnav a{font:700 12.5px var(--hf);color:var(--ink2);text-decoration:none;padding:7px 14px;border-radius:8px}
+.hrnav a[aria-current="page"]{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.strip{background:var(--navy2);color:#fff;border-radius:10px;padding:14px 18px;display:flex;flex-wrap:wrap;gap:28px;margin-bottom:16px}
+.kpi{cursor:pointer;border:0;background:none;color:inherit;text-align:left;padding:0;font:inherit}
+.kpi .l{font:600 10px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:#9FB0D6}
+.kpi .v{font:700 20px var(--hf);font-variant-numeric:tabular-nums}
+.kpi .v.warn{color:#FFC76B}
+.kpi:hover .l{color:#fff}
+@media (max-width:640px){.strip{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}.kpi .v{font-size:18px}}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters input,.filters select{font:13px var(--bf);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+.filters input:focus,.filters select:focus{border-color:var(--blue)}
+.filters input[type=search]{flex:1 1 200px;min-width:160px}
+.btn{font:700 12px var(--hf);letter-spacing:.04em;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--blue);background:#fff;color:var(--blue)}
+.count{font-size:12.5px;color:var(--ink3);margin:0 0 8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{font:700 10.5px var(--hf);text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#FAFBFD;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+.who{font-weight:600}
+.sub{font-size:12px;color:var(--ink3)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.desc{white-space:pre-wrap;max-width:420px}
+.pill{display:inline-block;font:700 10.5px var(--hf);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.s-open{background:var(--amber-t);color:var(--amber)}
+.s-resolved{background:var(--green-t);color:var(--green)}
+.cat{background:var(--grey-t);color:var(--grey)}
+.thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+.empty{text-align:center;color:var(--ink3);padding:40px 16px}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:40px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.msg{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:28px;text-align:center;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink3);margin:10px 2px 0}
+@media (max-width:640px){
+  thead{display:none}
+  table,tbody,tr,td{display:block;width:100%}
+  tbody tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  td{border:0;padding:2px 0}
+  td[data-l]::before{content:attr(data-l)": ";color:var(--ink3);font-size:12px}
+  .desc{max-width:none}
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <nav class="hrnav" aria-label="HR"><a href="/hr-leave.html">🌴 Leave</a><a href="/hr-evaluations.html">📋 Evaluations</a><a href="/hr-audits.html">✅ Store Audits</a><a href="/hr-issues.html" aria-current="page">🛠️ Issues</a></nav>
+  <h1 class="ptitle">HR Issue Log</h1>
+  <p class="psub">Every issue reported from the field app — phones, uniforms, merch tools, transport and anything else. Admins and managers mark issues resolved in the merch app.</p>
+
+  <div id="gate"><div class="spin"></div></div>
+
+  <div id="main" class="hidden">
+    <div class="strip">
+      <button class="kpi" data-quick="open"><div class="l">Open</div><div class="v warn" id="kOpen">–</div></button>
+      <button class="kpi" data-quick="resolved"><div class="l">Resolved</div><div class="v" id="kRes">–</div></button>
+      <button class="kpi" data-quick="month"><div class="l">Reported this month</div><div class="v" id="kMonth">–</div></button>
+      <button class="kpi" data-quick="uniform"><div class="l">Uniform</div><div class="v" id="kUniform">–</div></button>
+      <button class="kpi" data-quick="phone"><div class="l">Phone</div><div class="v" id="kPhone">–</div></button>
+      <button class="kpi" data-quick="days"><div class="l">Avg days to resolve</div><div class="v" id="kDays">–</div></button>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="fq" placeholder="Search name, description…">
+      <select id="fstatus">
+        <option value="">Open and resolved</option>
+        <option value="open">Open</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <select id="fcat"><option value="">Any category</option></select>
+      <select id="fwhen">
+        <option value="month">This month</option>
+        <option value="quarter">This quarter</option>
+        <option value="year">This year</option>
+        <option value="all" selected>All dates</option>
+      </select>
+      <button class="btn" id="csv">Export CSV</button>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="panel">
+      <table>
+        <thead><tr>
+          <th>Reported</th><th>By</th><th>Category</th><th>Issue</th><th>Photo</th><th>Status</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+// Same categories and labels as merch.html's ISSUE_CAT_LABELS.
+const CAT = {phone:'📱 Phone', uniform:'👕 Uniform', tools:'🧰 Merch tools', transport:'🚗 Transport', other:'❓ Other'};
+const ROLE_LABEL = {merchandiser:'Brand Ambassador', relief_merchandiser:'Relief Brand Ambassador', tl_merch:'Team Leader + Brand Ambassador', team_leader:'Team Leader', manager:'Manager', admin:'Admin'};
+// Photos must be our own public storage objects; anything else is dropped.
+const STORAGE_PUB = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/';
+
+let ISSUES = [];
+let QUICK_ON = null;
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtTs(s){ return s ? new Date(s).toLocaleString('en-JM',{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+const safeUrl = u => (typeof u==='string' && u.indexOf(STORAGE_PUB)===0) ? u : '';
+
+const NOW = new Date();
+const M0 = new Date(NOW.getFullYear(), NOW.getMonth(), 1);
+const Q0 = new Date(NOW.getFullYear(), Math.floor(NOW.getMonth()/3)*3, 1);
+const Y0 = new Date(NOW.getFullYear(), 0, 1);
+const days = r => (new Date(r.resolved_at) - new Date(r.created_at)) / 864e5;
+
+document.addEventListener('dfl-auth-ready', (e) => init(e.detail.profile));
+
+async function init(profile){
+  const { data, error } = await sb.from('equipment_issue_reports')
+    .select('id,created_at,reported_by_name,reported_by_role,category,description,photo_url,status,resolved_by_name,resolved_at')
+    .order('created_at', { ascending:false });
+  const gate = document.getElementById('gate');
+  if(error){ gate.innerHTML = `<div class="msg">Couldn't load the issue log. Try again shortly.</div>`; return; }
+  ISSUES = data || [];
+  gate.classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  document.getElementById('fcat').insertAdjacentHTML('beforeend', Object.entries(CAT).map(([k,v])=>`<option value="${k}">${v}</option>`).join(''));
+  ['fq','fstatus','fcat','fwhen'].forEach(id=>document.getElementById(id).addEventListener(id==='fq'?'input':'change', ()=>{ QUICK_ON=null; draw(); }));
+  document.querySelectorAll('.kpi').forEach(b=>b.addEventListener('click', ()=>quick(b.dataset.quick)));
+  document.getElementById('csv').addEventListener('click', exportCsv);
+  drawKpis(); draw();
+}
+
+const QUICK = {
+  open:     r => r.status==='open',
+  resolved: r => r.status==='resolved',
+  month:    r => new Date(r.created_at) >= M0,
+  uniform:  r => r.category==='uniform',
+  phone:    r => r.category==='phone',
+  days:     r => r.status==='resolved' && r.resolved_at
+};
+function quick(k){
+  ['fq','fstatus','fcat'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fwhen').value='all';
+  QUICK_ON = k; draw();
+}
+
+function drawKpis(){
+  const res = ISSUES.filter(QUICK.days);
+  document.getElementById('kOpen').textContent = ISSUES.filter(QUICK.open).length;
+  document.getElementById('kRes').textContent = ISSUES.filter(QUICK.resolved).length;
+  document.getElementById('kMonth').textContent = ISSUES.filter(QUICK.month).length;
+  document.getElementById('kUniform').textContent = ISSUES.filter(QUICK.uniform).length;
+  document.getElementById('kPhone').textContent = ISSUES.filter(QUICK.phone).length;
+  document.getElementById('kDays').textContent = res.length ? (res.reduce((s,r)=>s+days(r),0)/res.length).toFixed(1) : '–';
+}
+
+function filtered(){
+  const q = document.getElementById('fq').value.trim().toLowerCase();
+  const st = document.getElementById('fstatus').value;
+  const cat = document.getElementById('fcat').value;
+  const when = document.getElementById('fwhen').value;
+  return ISSUES.filter(r=>{
+    if(QUICK_ON && !QUICK[QUICK_ON](r)) return false;
+    if(st && r.status!==st) return false;
+    if(cat && r.category!==cat) return false;
+    const d = new Date(r.created_at);
+    if(when==='month' && d < M0) return false;
+    if(when==='quarter' && d < Q0) return false;
+    if(when==='year' && d < Y0) return false;
+    if(q && ![r.reported_by_name, r.description, r.resolved_by_name, CAT[r.category]].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function draw(){
+  const list = filtered();
+  const quickName = QUICK_ON ? document.querySelector(`.kpi[data-quick="${QUICK_ON}"] .l`).textContent : '';
+  document.getElementById('count').innerHTML = `${list.length} issue${list.length===1?'':'s'}` +
+    (quickName ? ` · showing <b>${esc(quickName)}</b> — change any filter to clear` : '');
+  const tb = document.getElementById('rows');
+  if(!list.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">${ISSUES.length?'No issues match these filters.':'No issues have been reported yet.'}</td></tr>`; return; }
+  tb.innerHTML = list.map(r=>{
+    const photo = safeUrl(r.photo_url);
+    return `<tr>
+      <td data-l="Reported" class="num">${fmtTs(r.created_at)}</td>
+      <td><div class="who">${esc(r.reported_by_name||'—')}</div><div class="sub">${esc(ROLE_LABEL[r.reported_by_role]||r.reported_by_role||'')}</div></td>
+      <td data-l="Category"><span class="pill cat">${esc(CAT[r.category]||r.category||'—')}</span></td>
+      <td data-l="Issue"><div class="desc">${esc(r.description||'')}</div></td>
+      <td${photo?' data-l="Photo"':''}>${photo?`<a href="${esc(photo)}" target="_blank" rel="noopener"><img class="thumb" src="${esc(photo)}" alt="Issue photo"></a>`:''}</td>
+      <td data-l="Status">${r.status==='resolved'
+        ? `<span class="pill s-resolved">Resolved</span><div class="sub">${esc(r.resolved_by_name||'')}${r.resolved_at?' · '+fmtTs(r.resolved_at):''}</div>`
+        : '<span class="pill s-open">Open</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportCsv(){
+  const cols = [
+    ['Reported', r=>(r.created_at||'').slice(0,16).replace('T',' ')], ['Reported by', r=>r.reported_by_name],
+    ['Role', r=>ROLE_LABEL[r.reported_by_role]||r.reported_by_role], ['Category', r=>(CAT[r.category]||r.category||'').replace(/^\S+\s/,'')],
+    ['Issue', r=>r.description], ['Photo', r=>safeUrl(r.photo_url)], ['Status', r=>r.status],
+    ['Resolved by', r=>r.resolved_by_name], ['Resolved at', r=>(r.resolved_at||'').slice(0,16).replace('T',' ')]
+  ];
+  const q = v => { v = v==null ? '' : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [cols.map(c=>q(c[0])).join(','), ...filtered().map(r=>cols.map(c=>q(c[1](r))).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'}));
+  a.download = `dfl-issue-log-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+</script>
+</body>
+</html>
