@@ -1883,9 +1883,9 @@ function openAuditDetail(id){
   document.getElementById('ad-meta').innerHTML = `
     <div class="vd-item"><b>Brand Ambassador</b>${escH(r.merchandiser_name||'—')}</div>
     <div class="vd-item"><b>Overall</b>${auditPill(auditPct(r))}</div>
-    <div class="vd-item"><b>Submitted</b>${r.created_at?escH(new Date(r.created_at).toLocaleString('en-JM')):'—'}</div>`;
+    <div class="vd-item"><b>Submitted</b>${r.created_at?escH(new Date(r.created_at).toLocaleString('en-JM')):'—'}</div>${r.edited_at?`<div class="vd-item"><b>Edited</b>${escH(r.edited_by||'')} · ${escH(new Date(r.edited_at).toLocaleString('en-JM'))}</div>`:''}`;
   document.getElementById('ad-criteria').innerHTML = AUDIT_CRITERIA.map(([key,label,nk])=>`<div class="ev-crit">
-      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${r[key]!=null?escH(r[key])+'/5':'—'}</div></div>
+      <div class="ev-crit-top"><div class="ev-crit-label">${label}</div><div class="ev-crit-score">${r[key]!=null?escH(r[key])+'/5':(r.not_applicable||[]).includes(key)?'N/A':'—'}</div></div>
       ${r[nk]?`<div class="ev-crit-comment">${escH(r[nk])}</div>`:''}
       ${auditPhotos(r, key)}
     </div>`).join('');
