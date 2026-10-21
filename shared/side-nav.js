@@ -134,6 +134,7 @@
         { label: 'HR Leave', href: '/hr-leave.html', icon: '🌴', hrOnly: true },
         { label: 'HR Evaluations', href: '/hr-evaluations.html', icon: '📋', hrOnly: true },
         { label: 'HR Store Audits', href: '/hr-audits.html', icon: '✅', hrOnly: true },
+        { label: 'HR Issue Log', href: '/hr-issues.html', icon: '🛠️', hrOnly: true },
         // myHr: shown as a "Soon" row until DFL_MY_HR_LIVE (routes.js) — admins get the link.
         { label: 'My Employment', href: '/my-hr.html', icon: '🪪', myHr: true }
       ]
