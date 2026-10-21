@@ -696,10 +696,12 @@ const STORAGE_PUB = 'https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/
 const safeUrl = u => (typeof u==='string' && u.indexOf(STORAGE_PUB)===0) ? escH(u) : '';
 
 // ── BOOT: load reference data once, then the default tab ──
+// Roster read on the signed-in user's token (reps is readable by active staff only). Throws if there is no session.
+async function supaReps(){ const { data: { session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); const { data, error } = await sb.from('reps').select('id,name,role,area,active,team_lead_id').eq('active', true); if(error) throw new Error('reps: ' + error.message); return data; }
 async function loadStaticRefs(){
   const [mapRows, repsRows] = await Promise.all([
     supa(`merchandiser_map?select=customer_id,merchandiser_name,commission_share&order=customer_id,merchandiser_name`),
-    supa(`reps?select=id,name,role,area,active,team_lead_id&active=eq.true`)
+    supaReps()
   ]);
   mapByCid = {};
   mapAssignments = [];
@@ -1909,7 +1911,8 @@ function showEvals(){ setMainTab('evals'); document.getElementById('navEvals').c
 function showRelief(){ setMainTab('relief'); document.getElementById('navRelief').classList.add('active'); document.getElementById('headerSub').textContent='2026 · RELIEF COVERAGE & PAY'; const f=document.getElementById('reliefFrame'); if(!f.getAttribute('src')) f.src='/management/relief-coverage.html'; }
 
 // ── BOOT ──
-loadStaticRefs().then(loadData);
+// Wait for DOMContentLoaded: the shared client (`sb`) is loaded by the scripts below this one, and supaReps() needs it.
+document.addEventListener('DOMContentLoaded', () => { loadStaticRefs().then(loadData); });
 </script>
 
 <!-- Auth. The guard no-ops when framed, so embedding in management/index.html is unaffected. -->

@@ -825,6 +825,9 @@ async function sbGet(path) {
   }
 }
 
+// Roster read on the signed-in user's token (reps is readable by active staff only). Throws if there is no session.
+async function sbGetReps() { const { data: { session } } = await sb.auth.getSession(); if (!session) throw new Error('not signed in'); const { data, error } = await sb.from('reps').select('name,salesperson_id,area').in('role', ['rep', 'rep_management']).eq('active', true).limit(50); if (error) throw new Error(`reps: ${error.message}`); return data; }
+
 async function sbRpc(fn, params) {
   const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST',
@@ -1708,7 +1711,7 @@ async function loadHistoricalMonth_OLD(period) {
       // rep_management carries a salesperson_id and a budget like any other
       // rep, so without it Richard Gordon still appeared (this builds rows from
       // actuals+budget names, not the roster) but with no area and no ERP code.
-      sbGet(`reps?select=name,salesperson_id,area&role=in.(rep,rep_management)&active=eq.true&limit=50`),
+      sbGetReps(),
     ]);
 
     console.log('Data fetched — actuals:', actuals.length, 'budgets:', budgets.length, 'reps:', repMeta.length);
