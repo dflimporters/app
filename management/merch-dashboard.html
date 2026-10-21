@@ -605,7 +605,8 @@ tbody tr.clickable{cursor:pointer}
 <script>
 const SUPA = 'https://hzagwndglwhcepsirafi.supabase.co';
 const KEY  = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
-const HDR  = { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' };
+// Signed-in user's token for every call (no fallback to the public key: with no session this throws). Needs the shared client (sb), which loads after this script, so call it at run time, not at parse time.
+async function userHdr(extra){ const { data: { session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return Object.assign({ 'apikey': KEY, 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }, extra || {}); }
 
 const MONTHS = { '202601':'January 2026','202602':'February 2026','202603':'March 2026','202604':'April 2026','202605':'May 2026','202606':'June 2026','202607':'July 2026','202608':'August 2026','202609':'September 2026','202610':'October 2026','202611':'November 2026','202612':'December 2026' };
 const REAL_TARGET_MONTHS = (()=>{
@@ -676,7 +677,7 @@ async function supa(path){
   const PAGE_ROWS = 1000;
   let all = [], off = 0;
   for(;;){
-    const headers = Object.assign({}, HDR, {'Range': `${off}-${off + PAGE_ROWS - 1}`, 'Range-Unit': 'items', 'Prefer': 'count=none'});
+    const headers = Object.assign(await userHdr(), {'Range': `${off}-${off + PAGE_ROWS - 1}`, 'Range-Unit': 'items', 'Prefer': 'count=none'});
     const r = await fetch(`${SUPA}/rest/v1/${clean}`,{headers});
     if(!r.ok && r.status !== 206) throw new Error(await r.text());
     const rows = await r.json();
@@ -1104,7 +1105,7 @@ async function pushActuals(){
       const chunk = parsedRows.slice(i, i + 500);
       const resp = await fetch(`${SUPA}/rest/v1/monthly_actuals`, {
         method: 'POST',
-        headers: HDR,
+        headers: await userHdr({'Prefer': 'resolution=merge-duplicates'}),
         body: JSON.stringify(chunk)
       });
       if(!resp.ok) throw new Error('Supabase: ' + (await resp.text()).slice(0, 200));
