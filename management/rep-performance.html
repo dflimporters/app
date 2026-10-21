@@ -799,6 +799,9 @@ const fmtM = n => {
 };
 const barColor = p => p >= 85 ? '#16a34a' : p >= 65 ? '#d97706' : '#dc2626'; // legacy - not used for bar
 
+// Signed-in user token for every call below. No fallback to the public key: with no session this throws.
+async function rpToken() { const { data: { session } } = await sb.auth.getSession(); if (!session) throw new Error('not signed in'); return session.access_token; }
+
 // ─── SUPABASE FETCH ───────────────────────────────────────────────────────────
 async function sbGet(path) {
   const controller = new AbortController();
@@ -808,7 +811,7 @@ async function sbGet(path) {
       signal: controller.signal,
       headers: {
         'apikey':        SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${await rpToken()}`,
         'Accept':        'application/json',
       }
     });
@@ -833,7 +836,7 @@ async function sbRpc(fn, params) {
     method: 'POST',
     headers: {
       'apikey':        SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${await rpToken()}`,
       'Content-Type':  'application/json',
       'Accept':        'application/json',
     },
@@ -1527,7 +1530,7 @@ async function saveFollowup() {
       method: 'POST',
       headers: {
         'apikey':        SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${await rpToken()}`,
         'Content-Type':  'application/json',
         'Prefer':        'return=minimal',
       },
@@ -1574,7 +1577,7 @@ async function deleteFollowup(id, rowId, salesperson) {
       method: 'DELETE',
       headers: {
         'apikey':        SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${await rpToken()}`,
         'Prefer':        'return=minimal',
       }
     });
@@ -1993,7 +1996,7 @@ async function init() {
 async function testConnection() {
   try {
     const res = await fetch(`${RP_SUPABASE_URL}/rest/v1/rep_dashboard_cache?select=count&limit=1`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${await rpToken()}` }
     });
     if (res.ok) {
       console.log('✓ Supabase connection OK');

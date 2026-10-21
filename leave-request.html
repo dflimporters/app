@@ -133,9 +133,7 @@ textarea{resize:vertical;min-height:70px}
 <script>
 const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
-const H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' }; } // signed-in token, for `reps`
-const HRET={...H,Prefer:"return=representation"};
 // Quote-safe: also used inside value="…"/data-*="…" attributes below.
 // PostgREST in.() list: each value double-quoted (JSON string syntax matches
 // PostgREST's quoting) and URL-encoded, so a comma or quote in a name can't
@@ -417,7 +415,7 @@ async function submitStep1(){
   }
   try{
     const res = await fetch(`${SB_URL}/rest/v1/leave_tracker_records`,{
-      method:'POST', headers:HRET,
+      method:'POST', headers:{...await userH(),Prefer:'return=representation'},
       body: JSON.stringify({staff_id:STAFF.id, start_date:from, end_date:to, leave_type:type})
     });
     const rows = await res.json();
@@ -598,7 +596,7 @@ async function submitStep2(){
 
   try{
     const res = await fetch(`${SB_URL}/rest/v1/leave_tracker_records?id=eq.${CURRENT_ID}`,{
-      method:'PATCH', headers:H, body:JSON.stringify(body)
+      method:'PATCH', headers:await userH(), body:JSON.stringify(body)
     });
     if(!res.ok) throw new Error('update failed');
     drawDone(discussedEl.value==='none');
