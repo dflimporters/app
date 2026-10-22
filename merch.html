@@ -2744,7 +2744,7 @@ async function loadTLData(u){
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area&order=name`);
+    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
     loadTeamRouteRequests();
@@ -2789,10 +2789,14 @@ async function loadTLData(u){
     // this reads from ownVisits (already scoped to myNames), not weekVisits.
     const todayOwnByName={};
     (ownVisits||[]).forEach(v=>{ if(v.visit_date===todayStr && !todayOwnByName[v.user_name]) todayOwnByName[v.user_name]=v; });
-    const presentNames=myNames.filter(n=>todayOwnByName[n]);
-    const missingNames=myNames.filter(n=>!todayOwnByName[n]);
-    const attPct=myNames.length?Math.round(presentNames.length/myNames.length*100):0;
-    document.getElementById('tl-att-count').textContent=presentNames.length+'/'+myNames.length;
+    // Relief Brand Ambassadors (temp cover) only work when covering someone, so
+    // they aren't expected in every day — left out of the headcount, same rule
+    // as the admin overview's renderAttendanceStats().
+    const attNames=(myMerch||[]).filter(m=>m.role!=='relief_merchandiser').map(m=>m.name);
+    const presentNames=attNames.filter(n=>todayOwnByName[n]);
+    const missingNames=attNames.filter(n=>!todayOwnByName[n]);
+    const attPct=attNames.length?Math.round(presentNames.length/attNames.length*100):0;
+    document.getElementById('tl-att-count').textContent=presentNames.length+'/'+attNames.length;
     document.getElementById('tl-att-pct').textContent=attPct+'% logged a visit today';
     const attBar=document.getElementById('tl-att-bar');
     attBar.style.width=attPct+'%';
