@@ -278,12 +278,32 @@ async function loadRecordForWrite(personId,y,m){
     return await loadRecord(personId,y,m);
   }catch(e){
     console.error('loadRecord failed:', e);
-    showToast('Could not load the saved report, so nothing was changed. Check your connection and try again.', true);
+    showToast(isAuthError(e) ? friendlySaveError(e) : 'Could not load the saved report, so nothing was changed. Check your connection and try again.', true);
     return null;
   }
 }
 async function saveRecord(personId,y,m,rec){
   await sbUpsert('cmkam_weekly_reports', {person_id:personId, year:y, month:m, data:rec, updated_at:new Date().toISOString()}, 'person_id,year,month');
+}
+// Every save/delete/autosave is a read-modify-write of the WHOLE month's record, so two of
+// them interleaving can clobber each other (the later upsert wins with whatever it read
+// earlier). Funnel them through one queue so each one reads the previous one's result.
+let recordWriteChain = Promise.resolve();
+function withRecordLock(fn){
+  const run = recordWriteChain.then(fn, fn);
+  recordWriteChain = run.catch(()=>{});
+  return run;
+}
+// A 401/403 means this tab's token is rejected or the tab is running an older copy of the
+// page than the server now expects, not a connection problem.
+function isAuthError(e){
+  const msg = String((e && e.message) || e);
+  return /not signed in|JWT|Supabase error (401|403)/i.test(msg);
+}
+function friendlySaveError(e){
+  return isAuthError(e)
+    ? 'Your session has expired or this page is out of date. Copy what you have typed, then refresh the page (Ctrl+Shift+R) and sign in again.'
+    : (e && e.message) || 'Save failed';
 }
 
 /* ============== AUTOSAVE (drafts) ==============
@@ -293,9 +313,17 @@ async function saveRecord(personId,y,m,rec){
    person actually clicks Save, never from an in-progress draft. */
 let currentRec = null;
 let autosaveTimer = null;
+// Bumped by every manual save/delete. An autosave that took its snapshot before the bump is
+// stale (the form it came from is about to be replaced and its draft just cleared), so it
+// must not write.
+let autosaveEpoch = 0;
 function scheduleAutosave(){
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(autosaveGatherAndPersist, 1200);
+}
+function cancelAutosave(){
+  clearTimeout(autosaveTimer);
+  autosaveEpoch++;
 }
 function autosaveIndicatorEl(){ return document.getElementById('autosaveIndicator'); }
 function showAutosaveState(msg){
@@ -306,14 +334,19 @@ async function autosaveGatherAndPersist(){
   if(state.screen!=='person' || !currentRec) return;
   const person = PEOPLE.find(p=>p.id===state.personId);
   if(!person) return;
-  const fridays = getFridays(state.year, state.month);
+  const year = state.year, month = state.month;
+  const fridays = getFridays(year, month);
   const cls = classify(state.fIdx, fridays.length);
-  currentRec.drafts = currentRec.drafts || {plan:null, updates:{}, recap:null};
+  // Snapshot what is in the form right now. Only this snapshot is written, and only into
+  // the one matching drafts slot of a freshly-read record: never the in-memory currentRec,
+  // which can be older than what is saved (a save from another tab, a manual Save that
+  // finished in between) and would put that older plan/updates/recap back.
+  let applyDraft;
   try{
     if(cls.type==='plan'){
       const el = document.getElementById('f_declines');
       if(!el) return;
-      currentRec.drafts.plan = {
+      const draft = {
         initiatives: planInitiatives.slice(),
         declines: el.value,
         opportunities: document.getElementById('f_opps').value,
@@ -321,20 +354,22 @@ async function autosaveGatherAndPersist(){
         productDev: document.getElementById('f_pd').value,
         savedAt: new Date().toISOString()
       };
+      applyDraft = d=>{ d.plan = draft; };
     } else if(cls.type==='update'){
       const el = document.getElementById('u_wins');
       if(!el) return;
-      currentRec.drafts.updates[cls.weekNum] = {
+      const draft = {
         statuses: updStatuses.slice(),
         wins: el.value,
         unplanned: document.getElementById('u_unplanned').value,
         general: document.getElementById('u_general').value,
         savedAt: new Date().toISOString()
       };
+      applyDraft = d=>{ d.updates = d.updates || {}; d.updates[cls.weekNum] = draft; };
     } else {
       const el = document.getElementById('r_improve');
       if(!el) return;
-      currentRec.drafts.recap = {
+      const draft = {
         review: recapReview.slice(),
         actuals: recapActuals,
         improve: el.value,
@@ -342,13 +377,33 @@ async function autosaveGatherAndPersist(){
         commentary: document.getElementById('r_commentary').value,
         savedAt: new Date().toISOString()
       };
+      applyDraft = d=>{ d.recap = draft; };
     }
+  }catch(e){
+    console.error('Autosave could not read the form:', e);
+    return;
+  }
+  const epoch = autosaveEpoch;
+  try{
     showAutosaveState('Saving draft…');
-    await saveRecord(person.id, state.year, state.month, currentRec);
-    showAutosaveState('Draft saved '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+    const saved = await withRecordLock(async ()=>{
+      // A manual save/delete ran (or is queued) since the snapshot: it cleared this draft
+      // on purpose, so don't bring it back.
+      if(epoch !== autosaveEpoch) return false;
+      const rec = await loadRecord(person.id, year, month);   // throws on failure: nothing is written
+      rec.drafts = rec.drafts || {plan:null, updates:{}, recap:null};
+      applyDraft(rec.drafts);
+      await saveRecord(person.id, year, month, rec);
+      if(state.screen==='person' && state.personId===person.id && state.year===year && state.month===month) currentRec = rec;
+      return true;
+    });
+    if(saved) showAutosaveState('Draft saved '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+    else showAutosaveState('');
   }catch(e){
     console.error('Autosave failed:', e);
-    showAutosaveState('Draft not saved — check connection');
+    showAutosaveState(isAuthError(e)
+      ? 'Draft NOT saved: session expired or page out of date. Copy your text, then refresh (Ctrl+Shift+R).'
+      : 'Draft not saved — check connection');
   }
 }
 /* Delegated listeners: attached once, work regardless of how many times
@@ -366,7 +421,7 @@ function showToast(msg, isError){
   t.textContent=msg; t.classList.add('show');
   t.style.background = isError ? 'var(--red)' : 'var(--navy)';
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(()=>t.classList.remove('show'),isError?4000:2200);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'),isError?(msg.length>80?9000:4000):2200);
 }
 
 /* ============== RENDER ROOT ============== */
@@ -531,7 +586,8 @@ function renderInitRows(){
   ).join('');
 }
 function updInit(id,field,val){ const it=planInitiatives.find(i=>i.id===id); if(it) it[field]=val; }
-async function savePlan(){
+function savePlan(){ cancelAutosave(); return withRecordLock(savePlanLocked); }
+async function savePlanLocked(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -551,7 +607,7 @@ async function savePlan(){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 function readonlyPlan(person, plan){
@@ -572,8 +628,11 @@ function readonlyPlan(person, plan){
     + '</div>'
     + '<datalist id="catOpts">'+(person.catOptions||[]).map(c=>'<option value="'+c+'">').join('')+'</datalist>';
 }
-async function deletePlan(){
+function deletePlan(){
   if(!confirm('Delete this plan? This cannot be undone.')) return;
+  cancelAutosave(); return withRecordLock(deletePlanLocked);
+}
+async function deletePlanLocked(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -586,7 +645,7 @@ async function deletePlan(){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 function enableEdit(){ state.editMode=true; renderPersonScreen(); }
@@ -636,7 +695,8 @@ function renderUpdRows(){
   ).join('');
 }
 function updStatus(id,field,val){ const s=updStatuses.find(x=>x.initiativeId===id); if(s) s[field]=val; }
-async function saveUpdate(weekNum, fridayIso){
+function saveUpdate(weekNum, fridayIso){ cancelAutosave(); return withRecordLock(()=>saveUpdateLocked(weekNum, fridayIso)); }
+async function saveUpdateLocked(weekNum, fridayIso){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -657,7 +717,7 @@ async function saveUpdate(weekNum, fridayIso){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 function readonlyUpdate(person, u, weekNum){
@@ -677,8 +737,11 @@ function readonlyUpdate(person, u, weekNum){
     + '<div class="btn-row"><button class="btn btn-ghost" onclick="enableEdit()">Edit update</button><button class="btn btn-gold" onclick="generateUpdateSlide('+weekNum+')">Download Slide (HTML)</button><button class="btn btn-danger-ghost" onclick="deleteUpdate('+weekNum+')">Delete update</button></div>'
     + '</div>';
 }
-async function deleteUpdate(weekNum){
+function deleteUpdate(weekNum){
   if(!confirm('Delete this update? This cannot be undone.')) return;
+  cancelAutosave(); return withRecordLock(()=>deleteUpdateLocked(weekNum));
+}
+async function deleteUpdateLocked(weekNum){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -691,7 +754,7 @@ async function deleteUpdate(weekNum){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 
@@ -814,7 +877,8 @@ async function fetchActuals(){
   }
   btn.innerHTML='Re-fetch actuals from Supabase'; btn.disabled=false;
 }
-async function saveRecap(){
+function saveRecap(){ cancelAutosave(); return withRecordLock(saveRecapLocked); }
+async function saveRecapLocked(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -834,7 +898,7 @@ async function saveRecap(){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 function readonlyRecap(person, recap){
@@ -871,8 +935,11 @@ function readonlyRecap(person, recap){
     + '<div class="btn-row"><button class="btn btn-ghost" onclick="enableEdit()">Edit recap</button><button class="btn btn-gold" onclick="generateRecapSlide()">Download Slide (HTML)</button><button class="btn btn-danger-ghost" onclick="deleteRecap()">Delete recap</button></div>'
     + '</div>';
 }
-async function deleteRecap(){
+function deleteRecap(){
   if(!confirm('Delete this recap? This cannot be undone.')) return;
+  cancelAutosave(); return withRecordLock(deleteRecapLocked);
+}
+async function deleteRecapLocked(){
   const person = PEOPLE.find(p=>p.id===state.personId);
   const rec = await loadRecordForWrite(person.id, state.year, state.month);
   if(!rec) return;
@@ -885,7 +952,7 @@ async function deleteRecap(){
     state.editMode=false;
     renderPersonScreen();
   }catch(e){
-    showToast(e.message, true);
+    showToast(friendlySaveError(e), true);
   }
 }
 
