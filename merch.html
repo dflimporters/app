@@ -1236,6 +1236,19 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr" style="color:var(--amber)">›</div>
     </div>
 
+    <!-- Recent audits, editable by admins/managers (loadAdminAudits()). -->
+    <div class="merch-card hide-when-readonly" id="admin-audits-card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="sec-hdr" style="margin:0">📋 Recent store audits</div>
+        <div style="display:flex;gap:4px">
+          <button id="adm-aud-mine" onclick="setAdminAuditScope('mine')" style="padding:5px 10px;border-radius:14px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:700;cursor:pointer">Mine</button>
+          <button id="adm-aud-all" onclick="setAdminAuditScope('all')" style="padding:5px 10px;border-radius:14px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:700;cursor:pointer">Everyone</button>
+        </div>
+      </div>
+      <input type="text" id="adm-aud-q" placeholder="🔍 Search store, Brand Ambassador or auditor…" autocomplete="off" oninput="renderAdminAudits()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:8px;background:var(--card);color:var(--text)">
+      <div id="adm-aud-list" style="display:flex;flex-direction:column;gap:6px"><div class="spinner"></div></div>
+    </div>
+
     <!-- This screen has been through two lives. It was the "PIN Directory",
          listing everyone's PIN in plaintext; then a static roster. It is now a
          performance overview across ALL merchandisers that drills into any one
@@ -2744,7 +2757,7 @@ async function loadTLData(u){
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area&order=name`);
+    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
     loadTeamRouteRequests();
@@ -2789,10 +2802,14 @@ async function loadTLData(u){
     // this reads from ownVisits (already scoped to myNames), not weekVisits.
     const todayOwnByName={};
     (ownVisits||[]).forEach(v=>{ if(v.visit_date===todayStr && !todayOwnByName[v.user_name]) todayOwnByName[v.user_name]=v; });
-    const presentNames=myNames.filter(n=>todayOwnByName[n]);
-    const missingNames=myNames.filter(n=>!todayOwnByName[n]);
-    const attPct=myNames.length?Math.round(presentNames.length/myNames.length*100):0;
-    document.getElementById('tl-att-count').textContent=presentNames.length+'/'+myNames.length;
+    // Relief Brand Ambassadors (temp cover) only work when covering someone, so
+    // they aren't expected in every day — left out of the headcount, same rule
+    // as the admin overview's renderAttendanceStats().
+    const attNames=(myMerch||[]).filter(m=>m.role!=='relief_merchandiser').map(m=>m.name);
+    const presentNames=attNames.filter(n=>todayOwnByName[n]);
+    const missingNames=attNames.filter(n=>!todayOwnByName[n]);
+    const attPct=attNames.length?Math.round(presentNames.length/attNames.length*100):0;
+    document.getElementById('tl-att-count').textContent=presentNames.length+'/'+attNames.length;
     document.getElementById('tl-att-pct').textContent=attPct+'% logged a visit today';
     const attBar=document.getElementById('tl-att-bar');
     attBar.style.width=attPct+'%';
@@ -4143,6 +4160,7 @@ function saveAuditDraft(){
   if(!cu) return;
   const overallEl=document.getElementById('audit-overall-notes');
   const overallNotes=overallEl?overallEl.value:'';
+  if(auditState.editId) return; // editing a submitted audit — no draft
   if(!auditState.customer_id){ clearAuditDraft(); return; }
   try{
     localStorage.setItem(auditDraftKey(), JSON.stringify({
@@ -4174,12 +4192,14 @@ const AUDIT_CRITERIA=[
   {id:'facing_correct',   label:'Facing & alignment',       icon:'↔️', desc:'All products fully faced and pulled to front'},
   {id:'rotation_correct', label:'Stock rotation (FIFO)',    icon:'🔄', desc:'Older stock at front, newest at back'},
   {id:'pricing_correct',  label:'Pricing accuracy',         icon:'🏷️', desc:'Correct shelf prices, shelf talkers in place'},
-  {id:'pos_materials',    label:'POS & promotional display',icon:'🎯', desc:'All POS (danglers, wobblers, shelf strips, promo material) up & current where applicable/allowed'}
+  // allowNA: many stores don't allow POP — 'N/A' leaves it out of the score.
+  {id:'pos_materials',    label:'POS & promotional display',icon:'🎯', desc:'All POS (danglers, wobblers, shelf strips, promo material) up & current where applicable/allowed', allowNA:true}
 ];
 
 function openStoreAudit(){
   document.getElementById('audit-store-search').value='';
   document.getElementById('audit-modal').style.display='flex';
+  document.getElementById('audit-picker').style.display='';
   // submitAudit() hides the button and leaves it on "Saving..." — put it back,
   // or the second audit of the day can't be submitted without a reload.
   const subBtn=document.getElementById('audit-submit-btn');
@@ -4195,7 +4215,7 @@ function openStoreAudit(){
     document.getElementById('audit-score-display').style.display='block';
     updateAuditScore();
   } else {
-    auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{},photos:{}};
+    auditState={customer_id:'',store_name:'',merchandiser_name:'',scores:{},notes:{},photos:{},na:{}};
     document.getElementById('audit-store-lbl').textContent='Select a store to audit';
     document.getElementById('audit-score-display').style.display='none';
     document.getElementById('audit-submit-btn').disabled=true;
@@ -4204,6 +4224,66 @@ function openStoreAudit(){
       '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">Select a store above to start the audit</div>';
   }
   loadAuditStores();
+}
+
+// Admin/manager editing an audit already submitted (theirs or anyone's).
+// Same form, store picker hidden; the DB keeps store, auditor and date fixed
+// (protect_store_audit_edit) and stamps edited_at / edited_by. Never touches
+// the new-audit draft in localStorage.
+const AUDIT_NOTE_COL={shelves_clean:'shelves_clean_notes',shelf_presence:'shelf_presence_notes',facing_correct:'facing_notes',rotation_correct:'rotation_notes',pricing_correct:'pricing_notes',pos_materials:'pos_notes'};
+function openAuditForEdit(r){
+  auditPhotoPending={};
+  auditState={editId:r.id, customer_id:r.customer_id, store_name:r.store_name||r.customer_id, merchandiser_name:r.merchandiser_name||'',
+    scores:{}, notes:{}, na:{}, photos:JSON.parse(JSON.stringify(r.criterion_photos||{}))};
+  AUDIT_CRITERIA.forEach(c=>{
+    if(r[c.id]) auditState.scores[c.id]=r[c.id];
+    if(r[AUDIT_NOTE_COL[c.id]]) auditState.notes[c.id]=r[AUDIT_NOTE_COL[c.id]];
+    if((r.not_applicable||[]).includes(c.id)) auditState.na[c.id]=true;
+  });
+  document.getElementById('audit-modal').style.display='flex';
+  document.getElementById('audit-picker').style.display='none';
+  document.getElementById('audit-store-lbl').textContent='Editing · '+auditState.store_name+(auditState.merchandiser_name?' · '+auditState.merchandiser_name:'')+' · '+(r.audit_date||'');
+  const subBtn=document.getElementById('audit-submit-btn');
+  subBtn.style.display=''; subBtn.textContent='Save changes';
+  renderAuditForm();
+  document.getElementById('audit-overall-notes').value=r.overall_notes||'';
+  document.getElementById('audit-score-display').style.display='block';
+  updateAuditScore();
+}
+
+// ── Admin/manager: recent audits with Edit ──
+let adminAuditRows=[], adminAuditScope='mine';
+async function loadAdminAudits(){
+  const el=document.getElementById('adm-aud-list'); if(!el) return;
+  try{
+    adminAuditRows=await rest('merch_store_audits?select=*&order=created_at.desc&limit=150')||[];
+    renderAdminAudits();
+  }catch(e){ console.warn('admin audits load failed:',e); el.innerHTML='<div style="font-size:12px;color:var(--red)">Could not load audits.</div>'; }
+}
+function setAdminAuditScope(s){ adminAuditScope=s; renderAdminAudits(); }
+function renderAdminAudits(){
+  const el=document.getElementById('adm-aud-list'); if(!el) return;
+  ['mine','all'].forEach(s=>{
+    const b=document.getElementById('adm-aud-'+s), on=adminAuditScope===s;
+    b.style.background=on?'var(--navy)':'#fff'; b.style.color=on?'#fff':'var(--muted)'; b.style.borderColor=on?'var(--navy)':'var(--border)';
+  });
+  const q=(document.getElementById('adm-aud-q').value||'').trim().toLowerCase();
+  const mine=r=>(cu&&cu.id&&r.tl_rep_id===cu.id)||(cu&&r.tl_name===cu.full_name);
+  const rows=adminAuditRows.filter(r=>(adminAuditScope==='all'||mine(r)) &&
+    (!q||[r.store_name,r.merchandiser_name,r.tl_name].some(v=>(v||'').toLowerCase().includes(q)))).slice(0,30);
+  if(!rows.length){ el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:6px 0">'+(adminAuditScope==='mine'&&!q?'You haven\'t done any audits yet — tap Everyone to see all.':'No audits match.')+'</div>'; return; }
+  el.innerHTML=rows.map(r=>{
+    const s=AUDIT_CRITERIA.map(c=>r[c.id]).filter(v=>v>0);
+    const pct=s.length?Math.round(s.reduce((a,v)=>a+v,0)/s.length/5*100):null;
+    const col=pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card)">'+
+      '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;color:var(--navy)">'+escapeHtmlM(r.store_name||r.customer_id)+'</div>'+
+      '<div style="font-size:10px;color:var(--muted)">'+fmtShortDate(r.audit_date)+' · by '+escapeHtmlM(r.tl_name||'—')+(r.merchandiser_name?' · BA '+escapeHtmlM(r.merchandiser_name):'')+
+      (r.edited_at?' · <span style="color:var(--amber);font-weight:700">edited</span>':'')+'</div></div>'+
+      '<div style="font-size:14px;font-weight:900;color:'+col+'">'+(pct==null?'—':pct+'%')+'</div>'+
+      '<button data-id="'+escapeHtmlM(r.id)+'" onclick="openAuditForEdit(adminAuditRows.find(x=>x.id===this.dataset.id))" style="padding:6px 10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer">Edit</button>'+
+    '</div>';
+  }).join('');
 }
 
 async function loadAuditStores(){
@@ -4314,6 +4394,7 @@ function selectAuditStore(cid,name,merch){
   auditState.scores={};
   auditState.notes={};
   auditState.photos={};
+  auditState.na={};
   document.getElementById('audit-store-lbl').textContent=name+(merch?' · '+merch:'');
   renderAuditStoreList(document.getElementById('audit-store-search').value.trim());
   renderAuditForm();
@@ -4345,7 +4426,7 @@ function renderAuditForm(){
         '<div><div style="font-size:14px;font-weight:800;color:var(--navy)">'+crit.label+'</div>'+
         '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+crit.desc+'</div></div>'+
       '</div>'+
-      '<div style="display:flex;gap:5px;margin-bottom:8px">'+btnHTML+'</div>'+
+      '<div style="display:flex;gap:5px;margin-bottom:8px">'+btnHTML+(crit.allowNA?auditNAButton(crit.id):'')+'</div>'+
       '<textarea data-crit="'+crit.id+'" placeholder="Notes (optional)..." oninput="auditState.notes[this.dataset.crit]=this.value;saveAuditDraft()" '+
         'style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:none;height:52px">'+
         escapeHtmlM(auditState.notes[crit.id]||'')+'</textarea>'+
@@ -4413,7 +4494,8 @@ function auditRemovePhoto(c,i){
   const url=((auditState.photos||{})[c]||[])[i]; if(!url) return;
   auditState.photos[c].splice(i,1);
   const path=url.split('/audit-photos/')[1];
-  if(path) restHeaders().then(h=>fetch(SB_STORAGE+'/object/audit-photos/'+path,{method:'DELETE',headers:h,body:'{}'}).catch(()=>{}));
+  // Editing: unlink only — the photo may belong to another auditor (delete is owner-only).
+  if(path && !auditState.editId) restHeaders().then(h=>fetch(SB_STORAGE+'/object/audit-photos/'+path,{method:'DELETE',headers:h,body:'{}'}).catch(()=>{}));
   saveAuditDraft(); renderAuditPhotos(c);
 }
 function renderAuditPhotos(c){
@@ -4428,8 +4510,36 @@ function renderAuditPhotos(c){
   ).join('');
 }
 
+// "Not applicable" (POS — many stores don't allow POP). Clears the score so
+// the section drops out of the average; picking a score clears N/A again.
+function auditNAButton(critId){
+  const on=!!(auditState.na&&auditState.na[critId]);
+  return '<button data-crit="'+critId+'" data-na="1" onclick="setAuditNA(this.dataset.crit)" '+
+    'style="padding:10px 4px;border-radius:8px;border:2px solid '+(on?'var(--navy)':'var(--border)')+';background:'+(on?'var(--navy)':'#fff')+';color:'+(on?'#fff':'var(--muted)')+';font-size:11px;font-weight:700;cursor:pointer;flex:1">'+
+    '<div style="font-size:16px;margin-bottom:2px">🚫</div>N/A<div style="font-size:9px;margin-top:1px">Not allowed</div></button>';
+}
+function paintAuditNA(critId){
+  const b=document.querySelector('[data-crit="'+critId+'"][data-na]'); if(!b) return;
+  b.outerHTML=auditNAButton(critId);
+}
+function setAuditNA(critId){
+  auditState.na=auditState.na||{};
+  if(auditState.na[critId]) delete auditState.na[critId];
+  else {
+    auditState.na[critId]=true;
+    delete auditState.scores[critId];
+    document.querySelectorAll('[data-crit="'+critId+'"][data-score]').forEach(btn=>{
+      btn.style.border='2px solid var(--border)'; btn.style.background='#fff'; btn.style.color='var(--muted)';
+    });
+  }
+  paintAuditNA(critId);
+  updateAuditScore();
+  saveAuditDraft();
+}
+
 function setAuditScore(critId,score){
   auditState.scores[critId]=score;
+  if(auditState.na&&auditState.na[critId]){ delete auditState.na[critId]; paintAuditNA(critId); }
   const cols={1:'#EF4444',2:'#F97316',3:'#EAB308',4:'#84CC16',5:'#16A34A'};
   document.querySelectorAll('[data-crit="'+critId+'"][data-score]').forEach(btn=>{
     const n=parseInt(btn.dataset.score);
@@ -4455,7 +4565,7 @@ function updateAuditScore(){
   const ready=scores.length>=3&&auditState.customer_id&&!uploading;
   if(btn&&btn.textContent!=='Saving...'){
     btn.disabled=!ready;btn.style.opacity=ready?'1':'.5';
-    btn.textContent=uploading?'Uploading photos…':'Submit audit';
+    btn.textContent=uploading?'Uploading photos…':(auditState.editId?'Save changes':'Submit audit');
   }
 }
 
@@ -4464,14 +4574,8 @@ async function submitAudit(){
   btn.disabled=true;btn.textContent='Saving...';
   try{
     const overallEl=document.getElementById('audit-overall-notes');
-    const payload={
-      customer_id:         auditState.customer_id,
-      store_name:          auditState.store_name,
-      tl_name:             cu?cu.full_name:'',
-      merchandiser_name:   auditState.merchandiser_name,
-      // Jamaica date, not UTC — toISOString() put every audit after 7pm on
-      // tomorrow, which on a Sunday night moved it into next week's count.
-      audit_date:          new Date().toLocaleDateString('en-CA',{timeZone:'America/Jamaica'}),
+    // Scores, notes, N/A and photos — the only things an edit may change.
+    const fields={
       shelves_clean:       auditState.scores.shelves_clean    ||null,
       shelves_clean_notes: auditState.notes.shelves_clean     ||null,
       shelf_presence:      auditState.scores.shelf_presence   ||null,
@@ -4485,23 +4589,41 @@ async function submitAudit(){
       pos_materials:       auditState.scores.pos_materials    ||null,
       pos_notes:           auditState.notes.pos_materials     ||null,
       overall_notes:       overallEl?overallEl.value:null,
-      criterion_photos:    auditState.photos||{}
+      criterion_photos:    auditState.photos||{},
+      not_applicable:      Object.keys(auditState.na||{}).filter(k=>auditState.na[k])
     };
-    await rest('merch_store_audits',{method:'POST',prefer:'return=minimal',body:payload});
-    clearAuditDraft();
-    loadTLKpi();
+    const editing=!!auditState.editId;
+    if(editing){
+      // return=representation so an RLS refusal (0 rows, no error) is caught.
+      const rows=await rest(`merch_store_audits?id=eq.${auditState.editId}`,{method:'PATCH',headers:{'Prefer':'return=representation'},body:fields});
+      if(!rows||!rows.length) throw new Error('Not allowed to edit this audit.');
+      if(typeof loadAdminAudits==='function') loadAdminAudits();
+    }else{
+      await rest('merch_store_audits',{method:'POST',prefer:'return=minimal',body:Object.assign({
+        customer_id:         auditState.customer_id,
+        store_name:          auditState.store_name,
+        tl_name:             cu?cu.full_name:'',
+        merchandiser_name:   auditState.merchandiser_name,
+        // Jamaica date, not UTC — toISOString() put every audit after 7pm on
+        // tomorrow, which on a Sunday night moved it into next week's count.
+        audit_date:          new Date().toLocaleDateString('en-CA',{timeZone:'America/Jamaica'})
+      }, fields)});
+      clearAuditDraft();
+      loadTLKpi();
+      if(typeof loadAdminAudits==='function' && document.getElementById('s-admin')?.classList.contains('active')) loadAdminAudits();
+    }
     const pctText=document.getElementById('audit-score-display').textContent;
     document.getElementById('audit-form-body').innerHTML=
       '<div style="text-align:center;padding:40px 24px">'+
         '<div style="font-size:56px;margin-bottom:16px">✅</div>'+
-        '<div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:8px">Audit submitted!</div>'+
+        '<div style="font-size:18px;font-weight:900;color:var(--navy);margin-bottom:8px">'+(editing?'Audit updated!':'Audit submitted!')+'</div>'+
         '<div style="font-size:13px;color:var(--muted)">'+escapeHtmlM(auditState.store_name)+'</div>'+
         '<div style="font-size:28px;font-weight:900;margin-top:16px">'+pctText+' overall score</div>'+
         '<button onclick="closeAudit()" style="margin-top:20px;padding:12px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Done</button>'+
       '</div>';
     document.getElementById('audit-submit-btn').style.display='none';
   }catch(e){
-    btn.disabled=false;btn.textContent='Submit audit →';
+    btn.disabled=false;btn.textContent=auditState.editId?'Save changes':'Submit audit';
     alert('Error: '+e.message);
   }
 }
@@ -4536,7 +4658,7 @@ async function loadMyAudits(){
       const col=pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
       const noteKey={shelves_clean:'shelves_clean_notes',shelf_presence:'shelf_presence_notes',facing_correct:'facing_notes',rotation_correct:'rotation_notes',pricing_correct:'pricing_notes',pos_materials:'pos_notes'};
       const detail=AUDIT_CRITERIA.map(c=>
-        '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0"><span>'+c.icon+' '+c.label+'</span><b>'+(r[c.id]?r[c.id]+'/5':'—')+'</b></div>'+
+        '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:3px 0"><span>'+c.icon+' '+c.label+'</span><b>'+(r[c.id]?r[c.id]+'/5':(r.not_applicable||[]).includes(c.id)?'N/A':'—')+'</b></div>'+
         (r[noteKey[c.id]]?'<div style="font-size:11px;color:var(--muted);margin:0 0 4px 20px">'+escapeHtmlM(r[noteKey[c.id]])+'</div>':'')+
         auditPhotoStrip(r.criterion_photos, c.id)
       ).join('')+(r.overall_notes?'<div style="font-size:11px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><b>Notes:</b> '+escapeHtmlM(r.overall_notes)+'</div>':'');
@@ -4582,6 +4704,7 @@ async function launchAdmin(){
   loadAdminLeaveApprovals();
   loadAdminLeaveOverview();
   loadIssueAdminBadge();
+  loadAdminAudits();
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
@@ -7482,7 +7605,7 @@ function openOrderSummary(){
         <button onclick="closeAudit()" style="background:rgba(255,255,255,.2);border:none;color:#fff;font-size:22px;width:32px;height:32px;border-radius:50%;cursor:pointer;line-height:1">×</button>
       </div>
     </div>
-    <div style="flex-shrink:0;padding:10px 16px;border-bottom:1px solid var(--border);background:#FFFBEB">
+    <div id="audit-picker" style="flex-shrink:0;padding:10px 16px;border-bottom:1px solid var(--border);background:#FFFBEB">
       <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Select store to audit — your team's, or search any store</div>
       <input type="text" id="audit-store-search" placeholder="🔍 Search any store…" autocomplete="off" oninput="filterAuditStores(this.value)"
         style="width:100%;padding:9px 12px;border:1.5px solid var(--amber);border-radius:8px;font-size:13px;font-family:inherit">
