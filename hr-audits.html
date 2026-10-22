@@ -415,6 +415,7 @@ function openDrawer(id){
     <dl class="dl">
       ${row('Audit date', fmtDate(a.audit_date))}
       ${row('Submitted', fmtTs(a.created_at))}
+      ${row('Edited', a.edited_at ? esc(a.edited_by||'')+' · '+fmtTs(a.edited_at) : '')}
       ${row('Audited by', esc(a.auditor_name||'') + (a.auditor_role?' · '+esc(ROLE_LABEL[a.auditor_role]||a.auditor_role):''))}
       ${row('Brand Ambassador', esc(a.merchandiser_name||''))}
       ${row('Area', esc(a.area||''))}
@@ -425,7 +426,7 @@ function openDrawer(id){
       const v = a.scores ? a.scores[k] : null, cm = a.notes ? a.notes[k] : null;
       const cls = v==null?'':v<3?'lo':v<4?'mid':'hi';
       return `<div class="dcrit">
-        <div class="top"><span>${esc(label)}</span><b>${v!=null?esc(v)+' / 5':'—'}</b></div>
+        <div class="top"><span>${esc(label)}</span><b>${v!=null?esc(v)+' / 5':(a.not_applicable||[]).includes(k)?'N/A':'—'}</b></div>
         <div class="bar"><span class="${cls}" style="width:${v!=null?v/5*100:0}%"></span></div>
         ${cm?`<div class="cm">“${esc(cm)}”</div>`:''}
         ${photoUrls(a,k).length?`<div class="pics">${photoUrls(a,k).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="${esc(label)} photo"></a>`).join('')}</div>`:''}
@@ -446,7 +447,7 @@ function exportCsv(){
     ['Store', a=>a.store_name], ['Customer ID', a=>a.customer_id],
     ['Brand Ambassador', a=>a.merchandiser_name], ['Area', a=>a.area], ["BA's team leader", a=>a.ba_team_leader],
     ['Audited by', a=>a.auditor_name], ['Auditor role', a=>ROLE_LABEL[a.auditor_role]||a.auditor_role],
-    ...AUDIT_CRITERIA.map(([k,label])=>[label, a=>a.scores&&a.scores[k]]),
+    ...AUDIT_CRITERIA.map(([k,label])=>[label, a=>a.scores&&a.scores[k]!=null?a.scores[k]:((a.not_applicable||[]).includes(k)?'N/A':'')]),
     ['Score %', a=>a.score_pct],
     ...AUDIT_CRITERIA.map(([k,label])=>[label+' notes', a=>a.notes&&a.notes[k]]),
     ['Photos', a=>AUDIT_CRITERIA.flatMap(([k])=>photoUrls(a,k)).join(' ')],
