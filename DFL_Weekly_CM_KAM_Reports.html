@@ -130,6 +130,9 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;padding:12px 22px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999;opacity:0;transition:opacity 0.25s;pointer-events:none;}
 .toast.show{opacity:1;}
+.update-banner{position:sticky;top:0;z-index:1000;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;background:var(--gold);color:var(--navy);font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;padding:10px 16px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.18);}
+.update-banner[hidden]{display:none;}
+.update-banner button{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
 .hint{font-size:11.5px;color:var(--text-soft);margin-top:4px;}
 .link-btn{background:none;border:none;color:var(--blue);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;cursor:pointer;padding:0;}
 .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:-2px;margin-right:6px;}
@@ -152,6 +155,10 @@ body{font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text);f
   </div>
 </div>
 
+<div class="update-banner" id="updateBanner" role="alert" hidden>
+  <span>A newer version of this page is available. Saving may fail until you refresh.</span>
+  <button type="button" onclick="refreshForUpdate()">Save my draft &amp; refresh</button>
+</div>
 <div id="app"></div>
 <div class="toast" id="toast"></div>
 
@@ -317,6 +324,7 @@ let autosaveTimer = null;
 // stale (the form it came from is about to be replaced and its draft just cleared), so it
 // must not write.
 let autosaveEpoch = 0;
+let autosaveFailed = false;   // last autosave attempt threw (used so "refresh" can warn before discarding the form)
 function scheduleAutosave(){
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(autosaveGatherAndPersist, 1200);
@@ -385,6 +393,7 @@ async function autosaveGatherAndPersist(){
   }
   const epoch = autosaveEpoch;
   try{
+    autosaveFailed = false;
     showAutosaveState('Saving draft…');
     const saved = await withRecordLock(async ()=>{
       // A manual save/delete ran (or is queued) since the snapshot: it cleared this draft
@@ -401,6 +410,7 @@ async function autosaveGatherAndPersist(){
     else showAutosaveState('');
   }catch(e){
     console.error('Autosave failed:', e);
+    autosaveFailed = true;
     showAutosaveState(isAuthError(e)
       ? 'Draft NOT saved: session expired or page out of date. Copy your text, then refresh (Ctrl+Shift+R).'
       : 'Draft not saved — check connection');
@@ -1156,6 +1166,52 @@ function generateRecapSlide(){
   const html = slideDoc('MONTH-END &middot; RECAP', SLIDE_GREEN, esc(person.name)+' &mdash; '+monthName(state.month)+' '+state.year, esc(person.focus), body);
   downloadHtmlSlide('DFL_'+person.name.replace(/\s+/g,'_')+'_Recap_'+monthName(state.month)+state.year+'.html', html);
 }
+
+/* ============== NEW-VERSION CHECK ==============
+   This page is a single HTML file, so a tab left open across a deploy keeps running the old
+   code for as long as it stays open (that is how saves started failing for people whose tab
+   predated the signed-in-token change). Fetch our own HTML at load as the baseline and compare
+   it again every few minutes and when the tab comes back into view; if it changed, show a
+   banner instead of letting the person type into a page that may no longer save. */
+const VERSION_CHECK_MS = 5*60*1000;
+let pageBaselineSig = null;
+let lastVersionCheck = 0;
+function sigOf(text){                       // FNV-1a over the whole text; cheap, no crypto needed
+  let h = 2166136261;
+  for(let i=0;i<text.length;i++){ h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h>>>0).toString(16)+':'+text.length;
+}
+async function fetchPageSig(){
+  const r = await fetch(location.pathname+'?vc='+Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error('version check '+r.status);
+  return sigOf(await r.text());
+}
+async function checkForNewVersion(){
+  // The first call (page load) always runs, even in a background tab, so the baseline is the
+  // version this tab actually loaded rather than whatever is live when it is first looked at.
+  if(pageBaselineSig!==null && (document.hidden || Date.now()-lastVersionCheck < 30000)) return;
+  lastVersionCheck = Date.now();
+  try{
+    const sig = await fetchPageSig();
+    if(pageBaselineSig===null){ pageBaselineSig = sig; return; }
+    if(sig !== pageBaselineSig){
+      const b = document.getElementById('updateBanner');
+      if(b) b.hidden = false;
+    }
+  }catch(e){ /* offline or transient: try again next time, never bother the user */ }
+}
+async function refreshForUpdate(){
+  // Save whatever is in the form as a draft first; it is restored after the reload.
+  clearTimeout(autosaveTimer);
+  autosaveFailed = false;
+  if(state.screen==='person' && currentRec){ await autosaveGatherAndPersist(); }
+  if(autosaveFailed && !confirm('Your draft could not be saved, so anything you have typed will be lost if you refresh now. Refresh anyway?')) return;
+  location.reload();
+}
+document.addEventListener('visibilitychange', checkForNewVersion);
+window.addEventListener('focus', checkForNewVersion);
+setInterval(checkForNewVersion, VERSION_CHECK_MS);
+checkForNewVersion();
 
 /* ============== INIT ============== */
 // Wait for DOMContentLoaded: render() loads saved records, which need the shared client (sb) that loads after this script.
