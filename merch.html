@@ -4399,6 +4399,11 @@ function selectAuditStore(cid,name,merch){
   renderAuditStoreList(document.getElementById('audit-store-search').value.trim());
   renderAuditForm();
   document.getElementById('audit-score-display').style.display='block';
+  // The picker stays visible after a submit, so a TL can go straight to the
+  // next store — but submitAudit() left the button hidden on "Saving...",
+  // which updateAuditScore() never touches. Put it back.
+  const subBtn=document.getElementById('audit-submit-btn');
+  subBtn.style.display=''; subBtn.textContent='Submit audit';
   updateAuditScore();
   saveAuditDraft();
 }
