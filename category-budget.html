@@ -390,8 +390,9 @@ async function poll(){
     if(changedCur&&!typing) render(); else { renderCo(); if(any&&tab==='team'&&!typing) renderTeam(); }
   }catch(e){}
 }
-function downloadFile(name,data){
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'})); a.download=name;
+function downloadFile(name,data){ downloadBlob(name,new Blob([data],{type:'text/csv;charset=utf-8'})); }
+function downloadBlob(name,blob){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
 }
 
@@ -777,7 +778,7 @@ function renderTeam(){
      <input id="tgt" class="lv ${isAmt?'amt':'pct'}" data-act="tgt" value="${tv}" placeholder="${isAmt?'e.g. 5.5b':'e.g. 8'}" aria-label="Company target"${dz}>
      <span class="lbl">${eq}</span>${IS_OWNER?'':' <span class="sub">Set by Scott</span>'}</div>
     <span class="lbl">Built so far: <b>${fj(T.rev)}</b>${gap==null?'':` · <span class="${gap>=0?'pos':'neg'}">${gap>=0?'ahead of':'short of'} target by ${fj(Math.abs(gap))}</span>`}</span>
-    <div class="signoff">${IS_OWNER?`<button class="btn sm ${clearArm==='*'?'':'ghost'}" style="${clearArm==='*'?'background:var(--red);border-color:var(--red)':'color:var(--red);border-color:var(--red)'}" data-act="clearall">${clearArm==='*'?"Click again to clear every CM's inputs":"Clear every CM's inputs"}</button>`:''}<button class="btn ghost sm" data-act="export" data-scope="all">Export all CSV</button></div></div>
+    <div class="signoff">${IS_OWNER?`<button class="btn sm ${clearArm==='*'?'':'ghost'}" style="${clearArm==='*'?'background:var(--red);border-color:var(--red)':'color:var(--red);border-color:var(--red)'}" data-act="clearall">${clearArm==='*'?"Click again to clear every CM's inputs":"Clear every CM's inputs"}</button>`:''}<button class="btn sm" data-act="xlsum">Download Excel summary</button><button class="btn ghost sm" data-act="export" data-scope="all">Export detail (CSV)</button></div></div>
    <div class="tw"><table><thead><tr><th>Owner</th><th class="n">2025</th><th class="n">2026 RR</th><th class="n">2026 bud</th><th class="n">2027</th><th class="n">Growth</th><th class="n">GP% 26</th><th class="n">GP% 27</th><th class="n">GP J$ 27</th><th>Status</th></tr></thead>
    <tbody>${rows}<tr><td class="sub">Uncoded credits &amp; adjustments (held flat)</td><td class="n sub">${fm(JUNK25)}</td><td class="n sub">${fm(JUNKBASE)}</td><td></td><td class="n sub">${fm(JUNKBASE)}</td><td></td><td></td><td></td><td></td><td></td></tr></tbody>
    <tfoot><tr class="tot"><td>Company</td><td class="n">${fm(T.r25)}</td><td class="n">${fm(T.base)}</td><td class="n">${fm(T.b26)}</td><td class="n">${fm(T.rev)}</td><td class="n">${fp(T.base>0?T.rev/T.base-1:null)}</td><td class="n">${fg(T.base>0?T.gp26w/T.base:null)}</td><td class="n">${fg(T.rev>0?T.gp/T.rev:null)}</td><td class="n">${fm(T.gp)}</td><td></td></tr></tfoot></table></div>
@@ -896,6 +897,7 @@ document.addEventListener('click',e=>{
     case 'skuf': skuFilt=el.dataset.v; renderSku(); return;
     case 'gocm': setCm(el.dataset.k); tab='cat'; saveUi(); render(); return;
     case 'export': doExport(el.dataset.scope,el); return;
+    case 'xlsum': excelSummary(el); return;
     case 'mtview': mtView=el.dataset.v; renderMT(); return;
     case 'repmode': repMode=el.dataset.v; renderRep(); return;
     case 'mtexport': mtExport(el); return;
@@ -924,6 +926,78 @@ document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{tab
 $('#cmSel').addEventListener('change',e=>{setCm(e.target.value);selCat=null;render();});
 function setCm(k){cur=CMS.find(m=>m.key===k)||cur;cmOptions();saveUi();}
 function saveUi(){try{localStorage.setItem('cb.tab',tab);localStorage.setItem('cb.cm',cur.key);}catch(e){}}
+
+/* ---------- Excel summary: formatted .xlsx of the Summary tab, by owner and by category (read-only) ---------- */
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((res,rej)=>{const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload=()=>window.ExcelJS?res(window.ExcelJS):rej(new Error('Excel library did not load')); s.onerror=()=>rej(new Error('Could not load the Excel library. Check your connection.')); document.head.appendChild(s);});
+}
+function xlBuildSheet(wb,title,byCat,D,T){
+  const C={navy:'FF1A2E5A',blue:'FF326BD3',band:'FFEEF4FF',tot:'FFDDE7F8',tint:'FFF3F7FD',totTint:'FFCFDCF4',grid:'FFE4E9F2',text:'FF1A2340',mid:'FF4A5578',soft:'FF8A95B0'};
+  const ST={'Approved':['FFF0FDF4','FF1A8F4C'],'Submitted':['FFEEF4FF','FF326BD3'],'In progress':['FFFFFBEB','FFC47A1A'],'Not started':['FFEEF1F8','FF8A95B0']};
+  const ws=wb.addWorksheet(title,{views:[{state:'frozen',ySplit:5,showGridLines:false}],
+    pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.4,right:0.4,top:0.5,bottom:0.5,header:0.2,footer:0.2}}});
+  ws.columns=[{width:byCat?24:30},{width:byCat?24:46},{width:13},{width:14},{width:14},{width:14},{width:10},{width:10},{width:10},{width:13},{width:13}];
+  const M='"J$"#,##0.0"M";-"J$"#,##0.0"M";"–"', PCTG='+0.0%;[Red]-0.0%;0.0%', PCT='0.0%';
+  const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});
+  const font=(o={})=>Object.assign({name:'Calibri',size:10.5,color:{argb:C.text}},o);
+  ws.mergeCells('A1:K1'); ws.getCell('A1').value='DFL Category Budget 2027'; ws.getCell('A1').font=font({size:18,bold:true,color:{argb:C.navy}}); ws.getRow(1).height=28;
+  ws.mergeCells('A2:K2'); ws.getCell('A2').value=(byCat?'Company summary by category':'Company summary by owner')+'  ·  Baseline: Jan–Sep 2026 × 12/9  ·  J$ millions';
+  ws.getCell('A2').font=font({size:11,color:{argb:C.mid}});
+  const tg=tgtOf(T.base), gap=tg!=null?T.rev-tg:null;
+  ws.mergeCells('A3:K3'); ws.getCell('A3').value='Prepared '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+    +(tg==null?'  ·  No company target set':'  ·  Company target '+fj(tg)+'  ·  '+fj(Math.abs(gap))+(gap>=0?' ahead of target':' short of target'));
+  ws.getCell('A3').font=font({size:10,italic:true,color:{argb:C.soft}});
+  const head=[byCat?'Category':'Owner',byCat?'Category manager':'Categories','2025 actual','2026 run-rate','2026 budget','2027 budget','Growth','GP% 2026','GP% 2027','GP 2027','Status'];
+  const hr=ws.getRow(5); hr.values=head; hr.height=24;
+  hr.eachCell((c,i)=>{c.fill=fill(C.navy); c.font=font({bold:true,color:{argb:'FFFFFFFF'},size:10}); c.alignment={vertical:'middle',horizontal:i<=2?'left':(i===11?'center':'right'),wrapText:true};});
+  const m=v=>v==null?null:v/1000, g=(a,b)=>b>0?a/b-1:null, r=(a,b)=>b>0?a/b:null;
+  const put=(vals,kind,status)=>{
+    const row=ws.addRow(vals); row.height=kind==='cat'?17:(kind==='owner'&&!byCat&&String(vals[1]||'').length>48?32:20);
+    row.eachCell({includeEmpty:true},(c,i)=>{
+      if(i>11) return;
+      c.font=font(kind==='tot'||kind==='band'?{bold:true,color:{argb:C.navy}}:kind==='note'?{italic:true,color:{argb:C.soft}}:kind==='owner'&&i===1?{bold:true}:{});
+      if(i===2&&(kind==='owner'||kind==='cat')) c.font=font({size:9.5,color:{argb:C.soft}});
+      c.alignment={vertical:'middle',horizontal:i<=2?'left':(i===11?'center':'right'),indent:kind==='cat'&&i===1?2:0,wrapText:i===2&&!byCat};
+      if(i>=3&&i<=6||i===10) c.numFmt=M; if(i===7) c.numFmt=PCTG; if(i===8||i===9) c.numFmt=PCT;
+      if(kind==='band') c.fill=fill(i===6?C.totTint:C.band); else if(kind==='tot') c.fill=fill(i===6?C.totTint:C.tot); else if(i===6) c.fill=fill(C.tint);
+      if(i===6&&kind!=='note') c.font=Object.assign({},c.font,{bold:true});
+      c.border=kind==='tot'?{top:{style:'medium',color:{argb:C.blue}},bottom:{style:'thin',color:{argb:C.grid}}}:{bottom:{style:'thin',color:{argb:C.grid}}};
+      if(kind==='band'&&i===1) c.border=Object.assign({},c.border,{left:{style:'thick',color:{argb:C.blue}}});
+    });
+    if(status&&ST[status]){const c=row.getCell(11); c.fill=fill(ST[status][0]); c.font=font({bold:true,size:9.5,color:{argb:ST[status][1]}});}
+    return row;
+  };
+  const ownerVals=(o,label,b)=>[label,b,m(o.t.r25),m(o.t.base),m(o.t.b26),m(o.t.rev),g(o.t.rev,o.t.base),r(o.t.gp26w,o.t.base),r(o.t.gp,o.t.rev),m(o.t.gp),o.status];
+  for(const o of D){
+    if(!byCat){ put(ownerVals(o,o.name,o.cats.map(c=>c.cat).join(', ')),'owner',o.status); continue; }
+    put(ownerVals(o,o.name,o.cats.length+' categor'+(o.cats.length===1?'y':'ies')),'band',o.status);
+    for(const c of o.cats) put([c.cat,o.name,m(c.r25),m(c.base),m(c.b26),m(c.rev),g(c.rev,c.base),c.gm26,r(c.gp,c.rev),m(c.gp),null],'cat');
+  }
+  put(['Uncoded credits & adjustments','Held flat',m(JUNK25),m(JUNKBASE),null,m(JUNKBASE),null,null,null,null,null],'note');
+  put(['Company','',m(T.r25),m(T.base),m(T.b26),m(T.rev),g(T.rev,T.base),r(T.gp26w,T.base),r(T.gp,T.rev),m(T.gp),null],'tot').height=24;
+  ws.addRow([]);
+  const n1=ws.addRow(['Owners not started count at their 2026 run-rate (flat). Uncoded credits and adjustments are held flat.']); n1.getCell(1).font=font({italic:true,size:9.5,color:{argb:C.soft}});
+  ws.mergeCells(n1.number,1,n1.number,11);
+  return ws;
+}
+async function excelSummary(btn){
+  const label=btn.textContent; btn.disabled=true; btn.textContent='Preparing Excel…';
+  try{
+    const ExcelJS=await loadExcelJS();
+    const D=CMS.map(m=>{const st=STATES[m.key]||blank(m.key), o=computeCM(m.key,st);
+      return {name:m.name,status:statusOf(m.key)[1],t:o.t,cats:(CMCATS[m.key]||[]).map(c=>{const x=o.cat[c]||{};
+        return {cat:c,r25:x.r25||0,base:x.base||0,b26:x.b26||0,rev:x.rev||0,gp:x.gp||0,gm26:CAT[c]?CAT[c].gm:null};})};});
+    const T={r25:0,base:0,b26:0,rev:0,gp:0,gp26w:0}; for(const o of D) for(const k in T) T[k]+=o.t[k]||0;
+    T.r25+=JUNK25; T.base+=JUNKBASE; T.rev+=JUNKBASE;
+    const wb=new ExcelJS.Workbook(); wb.creator='DFL Category Budget 2027'; wb.created=new Date();
+    xlBuildSheet(wb,'Summary',false,D,T); xlBuildSheet(wb,'By category',true,D,T);
+    const buf=await wb.xlsx.writeBuffer();
+    downloadBlob('DFL_Category_Budget_2027_Summary.xlsx',new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  }catch(e){ setSave('err',(e&&e.message)||'Excel download failed'); }
+  btn.disabled=false; btn.textContent=label;
+}
 
 /* ---------- export (budget_2026 layout) ---------- */
 function csvRows(m){
