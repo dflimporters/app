@@ -1236,17 +1236,22 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr" style="color:var(--amber)">›</div>
     </div>
 
-    <!-- Recent audits, editable by admins/managers (loadAdminAudits()). -->
+    <!-- Recent audits, editable by admins/managers (loadAdminAudits()).
+         Collapsed by default so the list doesn't push the overview down;
+         tap the header to open it (toggleAdminAudits()). -->
     <div class="merch-card hide-when-readonly" id="admin-audits-card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
-        <div class="sec-hdr" style="margin:0">📋 Recent store audits</div>
-        <div style="display:flex;gap:4px">
+      <div id="adm-aud-toggle" role="button" aria-expanded="false" onclick="toggleAdminAudits()" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer">
+        <div class="sec-hdr" style="margin:0">📋 Store audits <span id="adm-aud-count" style="font-weight:600;color:var(--muted)"></span></div>
+        <div id="adm-aud-chev" style="font-size:12px;font-weight:800;color:var(--navy);white-space:nowrap">View ›</div>
+      </div>
+      <div id="adm-aud-body" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:4px;justify-content:flex-end;margin-bottom:8px">
           <button id="adm-aud-mine" onclick="setAdminAuditScope('mine')" style="padding:5px 10px;border-radius:14px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:700;cursor:pointer">Mine</button>
           <button id="adm-aud-all" onclick="setAdminAuditScope('all')" style="padding:5px 10px;border-radius:14px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:700;cursor:pointer">Everyone</button>
         </div>
+        <input type="text" id="adm-aud-q" placeholder="🔍 Search store, Brand Ambassador or auditor…" autocomplete="off" oninput="renderAdminAudits()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:8px;background:var(--card);color:var(--text)">
+        <div id="adm-aud-list" style="display:flex;flex-direction:column;gap:6px"><div class="spinner"></div></div>
       </div>
-      <input type="text" id="adm-aud-q" placeholder="🔍 Search store, Brand Ambassador or auditor…" autocomplete="off" oninput="renderAdminAudits()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rad-sm);font-size:13px;margin-bottom:8px;background:var(--card);color:var(--text)">
-      <div id="adm-aud-list" style="display:flex;flex-direction:column;gap:6px"><div class="spinner"></div></div>
     </div>
 
     <!-- This screen has been through two lives. It was the "PIN Directory",
@@ -4261,8 +4266,16 @@ async function loadAdminAudits(){
   }catch(e){ console.warn('admin audits load failed:',e); el.innerHTML='<div style="font-size:12px;color:var(--red)">Could not load audits.</div>'; }
 }
 function setAdminAuditScope(s){ adminAuditScope=s; renderAdminAudits(); }
+function toggleAdminAudits(){
+  const body=document.getElementById('adm-aud-body'), open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  document.getElementById('adm-aud-toggle').setAttribute('aria-expanded',open);
+  document.getElementById('adm-aud-chev').textContent=open?'Hide ˄':'View ›';
+}
 function renderAdminAudits(){
   const el=document.getElementById('adm-aud-list'); if(!el) return;
+  const n=adminAuditRows.length;
+  document.getElementById('adm-aud-count').textContent=n?'· '+(n>=150?'150+':n)+' recent':'';
   ['mine','all'].forEach(s=>{
     const b=document.getElementById('adm-aud-'+s), on=adminAuditScope===s;
     b.style.background=on?'var(--navy)':'#fff'; b.style.color=on?'#fff':'var(--muted)'; b.style.borderColor=on?'var(--navy)':'var(--border)';
