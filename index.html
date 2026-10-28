@@ -685,6 +685,7 @@ let IS_MANAGER = false, IS_REP_MANAGEMENT = false, moreBuilt = false;
 // (a rep who also needs the read-only management dashboards).
 const MORE_PAGES = [
   { key:'hot-list', title:'Hot List', sub:"Today's top opportunities, ranked", icon:'🔥', src:'hot-list.html', topLevel:true },
+  { key:'my-ar', title:'My AR', sub:'Who owes you, and how overdue', icon:'🧾', src:'my-ar.html', topLevel:true },
   { key:'calendar', title:'My Week', sub:'Your submitted plan, day by day', icon:'📅', src:'calendar.html', topLevel:true, hideFromManager:true },
   { key:'debrief', title:'Store Debrief', sub:'How did your last store visit go?', icon:'📝', src:'debrief.html', topLevel:true },
   { key:'bad-goods', title:'Report Bad Goods', sub:'Damaged product or bad batch', icon:'📦', src:'bad-goods.html', topLevel:true },
@@ -1165,10 +1166,53 @@ function render(s){
       ${obox("Delivery Reports", DELREP?DELREP.shipCt:0, DELREP?DELREP.totalVal:0, "delrep", "delrep", true)}
     </div>
 
+    <div id="arhome"></div>
+
     <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
     <div id="teaser"></div>
     <div class="foot">Figures in JMD · directional for GP.<br>Updated ${lastRefresh()}</div>`;
   drawTeaser();
+  loadArHome(VIEWAS||REP);
+}
+
+/* ---------- My AR (home summary) ----------
+   Reads the same aging snapshot as /my-ar.html. Row-level security decides what
+   comes back: a rep gets their own rows only, so someone covering a territory
+   (or any account with no AR) gets none and the section simply doesn't draw. */
+let ARSEQ=0;
+function openMyAr(){ window.location.href="my-ar.html"+(VIEWAS&&VIEWAS.salesperson_id?"?rep="+encodeURIComponent(VIEWAS.salesperson_id):""); }
+async function loadArHome(rep){
+  const box=document.getElementById("arhome"); if(!box) return;
+  const seq=++ARSEQ, code=rep&&rep.salesperson_id;
+  if(!code){ box.innerHTML=""; return; }
+  try{
+    const H=await userH();
+    const sn=await fetch(`${SB_URL}/rest/v1/ar_aging_snapshots?status=eq.complete&order=id.desc&limit=1&select=id,snapshot_date`,{headers:H}).then(r=>r.json());
+    const snap=Array.isArray(sn)&&sn[0]; if(!snap) return;
+    const rows=[];
+    for(let off=0;;off+=1000){
+      const page=await fetch(`${SB_URL}/rest/v1/ar_aging_rows?snapshot_id=eq.${snap.id}&rep_code=eq.${encodeURIComponent(code)}&order=customer_id.asc,doc_type.asc,ref_nbr.asc&select=balance_jmd,due_date,is_credit&limit=1000&offset=${off}`,{headers:H}).then(r=>r.json());
+      if(!Array.isArray(page)) return;
+      rows.push(...page);
+      if(page.length<1000) break;
+    }
+    if(seq!==ARSEQ) return;
+    if(!rows.length){ box.innerHTML=""; return; }
+    let net=0, pastDue=0;
+    rows.forEach(r=>{ const b=+r.balance_jmd||0; net+=b; if(!r.is_credit&&r.due_date&&r.due_date<snap.snapshot_date) pastDue+=b; });
+    box.innerHTML=`
+      <div class="secthdr"><h2>My AR</h2><span class="cnt link" onclick="openMyAr()">View all →</span></div>
+      <div class="ordtot tap" style="cursor:pointer" onclick="openMyAr()">
+        <div>
+          <div class="ov" style="color:${pastDue>0?'var(--bad)':'var(--good)'}">${Jk(pastDue)}</div>
+          <div class="ok">Past due ›</div>
+        </div>
+        <div class="ovr">
+          <div class="ovval">${Jk(net)}</div>
+          <div class="ok">Net outstanding</div>
+        </div>
+      </div>`;
+  }catch(e){ /* AR is a bonus section: stay quiet if it can't load */ }
 }
 
 function drawTeaser(){
