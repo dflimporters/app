@@ -109,6 +109,9 @@ const DFL_PAGE_ROLES = {
   '/gondola-rentals.html':  ['manager', 'admin', 'management', 'rep_management'],
   '/gondola-analysis.html': ['manager', 'admin', 'management', 'rep_management'],
   '/hot-list.html':         ['admin', 'manager', 'rep', 'rep_management'],
+  // A rep's own AR. Rows are filtered in Postgres by ar_my_rep_code(); this list
+  // only decides who can open the page. Keep roles that can carry a salesperson code.
+  '/my-ar.html':            ['admin', 'manager', 'rep', 'rep_management'],
   '/calendar.html':         ['admin', 'manager', 'rep', 'rep_management'],
   '/debrief.html':          ['admin', 'manager', 'rep', 'rep_management'],
   '/customer.html':         ['admin', 'manager', 'rep', 'rep_management'],

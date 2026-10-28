@@ -1492,6 +1492,12 @@ const TEAM_LEAD_ROLES   = ['team_leader', 'tl_merch'];
 // PostgREST `in` filter: roleIn(['a','b']) -> "role=in.(a,b)"
 function roleIn(roles){ return 'role=in.(' + roles.join(',') + ')'; }
 
+// Calendar date in Jamaica as YYYY-MM-DD. Was toISOString().slice(0,10),
+// which is the UTC date — from 7pm Jamaica it's already tomorrow, so evening
+// visits were filed under the next day and every "today" attendance view
+// went blank. merch_visit_log.visit_date is written and read through this.
+function jmDate(d){ return (d||new Date()).toLocaleDateString('en-CA',{timeZone:'America/Jamaica'}); }
+
 // Set true only while a team leader is running the visit wizard via
 // "Log a visit" on their own screen (tlStartAdHocVisit()) — never for a
 // merchandiser's/relief's own normal visits.
@@ -1996,7 +2002,7 @@ async function decideStoreCorrection(btn,id,approve,wrapId,listId){
 
 async function loadTodayVisits(u){
   try{
-    const today=new Date().toISOString().slice(0,10);
+    const today=jmDate();
     const v=await rest(`merch_visit_log?user_id=eq.${u.id}&visit_date=eq.${today}&select=*&order=created_at.desc`);
     let merged=v||[];
     // Surface relief coverage of MY stores on the same feed I already check —
@@ -2238,7 +2244,7 @@ async function startVisit(){
   const p={
     user_id:cu.id,user_name:cu.full_name,
     customer_id:storeSelected.id||null,store_name:storeSelected.name,
-    visit_date:new Date().toISOString().slice(0,10),clock_in:new Date().toISOString(),
+    visit_date:jmDate(),clock_in:new Date().toISOString(),
     latitude:  currentGeo ? currentGeo.lat  : null,
     longitude: currentGeo ? currentGeo.lng  : null,
     geo_accuracy: currentGeo ? currentGeo.acc : null,
@@ -2446,7 +2452,7 @@ async function submitStock(){
   try{
     await rest('merch_stock_reports',{method:'POST',body:{
       user_id:cu.id,user_name:cu.full_name,store_name:sfStoreSelected.name,
-      report_date:new Date().toISOString().slice(0,10),flagged_skus:flagged,
+      report_date:jmDate(),flagged_skus:flagged,
       notes:document.getElementById('sf-notes').value.trim()||null,
       visit_type: isRelief() ? 'relief' : 'regular'
     }});
@@ -2787,8 +2793,8 @@ async function loadTLData(u){
     // 2. Fetch performance summary only for this TL's merchandisers
     const mon=new Date(now);
     mon.setDate(now.getDate()-(now.getDay()===0?6:now.getDay()-1));
-    const weekStart=mon.toISOString().slice(0,10);
-    const todayStr=now.toISOString().slice(0,10);
+    const weekStart=jmDate(mon);
+    const todayStr=jmDate(now);
     const [all,ownVisits,reliefVisits]=await Promise.all([
       rest(`merchandiser_summary?period=eq.${period}&merchandiser_name=${pgIn(myNames)}&select=*&order=achievement_pct.desc`),
       rest(`merch_visit_log?user_name=${pgIn(myNames)}&visit_date=gte.${weekStart}&select=*&order=created_at.desc`),
@@ -2810,7 +2816,8 @@ async function loadTLData(u){
     // Relief Brand Ambassadors (temp cover) only work when covering someone, so
     // they aren't expected in every day — left out of the headcount, same rule
     // as the admin overview's renderAttendanceStats().
-    const attNames=(myMerch||[]).filter(m=>m.role!=='relief_merchandiser').map(m=>m.name);
+    const reliefNames=new Set((myMerch||[]).filter(m=>m.role==='relief_merchandiser').map(m=>m.name));
+    const attNames=myNames.filter(n=>!reliefNames.has(n));
     const presentNames=attNames.filter(n=>todayOwnByName[n]);
     const missingNames=attNames.filter(n=>!todayOwnByName[n]);
     const attPct=attNames.length?Math.round(presentNames.length/attNames.length*100):0;
@@ -2849,6 +2856,8 @@ async function loadTLData(u){
       const todayVisit=todayOwnByName[name];
       const attRow=todayVisit
         ?`<div style="font-size:10px;margin-top:6px">${visitStageChip(todayVisit)}</div>`
+        :reliefNames.has(name)
+        ?`<div style="font-size:11px;color:var(--muted);margin-top:6px">Relief — no visit today</div>`
         :`<div style="font-size:11px;color:var(--red);margin-top:6px">Not logged in today</div>`;
       return`<div class="merch-card">
         <div class="merch-hdr">
@@ -3207,7 +3216,7 @@ async function loadTLUpcomingLeave(){
   if(!ids.length){ wrap.style.display='none'; return; }
   try{
     const today=new Date(); const weekOut=new Date(today.getTime()+7*86400000);
-    const todayStr=today.toISOString().slice(0,10), weekOutStr=weekOut.toISOString().slice(0,10);
+    const todayStr=jmDate(today), weekOutStr=jmDate(weekOut);
     const rows=await rest(`leave_requests?requester_id=${pgIn(ids)}&status=eq.approved&from_date=gte.${todayStr}&from_date=lte.${weekOutStr}&order=from_date.asc&select=*`);
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
@@ -3332,7 +3341,7 @@ function normalizeTrackerRecord(rec, staff){
 
 async function loadAdminLeaveOverview(){
   try{
-    const today=new Date().toISOString().slice(0,10);
+    const today=jmDate();
     const [rows, repsRows, trackerRecords, trackerStaff] = await Promise.all([
       rest(`leave_requests?status=in.(pending,approved)&to_date=gte.${today}&order=from_date.asc&select=*`),
       rest(`reps?select=id,team_lead_id`),
@@ -3746,7 +3755,7 @@ function renderTLVisitFeed(visits, myNames, todayVisits){
   const feedEl=document.getElementById('tl-visit-feed');
   const countEl=document.getElementById('tl-visit-count');
   if(!feedEl)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=jmDate();
   const tvToday=todayVisits||visits.filter(v=>v.visit_date===today);
   const visitedToday=[...new Set(tvToday.map(v=>v.user_name))];
   const notVisited=myNames.filter(n=>!visitedToday.includes(n));
@@ -4726,7 +4735,7 @@ async function launchAdmin(){
   try{
     // Roster and performance in parallel — the roster is the source of truth
     // for WHO exists; merchandiser_summary only has rows for people with data.
-    const today=new Date().toISOString().slice(0,10);
+    const today=jmDate();
     const [reps, summary, leads, todayVisits] = await Promise.all([
       rest(`reps?active=eq.true&${roleIn(MERCH_FIELD_ROLES)}&select=id,name,area,role,team_lead_id&order=name`),
       rest(`merchandiser_summary?period=eq.${_curPeriod}&select=*`),
@@ -4778,7 +4787,7 @@ function renderTeamLeadOverview(){
   }
   list.innerHTML=teamLeadRows.map(r=>{
     const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const teamMembers=overviewRows.filter(m=>m.team_lead_id===r.id);
+    const teamMembers=overviewRows.filter(m=>m.team_lead_id===r.id && m.role!=='relief_merchandiser');
     const present=teamMembers.filter(m=>latestVisitByName[m.name]).length;
     const attCls=!teamMembers.length?'b-pend':present===teamMembers.length?'b-ok':present===0?'b-issue':'b-pend';
     const attBadge=teamMembers.length
@@ -4995,7 +5004,7 @@ async function loadMyWeek(){
   const dow=now.getDay();
   const mon=new Date(now);
   mon.setDate(now.getDate()-(dow===0?6:dow-1));
-  const weekStart=mon.toISOString().slice(0,10);
+  const weekStart=jmDate(mon);
   try{
     const [visRows,stRows,reliefRows]=await Promise.all([
       rest(`merch_visit_log?user_id=eq.${cu.id}&visit_date=gte.${weekStart}&order=visit_date.desc,created_at.desc`),
@@ -5170,7 +5179,7 @@ async function loadEOD(){
   const listEl=document.getElementById('eod-store-list');
   if(!listEl)return;
   listEl.innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:20px">Loading…</div>';
-  const today=new Date().toISOString().slice(0,10);
+  const today=jmDate();
   const todayV=visits.filter(v=>v.visit_date===today);
   let recentCounts=[];
   try{
@@ -5424,7 +5433,7 @@ function renderStores(){
       :'<span class="badge b-pend">No target</span>';
 
     // Visit time display per store
-    const today=new Date().toISOString().slice(0,10);
+    const today=jmDate();
     const allStoreVisits=visits.filter(v=>v.customer_id===s.customer_id);
     const todayVisit=allStoreVisits.find(v=>v.visit_date===today);
     const lastPastVisit=allStoreVisits.filter(v=>v.visit_date!==today).sort((a,b)=>new Date(b.clock_in)-new Date(a.clock_in))[0];
@@ -6610,7 +6619,7 @@ function renderQuickStores(){
   const list = document.getElementById('stores-quick-list');
   const countEl = document.getElementById('stores-quick-count');
   if(!list) return;
-  const today = new Date().toISOString().slice(0,10);
+  const today = jmDate();
   if(!myStores || !myStores.length){
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px">Loading…</div>';
     return;

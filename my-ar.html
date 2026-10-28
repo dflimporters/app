@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · My AR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Hidden until the auth guard confirms who's signed in; auth-guard.js reveals it. */
+body { visibility: hidden; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/ar-pdf.js"></script>
+<style>
+/* Same tokens, header, hero, tiles and cards as the My Numbers app (index.html)
+   so this reads as one of its screens, not a separate portal page. */
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:640px; --hdr-h:100px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  padding-bottom:env(safe-area-inset-bottom);-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+
+header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;box-sizing:border-box;
+  height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) max(20px, calc((100% - var(--content-max)) / 2)) 0;
+  display:flex;align-items:center;position:sticky;top:0;z-index:5}
+.hrow{display:flex;justify-content:space-between;align-items:center;width:100%}
+.hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
+.homebtn{background:rgba(255,255,255,.12);border:none;color:#fff;width:38px;height:38px;
+  border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .12s}
+.homebtn:active{background:rgba(255,255,255,.24)}
+.asof{text-align:right;flex-shrink:0}
+.asof b{display:block;font-family:'Montserrat';font-weight:800;font-size:14px;color:#fff;margin-top:2px;letter-spacing:0;text-transform:none}
+.wrap{padding:0 14px 40px;max-width:640px;margin:0 auto}
+
+.hero{background:var(--card);border-radius:18px;padding:38px 16px 20px;box-shadow:var(--shadow);margin-top:-22px;position:relative}
+.hero .lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+.big{font-family:'Montserrat';font-weight:800;font-size:clamp(24px,7.2vw,34px);letter-spacing:-.5px;margin:3px 0 2px;white-space:nowrap}
+.herotop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pctwrap{text-align:right;flex-shrink:0;padding-top:2px}
+.pdbig{font-family:'Montserrat';font-weight:800;font-size:clamp(22px,6.4vw,30px);line-height:1;letter-spacing:-.5px;color:var(--good);white-space:nowrap}
+.pdbig.bad{color:var(--bad)}
+.pdlbl{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:5px}
+.sub{font-size:13px;color:var(--mut)}
+.sub b{color:var(--ink)}
+.stack{display:flex;height:12px;border-radius:8px;background:#eef1f8;overflow:hidden;margin:16px 0 8px}
+.stack>span{display:block;height:100%}
+.pacerow{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);font-weight:600}
+.pacerow b{color:var(--ink);font-weight:800;font-family:'Montserrat'}
+
+.pdfbtn{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;background:var(--blue);color:#fff;
+  border:none;border-radius:12px;padding:13px 16px;font-family:'Open Sans';font-weight:800;font-size:14px;cursor:pointer;box-shadow:var(--shadow);
+  transition:transform .08s}
+.pdfbtn:active{transform:scale(.99)}
+.pdfbtn[disabled]{opacity:.65;cursor:default}
+.pdferr{font-size:12px;color:var(--bad);text-align:center;margin-top:8px;font-weight:600}
+
+.secthdr{display:flex;justify-content:space-between;align-items:baseline;margin:26px 4px 10px}
+.secthdr h2{font-family:'Montserrat';font-size:15px;font-weight:800;margin:0}
+.secthdr .cnt{font-size:12px;color:var(--mut);font-weight:600}
+.link{color:var(--blue);font-weight:700;cursor:pointer}
+
+.ordgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.obox{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);border-left:4px solid var(--line);position:relative}
+.obox .oct{font-family:'Montserrat';font-weight:800;font-size:22px;line-height:1}
+.obox .olbl{font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.obox .oval{font-size:13px;font-weight:700;color:var(--ink);margin-top:6px}
+.obox.tap{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.obox.tap:active{transform:scale(.98)}
+.obox.sel{box-shadow:0 0 0 2px var(--blue),var(--shadow)}
+.obox.cur{border-left-color:var(--good)}
+.obox.b31{border-left-color:var(--warn)}
+.obox.b61{border-left-color:#ea580c}
+.obox.b90{border-left-color:var(--bad)}
+
+.tabs{display:flex;gap:6px;margin:0 2px 12px;background:#e9edf6;padding:4px;border-radius:12px}
+.tab{flex:1;border:none;background:transparent;padding:9px;border-radius:9px;font-family:'Open Sans';font-weight:700;font-size:12.5px;color:var(--mut);cursor:pointer}
+.tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.search{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-family:'Open Sans';
+  font-size:14px;color:var(--ink);outline:none;margin:0 0 12px;box-shadow:var(--shadow)}
+.search:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(50,107,211,.1)}
+.filterbar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#eef4ff;border:1.5px solid var(--blue);
+  border-radius:12px;padding:9px 12px;margin:0 0 12px;font-size:12.5px}
+.filterbar button{background:var(--blue);border:none;color:#fff;font-weight:700;font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'Open Sans'}
+
+.cust{background:var(--card);border-radius:14px;padding:14px 15px;box-shadow:var(--shadow);margin-bottom:9px}
+.cust.tap{cursor:pointer;transition:transform .08s,box-shadow .12s}
+.cust.tap:active{transform:scale(.99)}
+.crow1{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.cname{font-weight:700;font-size:14px;line-height:1.25}
+.cid{font-size:11px;color:var(--mut);margin-top:1px}
+.cgap{text-align:right;flex-shrink:0}
+.cgap .g{font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--bad)}
+.cgap .g.ok{color:var(--good)}
+.cgap .gl{font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase}
+.cbar{height:6px;border-radius:6px;background:#eef1f8;margin:11px 0 9px;overflow:hidden}
+.cbar>span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#c9302c,#e05c57)}
+.cmeta{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-weight:600}
+.cmeta b{color:var(--ink)}
+.crtag{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:8px;background:#fff5f5;color:var(--bad);vertical-align:1px;white-space:nowrap}
+
+/* detail */
+.detailhead{padding:16px 2px 14px}
+.backbtn{background:none;border:none;color:var(--blue);font-family:'Open Sans';font-weight:700;font-size:14px;padding:6px 0;cursor:pointer;margin-bottom:6px}
+.dname{font-family:'Montserrat';font-weight:800;font-size:22px;line-height:1.15;color:var(--navy)}
+.dtags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.dtag{font-size:11px;font-weight:700;background:#e8f0fb;color:var(--blue);padding:4px 10px;border-radius:20px}
+.dtag.od{background:#fbe6e6;color:var(--bad)}
+.dtag.ok{background:#e5f5ec;color:var(--good)}
+.dcard{background:var(--card);border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.dlbl{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--blue);margin-bottom:12px}
+.dlbl.green{color:var(--good)}
+.ctable{width:100%;border-collapse:collapse;font-size:12.5px}
+.ctable th{text-align:right;font-family:'Montserrat';font-size:10px;font-weight:800;color:var(--navy);padding:6px 8px;border-bottom:1px solid var(--line)}
+.ctable th:first-child{text-align:left}
+.ctable td{padding:7px 8px;border-top:1px solid #f1f5f9}
+.ctable td.num{text-align:right}
+.ctable td:first-child{font-weight:600}
+.ctable tr.tot td{font-weight:800;border-top:1.5px solid var(--line)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.listrow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9}
+.listrow:last-child{border-bottom:none;padding-bottom:0}
+.listrow:first-child{padding-top:0}
+.lr1{font-size:12.5px;font-weight:700;line-height:1.3}
+.lr2{font-size:11px;color:var(--mut);margin-top:2px;line-height:1.4}
+.lamt{text-align:right;flex-shrink:0}
+.lamt .a{font-family:'Montserrat';font-weight:800;font-size:13.5px}
+.lamt .a.cr{color:var(--good)}
+.lamt .d{font-size:11px;font-weight:700;margin-top:2px}
+.d.bad{color:var(--bad)} .d.mut{color:var(--mut)}
+
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;line-height:1.6}
+.foot{text-align:center;color:var(--mut);font-size:11px;margin-top:22px;line-height:1.6}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:60px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="homebtn" onclick="window.location.href='/index.html'" aria-label="Back to My Numbers">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="hi">Accounts Receivable</div>
+        <div class="hname">My AR</div>
+      </div>
+    </div>
+    <div class="asof hi" id="asof"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="main"><div class="spin"></div></div>
+  <div id="detail" class="hidden"></div>
+</div>
+
+<script>
+const SB_URL = "https://hzagwndglwhcepsirafi.supabase.co";
+const SB_KEY = "sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h";
+async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; }
+
+// Buckets are the finance aging buckets: they count from the INVOICE date.
+// "Past due" is separate and counts from the DUE date (terms vary), so a
+// 30-day invoice can sit in "Current" and still be past due on day 31.
+const BUCKETS = [
+  { k:'Current', label:'Current',      sub:'0–30 days',  cls:'cur', color:'var(--good)' },
+  { k:'31-60',   label:'31–60 days',   sub:'31–60 days', cls:'b31', color:'var(--warn)' },
+  { k:'61-90',   label:'61–90 days',   sub:'61–90 days', cls:'b61', color:'#ea580c' },
+  { k:'90+',     label:'Over 90 days', sub:'91+ days',   cls:'b90', color:'var(--bad)' }
+];
+const DOC_LABEL = { 'Invoice':'Invoice', 'Debit Memo':'Debit memo', 'Credit Memo':'Credit memo', 'Payment':'Unapplied payment' };
+
+let ASOF = null, CUSTS = [], TOT = null, DISPUTED = new Set();
+let ROWS = [], REPCODE = '', REPNAME = '';   // the full statement the PDF is built from
+let FILTER = null, SORT = 'pastdue', Q = '';
+
+document.addEventListener('dfl-auth-ready', (e) => { init(e.detail.profile); });
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf = n => Math.round(Math.abs(n)).toLocaleString('en-JM');
+const J  = n => (n < 0 ? '-' : '') + '$' + nf(n);
+const Jk = n => { const a = Math.abs(n), s = n < 0 ? '-' : ''; if (a >= 1e6) return s + '$' + (a/1e6).toFixed(1) + 'M'; if (a >= 1e3) return s + '$' + Math.round(a/1e3) + 'K'; return s + '$' + Math.round(a); };
+const fmtD = iso => iso ? new Date(String(iso).slice(0,10) + 'T12:00:00').toLocaleDateString('en-JM', { day:'numeric', month:'short', year:'2-digit' }) : '—';
+const dayNum = iso => { const p = String(iso).slice(0,10).split('-'); return Date.UTC(+p[0], +p[1]-1, +p[2]) / 86400000; };
+
+// PostgREST returns at most 1000 rows a request whatever limit you send, so
+// page in 1000s with a stable order.
+async function fetchAll(path){
+  const out = [], H = await userH();
+  for (let off = 0; ; off += 1000){
+    const r = await fetch(`${SB_URL}/rest/v1/${path}&limit=1000&offset=${off}`, { headers: H });
+    if (!r.ok) throw new Error(path.split('?')[0] + ' ' + r.status);
+    const rows = await r.json();
+    out.push(...rows);
+    if (rows.length < 1000) return out;
+  }
+}
+
+async function init(profile){
+  const main = document.getElementById('main');
+  try {
+    // Which salesperson's AR: your own, resolved server-side (ar_my_rep_code()).
+    // An admin/manager "viewing as" a rep arrives with ?rep=CODE. That is only a
+    // filter: the database still decides what the signed-in person may read.
+    const asParam = new URLSearchParams(location.search).get('rep');
+    const canViewAs = profile.role === 'admin' || profile.role === 'manager';
+    let code = (canViewAs && asParam) ? asParam : null;
+    if (!code) {
+      const r = await fetch(`${SB_URL}/rest/v1/rpc/ar_my_rep_code`, { method:'POST', headers:{ ...(await userH()), 'Content-Type':'application/json' }, body:'{}' });
+      if (r.ok) code = await r.json();
+    }
+    if (!code) { main.innerHTML = `<div class="empty">There's no AR on your account.<br>If you think that's wrong, ask your manager.</div>`; return; }
+
+    const snapR = await fetch(`${SB_URL}/rest/v1/ar_aging_snapshots?status=eq.complete&order=id.desc&limit=1&select=id,snapshot_date`, { headers: await userH() });
+    const snap = (await snapR.json())[0];
+    if (!snap) { main.innerHTML = `<div class="empty">No AR figures are available yet.</div>`; return; }
+    ASOF = snap.snapshot_date;
+    document.getElementById('asof').innerHTML = `As of<b>${esc(new Date(ASOF + 'T12:00:00').toLocaleDateString('en-JM', { day:'numeric', month:'short' }))}</b>`;
+
+    const [rows, disp] = await Promise.all([
+      fetchAll(`ar_aging_rows?snapshot_id=eq.${snap.id}&rep_code=eq.${encodeURIComponent(code)}&order=customer_id.asc,doc_type.asc,ref_nbr.asc` +
+        `&select=doc_type,ref_nbr,customer_id,customer_name,doc_date,due_date,currency,amount_doc,balance_doc,balance_jmd,terms,is_credit,days_aged,bucket,rep_name`),
+      fetchAll(`ar_disputes?order=doc_type.asc,ref_nbr.asc&select=doc_type,ref_nbr`).catch(() => [])
+    ]);
+    DISPUTED = new Set(disp.map(d => d.doc_type + '|' + d.ref_nbr));
+    ROWS = rows; REPCODE = code;
+    REPNAME = String((rows[0] && rows[0].rep_name) || '').replace(/[.\s]+$/, '');   // roster names can carry a stray full stop
+    build(rows);
+    drawMain();
+    loadJsPdf().catch(() => {});   // warm the library so the first tap on Download is instant
+  } catch (err) {
+    console.error(err);
+    main.innerHTML = `<div class="empty">Couldn't load your AR right now. Try again shortly.</div>`;
+  }
+}
+
+function build(rows){
+  const asOfN = dayNum(ASOF), map = new Map();
+  TOT = { net:0, gross:0, credits:0, pastDue:0, open:0, b:{} };
+  BUCKETS.forEach(b => TOT.b[b.k] = { ct:0, val:0 });
+  rows.forEach(r => {
+    const bal = +r.balance_jmd || 0;
+    let c = map.get(r.customer_id);
+    if (!c) { c = { id:r.customer_id, name:r.customer_name || r.customer_id, rows:[], net:0, gross:0, credits:0, pastDue:0, maxPast:0, disputed:0, terms:new Set(), b:{} };
+              BUCKETS.forEach(b => c.b[b.k] = { ct:0, val:0 }); map.set(r.customer_id, c); }
+    r._past = (!r.is_credit && r.due_date) ? Math.max(0, asOfN - dayNum(r.due_date)) : 0;   // days past due
+    r._pastDue = (!r.is_credit && r.due_date && r.due_date < ASOF);
+    r._disp = DISPUTED.has(r.doc_type + '|' + r.ref_nbr);
+    c.rows.push(r);
+    c.net += bal; TOT.net += bal;
+    if (r.is_credit) { c.credits += bal; TOT.credits += bal; }
+    else {
+      c.gross += bal; TOT.gross += bal; TOT.open++;
+      if (r.terms) c.terms.add(r.terms);
+      if (r._pastDue) { c.pastDue += bal; TOT.pastDue += bal; c.maxPast = Math.max(c.maxPast, r._past); }
+      if (r._disp) c.disputed++;
+      if (c.b[r.bucket]) { c.b[r.bucket].ct++; c.b[r.bucket].val += bal; TOT.b[r.bucket].ct++; TOT.b[r.bucket].val += bal; }
+    }
+  });
+  CUSTS = [...map.values()];
+}
+
+function drawMain(){
+  const main = document.getElementById('main');
+  if (!CUSTS.length) { main.innerHTML = `<div class="empty">No outstanding balances on your accounts. 🎉</div>`; return; }
+  const g = TOT.gross || 1;
+  main.innerHTML = `
+    <div class="hero">
+      <div class="lbl">Net outstanding</div>
+      <div class="herotop">
+        <div>
+          <div class="big">${J(TOT.net)}</div>
+          <div class="sub">${CUSTS.length} ${CUSTS.length === 1 ? 'customer' : 'customers'} · <b>${TOT.open}</b> open ${TOT.open === 1 ? 'invoice' : 'invoices'}</div>
+        </div>
+        <div class="pctwrap">
+          <div class="pdbig ${TOT.pastDue > 0 ? 'bad' : ''}">${Jk(TOT.pastDue)}</div>
+          <div class="pdlbl">Past due</div>
+        </div>
+      </div>
+      <div class="stack">${BUCKETS.map(b => `<span style="width:${Math.max(0, TOT.b[b.k].val / g * 100)}%;background:${b.color}"></span>`).join('')}</div>
+      <div class="pacerow"><span>Invoices <b>${J(TOT.gross)}</b></span><span>Credits <b style="color:var(--good)">${J(TOT.credits)}</b></span></div>
+    </div>
+
+    <button class="pdfbtn" id="pdfbtn" onclick="downloadPdf()">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="pdflbl">Download AR statement (PDF)</span>
+    </button>
+    <div class="pdferr hidden" id="pdferr"></div>
+
+    <div class="secthdr"><h2>By age of invoice</h2><span class="cnt">tap to filter customers</span></div>
+    <div class="ordgrid" id="buckets"></div>
+
+    <div class="secthdr"><h2>My customers</h2><span class="cnt" id="custcnt"></span></div>
+    <input class="search" id="q" type="search" placeholder="Search customers" autocomplete="off" oninput="Q=this.value;drawList()">
+    <div class="tabs" id="sorts"></div>
+    <div id="filterbar"></div>
+    <div id="custlist"></div>
+    <div class="foot">Figures in JMD · from the aging report as of ${esc(fmtD(ASOF))}.<br>Age counts from the invoice date; past due counts from the due date.</div>`;
+  drawBuckets(); drawSorts(); drawList();
+}
+
+function drawBuckets(){
+  document.getElementById('buckets').innerHTML = BUCKETS.map(b => {
+    const t = TOT.b[b.k], on = FILTER === b.k;
+    return `<div class="obox ${b.cls} ${t.ct ? 'tap' : ''} ${on ? 'sel' : ''}" ${t.ct ? `onclick="setFilter('${b.k}')"` : ''}>
+      <div class="oct">${t.ct}</div>
+      <div class="olbl">${b.label}${t.ct ? ' ›' : ''}</div>
+      <div class="oval">${Jk(t.val)}</div>
+    </div>`;
+  }).join('');
+}
+function setFilter(k){ FILTER = (FILTER === k) ? null : k; drawBuckets(); drawList(); }
+
+function drawSorts(){
+  const defs = [['pastdue','Past due'], ['balance','Balance'], ['oldest','Oldest']];
+  document.getElementById('sorts').innerHTML = defs.map(([k, l]) => `<button class="tab ${SORT === k ? 'on' : ''}" onclick="setSort('${k}')">${l}</button>`).join('');
+}
+function setSort(k){ SORT = k; drawSorts(); drawList(); }
+
+function drawList(){
+  const fb = document.getElementById('filterbar');
+  const fdef = BUCKETS.find(b => b.k === FILTER);
+  fb.innerHTML = fdef ? `<div class="filterbar"><span>Showing invoices <b>${esc(fdef.sub)}</b> old</span><button onclick="setFilter('${fdef.k}')">Clear</button></div>` : '';
+
+  const q = Q.trim().toLowerCase();
+  let list = CUSTS.filter(c => (!q || (c.name + ' ' + c.id).toLowerCase().includes(q)) && (!FILTER || c.b[FILTER].ct > 0));
+  const key = c => FILTER ? c.b[FILTER].val : SORT === 'balance' ? c.net : SORT === 'oldest' ? c.maxPast : c.pastDue;
+  list.sort((a, b) => key(b) - key(a) || b.net - a.net);
+  document.getElementById('custcnt').textContent = list.length + (list.length === 1 ? ' customer' : ' customers');
+  if (!list.length) { document.getElementById('custlist').innerHTML = `<div class="empty">No customers match.</div>`; return; }
+
+  document.getElementById('custlist').innerHTML = list.map(c => {
+    const i = CUSTS.indexOf(c);
+    let big, lbl, ok = false;
+    if (FILTER) { big = c.b[FILTER].val; lbl = fdef.sub; }
+    else if (c.pastDue > 0) { big = c.pastDue; lbl = 'past due'; }
+    else if (c.gross > 0) { big = 0; lbl = 'nothing past due'; ok = true; }
+    else { big = c.net; lbl = 'credit balance'; ok = true; }
+    const share = (!FILTER && c.gross > 0) ? Math.min(100, c.pastDue / c.gross * 100) : 0;
+    const n = c.rows.filter(r => !r.is_credit).length;
+    return `<div class="cust tap" onclick="openCust(${i})">
+      <div class="crow1">
+        <div><div class="cname">${esc(c.name)}${c.disputed ? ` <span class="crtag">DISPUTE</span>` : ''}</div><div class="cid">${esc(c.id)}</div></div>
+        <div class="cgap"><div class="g ${ok ? 'ok' : ''}">${ok && !FILTER && c.gross > 0 ? '✓' : Jk(big)}</div><div class="gl">${esc(lbl)}</div></div>
+      </div>
+      ${share > 0 ? `<div class="cbar"><span style="width:${share}%"></span></div>` : '<div style="height:10px"></div>'}
+      <div class="cmeta"><span>Balance <b>${J(c.net)}</b> · ${n} inv</span><span>${c.maxPast > 0 ? `Oldest <b>${c.maxPast}d</b> past due ›` : 'View ›'}</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- PDF statement ----------
+   The whole statement, whatever the search/filter on screen says. Built in the
+   browser from the rows already loaded (shared/ar-pdf.js), so it can only ever
+   contain what the database let this person read. */
+let JSPDF = null;
+function loadJsPdf(){
+  if (window.jspdf) return Promise.resolve();
+  if (!JSPDF) JSPDF = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = res;
+    s.onerror = () => { JSPDF = null; rej(new Error('jsPDF failed to load')); };
+    document.head.appendChild(s);
+  });
+  return JSPDF;
+}
+async function downloadPdf(){
+  const btn = document.getElementById('pdfbtn'), lbl = document.getElementById('pdflbl'), err = document.getElementById('pdferr');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true; lbl.textContent = 'Preparing PDF…'; err.classList.add('hidden');
+  try {
+    await loadJsPdf();
+    const doc = DFL_ARPDF.build(window.jspdf.jsPDF, { rows: ROWS, repCode: REPCODE, repName: REPNAME, asOf: ASOF });
+    const name = DFL_ARPDF.filename(REPCODE);
+    const blob = doc.output('blob');
+    // On a phone the share sheet is the way to "Save to Files" / WhatsApp / email.
+    const file = new File([blob], name, { type: 'application/pdf' });
+    if (window.matchMedia && matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: name }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }   // cancelled in the sheet; any other failure falls through to a plain download
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch (e) {
+    console.error(e);
+    err.textContent = "Couldn't create the PDF. Check your connection and try again.";
+    err.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; lbl.textContent = 'Download AR statement (PDF)';
+  }
+}
+
+function openCust(i){
+  const c = CUSTS[i]; if (!c) return;
+  const asOfN = dayNum(ASOF);
+  const inv = c.rows.filter(r => !r.is_credit).sort((a, b) => (a.due_date || '9999') < (b.due_date || '9999') ? -1 : 1);
+  const crs = c.rows.filter(r => r.is_credit).sort((a, b) => (a.doc_date || '') < (b.doc_date || '') ? -1 : 1);
+  const terms = [...c.terms].join(', ');
+
+  const invRow = r => {
+    const usd = r.currency && r.currency !== 'JMD';
+    let when;
+    if (r._pastDue) when = `<div class="d bad">${r._past} ${r._past === 1 ? 'day' : 'days'} past due</div>`;
+    else if (r.due_date) { const left = dayNum(r.due_date) - asOfN; when = `<div class="d mut">${left === 0 ? 'Due today' : 'Due in ' + left + (left === 1 ? ' day' : ' days')}</div>`; }
+    else when = '';
+    return `<div class="listrow">
+      <div>
+        <div class="lr1">${esc(DOC_LABEL[r.doc_type] || r.doc_type)} ${esc(r.ref_nbr)}${r._disp ? ` <span class="crtag">DISPUTED</span>` : ''}</div>
+        <div class="lr2">Invoiced ${esc(fmtD(r.doc_date))} · Due ${esc(fmtD(r.due_date))}${r.terms ? ' · ' + esc(r.terms) : ''}${usd ? ' · ' + esc(r.currency) + ' ' + nf(+r.balance_doc) : ''}</div>
+      </div>
+      <div class="lamt"><div class="a">${J(+r.balance_jmd)}</div>${when}</div>
+    </div>`;
+  };
+
+  document.getElementById('detail').innerHTML = `
+    <div class="detailhead">
+      <button class="backbtn" onclick="closeCust()">‹ All customers</button>
+      <div class="dname">${esc(c.name)}</div>
+      <div class="cid" style="margin-top:3px">${esc(c.id)}</div>
+      <div class="dtags">
+        ${c.pastDue > 0 ? `<span class="dtag od">${Jk(c.pastDue)} past due</span>` : `<span class="dtag ok">Nothing past due</span>`}
+        <span class="dtag">Balance ${J(c.net)}</span>
+        ${terms ? `<span class="dtag">${esc(terms)}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlbl">By age of invoice</div>
+      <table class="ctable"><thead><tr><th>Age</th><th>Inv</th><th>Amount</th></tr></thead><tbody>
+        ${BUCKETS.map(b => `<tr><td><span class="dot" style="background:${b.color}"></span>${b.label}</td><td class="num">${c.b[b.k].ct || '–'}</td><td class="num">${c.b[b.k].ct ? J(c.b[b.k].val) : '–'}</td></tr>`).join('')}
+        ${c.credits ? `<tr><td><span class="dot" style="background:var(--good)"></span>Credits</td><td class="num">${crs.length}</td><td class="num" style="color:var(--good)">${J(c.credits)}</td></tr>` : ''}
+        <tr class="tot"><td>Net balance</td><td class="num"></td><td class="num">${J(c.net)}</td></tr>
+      </tbody></table>
+    </div>
+
+    ${inv.length ? `<div class="dcard"><div class="dlbl">Open invoices · oldest first</div>${inv.map(invRow).join('')}</div>` : ''}
+
+    ${crs.length ? `<div class="dcard"><div class="dlbl green">Credits &amp; unapplied payments</div>${crs.map(r => `
+      <div class="listrow">
+        <div><div class="lr1">${esc(DOC_LABEL[r.doc_type] || r.doc_type)} ${esc(r.ref_nbr)}</div><div class="lr2">${esc(fmtD(r.doc_date))}</div></div>
+        <div class="lamt"><div class="a cr">${J(+r.balance_jmd)}</div></div>
+      </div>`).join('')}</div>` : ''}`;
+  document.getElementById('main').classList.add('hidden');
+  document.getElementById('detail').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+function closeCust(){
+  document.getElementById('detail').classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>
