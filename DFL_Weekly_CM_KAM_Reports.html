@@ -171,7 +171,19 @@ const CMKAM_SB_KEY = 'sb_publishable_5rAinfDT1K9kwEQnqYwlOA_-C5tk_6h';
 
 // Signed-in user's token for every call (no fallback to the public key: with no session this throws).
 // The shared client (sb) loads at the bottom of this page, so these run only after DOMContentLoaded.
-async function cmkamToken(){ const { data: { session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return session.access_token; }
+async function cmkamToken(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) throw new Error('not signed in');
+  // getSession() has been seen handing back a token that expired hours earlier (a laptop that
+  // slept overnight and woke before its network was up), which PostgREST rejects with 401
+  // (PGRST303). Refresh it ourselves rather than send it; if that fails, treat as signed out.
+  if(session.expires_at && session.expires_at*1000 - Date.now() < 60000){
+    const { data, error } = await sb.auth.refreshSession();
+    if(error || !data || !data.session) throw new Error('not signed in');
+    return data.session.access_token;
+  }
+  return session.access_token;
+}
 
 async function sbSelect(table, filters, select){
   const params = new URLSearchParams();
@@ -496,7 +508,10 @@ async function renderPersonScreen(){
     // draft autosave can't write over what we failed to read.
     console.error('loadRecord failed:', e);
     currentRec = null;
-    app.innerHTML = '<div class="card" style="padding:20px"><b>Could not load this report.</b><div class="hint" style="margin:8px 0 12px">Nothing has been changed. Check your connection, then try again.</div><button class="btn btn-primary" onclick="renderPersonScreen()">Try again</button></div>';
+    // "Try again" can't fix an expired/rejected session; reloading re-runs the page's sign-in check.
+    app.innerHTML = isAuthError(e)
+      ? '<div class="card" style="padding:20px"><b>Your session has expired.</b><div class="hint" style="margin:8px 0 12px">Nothing has been changed. Refresh the page to sign in again.</div><button class="btn btn-primary" onclick="location.reload()">Refresh page</button></div>'
+      : '<div class="card" style="padding:20px"><b>Could not load this report.</b><div class="hint" style="margin:8px 0 12px">Nothing has been changed. Check your connection, then try again.</div><button class="btn btn-primary" onclick="renderPersonScreen()">Try again</button></div>';
     return;
   }
   currentRec = rec;
