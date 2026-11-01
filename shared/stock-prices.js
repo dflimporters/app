@@ -1,7 +1,10 @@
 // Stock & Prices — read-only browser over stock_items_raw (synced from the ERP
 // every ~30 min by sync-stock-items): stock on hand + list price
-// (default_price) for every active SKU. Shared by /stock.html (reps) and the
-// Stock & Prices sheet in merch.html.
+// (default_price) for every active SKU, plus the current deal sheet's tiers
+// (view current_deal_items, readable by every role) as chips. Shared by
+// /stock.html (reps) and the Stock & Prices sheet in merch.html — the merch
+// app's only view of the deal sheet, since /deal-sheet.html is sales-only.
+// Deals are a bonus: if that call fails the list still loads without them.
 //
 // avg_cost is never selected — field staff see availability and list price,
 // not margin — and the DB denies the column to clients anyway (selecting it 401s).
@@ -49,6 +52,8 @@
       '.dfls-n{font-weight:800;font-size:15px}' +
       '.dfls-nl{font-size:9px;color:var(--s-muted);text-transform:uppercase;letter-spacing:.3px}' +
       '.dfls-p{font-size:12px;font-weight:700;color:var(--s-ink);margin-top:3px}' +
+      '.dfls-deals{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}' +
+      '.dfls-deal{font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:#fff4e0;color:#a15c00;border:1px solid #f5d39a;white-space:nowrap}' +
       '.dfls-empty{text-align:center;padding:40px 20px;color:var(--s-muted);font-size:13px}';
     document.head.appendChild(st);
   }
@@ -58,14 +63,15 @@
     injectCss();
     const theme = Object.assign({}, THEME, opts.theme || {});
     const loadingHtml = opts.loadingHtml || '<div class="dfls-empty">Loading…</div>';
-    let rows = null, synced = null, loading = false;
+    let rows = null, synced = null, loading = false, dealSheet = null;
 
     el.innerHTML =
       '<div class="dfls' + (opts.fill ? ' fill' : '') + '">' +
         '<div class="dfls-filters">' +
           '<input type="text" class="dfls-q" placeholder="🔍 Search product name or code…" autocomplete="off">' +
           '<div class="dfls-row"><select class="dfls-cls"><option value="">All categories</option></select>' +
-          '<label><input type="checkbox" class="dfls-in"> In stock only</label></div>' +
+          '<label><input type="checkbox" class="dfls-in"> In stock</label>' +
+          '<label><input type="checkbox" class="dfls-dl"> On deal</label></div>' +
           '<div class="dfls-meta"></div>' +
         '</div>' +
         '<div class="dfls-list">' + loadingHtml + '</div>' +
@@ -73,10 +79,31 @@
     const root = el.firstChild;
     Object.keys(theme).forEach(k => root.style.setProperty('--s-' + k, theme[k]));
     const $ = c => root.querySelector('.dfls-' + c);
-    const qEl = $('q'), clsEl = $('cls'), inEl = $('in'), metaEl = $('meta'), listEl = $('list');
+    const qEl = $('q'), clsEl = $('cls'), inEl = $('in'), dlEl = $('dl'), metaEl = $('meta'), listEl = $('list');
     qEl.addEventListener('input', render);
     clsEl.addEventListener('change', render);
     inEl.addEventListener('change', render);
+    dlEl.addEventListener('change', render);
+
+    // { inventory_id: [{buy, free}, …] } for the current deal sheet, or {} if it
+    // can't be read. Same tier rules as shared/deals.js (one tier per order,
+    // never stacked) — the chips just list what's on offer.
+    async function loadDeals() {
+      try {
+        const d = (await opts.get('current_deal_items?select=inventory_id,tiers,sheet_name&limit=1000')) || [];
+        dealSheet = d.length ? d[0].sheet_name || null : null;
+        const m = {};
+        d.forEach(x => {
+          const ts = (Array.isArray(x.tiers) ? x.tiers : []).filter(t => t && t.buy > 0 && t.free > 0)
+            .map(t => ({ buy: Number(t.buy), free: Number(t.free) })).sort((a, b) => a.buy - b.buy);
+          if (ts.length) m[x.inventory_id] = ts;
+        });
+        return m;
+      } catch (e) {
+        console.warn('deal sheet load failed:', e);
+        return {};
+      }
+    }
 
     async function load(force) {
       if (loading) return;
@@ -84,6 +111,7 @@
       loading = true;
       listEl.innerHTML = loadingHtml;
       try {
+        const dealsP = loadDeals();
         const all = []; let off = 0;
         for (;;) {
           const page = (await opts.get('stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc,inventory_id.asc&limit=1000&offset=' + off)) || [];
@@ -91,9 +119,11 @@
           if (page.length < 1000) break;
           off += 1000;
         }
+        const deals = await dealsP;
         rows = all.map(r => ({
           id: r.inventory_id, name: (r.description || '').trim(), cls: r.item_class || '',
-          stock: Math.round(parseFloat(r.on_hand) || 0), price: parseFloat(r.default_price) || 0
+          stock: Math.round(parseFloat(r.on_hand) || 0), price: parseFloat(r.default_price) || 0,
+          deals: deals[r.inventory_id] || []
         }));
         synced = all.reduce((m, r) => (r.last_synced_at && (!m || r.last_synced_at > m)) ? r.last_synced_at : m, null);
         const cur = clsEl.value;
@@ -109,20 +139,24 @@
 
     function render() {
       if (!rows) return;
-      const q = qEl.value.trim().toLowerCase(), cls = clsEl.value, inOnly = inEl.checked;
+      const q = qEl.value.trim().toLowerCase(), cls = clsEl.value, inOnly = inEl.checked, dlOnly = dlEl.checked;
       const matches = rows.filter(r =>
-        (!cls || r.cls === cls) && (!inOnly || r.stock > 0) &&
+        (!cls || r.cls === cls) && (!inOnly || r.stock > 0) && (!dlOnly || r.deals.length) &&
         (!q || r.name.toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)));
       const shown = matches.slice(0, LIMIT);
       const asOf = synced ? new Date(synced).toLocaleString('en-JM', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
       metaEl.textContent = matches.length + ' product' + (matches.length === 1 ? '' : 's') +
-        (matches.length > LIMIT ? ' — showing the first ' + LIMIT + ', search to narrow' : '') + (asOf ? ' · stock as of ' + asOf : '');
+        (matches.length > LIMIT ? ' — showing the first ' + LIMIT + ', search to narrow' : '') + (asOf ? ' · stock as of ' + asOf : '') +
+        (dlOnly && dealSheet ? ' · deals: ' + dealSheet : '');
       if (!shown.length) { listEl.innerHTML = '<div class="dfls-empty">No products match.</div>'; return; }
       listEl.innerHTML = shown.map(r => {
         const out = r.stock <= 0;
         return '<div class="dfls-item"><div style="flex:1;min-width:0">' +
           '<div class="dfls-nm">' + esc(r.name || r.id) + '</div>' +
-          '<div class="dfls-sub">' + esc(r.id) + (r.cls ? ' · ' + esc(r.cls) : '') + '</div></div>' +
+          '<div class="dfls-sub">' + esc(r.id) + (r.cls ? ' · ' + esc(r.cls) : '') + '</div>' +
+          (r.deals.length ? '<div class="dfls-deals">' + r.deals.map(t =>
+            '<span class="dfls-deal" title="Buy ' + t.buy + ' cases, get ' + t.free + ' free">🏷️ ' + t.buy + '+' + t.free + '</span>').join('') + '</div>' : '') +
+          '</div>' +
           '<div class="dfls-r"><div class="dfls-n" style="color:' + (out ? 'var(--s-bad)' : 'var(--s-good)') + '">' + (out ? 'Out' : r.stock.toLocaleString()) + '</div>' +
           '<div class="dfls-nl">' + (out ? 'of stock' : 'in stock') + '</div>' +
           '<div class="dfls-p">' + (r.price > 0 ? 'J$' + r.price.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '–') + '</div></div></div>';
