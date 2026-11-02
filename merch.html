@@ -363,6 +363,11 @@ body.dfl-readonly .readonly-note{display:block}
 .ss-val{font-size:20px;font-weight:800;line-height:1}
 .ss-lbl{font-size:10px;opacity:.65;margin-top:3px}
 .stores-loading{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.stores-view-toggle{display:flex;background:var(--card);border:1.5px solid var(--border);border-radius:var(--rad-sm);padding:3px;gap:3px;margin-bottom:10px}
+.stores-view-toggle button{flex:1;border:none;background:none;border-radius:6px;padding:7px 6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.stores-view-toggle button.on{background:var(--navy);color:#fff}
+.ss-comm{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.ss-comm strong{font-size:16px}
 </style>
 
 <style>
@@ -849,6 +854,13 @@ body.dfl-readonly .readonly-note{display:block}
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
       </button>
+
+      <!-- This month / last month — last month is read-only history, so the
+           route-editing controls and visit times below don't change with it. -->
+      <div class="stores-view-toggle" id="stores-view-toggle">
+        <button id="sv-cur" class="on" onclick="setStoresView('cur')">This month</button>
+        <button id="sv-last" onclick="setStoresView('last')">Last month</button>
+      </div>
 
       <div id="stores-summary-banner"></div>
 
@@ -1791,6 +1803,11 @@ async function launchMerch(u){
   // Update dynamic month labels
   const lbl = document.getElementById('stores-month-lbl');
   if(lbl) lbl.textContent = 'My stores — '+_curLabel;
+  // Back to "This month" — an admin switching between view-as people mustn't
+  // see the previous person's last-month figures.
+  storesView='cur'; storePerfLast=null; storeCommLast=null;
+  document.getElementById('sv-cur').classList.add('on');
+  document.getElementById('sv-last').classList.remove('on');
   // Start geolocation watch
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
@@ -5370,7 +5387,19 @@ function ytdRiskBadgeHtml(customerId){
 }
 
 // ── MY STORES ──
-let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
+// storePerf is always the current month — the home quick-stores list reads
+// it too. Last month is held separately (storePerfLast) and only shown on the
+// My Stores tab while storesView==='last'.
+let storePerf=[], storesLoaded=false;
+let storePerfLast=null, storeCommLast=null, storesView='cur';
+// Last month's period. get_merch_store_perf builds its period from the
+// current year + (p_month-1) months, so p_month=0 in January is last December.
+const _lastDate = new Date(_curYear, _curMonthNum-2, 1);
+const _lastMonthArg = _curMonthNum-1;
+const _lastPeriod = String(_lastDate.getFullYear())+String(_lastDate.getMonth()+1).padStart(2,'0');
+const _lastLabel = _monthNames[_lastDate.getMonth()]+' '+_lastDate.getFullYear();
+
+function shownStorePerf(){ return storesView==='last' ? (storePerfLast||[]) : storePerf; }
 
 async function ensureStoresLoaded(){
   if(isRelief() && !myStores.length) return; // no route, no targets — nothing for this tab to show
@@ -5380,6 +5409,8 @@ async function ensureStoresLoaded(){
 
 async function loadStorePerf(){
   document.getElementById('stores-list').innerHTML='<div class="stores-loading"><div class="spinner"></div></div>';
+  // The route may have just changed (add/remove store) — drop last month's copy.
+  storePerfLast=null;
   try{
     const [rows]=await Promise.all([
       restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_curMonthNum}),
@@ -5387,32 +5418,73 @@ async function loadStorePerf(){
     ]);
     storePerf=rows||[];
     storesLoaded=true;
+    renderQuickStores();
+    if(storesView==='last'){ await loadLastMonthPerf(); return; }
     renderStoresSummary();
-    renderStores(); renderQuickStores();
+    renderStores();
   }catch(e){
     console.error(e);
     document.getElementById('stores-list').innerHTML='<div class="stores-loading">Failed to load. Check connection.</div>';
   }
 }
 
+async function loadLastMonthPerf(){
+  document.getElementById('stores-list').innerHTML='<div class="stores-loading"><div class="spinner"></div></div>';
+  document.getElementById('stores-summary-banner').innerHTML='';
+  try{
+    const [rows,comm]=await Promise.all([
+      restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_lastMonthArg}),
+      rest(`merchandiser_summary?period=eq.${_lastPeriod}&merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&select=commission,stores_qualified,stores_100`).catch(function(){return [];})
+    ]);
+    storePerfLast=rows||[];
+    storeCommLast=(comm||[])[0]||null;
+    if(storesView!=='last') return; // switched back while loading
+    renderStoresSummary();
+    renderStores();
+  }catch(e){
+    console.error(e);
+    document.getElementById('stores-list').innerHTML='<div class="stores-loading">Failed to load. Check connection.</div>';
+  }
+}
+
+function setStoresView(v){
+  if(v===storesView) return;
+  storesView=v;
+  document.getElementById('sv-cur').classList.toggle('on',v==='cur');
+  document.getElementById('sv-last').classList.toggle('on',v==='last');
+  const lbl=document.getElementById('stores-month-lbl');
+  if(lbl) lbl.textContent='My stores — '+(v==='last'?_lastLabel:_curLabel);
+  if(v==='last' && !storePerfLast){ loadLastMonthPerf(); return; }
+  renderStoresSummary();
+  renderStores();
+}
+
 function renderStoresSummary(){
-  const withTarget=storePerf.filter(s=>s.target_amount>0);
-  const qualifying=storePerf.filter(s=>s.qualifying).length;
-  const totalTarget=storePerf.reduce((s,r)=>s+parseFloat(r.target_amount||0),0);
-  const totalActual=storePerf.reduce((s,r)=>s+parseFloat(r.actual_amount||0),0);
+  const perf=shownStorePerf();
+  const qualifying=perf.filter(s=>s.qualifying).length;
+  const totalTarget=perf.reduce((s,r)=>s+parseFloat(r.target_amount||0),0);
+  const totalActual=perf.reduce((s,r)=>s+parseFloat(r.actual_amount||0),0);
   const overallPct=totalTarget>0?Math.round(totalActual/totalTarget*100):0;
+  // Last month is closed, so its commission is final — worth showing here.
+  // (This month's running figure is already on the home screen.)
+  const commHtml = storesView==='last'
+    ? `<div class="ss-comm"><span style="opacity:.75">Commission earned in ${_lastLabel}</span><strong>${storeCommLast?'$'+Math.round(parseFloat(storeCommLast.commission||0)).toLocaleString():'–'}</strong></div>`
+    : '';
   document.getElementById('stores-summary-banner').innerHTML=`
-    <div class="stores-summary">
-      <div class="ss-item"><div class="ss-val">${storePerf.length}</div><div class="ss-lbl">Total stores</div></div>
-      <div class="ss-item"><div class="ss-val">${qualifying}</div><div class="ss-lbl">Qualifying</div></div>
-      <div class="ss-item"><div class="ss-val">${overallPct}%</div><div class="ss-lbl">Overall</div></div>
-      <div class="ss-item"><div class="ss-val">${totalActual>=1e6?"$"+(totalActual/1e6).toFixed(2)+"M":"$"+Math.round(totalActual/1000)+"K"}</div><div class="ss-lbl">Actual</div></div>
+    <div class="stores-summary" style="flex-direction:column;gap:0">
+      <div style="display:flex;gap:20px">
+        <div class="ss-item"><div class="ss-val">${perf.length}</div><div class="ss-lbl">Total stores</div></div>
+        <div class="ss-item"><div class="ss-val">${qualifying}</div><div class="ss-lbl">Qualifying</div></div>
+        <div class="ss-item"><div class="ss-val">${overallPct}%</div><div class="ss-lbl">Overall</div></div>
+        <div class="ss-item"><div class="ss-val">${totalActual>=1e6?"$"+(totalActual/1e6).toFixed(2)+"M":"$"+Math.round(totalActual/1000)+"K"}</div><div class="ss-lbl">Actual</div></div>
+      </div>
+      ${commHtml}
     </div>`;
 }
 
 function renderStores(){
   const sort=document.getElementById('stores-sort').value;
-  let sorted=[...storePerf];
+  let sorted=[...shownStorePerf()];
   if(sort==='pct-desc') sorted.sort((a,b)=>parseFloat(b.achievement_pct||0)-parseFloat(a.achievement_pct||0));
   else if(sort==='pct-asc') sorted.sort((a,b)=>parseFloat(a.achievement_pct||0)-parseFloat(b.achievement_pct||0));
   else if(sort==='name') sorted.sort((a,b)=>a.customer_name.localeCompare(b.customer_name));
