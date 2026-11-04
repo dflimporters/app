@@ -456,7 +456,7 @@
       box-sizing: border-box;
       width: 100%;
       min-height: 30px;
-      margin: 0 0 8px 0;
+      margin: 8px 0 0 0;   /* sits below Sign out */
       padding: 5px 10px;
       border: 0;
       border-radius: 7px;
@@ -811,17 +811,6 @@
       foot.appendChild(inst);
     }
 
-    // Collapse / expand the desktop rail to icons only. State is remembered.
-    const coll = document.createElement('button');
-    coll.type = 'button';
-    coll.className = 'dfl-rail__collapse';
-    coll.addEventListener('click', function () {
-      const next = !isCollapsed();
-      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch (e) {}
-      applyCollapsed(next);
-    });
-    foot.appendChild(coll);
-
     const out = document.createElement('button');
     out.type = 'button';
     out.className = 'dfl-rail__out';
@@ -834,6 +823,18 @@
       else window.location.href = '/login.html';
     });
     foot.appendChild(out);
+
+    // Collapse / expand the desktop rail to icons only, below Sign out.
+    // State is remembered.
+    const coll = document.createElement('button');
+    coll.type = 'button';
+    coll.className = 'dfl-rail__collapse';
+    coll.addEventListener('click', function () {
+      const next = !isCollapsed();
+      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch (e) {}
+      applyCollapsed(next);
+    });
+    foot.appendChild(coll);
     rail.appendChild(foot);
 
     // ---- mobile top bar ----
