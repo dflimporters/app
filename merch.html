@@ -709,6 +709,8 @@ body.dfl-readonly .readonly-note{display:block}
           <!-- Camera-only input: no accept attribute gallery fallback, capture=environment forces camera -->
           <input type="file" id="shelf-file-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(this.files)" style="display:none">
           <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+            <!-- Camera exemption notice (reps.photo_exempt_until) -->
+            <div id="photo-exempt-note" style="display:none;background:#fff7e6;border:1px solid #f59e0b;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600"></div>
             <!-- Photo counter -->
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:12px;color:var(--muted)" id="photo-counter-lbl">0 of 3 required</div>
@@ -1676,7 +1678,7 @@ async function startApp(profile){
     // so rep_id can legitimately be null — they get the oversight roster view.
     let rep=null;
     if(profile.rep_id){
-      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id,pending_promotion_role`);
+      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id,pending_promotion_role,photo_exempt_until`);
       rep=rows&&rows[0]?rows[0]:null;
     }
 
@@ -1696,7 +1698,8 @@ async function startApp(profile){
         territory: rep.area || '',
         team_lead: tlName,
         team_lead_id: rep.team_lead_id || null,
-        role: profile.role             // profiles.role is authoritative
+        role: profile.role,            // profiles.role is authoritative
+        photoExemptUntil: rep.photo_exempt_until || null
       };
       if(rep.pending_promotion_role) showPromotionBanner(rep.pending_promotion_role);
     }else{
@@ -2315,7 +2318,7 @@ async function saveStockStage(){
 // ── STAGE 3: PICTURES (mandatory — gates Close out via updatePhotoGating) ──
 async function savePhotosStage(){
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
-  if(pendingPhotos.length<MIN_PHOTOS){alert('Take at least '+MIN_PHOTOS+' shelf photos first.');return;}
+  if(pendingPhotos.length<minPhotos()){alert('Take at least '+MIN_PHOTOS+' shelf photos first.');return;}
   const btn=document.getElementById('v-step3-btn');
   btn.disabled=true;btn.textContent='Saving…';
   try{
@@ -2325,7 +2328,7 @@ async function savePhotosStage(){
       try{
         await rest(`merch_visit_log?id=eq.${activeVisit.id}`,{
           method:'PATCH',headers:{'Prefer':'return=minimal'},
-          body:{shelf_photo_urls:urls, photos_logged_at:stamp}
+          body:{shelf_photo_urls:urls, photos_logged_at:stamp, photos_waived:photosWaived()}
         });
         activeVisit.photosLoggedAt=stamp;
       }catch(e){ console.warn('photos stage patch failed (will resend at close out):',e); }
@@ -2353,6 +2356,7 @@ async function closeOutVisit(){
     shelf_photo_urls: await ensureAllPhotosUploaded(),
     stock_logged_at: activeVisit.stockLoggedAt||now,
     photos_logged_at: activeVisit.photosLoggedAt||now,
+    photos_waived: photosWaived(),
     clock_out:now
   };
   try{
@@ -2445,7 +2449,7 @@ function continueVisit(visitId){
   updatePhotoGating();
 
   const isOffline=typeof v.id==='string'&&v.id.indexOf('offline_')===0;
-  const stage=(v.shelf_photo_urls&&v.shelf_photo_urls.length>=MIN_PHOTOS)?4:(v.stock_logged_at?3:2);
+  const stage=((v.shelf_photo_urls&&v.shelf_photo_urls.length>=MIN_PHOTOS)||(v.photos_logged_at&&photoExemptActive()))?4:(v.stock_logged_at?3:2);
   activeVisit={
     id: isOffline?null:v.id,
     offlineLocalId: isOffline?parseInt(v.id.slice('offline_'.length),10):null,
@@ -6143,9 +6147,30 @@ function renderPhotoThumbs(){
   });
 }
 
+// Camera exemption — reps.photo_exempt_until (set by an admin in the DB, e.g.
+// a broken phone camera). While today (Jamaica) <= that date, Pictures no
+// longer needs 3 photos, and the visit is stamped photos_waived=true.
+function photoExemptActive(){
+  if(!cu || !cu.photoExemptUntil) return false;
+  const today = new Date().toLocaleDateString('en-CA', {timeZone:'America/Jamaica'});
+  return today <= cu.photoExemptUntil;
+}
+function minPhotos(){ return photoExemptActive() ? 0 : MIN_PHOTOS; }
+function photosWaived(){ return photoExemptActive() && pendingPhotos.length < MIN_PHOTOS; }
+
 function updatePhotoGating(){
   const count = pendingPhotos.length;
-  const met = count >= MIN_PHOTOS;
+  const exempt = photoExemptActive();
+  const met = count >= minPhotos();
+
+  var exNote = document.getElementById('photo-exempt-note');
+  if(exNote){
+    exNote.style.display = exempt ? 'block' : 'none';
+    if(exempt){
+      var d = new Date(cu.photoExemptUntil+'T12:00:00');
+      exNote.textContent = 'Camera exemption is on until ' + d.toLocaleDateString('en-JM',{day:'numeric',month:'short'}) + '. You can continue without photos — take any you can.';
+    }
+  }
 
   // Counter label
   const lbl = document.getElementById('photo-counter-lbl');
@@ -6176,7 +6201,10 @@ function updatePhotoGating(){
   // Status text
   var status = document.getElementById('photo-status');
   if(status){
-    if(met){
+    if(exempt && count < MIN_PHOTOS){
+      status.textContent = count+' photo'+(count!==1?'s':'')+' taken — OK to continue (camera exemption)';
+      status.style.color = 'var(--green)';
+    } else if(met){
       status.textContent = count+' photos taken ✓' + (count < MAX_PHOTOS ? ' — you can add up to '+(MAX_PHOTOS-count)+' more' : '');
       status.style.color = 'var(--green)';
     } else {
