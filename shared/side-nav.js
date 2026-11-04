@@ -54,8 +54,16 @@
   if (window.self !== window.top) return;
 
   const RAIL_WIDTH = 240;   // px — keep in sync with the CSS below
+  const RAIL_MINI  = 64;    // px — collapsed (icons only) rail, desktop only
   const TOPBAR_H   = 52;    // px — mobile only
   const BREAKPOINT = 768;   // px — rail at/above, drawer below
+
+  // Collapsed state is per device/browser, remembered across pages. Storage can
+  // be unavailable (private mode) — then it just starts expanded every time.
+  const COLLAPSE_KEY = 'dfl_nav_collapsed';
+  function isCollapsed() {
+    try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch (e) { return false; }
+  }
 
   // Set by approverCheck() near the bottom. Declared up here because boot()
   // renders before that part of the file runs (a later `let` would throw).
@@ -236,7 +244,21 @@
          footer, so the brand and the footer stay pinned. */
       overflow-y: auto;
       overscroll-behavior: contain;
+      /* Thin, near-invisible scrollbar that shows only while the pointer is
+         over the menu — the default Windows bar (grey, with arrows) took a
+         third of the collapsed rail. Wheel/touch scrolling is unchanged. */
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+      scrollbar-gutter: auto;
     }
+    .dfl-rail__scroll:hover,
+    .dfl-rail__scroll:focus-within { scrollbar-color: rgba(255,255,255,0.22) transparent; }
+    /* Safari / older Chromium, which ignore scrollbar-color */
+    .dfl-rail__scroll::-webkit-scrollbar { width: 6px; }
+    .dfl-rail__scroll::-webkit-scrollbar-track { background: transparent; }
+    .dfl-rail__scroll::-webkit-scrollbar-button { display: none; height: 0; }
+    .dfl-rail__scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    .dfl-rail__scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
 
     .dfl-rail__grouplabel {
       display: block;
@@ -421,6 +443,75 @@
       font-size: 11px;
       font-weight: 400;
       line-height: 1.5;
+    }
+
+    /* ---- Collapse toggle (desktop rail only) ---- */
+    .dfl-rail__collapse {
+      appearance: none;
+      -webkit-appearance: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 30px;
+      margin: 0 0 8px 0;
+      padding: 5px 10px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .dfl-rail__collapse:hover { background: rgba(255,255,255,0.09); color: #ffffff; }
+    .dfl-rail__collapse b { font-size: 15px; font-weight: 700; line-height: 1; }
+    .dfl-rail__outico { display: none; }
+
+    @media (min-width: ${BREAKPOINT}px) {
+      body.dfl-nav-on { transition: padding-left 0.2s ease; }
+      .dfl-rail { transition: width 0.2s ease; }
+
+      /* ---- Collapsed: icons only ---- */
+      body.dfl-nav-on.dfl-nav-collapsed { padding-left: ${RAIL_MINI}px; }
+      .dfl-rail.dfl-rail--mini { width: ${RAIL_MINI}px; }
+      .dfl-rail--mini .dfl-rail__brand { padding: 0; justify-content: center; }
+      .dfl-rail--mini .dfl-rail__brand img { height: auto; max-width: 46px; max-height: 30px; }
+      .dfl-rail--mini .dfl-rail__scroll { padding: 12px 8px 10px; overflow-x: hidden; }
+      /* No visible bar at all in the 64px strip (it would push the icons
+         off-centre); the wheel / trackpad still scroll it. */
+      .dfl-rail--mini .dfl-rail__scroll,
+      .dfl-rail--mini .dfl-rail__scroll:hover { scrollbar-width: none; }
+      .dfl-rail--mini .dfl-rail__scroll::-webkit-scrollbar { display: none; width: 0; }
+      /* Group headings become thin dividers. */
+      .dfl-rail--mini .dfl-rail__grouplabel {
+        height: 1px; margin: 10px 6px; padding: 0; overflow: hidden;
+        font-size: 0; background: rgba(255,255,255,0.12);
+      }
+      .dfl-rail--mini .dfl-rail__grouplabel:first-child { margin-top: 2px; }
+      .dfl-rail--mini .dfl-rail__link,
+      .dfl-rail--mini .dfl-rail__soon { justify-content: center; gap: 0; padding: 9px 0; }
+      .dfl-rail--mini .dfl-rail__ico { width: auto; font-size: 17px; }
+      .dfl-rail--mini .dfl-rail__txt,
+      .dfl-rail--mini .dfl-rail__soontag,
+      .dfl-rail--mini .dfl-rail__who,
+      .dfl-rail--mini .dfl-rail__hint,
+      .dfl-rail--mini .dfl-rail__outtxt { display: none; }
+      .dfl-rail--mini .dfl-rail__link[aria-current="page"]::before { left: -8px; }
+      .dfl-rail--mini .dfl-rail__foot { padding-left: 8px; padding-right: 8px; }
+      .dfl-rail--mini .dfl-rail__install span:last-child { display: none; }
+      .dfl-rail--mini .dfl-rail__install,
+      .dfl-rail--mini .dfl-rail__out { padding-left: 0; padding-right: 0; }
+      .dfl-rail--mini .dfl-rail__outico { display: inline; font-size: 14px; }
+    }
+    /* The toggle makes no sense in the phone drawer. */
+    @media (max-width: ${BREAKPOINT - 1}px) {
+      .dfl-rail__collapse { display: none; }
     }
 
     /* ---- Mobile top bar + drawer scrim: hidden at rail widths ---- */
@@ -616,12 +707,14 @@
         ico.textContent = it.icon || '•';
 
         const txt = document.createElement('span');
+        txt.className = 'dfl-rail__txt';
         txt.textContent = it.label;
 
         // Staged page — a <span>, not a link, so it can't be clicked or focused.
         if (it.soon || (it.myHr && !dflMyHrOpen(role))) {
           const row = document.createElement('span');
           row.className = 'dfl-rail__soon';
+          row.setAttribute('data-label', it.label + ' (coming soon)');
           row.appendChild(ico);
           row.appendChild(txt);
           const tag = document.createElement('span');
@@ -639,6 +732,7 @@
           (g.tone === 'gold' ? ' dfl-rail__link--gold' : '');
         if (isHere) row.setAttribute('aria-current', 'page');
         else row.href = it.href;
+        row.setAttribute('data-label', it.label);   // hover name when collapsed
         row.appendChild(ico);
         row.appendChild(txt);
         frag.appendChild(row);
@@ -717,10 +811,22 @@
       foot.appendChild(inst);
     }
 
+    // Collapse / expand the desktop rail to icons only. State is remembered.
+    const coll = document.createElement('button');
+    coll.type = 'button';
+    coll.className = 'dfl-rail__collapse';
+    coll.addEventListener('click', function () {
+      const next = !isCollapsed();
+      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch (e) {}
+      applyCollapsed(next);
+    });
+    foot.appendChild(coll);
+
     const out = document.createElement('button');
     out.type = 'button';
     out.className = 'dfl-rail__out';
-    out.textContent = 'Sign out';
+    out.innerHTML = '<span class="dfl-rail__outico" aria-hidden="true">⏻</span><span class="dfl-rail__outtxt">Sign out</span>';
+    out.setAttribute('aria-label', 'Sign out');
     // logout() is the global from auth-guard.js. Guarded because an unguarded
     // page (or one where the CDN script failed) won't have defined it.
     out.addEventListener('click', function () {
@@ -792,6 +898,38 @@
     });
 
     document.body.classList.add('dfl-nav-on');
+    applyCollapsed(isCollapsed(), true);
+  }
+
+  // Icons-only rail (desktop). Names move into hover tooltips (title) while
+  // collapsed, and come off again when expanded so they don't double up.
+  function applyCollapsed(on, instant) {
+    const rail = document.getElementById('dfl-rail');
+    if (!rail) return;
+    if (instant) {                          // no slide on page load
+      rail.style.transition = 'none';
+      document.body.style.transition = 'none';
+    }
+    rail.classList.toggle('dfl-rail--mini', on);
+    document.body.classList.toggle('dfl-nav-collapsed', on);
+    rail.querySelectorAll('[data-label]').forEach(function (el) {
+      if (on) el.setAttribute('title', el.getAttribute('data-label'));
+      else el.removeAttribute('title');
+    });
+    const out = rail.querySelector('.dfl-rail__out');
+    if (out) { if (on) out.title = 'Sign out'; else out.removeAttribute('title'); }
+    const btn = rail.querySelector('.dfl-rail__collapse');
+    if (btn) {
+      btn.innerHTML = on ? '<b aria-hidden="true">»</b>' : '<b aria-hidden="true">«</b><span>Collapse menu</span>';
+      btn.setAttribute('aria-label', on ? 'Expand menu' : 'Collapse menu');
+      btn.setAttribute('aria-expanded', on ? 'false' : 'true');
+      btn.title = on ? 'Expand menu' : '';
+    }
+    if (instant) {
+      void rail.offsetWidth;                // apply the width before re-enabling
+      rail.style.transition = '';
+      document.body.style.transition = '';
+    }
   }
 
   // ------------------------------------------------------------
