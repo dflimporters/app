@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Head of Sales — DFL Staff Portal</title>
+
+<!-- Hide until the guard AND the approver check below both pass. Must be the
+     FIRST style rule so nobody sees a flash of the tab bar. -->
+<style>body { visibility: hidden; }</style>
+
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<meta name="theme-color" content="#0f2044">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0;
+    --navy:#0f2044;
+    --text:#1e293b; --text-muted:#64748b;
+    --accent:#2563eb; --red:#dc2626;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  .main-panel { display:flex; flex-direction:column; height:100vh; }
+  @media (max-width: 767px) { .main-panel { height: calc(100vh - 52px); } }
+
+  .tabs-bar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 24px; display:flex; align-items:stretch; flex-shrink:0;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .tabs-bar::-webkit-scrollbar { display:none; }
+  .tab-btn {
+    display:flex; align-items:center; gap:8px;
+    padding:14px 18px; font-size:13px; font-weight:500;
+    color:var(--text-muted); border:none; background:none;
+    cursor:pointer; border-bottom:2px solid transparent;
+    margin-bottom:-1px; transition:color .15s, border-color .15s;
+    font-family:'Inter',sans-serif; white-space:nowrap;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  .tab-btn:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .badge {
+    min-width:18px; height:18px; padding:0 5px; border-radius:9px;
+    background:var(--red); color:#fff; font-size:11px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .badge[hidden] { display:none; }
+  .spacer { flex:1; min-width:12px; }
+  .reload-btn {
+    align-self:center; border:1px solid var(--border); background:var(--surface);
+    color:var(--text-muted); font:500 12px 'Inter',sans-serif; border-radius:6px;
+    padding:6px 10px; cursor:pointer; white-space:nowrap;
+  }
+  .reload-btn:hover { color:var(--text); border-color:#cbd5e1; }
+
+  .panels { flex:1; overflow:hidden; position:relative; }
+  .panel { display:none; width:100%; height:100%; }
+  .panel.active { display:block; }
+  .panel iframe { width:100%; height:100%; border:none; display:block; }
+
+  @media (max-width: 640px) { .tabs-bar { padding:0 8px; } .tab-btn { padding:12px 12px; } }
+</style>
+</head>
+<body>
+
+<!-- Scott's one-screen view of the dashboards he uses every week.
+     WHO CAN OPEN IT: routes.js admits admins only, and the script below then
+     requires is_price_approver() — public.price_approvers holds Scott alone, so
+     other admins (Travis) are sent to their home page. This mirrors the gate on
+     /admin/price-approvals.html. It controls this page only: the dashboards in
+     the tabs are still their own pages with their own access rules.
+
+     Tabs load the first time they're opened, not all at once, and stay loaded
+     after that so switching back is instant. Each tab has its own link
+     (#pricelog, #manager, #keyaccounts, #category, #product). -->
+
+<div class="main-panel">
+  <div class="tabs-bar" role="tablist" id="tabs"></div>
+  <div class="panels" id="panels"></div>
+</div>
+
+<script>
+  window.DFL_PAGE_TITLE = 'Head of Sales';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+(function () {
+  // `trim` is CSS added to that dashboard ONLY when it's shown here: it hides
+  // the dashboard's own DFL logo (the portal rail already has one) and lets it
+  // use the full width. Titles and controls (Refresh, Export, period) stay.
+  // Opened anywhere else, the dashboards look exactly as before.
+  const TABS = [
+    { key:'product',     label:'Product Intelligence', src:'/dfl_product_price_dashboard.html',
+      trim:'.wrap{max-width:none}' },
+    { key:'manager',     label:'Manager Dashboard',    src:'/management/rep-performance.html',
+      // Its page has a 24–32px border all round; drop it so the header bars run
+      // edge to edge like the others, and keep a gap around the table card.
+      trim:'body{padding:0 0 80px}.wrap{max-width:none}.cat-brand>img{display:none!important}.table-wrap{margin:20px 24px 0}' },
+    { key:'keyaccounts', label:'Chain & Key Accounts', src:'/management/key-account-management.html',
+      trim:'.topbar-logo{display:none}' },
+    { key:'category',    label:'Category Intelligence',src:'/management/category-intel.html',
+      trim:'.tb-logo-img,.tb-div{display:none}.page{max-width:none}' },
+    { key:'leave',       label:'Leave & Coverage',     src:'/management/leave-tracker.html',
+      trim:'.eyebrow{display:none}.header-inner,.container{max-width:none}' },
+    // Log mode of the request form: entries save as approved by Scott. CM
+    // requests are still decided on /admin/price-approvals.html (side menu);
+    // the badge counts the ones waiting there.
+    { key:'pricelog',    label:'Price Change Log',     src:'/price-requests.html?log=1', badge:true }
+  ];
+  function trimFrame(f, css) {
+    try {
+      const d = f.contentDocument;
+      if (!d || !d.head || d.getElementById('hos-trim')) return;
+      const s = d.createElement('style'); s.id = 'hos-trim'; s.textContent = css;
+      d.head.appendChild(s);
+    } catch (e) { /* not same-origin — leave it as is */ }
+  }
+  const LAST_KEY = 'dfl_hos_last_tab';
+  const $tabs = document.getElementById('tabs');
+  const $panels = document.getElementById('panels');
+  let current = null, started = false;
+
+  function build() {
+    TABS.forEach(t => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'tab-btn'; b.id = 'tab-' + t.key;
+      b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'panel-' + t.key);
+      b.textContent = t.label;
+      if (t.badge) {
+        const s = document.createElement('span');
+        s.className = 'badge'; s.id = 'badge-' + t.key; s.hidden = true;
+        b.appendChild(s);
+      }
+      // Show directly, then update the link without firing hashchange — going
+      // through the hash alone skipped tabs when clicked in quick succession.
+      // Re-count waiting requests on every tab switch, so new entries and
+      // decisions show on the badge straight away.
+      b.addEventListener('click', () => { show(t.key); history.replaceState(null, '', '#' + t.key); refreshBadge(); });
+      $tabs.appendChild(b);
+
+      const p = document.createElement('div');
+      p.className = 'panel'; p.id = 'panel-' + t.key; p.setAttribute('role', 'tabpanel');
+      $panels.appendChild(p);
+    });
+
+    const sp = document.createElement('div'); sp.className = 'spacer'; $tabs.appendChild(sp);
+    const r = document.createElement('button');
+    r.type = 'button'; r.className = 'reload-btn'; r.textContent = '↻ Reload tab';
+    r.title = 'Reload the dashboard in this tab';
+    r.addEventListener('click', () => {
+      const f = current && document.querySelector('#panel-' + current + ' iframe');
+      if (f) f.src = f.src;
+      if (current === 'pricelog') refreshBadge();
+    });
+    $tabs.appendChild(r);
+  }
+
+  function show(key) {
+    const t = TABS.find(x => x.key === key) || TABS[0];
+    current = t.key;
+    TABS.forEach(x => {
+      const on = x.key === t.key;
+      document.getElementById('tab-' + x.key).classList.toggle('active', on);
+      document.getElementById('tab-' + x.key).setAttribute('aria-selected', on);
+      document.getElementById('panel-' + x.key).classList.toggle('active', on);
+    });
+    const panel = document.getElementById('panel-' + t.key);
+    if (!panel.querySelector('iframe')) {           // first visit: load it now
+      const f = document.createElement('iframe');
+      f.src = t.src; f.title = t.label;
+      // On every load (including "Reload tab"). DOMContentLoaded would be
+      // earlier, but 'load' is the only event the parent can rely on.
+      if (t.trim) f.addEventListener('load', () => trimFrame(f, t.trim));
+      panel.appendChild(f);
+    }
+    // Keep the active tab visible on narrow screens. Scroll only the tab bar —
+    // scrollIntoView() would also scroll the page and hide the bar.
+    const btn = document.getElementById('tab-' + t.key);
+    if (btn.offsetLeft < $tabs.scrollLeft) $tabs.scrollLeft = btn.offsetLeft;
+    else if (btn.offsetLeft + btn.offsetWidth > $tabs.scrollLeft + $tabs.clientWidth)
+      $tabs.scrollLeft = btn.offsetLeft + btn.offsetWidth - $tabs.clientWidth;
+    try { localStorage.setItem(LAST_KEY, t.key); } catch (e) {}
+  }
+
+  // Count of price requests still waiting for a decision.
+  async function refreshBadge() {
+    const el = document.getElementById('badge-pricelog');
+    try {
+      const { data, error } = await sb.from('price_change_requests').select('id').eq('status', 'pending');
+      if (error) throw error;
+      const n = (data || []).length;
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.hidden = n === 0;
+      el.title = n + ' price request' + (n === 1 ? '' : 's') + ' waiting in Price Approvals';
+    } catch (e) { el.hidden = true; }
+  }
+
+  async function init() {
+    if (started) return; started = true;
+
+    // Approver-only, same check as /admin/price-approvals.html. Anyone else
+    // (including other admins) goes to their normal home page.
+    const { data: ok, error } = await sb.rpc('is_price_approver');
+    if (error || !ok) {
+      document.body.style.visibility = 'hidden';
+      location.replace(dflHome(window.DFL_PROFILE || {}));
+      return;
+    }
+
+    build();
+    let start = location.hash.slice(1);
+    if (!TABS.some(t => t.key === start)) {
+      try { start = localStorage.getItem(LAST_KEY) || ''; } catch (e) { start = ''; }
+    }
+    show(start);
+    window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+    document.body.style.visibility = 'visible';
+
+    refreshBadge();
+    setInterval(refreshBadge, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshBadge(); });
+  }
+
+  // The guard reveals the body as soon as the role check passes; keep it
+  // hidden until the approver check above has also passed.
+  document.addEventListener('dfl-auth-ready', () => { document.body.style.visibility = 'hidden'; init(); });
+  if (window.DFL_PROFILE) { document.body.style.visibility = 'hidden'; init(); }
+})();
+</script>
+
+</body>
+</html>

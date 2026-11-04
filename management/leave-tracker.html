@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DFL Leave & Coverage Tracker</title>
+<!-- Hide until the portal guard confirms a signed-in manager/admin. -->
+<style>body { visibility: hidden; }</style>
+<!--
+  Leave & Coverage Tracker — Scott's manager view of sales-team leave (reps,
+  CMs, KAMs): log/edit leave, acknowledge "Going on Leave" checklists that reps
+  submit from /leave-request.html, manage the staff list.
+  Moved into the portal 2026-11-03 from a standalone file that used the anon
+  key; the leave_tracker_* tables now answer signed-in users only, so every
+  request carries the user's session token. RLS: read = can_view_leave_tracker(),
+  write = is_manager() (admin/manager) or the staff member's own row.
+-->
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0D1B3E;
+    --gold: #F5A623;
+    --gold-text: #8A5A00;
+    --blue: #326BD3;
+    --red: #D64545;
+    --red-tint: #FDECEC;
+    --green: #2E9E5B;
+    --grey: #6B7280;
+    --grey-light: #B0B7C3;
+    --bg: #F3F5FA;
+    --card: #FFFFFF;
+    --border: #E3E7EF;
+    --text: #151E33;
+    --text-muted: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); font-family: 'Open Sans', sans-serif; color: var(--text); }
+  select, input, textarea, button { font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue) !important; }
+  *:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .header { background: var(--navy); padding: 22px 24px; color: #fff; }
+  .header-inner { max-width: 1080px; margin: 0 auto; }
+  .eyebrow { font-family: 'Montserrat', sans-serif; font-size: 12px; letter-spacing: 1.5px; color: var(--gold); font-weight: 700; }
+  .title { font-family: 'Montserrat', sans-serif; font-size: 24px; font-weight: 800; margin-top: 2px; }
+
+  .container { max-width: 1080px; margin: 0 auto; padding: 20px 24px 60px; }
+
+  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; flex: 1 1 160px; min-width: 150px; text-align: left; cursor: pointer; font: inherit; -webkit-appearance: none; appearance: none; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+  .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(13,27,62,0.10); }
+  .stat-card.stat-active { box-shadow: 0 0 0 2px var(--navy) inset; }
+  .stat-card.tone-red.stat-active { box-shadow: 0 0 0 2px var(--red) inset; }
+  .stat-card.tone-blue.stat-active { box-shadow: 0 0 0 2px var(--blue) inset; }
+  .stat-card.tone-gold.stat-active { box-shadow: 0 0 0 2px var(--gold) inset; }
+  .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .stat-value { font-family: 'Montserrat', sans-serif; font-size: 30px; font-weight: 800; }
+  .tone-navy { border-left: 4px solid var(--navy); } .tone-navy .stat-value { color: var(--navy); }
+  .tone-blue { border-left: 4px solid var(--blue); } .tone-blue .stat-value { color: var(--blue); }
+  .tone-gold { border-left: 4px solid var(--gold); } .tone-gold .stat-value { color: var(--gold); }
+  .tone-red { border-left: 4px solid var(--red); } .tone-red .stat-value { color: var(--red); }
+  .pulse { animation: dflPulse 2.4s ease-in-out infinite; }
+  @keyframes dflPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(214,69,69,0.35); } 50% { box-shadow: 0 0 0 6px rgba(214,69,69,0); } }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+  .quick-filter-banner { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; margin-bottom: 14px; font-size: 13px; color: var(--text-muted); }
+  .quick-filter-banner strong { color: var(--navy); }
+  .quick-filter-banner button { margin-left: auto; background: none; border: none; color: var(--blue); font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: 'Montserrat', sans-serif; }
+
+  .controls-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  .dfl-input, .dfl-select { font-size: 14px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text); outline: none; }
+  .search-input { flex: 1 1 180px; min-width: 160px; }
+  .due-soon-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+  .due-soon-input { width: 52px; padding: 8px; text-align: center; }
+  .spacer { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .view-toggle-group { display: flex; gap: 4px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+  .view-toggle-btn { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
+  .view-toggle-btn.active { background: var(--navy); color: #fff; }
+
+  .calendar-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .calendar-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 18px; color: var(--navy); min-width: 170px; }
+  .calendar-nav-btn { background: #fff; border: 1px solid var(--border); border-radius: 7px; width: 32px; height: 32px; cursor: pointer; font-size: 14px; color: var(--navy); }
+  .calendar-nav-btn:hover { background: var(--bg); }
+  .calendar-today-btn { font-family: 'Montserrat', sans-serif; font-size: 12.5px; font-weight: 700; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--border); background: #fff; color: var(--navy); cursor: pointer; }
+
+  .calendar-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; font-size: 12px; color: var(--text-muted); align-items: center; }
+  .cal-legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .calendar-weekday { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; text-align: center; padding-bottom: 4px; letter-spacing: 0.4px; }
+  .calendar-cell { background: var(--card); border: 1px solid var(--border); border-radius: 8px; min-height: 88px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+  .calendar-cell:hover { border-color: var(--blue); }
+  .calendar-cell.out-of-month { background: #F8F9FB; opacity: 0.55; }
+  .calendar-cell.today { border: 2px solid var(--blue); }
+  .cal-date-num { font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: var(--text); }
+  .cal-chip { font-size: 10.5px; padding: 2px 5px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .cal-chip-more { font-size: 10px; color: var(--text-muted); padding-left: 4px; }
+
+  .day-modal-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .day-modal-item:last-child { border-bottom: none; }
+
+  .btn { font-family: 'Montserrat', sans-serif; font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; white-space: nowrap; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--navy); border: 1px solid var(--border); }
+  .btn:hover { filter: brightness(1.06); }
+
+  .group { margin-bottom: 22px; }
+  .group-header { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid; }
+  .collapse-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; padding: 0; margin-bottom: 8px; }
+
+  .leave-card { display: flex; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .leave-card.completed { opacity: 0.75; }
+  .leave-card.is-request { background: var(--red-tint); border: 1px solid var(--red); }
+  .new-request-badge { font-family: 'Montserrat', sans-serif; font-size: 10.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #fff; background: var(--red); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .lc-main { min-width: 150px; flex: 1 1 180px; }
+  .lc-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .lc-name { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 15px; }
+  .lc-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; }
+  .lc-covered-by { font-size: 12px; color: var(--green); margin-top: 2px; }
+  .lc-notes { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-style: italic; }
+  .role-pill { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+  .status-pill { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12.5px; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .needs-cover-pill { font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; color: var(--red); background: var(--red-tint); padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+  .covered-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 13px; }
+  .covered-toggle input { width: 16px; height: 16px; accent-color: var(--green); }
+  .lc-actions { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .icon-btn { background: #fff; border: 1px solid var(--border); border-radius: 7px; width: 32px; height: 32px; cursor: pointer; font-size: 14px; }
+  .icon-btn:hover { background: var(--bg); }
+  .confirm-text { font-size: 12.5px; color: var(--red); }
+
+  .empty-state { text-align: center; padding: 60px 20px; }
+  .empty-title { font-family: 'Montserrat', sans-serif; font-size: 20px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .empty-sub { color: var(--text-muted); margin-bottom: 20px; }
+  .no-match { color: var(--text-muted); text-align: center; padding: 40px 0; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(13,27,62,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(13,27,62,0.35); }
+  .modal.wide { max-width: 560px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 16px; color: var(--navy); }
+  .modal-close { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--text-muted); }
+  .modal-form { padding: 16px 20px 20px; display: flex; flex-direction: column; }
+  .form-label { font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin: 12px 0 5px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row > div { flex: 1; }
+  .form-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+  .form-error { color: var(--red); font-size: 13px; margin-top: 8px; }
+  .tab-row { display: flex; gap: 8px; padding: 12px 20px 0; }
+  .tab-btn { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); cursor: pointer; }
+  .tab-btn.active { border-color: var(--blue); background: var(--blue); color: #fff; }
+
+  .manage-body { padding: 14px 20px; max-height: 55vh; overflow-y: auto; }
+  .manage-group-title { font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .manage-row { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: #fff; margin-bottom: 6px; cursor: pointer; font-size: 14px; color: var(--text); }
+  .manage-row:hover { border-color: var(--blue); }
+  .manage-row .arrow { color: var(--text-muted); font-size: 12.5px; }
+  .manage-footer { padding: 12px 20px 20px; border-top: 1px solid var(--border); }
+
+  .cal-dot-row { display: flex; flex-wrap: wrap; gap: 3px; }
+  .cal-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  /* ---------------------------- mobile optimization ---------------------------- */
+  @media (max-width: 640px) {
+    .header { padding: 16px 16px; }
+    .title { font-size: 20px; }
+    .container { padding: 14px 12px 40px; }
+
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card { padding: 12px 12px; min-width: 0; }
+    .stat-value { font-size: 24px; }
+    .stat-label { font-size: 10.5px; }
+
+    .controls-row { flex-direction: column; align-items: stretch; }
+    .controls-row > .dfl-input, .controls-row > .dfl-select, .controls-row > .due-soon-label { width: 100%; }
+    .search-input { flex: none; }
+    .due-soon-label { justify-content: space-between; }
+    .view-toggle-group { width: 100%; }
+    .view-toggle-btn { flex: 1; }
+    .spacer { margin-left: 0; width: 100%; }
+    .spacer .btn { flex: 1; }
+
+    .leave-card { padding: 10px 12px; gap: 8px; }
+    .lc-name { font-size: 14px; }
+    .lc-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+
+    .calendar-nav { flex-wrap: wrap; }
+    .calendar-title { min-width: 0; font-size: 15px; flex: 1 1 auto; }
+    .calendar-legend { display: none; }
+    .calendar-grid { gap: 3px; }
+    .calendar-cell { min-height: 46px; padding: 4px; border-radius: 6px; }
+    .cal-date-num { font-size: 11px; }
+    .calendar-weekday { font-size: 10px; padding-bottom: 2px; }
+
+    .overlay { padding: 0; align-items: flex-end; }
+    .modal, .modal.wide { max-width: 100%; width: 100%; border-radius: 16px 16px 0 0; max-height: 85vh; }
+
+    .day-modal-item { padding: 10px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="eyebrow">DFL IMPORTERS</div>
+    <div class="title">Leave &amp; Coverage Tracker</div>
+  </div>
+</div>
+
+<div class="container" id="main-root"></div>
+<div id="modal-root"></div>
+
+<script>window.DFL_PAGE_TITLE = 'Leave & Coverage';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>
+// Wrapped so nothing here collides with the shared scripts' globals
+// (supabase-client.js already declares SUPABASE_URL).
+(function () {
+/* ---------------------------- constants ---------------------------- */
+const ROLES = ["Field Rep", "Category Manager", "Key Account Manager", "Sales Support", "Other"];
+const TERRITORIES = ["South West", "North West", "South Central", "South East", "North East", "Hospitality"];
+const LEAVE_TYPES = ["Annual", "Sick", "Personal", "Maternity/Paternity", "Compassionate", "Other"];
+
+const ROLE_PILL = {
+  "Field Rep": { bg: "#326BD3", fg: "#FFFFFF" },
+  "Category Manager": { bg: "#F5A623", fg: "#0D1B3E" },
+  "Key Account Manager": { bg: "#0D1B3E", fg: "#FFFFFF" },
+  "Sales Support": { bg: "#6B7280", fg: "#FFFFFF" },
+  "Other": { bg: "#B0B7C3", fg: "#0D1B3E" },
+};
+
+const STATUS_META = {
+  "active": { label: "On Leave Now", color: "#0D1B3E", tint: "#E9ECF6" },
+  "due-soon": { label: "Due Soon", color: "#8A5A00", tint: "#FFF6E4" },
+  "scheduled": { label: "Scheduled", color: "#326BD3", tint: "#EAF1FD" },
+  "completed": { label: "Completed", color: "#6B7280", tint: "#F1F2F5" },
+};
+
+// Project URL and publishable key come from /shared/supabase-client.js.
+const SUPABASE_KEY = SUPABASE_PUBLISHABLE_KEY;
+const TABLES = { staff: "leave_tracker_staff", records: "leave_tracker_records", settings: "leave_tracker_settings" };
+
+/* ---------------------------- state ---------------------------- */
+let state = {
+  staff: [],
+  records: [],
+  merchandisers: [],   // for repNameByCode only — this tool doesn't manage them, just resolves names
+  settings: { dueSoonDays: 7 },
+  filters: { search: "", role: "All", territory: "All" },
+  showCompleted: false,
+  confirmDeleteRecordId: null,
+  viewMode: "list",
+  quickFilter: null, // null | "active" | "due-soon" | "uncovered"
+  calendarMonth: (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })(),
+};
+
+/* ---------------------------- helpers ---------------------------- */
+function esc(str) {
+  const d = document.createElement("div");
+  d.textContent = str == null ? "" : String(str);
+  return d.innerHTML;
+}
+function parseDate(str) { return new Date(str + "T00:00:00"); }
+function todayDate() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+function daysBetween(a, b) { return Math.round((b.getTime() - a.getTime()) / 86400000); }
+function formatShort(dateStr) { return parseDate(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+
+function getStatus(record, today, dueSoonDays) {
+  const start = parseDate(record.startDate);
+  const end = parseDate(record.endDate);
+  if (end < today) return "completed";
+  if (start <= today && today <= end) return "active";
+  const diffToStart = daysBetween(today, start);
+  if (diffToStart <= dueSoonDays) return "due-soon";
+  return "scheduled";
+}
+
+function pillLabel(status, record, today) {
+  if (status === "active") {
+    const diff = daysBetween(today, parseDate(record.endDate));
+    if (diff === 0) return "Last day";
+    if (diff === 1) return "1 day left";
+    return diff + " days left";
+  }
+  if (status === "due-soon") {
+    const diff = daysBetween(today, parseDate(record.startDate));
+    if (diff === 0) return "Starts today";
+    if (diff === 1) return "Starts tomorrow";
+    return "Starts in " + diff + "d";
+  }
+  if (status === "scheduled") return "From " + formatShort(record.startDate);
+  return "Ended " + formatShort(record.endDate);
+}
+
+/* ---------------------------- Supabase REST layer ---------------------------- */
+async function sbRequest(path, options) {
+  options = options || {};
+  // The signed-in user's token, not the anon key: RLS on leave_tracker_*
+  // only answers authenticated staff.
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error("Not signed in");
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    method: options.method || "GET",
+    headers: Object.assign({
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + session.access_token,
+      "Content-Type": "application/json",
+    }, options.headers || {}),
+    body: options.body,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error("Request failed (" + res.status + "): " + text);
+  }
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+function sbSelect(table) { return sbRequest(table + "?select=*", { method: "GET" }); }
+function sbInsert(table, rows) {
+  return sbRequest(table, { method: "POST", headers: { "Prefer": "return=representation" }, body: JSON.stringify(rows) });
+}
+async function sbUpdate(table, id, patch) {
+  const result = await sbRequest(table + "?id=eq." + encodeURIComponent(id), {
+    method: "PATCH", headers: { "Prefer": "return=representation" }, body: JSON.stringify(patch),
+  });
+  return result && result[0];
+}
+function sbDelete(table, id) {
+  return sbRequest(table + "?id=eq." + encodeURIComponent(id), { method: "DELETE" });
+}
+
+// salesperson_id lets us resolve a covering_salesperson_id code (e.g. "ASM")
+// back to a name for the request detail view below — added by the same
+// migration that added checklist_submitted_at etc.
+function staffFromApi(row) { return { id: row.id, name: row.name, role: row.role, territory: row.territory || "", salesperson_id: row.salesperson_id || null }; }
+// covering_salesperson_id values are prefixed ("staff:<leave_tracker_staff.id>"
+// or "merch:<merchandisers.id>") since the covering-person picker in the
+// rep-facing checklist page draws from two tables with different id types.
+// Falls back to matching a bare salesperson_id for older test data written
+// before that prefixing existed.
+function repNameByCode(code) {
+  if (!code) return "—";
+  if (code.startsWith("staff:")) {
+    const s = state.staff.find(x => x.id === code.slice(6));
+    return s ? s.name : code;
+  }
+  if (code.startsWith("merch:")) {
+    const m = state.merchandisers.find(x => String(x.id) === code.slice(6));
+    return m ? m.name : code;
+  }
+  const s = state.staff.find(x => x.salesperson_id === code);
+  return s ? s.name : code;
+}
+
+function recordFromApi(row) {
+  return {
+    id: row.id, staffId: row.staff_id, startDate: row.start_date, endDate: row.end_date,
+    leaveType: row.leave_type, covered: row.covered, coveredBy: row.covered_by || "", notes: row.notes || "",
+    // Set only by the rep-facing "Going on Leave" self-service checklist (a
+    // separate page, not this tool) — its presence is what marks a record as
+    // an incoming request rather than something logged here directly.
+    checklistSubmittedAt: row.checklist_submitted_at || null,
+    managerAcknowledgedAt: row.manager_acknowledged_at || null,
+    // Full checklist detail — only present on rep-submitted requests, shown
+    // in the "View details" modal rather than summarized on the card itself.
+    discussedStatus: row.discussed_status || null,
+    keyAccountsNotifyBy: row.key_accounts_notify_by || null,
+    merchandiserBriefBy: row.merchandiser_brief_by || null,
+    keyStores: Array.isArray(row.key_stores) ? row.key_stores : null,
+    handoverNotes: row.handover_notes || null,
+    reachableDuringLeave: row.reachable_during_leave || null,
+  };
+}
+// A request is "new" until a manager acknowledges it here — independent of
+// covered/coveredBy, which the rep's submission already fills in.
+function isNewRequest(record) { return !!record.checklistSubmittedAt && !record.managerAcknowledgedAt; }
+function settingsFromApi(row) { return { dueSoonDays: row.due_soon_days }; }
+
+let toastTimer = null;
+function showToast(message, isError) {
+  let toast = document.getElementById("dfl-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "dfl-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);"
+    + "background:" + (isError ? "#D64545" : "#0D1B3E") + ";color:#fff;padding:10px 18px;"
+    + "border-radius:8px;font-family:'Open Sans',sans-serif;font-size:13px;z-index:2000;"
+    + "box-shadow:0 8px 24px rgba(0,0,0,0.25);";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.remove(); }, isError ? 5000 : 2200);
+}
+
+/* ---------------------------- boot / load ---------------------------- */
+async function init() {
+  const root = document.getElementById("main-root");
+  root.innerHTML = `<div style="padding:60px 20px;text-align:center;color:var(--text-muted);">Loading…</div>`;
+  try {
+    const [staffRows, recordRows, settingsRows, merchRows] = await Promise.all([
+      sbSelect(TABLES.staff), sbSelect(TABLES.records), sbSelect(TABLES.settings),
+      sbRequest("merchandisers?active=eq.true&select=id,name", { method: "GET" }),
+    ]);
+    state.staff = (staffRows || []).map(staffFromApi);
+    state.records = (recordRows || []).map(recordFromApi);
+    state.settings = settingsRows && settingsRows[0] ? settingsFromApi(settingsRows[0]) : { dueSoonDays: 7 };
+    state.merchandisers = merchRows || [];
+    renderMain();
+  } catch (err) {
+    console.error(err);
+    root.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title" style="color:var(--red);">Couldn't connect</div>
+        <div class="empty-sub">Check your internet connection, then try again.</div>
+        <button class="btn btn-primary" id="retry-btn">Retry</button>
+      </div>`;
+    document.getElementById("retry-btn").addEventListener("click", init);
+  }
+}
+
+/* ---------------------------- derived data ---------------------------- */
+function getStaffById(id) { return state.staff.find(s => s.id === id); }
+
+function getFilteredStaffIds() {
+  const set = new Set();
+  state.staff.forEach(s => {
+    if (state.filters.role !== "All" && s.role !== state.filters.role) return;
+    if (state.filters.territory !== "All" && s.territory !== state.filters.territory) return;
+    if (state.filters.search.trim() && !s.name.toLowerCase().includes(state.filters.search.trim().toLowerCase())) return;
+    set.add(s.id);
+  });
+  return set;
+}
+
+function getEnriched() {
+  const today = todayDate();
+  const ids = getFilteredStaffIds();
+  return state.records
+    .filter(r => ids.has(r.staffId))
+    .map(r => ({ record: r, staffMember: getStaffById(r.staffId), status: getStatus(r, today, state.settings.dueSoonDays) }));
+}
+
+function matchesQuickFilter(e) {
+  if (!state.quickFilter) return true;
+  if (state.quickFilter === "active") return e.status === "active";
+  if (state.quickFilter === "due-soon") return e.status === "due-soon";
+  if (state.quickFilter === "uncovered") return (e.status === "active" || e.status === "due-soon") && !e.record.covered;
+  if (state.quickFilter === "requests") return isNewRequest(e.record);
+  return true;
+}
+
+function getGroups(applyQuickFilter) {
+  let enriched = getEnriched();
+  if (applyQuickFilter) enriched = enriched.filter(matchesQuickFilter);
+  const g = { "requests": [], "active": [], "due-soon": [], "scheduled": [], "completed": [] };
+  // New requests get their own inbox-style group regardless of date status —
+  // a manager needs to see "someone just submitted a plan" before it gets
+  // lost among everything already scheduled. Once acknowledged, a record
+  // falls through to its normal date-based group like anything else.
+  enriched.forEach(e => (isNewRequest(e.record) ? g["requests"] : g[e.status]).push(e));
+  const byStart = (a, b) => a.record.startDate.localeCompare(b.record.startDate);
+  g["requests"].sort((a, b) => (b.record.checklistSubmittedAt || "").localeCompare(a.record.checklistSubmittedAt || ""));
+  g["active"].sort(byStart);
+  g["due-soon"].sort(byStart);
+  g["scheduled"].sort(byStart);
+  g["completed"].sort((a, b) => b.record.endDate.localeCompare(a.record.endDate));
+  return g;
+}
+
+/* ---------------------------- rendering ---------------------------- */
+function renderMain() {
+  const root = document.getElementById("main-root");
+  if (state.staff.length === 0) {
+    root.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title">Add your team to get started</div>
+        <div class="empty-sub">Add reps, category managers, KAMs and support staff — you can add several at once.</div>
+        <button class="btn btn-primary" id="empty-add-staff-btn">+ Add staff</button>
+      </div>`;
+    document.getElementById("empty-add-staff-btn").addEventListener("click", () => openStaffModal(null));
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="stats-row" id="stats-row"></div>
+    <div class="controls-row" id="controls-row"></div>
+    <div id="view-root"></div>
+  `;
+  renderControls();
+  renderStats();
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  if (state.viewMode === "calendar") renderCalendar();
+  else renderList();
+}
+
+function renderStats() {
+  const groups = getGroups();
+  const enriched = getEnriched();
+  const uncovered = enriched.filter(e => (e.status === "active" || e.status === "due-soon") && !e.record.covered).length;
+  const stats = [
+    { key: "all", label: "Total Staff", value: state.staff.length, tone: "navy" },
+    { key: "requests", label: "New Requests", value: groups["requests"].length, tone: "red" },
+    { key: "active", label: "On Leave Today", value: groups["active"].length, tone: "blue" },
+    { key: "due-soon", label: "Due Soon (" + state.settings.dueSoonDays + "d)", value: groups["due-soon"].length, tone: "gold" },
+    { key: "uncovered", label: "Uncovered Gaps", value: uncovered, tone: "red" },
+  ];
+  document.getElementById("stats-row").innerHTML = stats.map(s => {
+    const isActive = s.key === "all" ? state.quickFilter === null : state.quickFilter === s.key;
+    return `
+    <button class="stat-card tone-${s.tone} ${isActive ? "stat-active" : ""} ${s.tone === "red" && s.value > 0 ? "pulse" : ""}" data-quick-filter="${s.key}">
+      <div class="stat-label">${esc(s.label)}</div>
+      <div class="stat-value">${s.value}</div>
+    </button>
+  `;
+  }).join("");
+
+  document.querySelectorAll('[data-quick-filter]').forEach(el => {
+    el.addEventListener("click", () => {
+      const key = el.getAttribute("data-quick-filter");
+      if (key === "all") state.quickFilter = null;
+      else state.quickFilter = state.quickFilter === key ? null : key;
+      renderStats();
+      renderCurrentView();
+    });
+  });
+}
+
+function renderControls() {
+  document.getElementById("controls-row").innerHTML = `
+    <input class="dfl-input search-input" id="search-input" placeholder="Search by name…" value="${esc(state.filters.search)}" />
+    <select class="dfl-select" id="role-filter">
+      <option value="All">All roles</option>
+      ${ROLES.map(r => `<option value="${esc(r)}" ${state.filters.role === r ? "selected" : ""}>${esc(r)}</option>`).join("")}
+    </select>
+    <select class="dfl-select" id="territory-filter">
+      <option value="All">All territories</option>
+      ${TERRITORIES.map(t => `<option value="${esc(t)}" ${state.filters.territory === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+    </select>
+    <label class="due-soon-label">
+      Flag due within
+      <input type="number" min="1" max="60" class="dfl-input due-soon-input" id="due-soon-input" value="${state.settings.dueSoonDays}" />
+      days
+    </label>
+    <div class="view-toggle-group">
+      <button class="view-toggle-btn ${state.viewMode === "list" ? "active" : ""}" id="view-list-btn">List</button>
+      <button class="view-toggle-btn ${state.viewMode === "calendar" ? "active" : ""}" id="view-calendar-btn">Calendar</button>
+    </div>
+    <div class="spacer">
+      <button class="btn btn-ghost" id="manage-staff-btn">Manage Staff</button>
+      <button class="btn btn-primary" id="log-leave-btn">+ Log Leave</button>
+    </div>
+  `;
+  document.getElementById("view-list-btn").addEventListener("click", () => { state.viewMode = "list"; renderControls(); renderCurrentView(); });
+  document.getElementById("view-calendar-btn").addEventListener("click", () => { state.viewMode = "calendar"; renderControls(); renderCurrentView(); });
+  document.getElementById("search-input").addEventListener("input", (e) => {
+    state.filters.search = e.target.value;
+    renderStats(); renderCurrentView();
+  });
+  document.getElementById("role-filter").addEventListener("change", (e) => {
+    state.filters.role = e.target.value;
+    renderStats(); renderCurrentView();
+  });
+  document.getElementById("territory-filter").addEventListener("change", (e) => {
+    state.filters.territory = e.target.value;
+    renderStats(); renderCurrentView();
+  });
+  document.getElementById("due-soon-input").addEventListener("change", async (e) => {
+    const v = Math.max(1, Number(e.target.value) || 1);
+    const prev = state.settings.dueSoonDays;
+    state.settings.dueSoonDays = v;
+    renderStats(); renderCurrentView();
+    try {
+      await sbUpdate(TABLES.settings, "default", { due_soon_days: v });
+    } catch (err) {
+      state.settings.dueSoonDays = prev;
+      renderStats(); renderCurrentView();
+      showToast("Could not save — check your connection.", true);
+    }
+  });
+  document.getElementById("manage-staff-btn").addEventListener("click", openManageStaff);
+  document.getElementById("log-leave-btn").addEventListener("click", () => openLeaveModal(null));
+}
+
+function leaveCardHTML(e) {
+  const { record, staffMember, status } = e;
+  const meta = STATUS_META[status];
+  const needsCover = (status === "active" || status === "due-soon") && !record.covered;
+  const railColor = status === "completed" ? "#B0B7C3" : needsCover ? "#D64545" : meta.color;
+  const rolePill = staffMember ? ROLE_PILL[staffMember.role] || ROLE_PILL["Other"] : null;
+  const today = todayDate();
+
+  return `
+    <div class="leave-card ${status === "completed" ? "completed" : ""}" style="border-left: 4px solid ${railColor};">
+      <div class="lc-main">
+        <div class="lc-name-row">
+          <span class="lc-name">${esc(staffMember ? staffMember.name : "Unknown staff")}</span>
+          ${staffMember ? `<span class="role-pill" style="background:${rolePill.bg};color:${rolePill.fg};">${esc(staffMember.role)}</span>` : ""}
+        </div>
+        <div class="lc-meta">
+          ${formatShort(record.startDate)} – ${formatShort(record.endDate)} · ${esc(record.leaveType)}
+          ${staffMember && staffMember.territory ? " · " + esc(staffMember.territory) : ""}
+        </div>
+        ${record.covered && record.coveredBy ? `<div class="lc-covered-by">Covered by ${esc(record.coveredBy)}</div>` : ""}
+        ${record.notes ? `<div class="lc-notes">${esc(record.notes)}</div>` : ""}
+      </div>
+
+      <span class="status-pill" style="color:${meta.color};background:${meta.tint};">${esc(pillLabel(status, record, today))}</span>
+
+      ${needsCover ? `<span class="needs-cover-pill">⚠ Needs cover</span>` : ""}
+
+      ${status !== "completed" ? `
+        <label class="covered-toggle">
+          <input type="checkbox" data-action="toggle-covered" data-id="${record.id}" ${record.covered ? "checked" : ""} />
+          Covered
+        </label>` : ""}
+
+      <div class="lc-actions">
+        ${record.checklistSubmittedAt ? `<button class="icon-btn" data-action="view-request-detail" data-id="${record.id}" title="View submitted checklist">👁</button>` : ""}
+        ${state.confirmDeleteRecordId === record.id ? `
+          <span class="confirm-text">Delete?</span>
+          <button class="btn btn-danger" data-action="confirm-delete-record" data-id="${record.id}">Yes</button>
+          <button class="btn btn-ghost" data-action="cancel-delete-record">No</button>
+        ` : `
+          <button class="icon-btn" data-action="edit-record" data-id="${record.id}" title="Edit">✎</button>
+          <button class="icon-btn" data-action="request-delete-record" data-id="${record.id}" title="Delete">🗑</button>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function requestCardHTML(e) {
+  const { record, staffMember } = e;
+  const rolePill = staffMember ? ROLE_PILL[staffMember.role] || ROLE_PILL["Other"] : null;
+  const submittedLabel = record.checklistSubmittedAt
+    ? new Date(record.checklistSubmittedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : "";
+  return `
+    <div class="leave-card is-request">
+      <div class="lc-main">
+        <div class="lc-name-row">
+          <span class="new-request-badge">🆕 New request</span>
+          <span class="lc-name">${esc(staffMember ? staffMember.name : "Unknown staff")}</span>
+          ${staffMember ? `<span class="role-pill" style="background:${rolePill.bg};color:${rolePill.fg};">${esc(staffMember.role)}</span>` : ""}
+        </div>
+        <div class="lc-meta">
+          ${formatShort(record.startDate)} – ${formatShort(record.endDate)} · ${esc(record.leaveType)}
+          ${staffMember && staffMember.territory ? " · " + esc(staffMember.territory) : ""}
+          ${submittedLabel ? " · Submitted " + esc(submittedLabel) : ""}
+        </div>
+        ${record.coveredBy ? `<div class="lc-covered-by">Covering: ${esc(record.coveredBy)}</div>` : ""}
+        ${record.notes ? `<div class="lc-notes">${esc(record.notes)}</div>` : ""}
+      </div>
+      <div class="lc-actions">
+        <button class="btn btn-ghost" data-action="view-request-detail" data-id="${record.id}">View details</button>
+        <button class="btn btn-primary" data-action="acknowledge-request" data-id="${record.id}">Acknowledge</button>
+      </div>
+    </div>
+  `;
+}
+
+const QUICK_FILTER_LABELS = { "active": "On Leave Now", "due-soon": "Due Soon", "uncovered": "Uncovered Gaps", "requests": "New Requests" };
+
+function renderList() {
+  const groups = getGroups(true);
+  const totalShown = groups["requests"].length + groups["active"].length + groups["due-soon"].length + groups["scheduled"].length + groups["completed"].length;
+  const listRoot = document.getElementById("view-root");
+  const filterBanner = state.quickFilter ? `
+    <div class="quick-filter-banner">
+      Showing: <strong>${esc(QUICK_FILTER_LABELS[state.quickFilter])}</strong>
+      <button id="clear-quick-filter">✕ Clear</button>
+    </div>
+  ` : "";
+
+  if (totalShown === 0) {
+    listRoot.innerHTML = filterBanner + `<div class="no-match">No leave matches your filters yet. Click <strong>+ Log Leave</strong> to add one.</div>`;
+    if (state.quickFilter) document.getElementById("clear-quick-filter").addEventListener("click", () => { state.quickFilter = null; renderStats(); renderCurrentView(); });
+    return;
+  }
+
+  let html = "";
+  if (groups["requests"].length > 0) {
+    html += `
+      <div class="group">
+        <div class="group-header" style="color:var(--red);border-color:var(--red);">🆕 New Requests · ${groups["requests"].length}</div>
+        ${groups["requests"].map(requestCardHTML).join("")}
+      </div>
+    `;
+  }
+  ["active", "due-soon", "scheduled"].forEach(key => {
+    if (groups[key].length > 0) {
+      const meta = STATUS_META[key];
+      html += `
+        <div class="group">
+          <div class="group-header" style="color:${meta.color};border-color:${meta.tint};">${esc(meta.label)} · ${groups[key].length}</div>
+          ${groups[key].map(leaveCardHTML).join("")}
+        </div>
+      `;
+    }
+  });
+
+  if (groups["completed"].length > 0) {
+    html += `
+      <div>
+        <button class="collapse-btn" id="toggle-completed">${state.showCompleted ? "▾" : "▸"} Completed · ${groups["completed"].length}</button>
+        ${state.showCompleted ? groups["completed"].map(leaveCardHTML).join("") : ""}
+      </div>
+    `;
+  }
+
+  listRoot.innerHTML = filterBanner + html;
+  if (state.quickFilter) document.getElementById("clear-quick-filter").addEventListener("click", () => { state.quickFilter = null; renderStats(); renderCurrentView(); });
+
+  const toggleBtn = document.getElementById("toggle-completed");
+  if (toggleBtn) toggleBtn.addEventListener("click", () => { state.showCompleted = !state.showCompleted; renderList(); });
+
+  listRoot.querySelectorAll('[data-action="view-request-detail"]').forEach(el => {
+    el.addEventListener("click", () => openRequestDetailModal(el.getAttribute("data-id")));
+  });
+  listRoot.querySelectorAll('[data-action="acknowledge-request"]').forEach(el => {
+    el.addEventListener("click", async () => {
+      const id = el.getAttribute("data-id");
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      const prev = rec.managerAcknowledgedAt;
+      rec.managerAcknowledgedAt = new Date().toISOString();
+      renderStats(); renderList();
+      try {
+        await sbUpdate(TABLES.records, id, { manager_acknowledged_at: rec.managerAcknowledgedAt });
+      } catch (err) {
+        rec.managerAcknowledgedAt = prev;
+        renderStats(); renderList();
+        showToast("Could not acknowledge — check your connection.", true);
+      }
+    });
+  });
+  listRoot.querySelectorAll('[data-action="toggle-covered"]').forEach(el => {
+    el.addEventListener("change", async () => {
+      const id = el.getAttribute("data-id");
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      const next = !rec.covered;
+      rec.covered = next;
+      renderStats(); renderList();
+      try {
+        await sbUpdate(TABLES.records, id, { covered: next });
+      } catch (err) {
+        rec.covered = !next;
+        renderStats(); renderList();
+        showToast("Could not save — check your connection.", true);
+      }
+    });
+  });
+  listRoot.querySelectorAll('[data-action="edit-record"]').forEach(el => {
+    el.addEventListener("click", () => {
+      const rec = state.records.find(r => r.id === el.getAttribute("data-id"));
+      openLeaveModal(rec || null);
+    });
+  });
+  listRoot.querySelectorAll('[data-action="request-delete-record"]').forEach(el => {
+    el.addEventListener("click", () => { state.confirmDeleteRecordId = el.getAttribute("data-id"); renderList(); });
+  });
+  listRoot.querySelectorAll('[data-action="cancel-delete-record"]').forEach(el => {
+    el.addEventListener("click", () => { state.confirmDeleteRecordId = null; renderList(); });
+  });
+  listRoot.querySelectorAll('[data-action="confirm-delete-record"]').forEach(el => {
+    el.addEventListener("click", async () => {
+      const id = el.getAttribute("data-id");
+      try {
+        await sbDelete(TABLES.records, id);
+        state.records = state.records.filter(r => r.id !== id);
+        state.confirmDeleteRecordId = null;
+        renderStats(); renderList();
+      } catch (err) {
+        showToast("Could not delete — check your connection.", true);
+      }
+    });
+  });
+}
+
+const COLORS_RED_HEX = "#D64545";
+
+/* ---------------------------- calendar view ---------------------------- */
+function dateKeyOf(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function buildMonthMatrix(year, month) {
+  const firstOfMonth = new Date(year, month, 1);
+  const startOffset = firstOfMonth.getDay(); // 0 = Sunday
+  const gridStart = new Date(year, month, 1 - startOffset);
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    cells.push(d);
+  }
+  return cells;
+}
+
+function leaveOnDate(key) {
+  const ids = getFilteredStaffIds();
+  return state.records
+    .filter(r => ids.has(r.staffId) && r.startDate <= key && key <= r.endDate)
+    .map(r => ({ record: r, staffMember: getStaffById(r.staffId), status: getStatus(r, todayDate(), state.settings.dueSoonDays) }))
+    .filter(matchesQuickFilter)
+    .sort((a, b) => (a.staffMember ? a.staffMember.name : "").localeCompare(b.staffMember ? b.staffMember.name : ""));
+}
+
+function renderCalendar() {
+  const viewRoot = document.getElementById("view-root");
+  const year = state.calendarMonth.getFullYear();
+  const month = state.calendarMonth.getMonth();
+  const monthLabel = state.calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const cells = buildMonthMatrix(year, month);
+  const todayKey = dateKeyOf(todayDate());
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const isNarrow = window.innerWidth < 520;
+  const maxShown = isNarrow ? 6 : 3;
+
+  const filterBanner = state.quickFilter ? `
+    <div class="quick-filter-banner">
+      Showing: <strong>${esc(QUICK_FILTER_LABELS[state.quickFilter])}</strong>
+      <button id="clear-quick-filter">✕ Clear</button>
+    </div>
+  ` : "";
+
+  const html = filterBanner + `
+    <div class="calendar-nav">
+      <button class="calendar-nav-btn" id="cal-prev">‹</button>
+      <div class="calendar-title">${esc(monthLabel)}</div>
+      <button class="calendar-nav-btn" id="cal-next">›</button>
+      <button class="calendar-today-btn" id="cal-today">Today</button>
+    </div>
+    <div class="calendar-legend">
+      ${ROLES.map(r => `<span><span class="cal-legend-dot" style="background:${ROLE_PILL[r].bg};"></span>${esc(r)}</span>`).join("")}
+      <span><span class="cal-legend-dot" style="background:${COLORS_RED_HEX};"></span>Needs cover</span>
+    </div>
+    <div class="calendar-grid">
+      ${weekdayLabels.map(w => `<div class="calendar-weekday">${isNarrow ? w[0] : w}</div>`).join("")}
+      ${cells.map(d => {
+        const key = dateKeyOf(d);
+        const inMonth = d.getMonth() === month;
+        const isToday = key === todayKey;
+        const dayLeave = leaveOnDate(key);
+        const shown = dayLeave.slice(0, maxShown);
+        const extra = dayLeave.length - shown.length;
+        return `
+          <div class="calendar-cell ${inMonth ? "" : "out-of-month"} ${isToday ? "today" : ""}" data-action="open-day" data-date="${key}">
+            <div class="cal-date-num">${d.getDate()}</div>
+            ${isNarrow ? `
+              <div class="cal-dot-row">
+                ${shown.map(e => {
+                  const pill = e.staffMember ? ROLE_PILL[e.staffMember.role] || ROLE_PILL["Other"] : ROLE_PILL["Other"];
+                  const needsCover = (e.status === "active" || e.status === "due-soon") && !e.record.covered;
+                  return `<span class="cal-dot" style="background:${pill.bg};${needsCover ? "outline:1.5px solid " + COLORS_RED_HEX + ";" : ""}"></span>`;
+                }).join("")}
+              </div>
+              ${extra > 0 ? `<div class="cal-chip-more">+${extra}</div>` : ""}
+            ` : `
+              ${shown.map(e => {
+                const pill = e.staffMember ? ROLE_PILL[e.staffMember.role] || ROLE_PILL["Other"] : ROLE_PILL["Other"];
+                const needsCover = (e.status === "active" || e.status === "due-soon") && !e.record.covered;
+                const firstName = e.staffMember ? e.staffMember.name.split(" ")[0] : "Unknown";
+                return `<div class="cal-chip" style="background:${pill.bg};color:${pill.fg};${needsCover ? "outline:2px solid " + COLORS_RED_HEX + ";outline-offset:-2px;" : ""}">${esc(firstName)}</div>`;
+              }).join("")}
+              ${extra > 0 ? `<div class="cal-chip-more">+${extra} more</div>` : ""}
+            `}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  viewRoot.innerHTML = html;
+  if (state.quickFilter) document.getElementById("clear-quick-filter").addEventListener("click", () => { state.quickFilter = null; renderStats(); renderCurrentView(); });
+
+  document.getElementById("cal-prev").addEventListener("click", () => {
+    state.calendarMonth = new Date(year, month - 1, 1);
+    renderCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", () => {
+    state.calendarMonth = new Date(year, month + 1, 1);
+    renderCalendar();
+  });
+  document.getElementById("cal-today").addEventListener("click", () => {
+    const t = todayDate();
+    state.calendarMonth = new Date(t.getFullYear(), t.getMonth(), 1);
+    renderCalendar();
+  });
+  viewRoot.querySelectorAll('[data-action="open-day"]').forEach(el => {
+    el.addEventListener("click", () => openDayModal(el.getAttribute("data-date")));
+  });
+}
+
+function openDayModal(dateKey) {
+  function render() {
+    const dayLeave = leaveOnDate(dateKey);
+    const dateLabel = parseDate(dateKey).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    const body = dayLeave.length === 0
+      ? `<div style="color:var(--text-muted);padding:8px 0;">No one on leave this day.</div>`
+      : dayLeave.map(e => {
+          const meta = STATUS_META[e.status];
+          const needsCover = (e.status === "active" || e.status === "due-soon") && !e.record.covered;
+          const rolePill = e.staffMember ? ROLE_PILL[e.staffMember.role] || ROLE_PILL["Other"] : null;
+          return `
+            <div class="day-modal-item">
+              <div style="flex:1 1 160px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:14px;">${esc(e.staffMember ? e.staffMember.name : "Unknown staff")}</span>
+                  ${e.staffMember ? `<span class="role-pill" style="background:${rolePill.bg};color:${rolePill.fg};">${esc(e.staffMember.role)}</span>` : ""}
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+                  ${formatShort(e.record.startDate)} – ${formatShort(e.record.endDate)} · ${esc(e.record.leaveType)}
+                </div>
+              </div>
+              <span class="status-pill" style="color:${meta.color};background:${meta.tint};">${esc(meta.label)}</span>
+              ${needsCover ? `<span class="needs-cover-pill">⚠ Needs cover</span>` : ""}
+              ${e.status !== "completed" ? `
+                <label class="covered-toggle">
+                  <input type="checkbox" data-action="day-toggle-covered" data-id="${e.record.id}" ${e.record.covered ? "checked" : ""} />
+                  Covered
+                </label>` : ""}
+              <button class="icon-btn" data-action="day-edit-record" data-id="${e.record.id}" title="Edit">✎</button>
+            </div>
+          `;
+        }).join("");
+
+    document.getElementById("modal-root").innerHTML = `
+      <div class="overlay" id="modal-overlay">
+        <div class="modal wide">
+          <div class="modal-header">
+            <span>${esc(dateLabel)}</span>
+            <button class="modal-close" id="modal-close-btn">✕</button>
+          </div>
+          <div class="manage-body">${body}</div>
+          <div class="manage-footer">
+            <button class="btn btn-primary" style="width:100%;" id="day-log-leave-btn">+ Log leave for this day</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+    document.getElementById("modal-overlay").addEventListener("click", (e) => { if (e.target.id === "modal-overlay") closeModal(); });
+    document.getElementById("day-log-leave-btn").addEventListener("click", () => {
+      closeModal();
+      openLeaveModal(null, { startDate: dateKey, endDate: dateKey });
+    });
+    document.querySelectorAll('[data-action="day-toggle-covered"]').forEach(el => {
+      el.addEventListener("change", async () => {
+        const id = el.getAttribute("data-id");
+        const rec = state.records.find(r => r.id === id);
+        if (!rec) return;
+        const next = !rec.covered;
+        rec.covered = next;
+        render();
+        renderStats(); renderCalendar();
+        try {
+          await sbUpdate(TABLES.records, id, { covered: next });
+        } catch (err) {
+          rec.covered = !next;
+          render();
+          renderStats(); renderCalendar();
+          showToast("Could not save — check your connection.", true);
+        }
+      });
+    });
+    document.querySelectorAll('[data-action="day-edit-record"]').forEach(el => {
+      el.addEventListener("click", () => {
+        const rec = state.records.find(r => r.id === el.getAttribute("data-id"));
+        closeModal();
+        openLeaveModal(rec || null);
+      });
+    });
+  }
+
+  render();
+}
+
+/* ---------------------------- modals ---------------------------- */
+function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
+
+// Full read view of a rep-submitted coverage checklist — the card itself
+// only ever shows the covered_by/notes summary, this shows everything:
+// per-store coverage, discussion status, the two commitment dates,
+// reachability, and submitted/acknowledged timestamps.
+function openRequestDetailModal(id) {
+  const record = state.records.find(r => r.id === id);
+  if (!record) return;
+  const staffMember = getStaffById(record.staffId);
+
+  const discussedMeta = {
+    agreed: { label: "✅ Already discussed & agreed", color: "var(--green)" },
+    planned: { label: "🕓 Planned, not yet discussed", color: "var(--gold-text)" },
+    none: { label: "🚩 Haven't identified anyone", color: "var(--red)" },
+  }[record.discussedStatus] || { label: "—", color: "var(--text-muted)" };
+
+  const storesHTML = Array.isArray(record.keyStores) && record.keyStores.length
+    ? record.keyStores.map(s => `
+        <div class="day-modal-item">
+          <div style="flex:1 1 160px;">
+            <div style="font-weight:700;font-size:13.5px;">${esc(s.customer_name)}</div>
+            <div style="font-size:11.5px;color:var(--text-muted);">${esc(s.tier)}</div>
+          </div>
+          <div style="font-size:13px;font-weight:600;">${esc(repNameByCode(s.covering_salesperson_id))}</div>
+        </div>`).join("")
+    : `<div style="color:var(--text-muted);font-size:13px;padding:6px 0;">No Key/Chain stores on file — covering rep named directly instead: <b>${esc(repNameByCode(record.coveredBy) || record.coveredBy || "—")}</b></div>`;
+
+  const submittedLabel = record.checklistSubmittedAt ? new Date(record.checklistSubmittedAt).toLocaleString() : "—";
+  const ackLabel = record.managerAcknowledgedAt ? new Date(record.managerAcknowledgedAt).toLocaleString() : null;
+
+  document.getElementById("modal-root").innerHTML = `
+    <div class="overlay" id="modal-overlay">
+      <div class="modal wide">
+        <div class="modal-header">
+          <span>${esc(staffMember ? staffMember.name : "Leave request")} · ${formatShort(record.startDate)} – ${formatShort(record.endDate)}</span>
+          <button class="modal-close" id="modal-close-btn">✕</button>
+        </div>
+        <div class="manage-body">
+          <div class="manage-group-title">Discussion status</div>
+          <div style="font-weight:700;color:${discussedMeta.color};margin-bottom:16px;">${discussedMeta.label}</div>
+
+          <div class="manage-group-title">Key / Chain store coverage</div>
+          <div style="margin-bottom:16px;">${storesHTML}</div>
+
+          <div class="form-row" style="margin-bottom:16px;">
+            <div>
+              <div class="manage-group-title">Will notify Key Accounts by</div>
+              <div style="font-weight:600;">${record.keyAccountsNotifyBy ? formatShort(record.keyAccountsNotifyBy) : "—"}</div>
+            </div>
+            <div>
+              <div class="manage-group-title">Will brief merchandisers by</div>
+              <div style="font-weight:600;">${record.merchandiserBriefBy ? formatShort(record.merchandiserBriefBy) : "—"}</div>
+            </div>
+          </div>
+
+          <div class="manage-group-title">Reachability while out</div>
+          <div style="font-weight:600;margin-bottom:16px;">${esc(record.reachableDuringLeave || "—")}</div>
+
+          <div class="manage-group-title">Handover notes</div>
+          <div style="font-style:italic;color:var(--text-muted);margin-bottom:16px;">${esc(record.handoverNotes || "None given")}</div>
+
+          <div class="manage-group-title">Submitted</div>
+          <div style="font-size:12.5px;color:var(--text-muted);">${esc(submittedLabel)}${ackLabel ? " · Acknowledged " + esc(ackLabel) : ""}</div>
+        </div>
+        <div class="manage-footer">
+          ${!record.managerAcknowledgedAt ? `<button class="btn btn-primary" style="width:100%;" id="modal-acknowledge-btn">Acknowledge</button>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+  document.getElementById("modal-overlay").addEventListener("click", (e) => { if (e.target.id === "modal-overlay") closeModal(); });
+  const ackBtn = document.getElementById("modal-acknowledge-btn");
+  if (ackBtn) ackBtn.addEventListener("click", async () => {
+    const prev = record.managerAcknowledgedAt;
+    record.managerAcknowledgedAt = new Date().toISOString();
+    closeModal();
+    renderStats(); renderCurrentView();
+    try {
+      await sbUpdate(TABLES.records, id, { manager_acknowledged_at: record.managerAcknowledgedAt });
+    } catch (err) {
+      record.managerAcknowledgedAt = prev;
+      renderStats(); renderCurrentView();
+      showToast("Could not acknowledge — check your connection.", true);
+    }
+  });
+}
+
+function openStaffModal(editing) {
+  const isEditing = !!editing;
+  let mode = "single";
+  let confirmDelete = false;
+
+  function template() {
+    return `
+      <div class="overlay" id="modal-overlay">
+        <div class="modal" id="modal-box">
+          <div class="modal-header">
+            <span>${isEditing ? "Edit Staff Member" : "Add Staff"}</span>
+            <button class="modal-close" id="modal-close-btn">✕</button>
+          </div>
+          ${!isEditing ? `
+            <div class="tab-row">
+              <button type="button" class="tab-btn ${mode === "single" ? "active" : ""}" id="tab-single">Add one</button>
+              <button type="button" class="tab-btn ${mode === "bulk" ? "active" : ""}" id="tab-bulk">Add several at once</button>
+            </div>
+          ` : ""}
+          <div id="modal-form-area"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function singleFormHTML() {
+    const name = isEditing ? editing.name : "";
+    const role = isEditing ? editing.role : "Field Rep";
+    const territory = isEditing ? (editing.territory || "") : "";
+    return `
+      <form class="modal-form" id="staff-form">
+        <label class="form-label">Name</label>
+        <input class="dfl-input" id="staff-name" value="${esc(name)}" placeholder="e.g. Andrea Skelton" />
+        <label class="form-label">Role</label>
+        <select class="dfl-select" id="staff-role">
+          ${ROLES.map(r => `<option value="${esc(r)}" ${role === r ? "selected" : ""}>${esc(r)}</option>`).join("")}
+        </select>
+        <div id="staff-territory-wrap" style="display:${role === "Field Rep" ? "block" : "none"};">
+          <label class="form-label">Territory</label>
+          <select class="dfl-select" id="staff-territory">
+            <option value="">Select territory…</option>
+            ${TERRITORIES.map(t => `<option value="${esc(t)}" ${territory === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-footer">
+          <div id="delete-area">
+            ${isEditing && !confirmDelete ? `<button type="button" class="btn btn-ghost" id="staff-delete-btn">Delete</button>` : ""}
+            ${isEditing && confirmDelete ? `
+              <span class="confirm-text">Also removes their leave records.</span>
+              <button type="button" class="btn btn-danger" id="staff-delete-confirm">Confirm</button>
+              <button type="button" class="btn btn-ghost" id="staff-delete-cancel">Cancel</button>
+            ` : ""}
+          </div>
+          <button type="submit" class="btn btn-primary">${isEditing ? "Save changes" : "Add staff"}</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function bulkFormHTML() {
+    return `
+      <form class="modal-form" id="staff-bulk-form">
+        <label class="form-label">Names (one per line)</label>
+        <textarea class="dfl-input" id="staff-bulk-names" style="width:100%;height:120px;resize:vertical;" placeholder="Kadeen Brown
+Oniel Carby
+Marcia Reid"></textarea>
+        <label class="form-label">Role (applies to all)</label>
+        <select class="dfl-select" id="staff-bulk-role">
+          ${ROLES.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}
+        </select>
+        <div id="staff-bulk-territory-wrap">
+          <label class="form-label">Territory (applies to all)</label>
+          <select class="dfl-select" id="staff-bulk-territory">
+            <option value="">Select territory…</option>
+            ${TERRITORIES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="form-footer" style="justify-content:flex-end;">
+          <button type="submit" class="btn btn-primary">Add all</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function wireForm() {
+    document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+    document.getElementById("modal-overlay").addEventListener("click", (e) => { if (e.target.id === "modal-overlay") closeModal(); });
+
+    if (!isEditing) {
+      document.getElementById("tab-single").addEventListener("click", () => { mode = "single"; rerenderModalBody(); });
+      document.getElementById("tab-bulk").addEventListener("click", () => { mode = "bulk"; rerenderModalBody(); });
+    }
+
+    if (mode === "single" || isEditing) {
+      document.getElementById("modal-form-area").innerHTML = singleFormHTML();
+      const roleSelect = document.getElementById("staff-role");
+      roleSelect.addEventListener("change", () => {
+        document.getElementById("staff-territory-wrap").style.display = roleSelect.value === "Field Rep" ? "block" : "none";
+      });
+      document.getElementById("staff-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("staff-name").value.trim();
+        if (!name) return;
+        const role = document.getElementById("staff-role").value;
+        const territoryEl = document.getElementById("staff-territory");
+        const territory = role === "Field Rep" && territoryEl ? territoryEl.value : "";
+        try {
+          if (isEditing) {
+            const updated = await sbUpdate(TABLES.staff, editing.id, { name, role, territory });
+            const mapped = staffFromApi(updated);
+            state.staff = state.staff.map(x => x.id === mapped.id ? mapped : x);
+          } else {
+            const inserted = await sbInsert(TABLES.staff, { name, role, territory });
+            state.staff = [...state.staff, staffFromApi(inserted[0])];
+          }
+          closeModal();
+          renderMain();
+        } catch (err) {
+          showToast("Could not save — check your connection.", true);
+        }
+      });
+      if (isEditing) {
+        const delBtn = document.getElementById("staff-delete-btn");
+        if (delBtn) delBtn.addEventListener("click", () => { confirmDelete = true; rerenderModalBody(); });
+        const delConfirm = document.getElementById("staff-delete-confirm");
+        if (delConfirm) delConfirm.addEventListener("click", async () => {
+          try {
+            await sbDelete(TABLES.staff, editing.id);
+            state.staff = state.staff.filter(x => x.id !== editing.id);
+            state.records = state.records.filter(r => r.staffId !== editing.id);
+            closeModal();
+            renderMain();
+          } catch (err) {
+            showToast("Could not delete — check your connection.", true);
+          }
+        });
+        const delCancel = document.getElementById("staff-delete-cancel");
+        if (delCancel) delCancel.addEventListener("click", () => { confirmDelete = false; rerenderModalBody(); });
+      }
+    } else {
+      document.getElementById("modal-form-area").innerHTML = bulkFormHTML();
+      const bulkRoleSelect = document.getElementById("staff-bulk-role");
+      const bulkTerritoryWrap = document.getElementById("staff-bulk-territory-wrap");
+      function syncTerritoryVisibility() { bulkTerritoryWrap.style.display = bulkRoleSelect.value === "Field Rep" ? "block" : "none"; }
+      syncTerritoryVisibility();
+      bulkRoleSelect.addEventListener("change", syncTerritoryVisibility);
+      document.getElementById("staff-bulk-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const names = document.getElementById("staff-bulk-names").value.split("\n").map(n => n.trim()).filter(Boolean);
+        if (names.length === 0) return;
+        const role = bulkRoleSelect.value;
+        const territory = role === "Field Rep" ? document.getElementById("staff-bulk-territory").value : "";
+        const rows = names.map(n => ({ name: n, role, territory }));
+        try {
+          const inserted = await sbInsert(TABLES.staff, rows);
+          state.staff = [...state.staff, ...inserted.map(staffFromApi)];
+          closeModal();
+          renderMain();
+        } catch (err) {
+          showToast("Could not add staff — check your connection.", true);
+        }
+      });
+    }
+  }
+
+  function rerenderModalBody() {
+    document.getElementById("modal-root").innerHTML = template();
+    wireForm();
+  }
+
+  rerenderModalBody();
+}
+
+function openManageStaff() {
+  function grouped() {
+    const g = {};
+    ROLES.forEach(r => g[r] = []);
+    state.staff.forEach(s => { if (!g[s.role]) g[s.role] = []; g[s.role].push(s); });
+    return g;
+  }
+
+  function html() {
+    const g = grouped();
+    let body = "";
+    ROLES.forEach(role => {
+      if (g[role] && g[role].length > 0) {
+        body += `<div class="manage-group-title">${esc(role)} · ${g[role].length}</div>`;
+        g[role].forEach(s => {
+          body += `
+            <button class="manage-row" data-action="edit-staff" data-id="${s.id}">
+              <span>${esc(s.name)}${s.territory ? ` <span style="color:var(--text-muted);font-size:12.5px;"> · ${esc(s.territory)}</span>` : ""}</span>
+              <span class="arrow">Edit ›</span>
+            </button>
+          `;
+        });
+      }
+    });
+    if (state.staff.length === 0) body = `<div style="color:var(--text-muted);">No staff added yet.</div>`;
+    return `
+      <div class="overlay" id="modal-overlay">
+        <div class="modal wide">
+          <div class="modal-header">
+            <span>Manage Staff (${state.staff.length})</span>
+            <button class="modal-close" id="modal-close-btn">✕</button>
+          </div>
+          <div class="manage-body">${body}</div>
+          <div class="manage-footer">
+            <button class="btn btn-primary" style="width:100%;" id="manage-add-btn">+ Add staff</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById("modal-root").innerHTML = html();
+  document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+  document.getElementById("modal-overlay").addEventListener("click", (e) => { if (e.target.id === "modal-overlay") closeModal(); });
+  document.getElementById("manage-add-btn").addEventListener("click", () => openStaffModal(null));
+  document.querySelectorAll('[data-action="edit-staff"]').forEach(el => {
+    el.addEventListener("click", () => {
+      const s = state.staff.find(x => x.id === el.getAttribute("data-id"));
+      openStaffModal(s || null);
+    });
+  });
+}
+
+function openLeaveModal(editing, prefill) {
+  const isEditing = !!editing;
+  const initialStart = isEditing ? editing.startDate : ((prefill && prefill.startDate) || "");
+  const initialEnd = isEditing ? editing.endDate : ((prefill && prefill.endDate) || "");
+  const sorted = [...state.staff].sort((a, b) => a.name.localeCompare(b.name));
+
+  function optionsByRole() {
+    const g = {};
+    ROLES.forEach(r => g[r] = []);
+    sorted.forEach(s => { if (g[s.role]) g[s.role].push(s); });
+    return ROLES.filter(r => g[r].length > 0).map(r => `
+      <optgroup label="${esc(r)}">
+        ${g[r].map(s => `<option value="${s.id}" ${isEditing && editing.staffId === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}
+      </optgroup>
+    `).join("");
+  }
+
+  const html = `
+    <div class="overlay" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <span>${isEditing ? "Edit Leave" : "Log Leave"}</span>
+          <button class="modal-close" id="modal-close-btn">✕</button>
+        </div>
+        <form class="modal-form" id="leave-form">
+          <label class="form-label">Staff member</label>
+          <select class="dfl-select" id="leave-staff">${optionsByRole()}</select>
+
+          <div class="form-row">
+            <div>
+              <label class="form-label">Start date</label>
+              <input type="date" class="dfl-input" id="leave-start" value="${initialStart}" style="width:100%;" />
+            </div>
+            <div>
+              <label class="form-label">End date</label>
+              <input type="date" class="dfl-input" id="leave-end" value="${initialEnd}" style="width:100%;" />
+            </div>
+          </div>
+
+          <label class="form-label">Leave type</label>
+          <select class="dfl-select" id="leave-type">
+            ${LEAVE_TYPES.map(t => `<option value="${esc(t)}" ${isEditing && editing.leaveType === t ? "selected" : ""}>${esc(t)}</option>`).join("")}
+          </select>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+            <input type="checkbox" id="leave-covered" style="width:17px;height:17px;accent-color:var(--green);" ${isEditing && editing.covered ? "checked" : ""} />
+            <label for="leave-covered">Role is covered while they're out</label>
+          </div>
+
+          <label class="form-label">Covered by (optional)</label>
+          <input class="dfl-input" id="leave-covered-by" value="${isEditing ? esc(editing.coveredBy || "") : ""}" placeholder="Who's picking up their accounts?" />
+
+          <label class="form-label">Notes (optional)</label>
+          <textarea class="dfl-input" id="leave-notes" style="width:100%;height:60px;resize:vertical;">${isEditing ? esc(editing.notes || "") : ""}</textarea>
+
+          <div id="leave-error"></div>
+          <div class="form-footer" style="justify-content:flex-end;">
+            <button type="submit" class="btn btn-primary">${isEditing ? "Save changes" : "Log leave"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("modal-root").innerHTML = html;
+  document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+  document.getElementById("modal-overlay").addEventListener("click", (e) => { if (e.target.id === "modal-overlay") closeModal(); });
+
+  document.getElementById("leave-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const staffId = document.getElementById("leave-staff").value;
+    const startDate = document.getElementById("leave-start").value;
+    const endDate = document.getElementById("leave-end").value;
+    const errorEl = document.getElementById("leave-error");
+    errorEl.innerHTML = "";
+    if (!staffId) { errorEl.innerHTML = `<div class="form-error">Select a staff member.</div>`; return; }
+    if (!startDate || !endDate) { errorEl.innerHTML = `<div class="form-error">Enter both dates.</div>`; return; }
+    if (endDate < startDate) { errorEl.innerHTML = `<div class="form-error">End date can't be before the start date.</div>`; return; }
+
+    const payload = {
+      staff_id: staffId,
+      start_date: startDate,
+      end_date: endDate,
+      leave_type: document.getElementById("leave-type").value,
+      covered: document.getElementById("leave-covered").checked,
+      covered_by: document.getElementById("leave-covered-by").value.trim(),
+      notes: document.getElementById("leave-notes").value.trim(),
+    };
+    try {
+      if (isEditing) {
+        const updated = await sbUpdate(TABLES.records, editing.id, payload);
+        const mapped = recordFromApi(updated);
+        state.records = state.records.map(r => r.id === mapped.id ? mapped : r);
+      } else {
+        const inserted = await sbInsert(TABLES.records, payload);
+        state.records = [...state.records, recordFromApi(inserted[0])];
+      }
+      closeModal();
+      renderStats(); renderList();
+    } catch (err) {
+      errorEl.innerHTML = `<div class="form-error">Could not save — check your connection.</div>`;
+    }
+  });
+}
+
+/* ---------------------------- responsive re-render ---------------------------- */
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (state.viewMode === "calendar" && state.staff.length > 0) renderCalendar();
+  }, 200);
+});
+
+/* ---------------------------- boot ---------------------------- */
+// After the portal guard has a session (embedded in a portal tab, the guard
+// reveals the page straight away and the session comes from the same origin).
+let booted = false;
+function boot() { if (booted) return; booted = true; init(); }
+document.addEventListener("dfl-auth-ready", boot);
+if (window.DFL_PROFILE || window.self !== window.top) boot();
+})();
+</script>
+</body>
+</html>
