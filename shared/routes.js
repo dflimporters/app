@@ -146,6 +146,13 @@ const DFL_PAGE_ROLES = {
   '/management/rep-performance.html':       ['manager', 'admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
   '/management/fleet.html':                 ['manager', 'admin'],
+  // Head of Sales tabbed view. Admins get through this door, but the page itself
+  // then requires is_price_approver() (Scott only) — same pattern as
+  // /admin/price-approvals.html, because Travis is also an admin.
+  '/management/head-of-sales.html':         ['admin'],
+  // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
+  // which gates writes on leave_tracker_* — reads also allow HR/management.
+  '/management/leave-tracker.html':         ['manager', 'admin'],
   // Product price simulator — shows cost and GP. Must stay in step with
   // is_manager(), which get_product_price_master() checks server-side.
   '/dfl_product_price_dashboard.html':      ['manager', 'admin'],

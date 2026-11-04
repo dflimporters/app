@@ -111,6 +111,8 @@
       items: [
         // Derived like everything else now — /management/** lost its plaintext
         // password gate and is in DFL_PAGE_ROLES as manager/admin.
+        // approverOnly: Scott's tabbed view — hidden from other admins.
+        { label: 'Head of Sales', href: '/management/head-of-sales.html', icon: '⭐', approverOnly: true },
         { label: 'Dashboards', href: '/management/', icon: '📊' },
         { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
         { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },

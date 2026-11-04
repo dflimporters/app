@@ -167,32 +167,38 @@ textarea{min-height:64px;resize:vertical}
 .decision{font-size:13px;color:var(--ink);background:#F7F9FC;border-radius:6px;padding:10px 12px}
 .decision b{font-family:var(--hf)}
 .empty{color:var(--ink3);text-align:center;padding:40px 10px;background:var(--card);border:1px dashed var(--line);border-radius:8px}
+/* price change log (Head of Sales) */
+.logtools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px;max-width:760px}
+.logtools input{flex:1 1 260px;height:38px}
+.logtools select{flex:0 0 auto;width:auto;height:38px;padding:6px 10px}
+.logtools .btn{padding:9px 14px}
+.logcount{font-size:12.5px;color:var(--ink3);margin:-4px 0 10px}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s ease}}
 </style>
 </head>
 <body>
 
 <div class="page">
-  <h1 class="ptitle">Price Requests</h1>
-  <p class="psub">For any price reduction outside of the regular deals sheet, please put your request here.</p>
+  <h1 class="ptitle" id="pTitle">Price Requests</h1>
+  <p class="psub" id="pSub">For any price reduction outside of the regular deals sheet, please put your request here.</p>
 
   <div class="strip">
-    <div class="kpi"><div class="l">My requests awaiting decision</div><div class="v warn" id="kPending">–</div></div>
-    <div class="kpi"><div class="l">My approvals this month</div><div class="v" id="kApproved">–</div></div>
-    <div class="kpi"><div class="l">Avg discount requested</div><div class="v" id="kDisc">–</div></div>
-    <div class="kpi"><div class="l">My projected extra GP / month (approved)</div><div class="v" id="kGP">–</div></div>
+    <div class="kpi"><div class="l" id="kPendingL">My requests awaiting decision</div><div class="v warn" id="kPending">–</div></div>
+    <div class="kpi"><div class="l" id="kApprovedL">My approvals this month</div><div class="v" id="kApproved">–</div></div>
+    <div class="kpi"><div class="l" id="kDiscL">Avg discount requested</div><div class="v" id="kDisc">–</div></div>
+    <div class="kpi"><div class="l" id="kGPL">My projected extra GP / month (approved)</div><div class="v" id="kGP">–</div></div>
   </div>
 
   <div class="tabs" role="tablist">
-    <button role="tab" id="tabNew" aria-selected="true">New request</button>
-    <button role="tab" id="tabMine" aria-selected="false">My requests<span class="badge" id="badge" hidden>0</span></button>
+    <button role="tab" id="tabNew" aria-selected="true"><span id="tabNewL">New request</span></button>
+    <button role="tab" id="tabMine" aria-selected="false"><span id="tabMineL">My requests</span><span class="badge" id="badge" hidden>0</span></button>
   </div>
 
   <section id="viewNew">
    <div class="grid">
     <form class="panel" id="form" novalidate>
-     <h2>Request a lower price</h2>
-     <p class="sub">Takes about 3 minutes. Fields marked <span class="rq">*</span> are required.</p>
+     <h2 id="formH">Request a lower price</h2>
+     <p class="sub" id="formSub">Takes about 3 minutes. Fields marked <span class="rq">*</span> are required.</p>
 
      <fieldset>
       <legend>What and who</legend>
@@ -298,6 +304,17 @@ textarea{min-height:64px;resize:vertical}
   </section>
 
   <section id="viewMine" class="hidden">
+    <div class="logtools hidden" id="logTools">
+      <input id="logSearch" type="search" placeholder="Search SKU, product, customer, who asked or reason" autocomplete="off" aria-label="Search the price change log">
+      <select id="logPeriod" aria-label="Period">
+        <option value="all">All time</option>
+        <option value="month">This month</option>
+        <option value="90">Last 90 days</option>
+        <option value="year">This year</option>
+      </select>
+      <button class="btn ghost" id="logExport" type="button">Export to Excel</button>
+    </div>
+    <div class="logcount hidden" id="logCount"></div>
     <div class="filters" id="filters">
       <button class="chip" data-f="all" aria-pressed="true">All</button>
       <button class="chip" data-f="pending" aria-pressed="false">Awaiting decision</button>
@@ -306,7 +323,7 @@ textarea{min-height:64px;resize:vertical}
       <button class="chip" data-f="rejected" aria-pressed="false">Rejected</button>
     </div>
     <div class="cards" id="cards"><div class="empty">Loading your requests…</div></div>
-    <p class="note">You see only the requests you sent. Scott is the only one who can approve, reject or mark a request for discussion.</p>
+    <p class="note" id="mineNote">You see only the requests you sent. Scott is the only one who can approve, reject or mark a request for discussion.</p>
   </section>
 </div>
 
@@ -327,9 +344,15 @@ const P = (n,d=1) => (n<0?"−":"") + Math.abs(n*100).toFixed(d) + "%";
 const num = id => { const v = parseFloat($(id).value); return isFinite(v) ? v : null; };
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const today = iso(new Date());
+// Timestamps are UTC; show the Jamaica (device-local) calendar day, not the UTC one.
+const day = ts => ts ? iso(new Date(ts)) : "";
 const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("en-JM",{day:"numeric",month:"short",year:"numeric"}) : "";
 
 let PROFILE = null, SKUS = new Map(), ROWS = [], filter = "all";
+// LOG mode (?log=1, price approvers only — Scott): the form records a price
+// change straight into the log as approved by him, and the second tab lists
+// every request/change on record (approver RLS reads all rows).
+let LOG = false;
 const openSet = new Set();
 
 /* ---------- tabs ---------- */
@@ -657,7 +680,9 @@ $("form").addEventListener("submit", async e=>{
     $("customer").classList.add("invalid"); $("customer").focus();
     return msg("Pick the customer from the list so their sales can be checked.", "err");
   }
-  if (r.newPrice >= r.curPrice) return msg("The proposed price is not below the current average, so it doesn't need approval.", "err");
+  if (LOG ? r.newPrice === r.curPrice : r.newPrice >= r.curPrice)
+    return msg(LOG ? "The new price is the same as the current average, so there's no change to log."
+                   : "The proposed price is not below the current average, so it doesn't need approval.", "err");
   if ($("end").value && $("end").value < $("start").value) return msg("The end date is before the start date.", "err");
 
   const row = {
@@ -673,6 +698,15 @@ $("form").addEventListener("submit", async e=>{
   try {
     const { data, error } = await sb.from("price_change_requests").insert(row).select("id").single();
     if (error) throw error;
+    if (LOG){
+      // Inserts always land as 'pending' (pcr_before_insert); record the
+      // approval straight away. No emails — Scott is both sides.
+      const dec = await sb.rpc("decide_price_request", { p_id: data.id, p_status: "approved", p_note: "Logged directly by the Head of Sales" });
+      if (dec.error) msg("Saved, but it couldn't be marked approved (" + dec.error.message + "). It's waiting in Price Approvals.", "err");
+      else msg("Logged. It's on the record as approved by you today.", "ok");
+      clearForm(false); ROWS = []; loadMine();
+      return;
+    }
     // The email is a nicety: a failed send must never lose the request.
     let emailed = false;
     try {
@@ -713,27 +747,61 @@ function trow(k,v,color,hint){
 }
 async function loadMine(){
   if (!PROFILE) return;
-  const { data, error } = await sb.from("price_change_requests").select("*")
-    .eq("requested_by", PROFILE.id).order("created_at", { ascending:false }).limit(500);
-  if (error){ $("cards").innerHTML = '<div class="empty">Couldn\'t load your requests. Refresh to try again.</div>'; return; }
-  ROWS = data || [];
+  const all = [];
+  for (let from = 0; ; from += 1000){                 // the log can pass PostgREST's 1,000-row cap
+    let q = sb.from("price_change_requests").select("*");
+    if (!LOG) q = q.eq("requested_by", PROFILE.id);
+    const { data, error } = await q.order("created_at", { ascending:false }).range(from, from + 999);
+    if (error){ $("cards").innerHTML = '<div class="empty">Couldn\'t load ' + (LOG ? "the log" : "your requests") + '. Refresh to try again.</div>'; return; }
+    all.push(...(data || []));
+    if (!LOG || !data || data.length < 1000) break;
+  }
+  ROWS = all;
   render();
+}
+const loggedDirect = x => x.decided_by && x.decided_by === x.requested_by;
+function inPeriod(x){
+  const p = $("logPeriod").value, d = day(x.created_at);
+  if (p === "month") return d.slice(0,7) === today.slice(0,7);
+  if (p === "year")  return d.slice(0,4) === today.slice(0,4);
+  if (p === "90")    return (Date.now() - new Date(x.created_at)) < 90*864e5;
+  return true;
+}
+function logList(){
+  const words = $("logSearch").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return ROWS.filter(x => inPeriod(x) && (filter==="all" || x.status===filter) && words.every(w =>
+    [x.sku, x.sku_description, x.customer, x.customer_id, x.requester_name, x.reason, x.explanation, x.competitor_name, x.item_class]
+      .some(v => (v||"").toLowerCase().includes(w))));
 }
 function render(){
   const pend = ROWS.filter(x=>x.status==="pending");
   const mon = today.slice(0,7);
   const appr = ROWS.filter(x=>x.status==="approved");
+  if (LOG){
+    const monAppr = appr.filter(x=>day(x.decided_at).slice(0,7)===mon);
+    $("kPending").textContent = monAppr.length;
+    $("kApproved").textContent = pend.length;
+    const ds = monAppr.map(x=>impact(fromRow(x)).disc).filter(v=>v!=null);
+    $("kDisc").textContent = ds.length ? P(ds.reduce((a,b)=>a+b,0)/ds.length) : "–";   // signed: −5% = a cut
+    const live = appr.filter(x=>!x.end_date || x.end_date >= today);
+    $("kGP").textContent = live.length ? J(live.map(x=>impact(fromRow(x)).gpchg||0).reduce((a,b)=>a+b,0)) : "–";
+    $("badge").hidden = true;
+  } else {
   $("kPending").textContent = pend.length;
-  $("kApproved").textContent = appr.filter(x=>(x.decided_at||"").slice(0,7)===mon).length;
+  $("kApproved").textContent = appr.filter(x=>day(x.decided_at).slice(0,7)===mon).length;
   const ds = pend.map(x=>impact(fromRow(x)).disc).filter(v=>v!=null);
   $("kDisc").textContent = ds.length ? P(-ds.reduce((a,b)=>a+b,0)/ds.length) : "–";
   $("kGP").textContent = appr.length ? J(appr.map(x=>impact(fromRow(x)).gpchg||0).reduce((a,b)=>a+b,0)) : "–";
   const decided = ROWS.filter(x=>x.status!=="pending" && x.decided_at && (Date.now()-new Date(x.decided_at))<7*864e5).length;
   $("badge").hidden = !decided; $("badge").textContent = decided; $("badge").title = "Decisions in the last 7 days";
+  }
 
-  const list = ROWS.filter(x=> filter==="all" || x.status===filter);
+  const list = LOG ? logList() : ROWS.filter(x=> filter==="all" || x.status===filter);
+  if (LOG) $("logCount").textContent = `${list.length.toLocaleString()} of ${ROWS.length.toLocaleString()} entries`;
   const box = $("cards"); box.textContent = "";
-  if (!list.length){ const e=document.createElement("div"); e.className="empty"; e.textContent = !ROWS.length ? "You haven't sent any requests yet." : "No requests here."; box.append(e); return; }
+  if (!list.length){ const e=document.createElement("div"); e.className="empty";
+    e.textContent = !ROWS.length ? (LOG ? "Nothing logged yet." : "You haven't sent any requests yet.") : (LOG ? "Nothing matches these filters." : "No requests here.");
+    box.append(e); return; }
   for (const x of list){
     const r = fromRow(x), o = impact(r), st = x.status;
     const c = document.createElement("details"); c.className = "req " + (st==="pending"?"pending":"");
@@ -743,7 +811,9 @@ function render(){
     const t = document.createElement("div"); t.className="t";
     t.textContent = x.sku_description ? `${x.sku} · ${x.sku_description}` : x.sku;
     const sm = document.createElement("small");
-    sm.textContent = `${x.scope==="all" ? "All customers" : x.customer} · sent ${fmtDate((x.created_at||"").slice(0,10))}`;
+    sm.textContent = LOG
+      ? `${x.scope==="all" ? "All customers" : x.customer} · ${loggedDirect(x) ? "logged by" : "requested by"} ${x.requester_name || "–"} · ${fmtDate(day(x.created_at).slice(0,10))}`
+      : `${x.scope==="all" ? "All customers" : x.customer} · sent ${fmtDate(day(x.created_at).slice(0,10))}`;
     t.append(sm);
     const quick = document.createElement("span"); quick.className = "quick";
     const qd = document.createElement("span"); qd.textContent = o.disc!=null ? P(o.disc) : "–"; qd.style.color = "var(--amber)"; qd.title = "Discount vs current price";
@@ -757,9 +827,11 @@ function render(){
     const body = document.createElement("div"); body.className = "req-b";
     if (st!=="pending"){
       const d = document.createElement("div"); d.className="decision";
-      const b = document.createElement("b"); b.textContent = (st==="discuss" ? "Scott would like to discuss" : "Scott's decision: " + st) + ` (${fmtDate((x.decided_at||"").slice(0,10))})`;
+      const b = document.createElement("b");
+      b.textContent = (LOG && loggedDirect(x) && st==="approved" ? "Logged and approved directly by Scott"
+                       : st==="discuss" ? "Scott would like to discuss" : "Scott's decision: " + st) + ` (${fmtDate(day(x.decided_at).slice(0,10))})`;
       d.append(b);
-      if (x.decision_note){ d.append(document.createElement("br"), document.createTextNode(x.decision_note)); }
+      if (x.decision_note && !(LOG && loggedDirect(x))){ d.append(document.createElement("br"), document.createTextNode(x.decision_note)); }
       body.append(d);
     }
     const why = document.createElement("div"); why.className="why";
@@ -775,7 +847,7 @@ function render(){
       trow("Gap to competitor after change", gap),
       trow("GP % now → new", `${P(o.gp0)} → ${P(o.gp1)}`, o.gp1<0.25 ? "var(--red)" : ""),
       trow("Units a month: today → projected", `${u(r.curUnits)} → ${u(r.curUnits+r.extraUnits)}`),
-      trow("Extra units a month requested", `+${u(r.extraUnits)}${o.up!=null ? ` (+${P(o.up,0)})` : ""}`, "var(--blue)", "What the Category Manager expects the lower price to add"),
+      trow(LOG ? "Extra units a month expected" : "Extra units a month requested", `${r.extraUnits<0?"−":"+"}${u(Math.abs(r.extraUnits))}${o.up!=null ? ` (${o.up<0?"−":"+"}${P(Math.abs(o.up),0)})` : ""}`, "var(--blue)", LOG ? "What the change is expected to add" : "What the Category Manager expects the lower price to add"),
       trow("Extra revenue a month", J(o.rev), "", "Sales after the change minus sales today"),
       trow("Extra gross profit a month", J(o.gpchg), o.gpchg>=0?"var(--green)":"var(--red)", "What DFL actually gains after paying for the discount"),
       trow("Runs", `${fmtDate(x.start_date)} – ${x.end_date?fmtDate(x.end_date):"permanent"}`)
@@ -789,12 +861,63 @@ function render(){
   }
 }
 
+/* ---------- price change log: search, period, export ---------- */
+$("logSearch").addEventListener("input", () => render());
+$("logPeriod").addEventListener("change", () => render());
+$("logExport").addEventListener("click", () => {
+  const cols = ["Logged / requested","Requested or logged by","Status","Decided","How","SKU","Product","Category","Customer ID","Customer",
+    "Current price (J$)","New price (J$)","Change %","Landed cost (J$)","GP % before","GP % after","Competitor","Competitor price (J$)",
+    "Reason","Explanation","Start","End","Units/month today","Extra units/month","Extra GP/month (J$)","Decision note"];
+  const esc = v => { const s = v==null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const r2 = n => n==null || !isFinite(n) ? "" : Math.round(n*100)/100;
+  const pc = n => n==null || !isFinite(n) ? "" : Math.round(n*1000)/10;
+  const lines = [cols.join(",")];
+  for (const x of logList()){
+    const r = fromRow(x), o = impact(r);
+    lines.push([ day(x.created_at).slice(0,10), x.requester_name, x.status, day(x.decided_at).slice(0,10),
+      loggedDirect(x) ? "Logged directly" : "Request", x.sku, x.sku_description, x.item_class, x.customer_id,
+      x.scope==="all" ? "All customers" : x.customer, r2(r.curPrice), r2(r.newPrice), pc(o.disc), r2(r.cost), pc(o.gp0), pc(o.gp1),
+      x.competitor_name, r2(r.compPrice), x.reason, x.explanation, x.start_date, x.end_date || "permanent",
+      r2(r.curUnits), r2(r.extraUnits), r2(o.gpchg), loggedDirect(x) ? "" : x.decision_note ].map(esc).join(","));
+  }
+  const blob = new Blob(["﻿" + lines.join("\r\n")], { type:"text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `DFL_Price_Change_Log_${today}.csv`; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+});
+
+function enterLogMode(){
+  LOG = true;
+  document.title = "DFL · Price Change Log";
+  $("pTitle").textContent = "Price Change Log";
+  $("pSub").textContent = "Record every price change and why. Each entry is saved as approved by you, with the date, so there's a record if anyone asks.";
+  $("kPendingL").textContent = "Changes approved this month";
+  $("kApprovedL").textContent = "Requests waiting for you";
+  $("kDiscL").textContent = "Avg price change this month";
+  $("kGPL").textContent = "Projected extra GP / month (live changes)";
+  $("kPending").classList.remove("warn"); $("kApproved").classList.add("warn");
+  $("tabNewL").textContent = "Log a change";
+  $("tabMineL").textContent = "Price change log";
+  $("formH").textContent = "Log a price change";
+  $("formSub").innerHTML = 'Saved straight to the log as approved by you. Fields marked <span class="rq">*</span> are required.';
+  $("submit").textContent = "Save to log";
+  $("logTools").classList.remove("hidden"); $("logCount").classList.remove("hidden");
+  $("mineNote").textContent = "Every price change on record: ones you log here and Category Manager requests you've decided. Requests still waiting are decided in Price Approvals.";
+  // Lead with the approved entries; "Awaiting decision" still one click away.
+  filter = "approved";
+  for (const c of $("filters").children) c.setAttribute("aria-pressed", c.dataset.f==="approved");
+}
+
 /* ---------- boot ---------- */
 calc();
 async function init(profile){
   if (PROFILE) return;
   PROFILE = profile;
   $("requester").textContent = PROFILE.full_name || "You";
+  if (new URLSearchParams(location.search).get("log") === "1"){
+    const { data: ok } = await sb.rpc("is_price_approver");
+    if (ok) enterLogMode();                      // anyone else just gets the normal request form
+  }
   loadCustomers().catch(() => { $("unitsHint").textContent = "The customer list didn't load. Enter this customer's monthly units."; });
   try { await loadSkus(); onSku(); }
   catch (_) { $("skuInfo").textContent = "The price list didn't load. Type the SKU and enter the prices yourself."; }
