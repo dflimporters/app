@@ -71,6 +71,9 @@
     white-space:nowrap;
   }
   .sync-chip b{color:var(--gold); font-weight:700;}
+  /* Acumatica stock sync older than a day */
+  .sync-chip.stale{background:rgba(245,166,35,0.22); border-color:#F5A623;}
+  .sync-chip.stale::before{content:"⚠ "; color:#F5A623;}
 
   .refresh-btn{
     font-family:'Montserrat',sans-serif; font-weight:700; font-size:12px;
@@ -808,6 +811,9 @@
 // the HTML is served publicly, so anything written here is readable by anyone.
 let PRODUCTS = [];
 let SYNC_LABEL = "Loading…";
+// When stock/prices were last synced from Acumatica (get_stock_sync_time()),
+// not when this page loaded. STALE = more than a day old.
+let SYNC_STALE = false, SYNC_TITLE = "";
 
 // ---------- helpers ----------
 function esc(s){
@@ -882,6 +888,8 @@ function renderKpis(){
   document.getElementById('kpiGp').textContent = fmtPct(blendedGp);
   document.getElementById('kpiRisk').textContent = fmtInt(riskCount);
   document.getElementById('syncDate').textContent = SYNC_LABEL;
+  const chip = document.getElementById('syncDate').closest('.sync-chip');
+  if(chip){ chip.classList.toggle('stale', SYNC_STALE); chip.title = SYNC_TITLE; }
   document.getElementById('skuCountChip').textContent = fmtInt(total);
 }
 
@@ -1972,6 +1980,28 @@ async function fetchAllRows(baseUrl){
   return all;
 }
 
+// Real Acumatica stock sync time. A failure here never blocks the data —
+// the label just says it couldn't be checked.
+async function loadSyncTime(){
+  try{
+    const resp = await fetch(`${SB_URL}/rest/v1/rpc/get_stock_sync_time`,
+      { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, await authHeaders()), body:'{}' });
+    if(!resp.ok) throw new Error(resp.status);
+    const ts = await resp.json();
+    if(!ts) throw new Error('none');
+    const t = new Date(ts);
+    SYNC_LABEL = t.toLocaleString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+    const hrs = (Date.now() - t.getTime()) / 36e5;
+    SYNC_STALE = hrs > 24;
+    SYNC_TITLE = SYNC_STALE
+      ? `Stock, prices and costs were last synced from Acumatica ${Math.floor(hrs/24)} day(s) ago — the nightly sync may have stopped.`
+      : 'Last time stock, prices and costs were synced from Acumatica.';
+  }catch(e){
+    SYNC_LABEL = 'time unknown'; SYNC_STALE = false;
+    SYNC_TITLE = "Couldn't check when stock was last synced from Acumatica.";
+  }
+}
+
 function trailing12Keys(){
   const keys = [];
   const now = new Date();
@@ -2052,7 +2082,7 @@ async function refreshData(){
     Object.keys(pState.staged).forEach(id=>{ if(!newIds.has(id)) delete pState.staged[id]; });
 
     PRODUCTS = newProducts;
-    SYNC_LABEL = now.toLocaleString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'});
+    await loadSyncTime();
 
     // re-render everything
     renderKpis();
