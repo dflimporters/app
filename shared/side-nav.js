@@ -121,6 +121,8 @@
         // password gate and is in DFL_PAGE_ROLES as manager/admin.
         // approverOnly: Scott's tabbed view — hidden from other admins.
         { label: 'Head of Sales', href: '/management/head-of-sales.html', icon: '⭐', approverOnly: true },
+        // chainHub: Andrea Skelton (chain KAM) and the price approver (Scott) only.
+        { label: 'Chain Store Hub', href: '/management/chain-hub.html', icon: '🏪', chainHub: true },
         { label: 'Dashboards', href: '/management/', icon: '📊' },
         { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
         { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },
@@ -665,6 +667,7 @@
   // shows exactly what the guard would let through, by construction.
   function visible(item, role) {
     if (item.approverOnly && !isPriceApprover) return false;
+    if (item.chainHub && !isPriceApprover && !((window.DFL_PROFILE || {}).full_name === 'Andrea Skelton')) return false;
     if (item.hrOnly && !isHr) return false;
     // HR Records: HR get People + Library; managers get the Library only.
     if (item.hrOrManager && !isHr && ['admin', 'manager'].indexOf(role) === -1) return false;
