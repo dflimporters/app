@@ -150,6 +150,10 @@ const DFL_PAGE_ROLES = {
   // then requires is_price_approver() (Scott only) — same pattern as
   // /admin/price-approvals.html, because Travis is also an admin.
   '/management/head-of-sales.html':         ['admin'],
+  // Chain Store Hub (Andrea Skelton's 44 chain accounts). Data comes from
+  // chain_hub_data(), which itself requires is_manager(); the side-nav link
+  // is shown only to Andrea and the price approver (Scott) — see chainHub.
+  '/management/chain-hub.html':             ['manager', 'admin'],
   // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
   // which gates writes on leave_tracker_* — reads also allow HR/management.
   '/management/leave-tracker.html':         ['manager', 'admin'],
