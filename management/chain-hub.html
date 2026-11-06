@@ -371,11 +371,25 @@ td .who{font-size:12.5px}
   .topbar{padding-top:14px}
   .topbar h1{font-size:19px}
   .ftiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .ftiles .ft:first-child{grid-column:1/-1}
-  .ft{padding:11px}
-  .ft .ic{width:34px;height:34px}
-  .ft .x{display:none}
-  .days{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ftiles:not(.four) .ft:first-child{grid-column:1/-1}
+  .ft{padding:11px 12px}
+  .ft .ic{width:30px;height:30px}
+  .ft .x{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:10.5px;line-height:1.35;margin-top:6px;padding-top:6px}
+  /* week: one compact line per day, words in full */
+  .week{padding:14px 14px 12px}
+  .days{grid-template-columns:minmax(0,1fr);gap:6px}
+  .day{display:flex;align-items:center;gap:10px;padding:9px 12px}
+  .day .dw{width:44px;flex:none}
+  .day .dn2{width:58px;flex:none;font-size:14px}
+  .day .ev{margin:0;flex-direction:row;flex-wrap:wrap;gap:3px 12px;min-width:0}
+  .topbar .grow{flex:1 1 100%}
+  #tctl{flex:1 1 0;min-width:0}
+  .topbar:has(#tctl:empty) .grow{flex:1 1 0}
+  #tctl:empty{display:none}
+  .gh{flex-wrap:wrap;row-gap:2px}
+  .gh h3{white-space:nowrap}
+  .gh .gn{flex:1 1 100%;order:3}
+  .chainsel{width:100%}.chainsel select{flex:1;min-width:0;width:100%}
   .week h3 span{display:none}
   .bhead{display:none}
   .brow{grid-template-columns:minmax(0,1fr) 92px;grid-template-areas:"s st" "i st";padding:6px 10px}
@@ -388,9 +402,55 @@ td .who{font-size:12.5px}
   .gen .brow>.bexp{grid-column:1/-1 !important}
   .gen .hm,.gen .bhead{display:none}
   .gen .c2{justify-self:end;max-width:46vw}
+  /* board rows on phones: name on line 1, the fact on line 2, status button on the right */
+  .gen .brow{grid-template-columns:minmax(0,1fr) 92px !important;column-gap:12px;row-gap:2px;padding:10px 14px}
+  .gen .brow>.c1{grid-column:1 !important;grid-row:1 !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gen .brow>.c2{grid-column:1 !important;grid-row:2 !important;justify-self:start;max-width:100%;font-size:12.5px}
+  .gen .brow>.stcell{grid-column:2 !important;grid-row:1 / span 2 !important;align-self:center;width:auto;height:32px;margin:0}
+  .gen .brow>:not(.c1):not(.c2):not(.stcell):not(.bexp):not(.hm){grid-column:2 !important;grid-row:1 / span 2 !important;justify-self:end;align-self:center}
+  .gen .brow>.bexp{grid-row:3 !important}
+  .gen .brow>.stcell.c2{grid-column:2 !important;grid-row:1 / span 2 !important;justify-self:stretch;max-width:none;font-size:12px}
+  .gen .brow>.m2{display:block !important;grid-column:1 !important;grid-row:2 !important;justify-self:start;text-align:left !important;font-size:12.5px;color:var(--ink3)}
+  .gen .brow>.m2 .mlab,.gen .brow>.mr .mlab{display:inline}
+  .gen .brow>.mr{display:block !important;grid-column:2 !important;grid-row:1 / span 2 !important;justify-self:end;align-self:center;text-align:right !important;font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink)}
+  .gen .brow>.mr .mlab{font-family:var(--body);font-weight:400;font-size:11.5px;color:var(--ink3)}
+  .gen .brow:not(:has(> .stcell)){grid-template-columns:minmax(0,1fr) auto !important}
+  .gen .brow>.c2.rsn{padding-left:4px !important}
   .topbar{flex-wrap:wrap}
   .ftiles.four,.ftiles.three{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .seg{display:flex}
+  .seg{display:flex;flex-wrap:wrap;overflow:visible}
+  .seg button{flex:1 1 auto;justify-content:center;padding:7px 10px}
+}
+/* sort picker + card rows: phones only */
+.msort,table.flat td.brk,.mlab{display:none}
+@media (max-width:640px){
+  .msort{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+  .msort label{font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--ink3);flex:none}
+  .msort select{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:13px;color:var(--ink)}
+  .msort .btn{min-width:40px;justify-content:center}
+  .tbl.scroll{max-height:72vh}
+  table.flat thead{display:none}
+  table.flat,table.flat>tbody{display:block;width:100%}
+  table.flat>tbody>tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:11px 14px;border-bottom:1px solid var(--line2)}
+  table.flat>tbody>tr:last-child{border-bottom:0}
+  table.flat>tbody>tr>td,table.flat>tbody>tr>td.hide-sm{display:inline-flex;align-items:center;gap:5px;order:2;padding:0 !important;border:0;width:auto !important;max-width:100%;min-width:0;height:auto;font-size:12px;color:var(--ink2);text-align:left;white-space:nowrap}
+  table.flat>tbody>tr>td.n::before{content:attr(data-l);font-family:var(--head);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3)}
+  /* figures: a 3-column grid, label above value, so every card lines up */
+  table.flat>tbody>tr:has(> td.n:not(.mk):not(:first-child) ~ td.n:not(.mk):not(:first-child))>td.n:not(.mk):not(:first-child){order:3;flex:0 0 88px;margin-right:4px;flex-direction:column;align-items:flex-start;gap:1px;font-size:13px;color:var(--ink);overflow:hidden}
+  table.flat>tbody>tr:has(> td.n:not(.mk):not(:first-child) ~ td.n:not(.mk):not(:first-child))>td.n:not(.mk):not(:first-child)>*{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  table.flat>tbody>tr:has(> td.n:not(.mk):not(:first-child) ~ td.n:not(.mk):not(:first-child))>td.n:not(.mk):not(:first-child) .note{color:var(--ink2)}
+  table.flat>tbody>tr:has(> td.n:not(.mk):not(:first-child) ~ td.n:not(.mk):not(:first-child))>td.brk.brk2{order:2;display:block}
+  table.flat>tbody>tr>td.brk.brk2{display:none}
+  table.flat td .dbar{gap:0;justify-content:flex-start;width:auto}
+  table.flat td .dbar span{min-width:0;text-align:left}
+  table.flat>tbody>tr>td:first-child{order:0;flex:1 1 0;font-size:14px;color:var(--ink);overflow:hidden}
+  table.flat>tbody>tr>td:first-child>*{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  table.flat>tbody>tr>td.mk{order:1;margin-left:auto;font-size:13.5px;color:var(--ink)}
+  table.flat>tbody>tr>td.mk::before{display:none}
+  table.flat>tbody>tr>td.brk{display:block;order:1;flex:0 0 100%;height:0;overflow:hidden}
+  table.flat>tbody>tr>td.nolab,table.flat>tbody>tr>td:has(> .nil){display:none}
+  table.flat td .solid{max-width:none;width:auto;min-width:0;padding:3px 9px}
+  table.flat td .dbar .trk{display:none}
 }
 /* scrolling tables with a sticky header */
 .tbl.scroll{max-height:460px;overflow:auto}
@@ -470,7 +530,7 @@ th.on{color:var(--ink)}
 .dstats .v{font-family:var(--head);font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrlist>li.rr{display:block;padding:10px 0}
 .briefbar{display:flex;gap:8px;flex-wrap:wrap}
-@media (max-width:640px){.gusual>li{grid-template-columns:minmax(0,1fr) 64px 70px}.gusual>li>span:nth-child(2),.gusual>li>span:nth-child(5){display:none}}
+@media (max-width:640px){.gusual{--gc:minmax(0,1fr) 78px 74px !important}.gusual>li>span:nth-child(2),.gusual>li>span:nth-child(5){display:none}}
 .l1h{font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--ink3);margin:10px 0 0}
 .l1h:first-child{margin-top:2px}
 .oic{flex:none;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--blue-t);color:var(--blue)}
@@ -487,7 +547,7 @@ th.on{color:var(--ink)}
 .l1 .who .nm b{font-family:var(--head)}
 .rr .rrtop{display:flex;align-items:center;gap:12px}
 .rr .rrsub{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:var(--ink3)}
-@media (max-width:640px){.dstats{grid-template-columns:repeat(2,minmax(0,1fr))}.dt{padding:10px}.dt .v{font-size:16px}.l1 .dbarwrap{width:110px}}
+@media (max-width:640px){.dstats,.dstats.three{grid-template-columns:repeat(2,minmax(0,1fr))}.dstats.three>div:last-child{grid-column:1/-1}.dtiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dtiles .dt:first-child{grid-column:1/-1}.dt .s{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.dt{padding:10px 12px}.dt .v{font-size:17px;white-space:normal;line-height:1.2}.l1 .dbarwrap{width:110px}}
 /* pop-up sections: grey title band, column headings instead of explanation text */
 .drawer{background:#E6EBF3}
 .drawer .sec2.band{padding:0;overflow:hidden;border:1px solid #D6DDE8;background:#fff}
@@ -515,7 +575,7 @@ th.on{color:var(--ink)}
   .gprod{--gc:minmax(0,1fr) 66px 78px !important}.gprod>li>span:nth-child(2){display:none}.cpx{padding:4px 10px 10px}
   .gprod>li>span.nm{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
   .gprod .pill{padding:1px 5px}}
-@media (max-width:640px){.gl>li{gap:8px}.gcat>li{grid-template-columns:minmax(0,1fr) 70px 44px}.gcat>li>span:nth-child(3),.gcat>li>span:nth-child(4){display:none}}
+@media (max-width:640px){.gl>li{gap:8px}.gcat{--gc:minmax(0,1fr) 70px 44px !important}.gcat>li>span:nth-child(3),.gcat>li>span:nth-child(4){display:none}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--navy);color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;z-index:30}
 @media (max-width:640px){
   .strip .wrap{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -541,6 +601,8 @@ body{background:#F3F5F9}
 .ptabs button:focus-visible{outline:2px solid var(--blue)}
 .ptabs .ct{margin-left:2px;background:var(--red);color:#fff;font-size:10.5px;border-radius:9px;padding:0 6px;line-height:17px}
 .asofline{font-size:11.5px;color:var(--ink3);margin:0 0 12px}
+/* pop-ups sit above the portal's own top bar and menu (z-index up to 200) */
+.scrim{z-index:300}.drawer{z-index:301}
 @media (max-width:767px){
   .content.portal{padding-left:14px;padding-right:14px}
   .ptabs button{padding:8px 11px;font-size:12px;gap:6px}
@@ -643,7 +705,7 @@ const SHIPPED = s => /Confirmed|Completed|Invoiced/.test(s);
 // trucker (Acumatica ship via): the shipment's is the reliable one; the order's is often blank. BATCHnn is a placeholder, not a trucker.
 const realVia = v => v && !/^BATCH\d+$/i.test(v) ? v : '';
 const truckOf = o => { const sh = (shipsOfOrder[o.nbr] || []).filter(s => realVia(s.via)).sort((a, b) => (b.date || '').localeCompare(a.date || '')); return sh.length ? realVia(sh[0].via) : realVia(o.via); };
-const truckCell = v => v ? `<span class="truck" title="Ship via ${esc(v)}">${icon('orders', 2)}<span>${esc(v)}</span></span>` : '<span class="note" style="margin:0">–</span>';
+const truckCell = v => v ? `<span class="truck" title="Ship via ${esc(v)}">${icon('orders', 2)}<span>${esc(v)}</span></span>` : '<span class="note nil" style="margin:0">–</span>';
 
 // stage of an open order, in plain words
 const stageOf = o => {
@@ -900,8 +962,12 @@ function stable(id, cols, data, defKey, defDir, scroll, rowStore, rowAttr) {
   const st = SORT[id] || {k:defKey, dir:defDir || 1};
   const col = cols.find(c => c.k === st.k) || cols[0];
   const list = [...data].sort((a, b) => { const x = col.get(a), y = col.get(b); return (x == null) - (y == null) || (typeof x === 'string' ? x.localeCompare(y) : x - y) * st.dir; });
-  return `<div class="tbl${scroll ? ' scroll' : ''}"><table class="flat"><thead><tr>${cols.map(c => `<th class="${c.num ? 'n' : ''} ${c.cls || ''} ${c.k === st.k ? 'on' : ''}"${c.w ? ` style="width:${c.w}"` : ''}><button type="button" class="sort" data-sort="${id}|${c.k}">${esc(c.label)}${c.k === st.k ? `<span class="ar">${st.dir > 0 ? '▲' : '▼'}</span>` : ''}</button></th>`).join('')}</tr></thead>
-  <tbody>${list.map(r => { const sid = rowStore ? rowStore(r) : null; return `<tr${sid ? ` class="clickrow" data-${rowAttr}="${esc(sid)}"` : ''}>${cols.map(c => `<td class="${c.num ? 'n' : ''} ${c.cls || ''}"${c.tip ? ` title="${esc(c.tip(r))}"` : ''}>${c.show(r)}</td>`).join('')}</tr>`; }).join('') || `<tr><td colspan="${cols.length}">Nothing to show.</td></tr>`}</tbody></table></div>`;
+  // phones: each row becomes a two-line card — first column + the key figure on line 1, the rest on line 2.
+  // The key figure is the column marked key:1, else the last number column. A hidden "brk" cell forces the line break.
+  const keyK = (cols.find(c => c.key) || [...cols].reverse().find(c => c.num && c.label) || {}).k;
+  const sortSel = `<div class="msort"><label for="ms-${id}">Sort by</label><select id="ms-${id}" data-msort="${id}">${cols.filter(c => c.label).map(c => `<option value="${c.k}"${c.k === st.k ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select><button type="button" class="btn sm" data-msortdir="${id}|${st.k}|${st.dir}" aria-label="Reverse the order">${st.dir > 0 ? '↑' : '↓'}</button></div>`;
+  return `${sortSel}<div class="tbl${scroll ? ' scroll' : ''}"><table class="flat"><thead><tr>${cols.map(c => `<th class="${c.num ? 'n' : ''} ${c.cls || ''} ${c.k === st.k ? 'on' : ''}"${c.w ? ` style="width:${c.w}"` : ''}><button type="button" class="sort" data-sort="${id}|${c.k}">${esc(c.label)}${c.k === st.k ? `<span class="ar">${st.dir > 0 ? '▲' : '▼'}</span>` : ''}</button></th>`).join('')}</tr></thead>
+  <tbody>${list.map(r => { const sid = rowStore ? rowStore(r) : null; return `<tr${sid ? ` class="clickrow" data-${rowAttr}="${esc(sid)}"` : ''}>${cols.map((c, i) => `<td class="${c.num ? 'n' : ''} ${c.cls || ''}${c.k === keyK && i ? ' mk' : ''}${c.label ? '' : ' nolab'}" data-l="${esc(c.label)}"${c.tip ? ` title="${esc(c.tip(r))}"` : ''}>${c.show(r)}</td>`).join('')}<td class="brk" aria-hidden="true"></td><td class="brk brk2" aria-hidden="true"></td></tr>`; }).join('') || `<tr><td colspan="${cols.length}">Nothing to show.</td></tr>`}</tbody></table></div>`;
 }
 // % is hidden when last year was too small to compare (shown as "new")
 const chg = (d, p) => `<span class="${d >= 0 ? 'up' : 'dn'}">${p == null || Math.abs(p) > 300 ? (d > 0 ? 'new' : '–') : pctTxt(p)}</span><div class="note">${d >= 0 ? '+' : ''}${J(d)}</div>`;
@@ -1098,8 +1164,8 @@ function vOrders() {
     stable('watch', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
       {k:'merch', label:'Merchandiser', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
-      {k:'state', label:'Status', get:s => ORDER.indexOf(s.cad.state) * 1000 - (s.cad.late || 0), tip:s => s.cad.state === 'inhand' ? 'Order ' + s.cad.open[0].nbr + ' is in' : '', show:s => solid(CAD[s.cad.state][0], CAD[s.cad.state][1])},
-      {k:'late', label:'Late', num:1, get:s => s.cad.state === 'missed' || s.cad.state === 'due' ? s.cad.late : null, show:s => s.cad.state === 'missed' || s.cad.state === 'due' ? `<b class="${s.cad.state === 'missed' ? 'dn' : ''}">${s.cad.late}d</b>` : '<span class="note">–</span>'},
+      {k:'state', label:'Status', key:1, get:s => ORDER.indexOf(s.cad.state) * 1000 - (s.cad.late || 0), tip:s => s.cad.state === 'inhand' ? 'Order ' + s.cad.open[0].nbr + ' is in' : '', show:s => solid(CAD[s.cad.state][0], CAD[s.cad.state][1])},
+      {k:'late', label:'Late', num:1, get:s => s.cad.state === 'missed' || s.cad.state === 'due' ? s.cad.late : null, show:s => s.cad.state === 'missed' || s.cad.state === 'due' ? `<b class="${s.cad.state === 'missed' ? 'dn' : ''}">${s.cad.late}d</b>` : '<span class="note nil">–</span>'},
       {k:'every', label:'Usually', num:1, cls:'hide-sm', get:s => s.cad.med, show:s => s.cad.med ? 'every ' + s.cad.med + 'd' : '–'},
       {k:'last', label:'Last delivery', num:1, get:s => s.cad.last, show:s => s.cad.last ? esc(fds(s.cad.last)) : '–'}], watch, 'state', 1, true, s => s.id);
   if (SUB.orders === 'open') body = lead1('o-open', 'Chain orders keyed in but not delivered yet.', '“On truck” means a truck is assigned but Acumatica has not confirmed the shipment. Hover a stage for the detail.') +
@@ -1109,7 +1175,7 @@ function vOrders() {
       {k:'stage', label:'Stage', get:o => o.stage.t, tip:o => o.stage.why, show:o => solid(o.stage.c, o.stage.k === 'truck' ? 'On truck' : o.stage.k === 'bo' ? 'Back order' : o.stage.k === 'open' ? 'Keyed' : o.stage.t)},
       {k:'truck', label:'Truck', cls:'hide-sm', get:o => truckOf(o) || '~', show:o => truckCell(truckOf(o))},
       {k:'by', label:'Keyed by', cls:'hide-sm', get:o => o.by, show:o => esc(o.by || '–')},
-      {k:'val', label:'Value', num:1, get:o => o.total, show:o => J(o.total)},
+      {k:'val', label:'Value', num:1, key:1, get:o => o.total, show:o => J(o.total)},
       {k:'age', label:'Age', num:1, get:o => o.age, show:o => o.age + 'd'}], open, 'age', -1, true, o => o.c);
   if (SUB.orders === 'shipped') body = lead1('o-ship', 'Shipments Acumatica has confirmed in the last 7 days.') +
     stable('shipped', [
@@ -1143,11 +1209,11 @@ function vBackorders() {
   const gShow = SUB.backorders === 'bohand' ? groups.filter(g => g.onhand >= g.qty) : groups;
   if (SUB.backorders === 'bo' || SUB.backorders === 'bohand') body = lead1('b-bo', 'Items still owed to chain stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
-      gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(g.qty, 'c-age hm', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
+      gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
         `${rows(g.rows.map(b => row(storeLink(b.c), 'Order ' + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', '')))}${rExp(g.sku)}`)), 'bo');
   if (SUB.backorders === 'short') body = lead1('b-short', 'Items shipped short to chain stores in the last 90 days.', 'Each order counts once. Raise these with purchasing, and warn store managers before they order. Once a reason is noted it shows wherever that item is short.') +
     gboard('#C47A1A', 'Most often short', shorts.length + ' items · ' + noReason + ' without a reason', 'minmax(0,2.4fr) 70px 70px 90px minmax(0,1.5fr) 40px', [['Item'], ['Times', 'center'], ['Stores', 'center'], ['Last', 'center'], ['Reason', '', 'rsn'], ['']],
-      shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b>`, 'c-age hm', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
+      shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b><span class="mlab"> times</span>`, 'c-age hm mr', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
         `<div class="bfacts"><div><span>Stores</span>${[...x.stores].map(c => esc(byId[c] ? byId[c].name : c)).join(', ')}</div><div><span>Short in total</span>${Math.round(x.qty)} units</div><div><span>Last short</span>${esc(fd(x.last))}</div></div>${rExp(x.sku)}`)), 'short');
   return `<div class="ftiles three">
     ${ctile('bo', 'box', groups.length, 'Items owed', bo.length + ' lines across ' + new Set(bo.map(b => b.c)).size + ' stores', '#7B4FD0')}
@@ -1176,7 +1242,7 @@ function vAR() {
     gboard('#127F8C', SUB.ar === 'stmt' ? 'Statements still to send' : 'Chains', chShow.length + ' accounts', 'minmax(0,1.3fr) 100px minmax(0,1.6fr) 100px 112px 40px', [['Chain'], ['Open', 'right'], ['By age'], ['Past due', 'right'], ['Statement', 'center'], ['']],
       chShow.map(ch => { const sk = 'stmt:' + ch.chain + ':' + MON, st = tick(sk), isSent = st && st.v;
         const pr = latest(n => n.kind === 'promise' && n.chain === ch.chain); const nk = 'note|ar:' + ch.chain; const notes = notesFor(n => n.kind === 'note' && n.ref === 'ar:' + ch.chain);
-        return grow('ar:' + ch.chain, [cell(esc(ch.chain), 'c-store one c1'), cell(J(ch.owed), 'c-age hm', 'right'), cell(mini(ch), 'hm'), cell(`<b class="${ch.past ? 'dn' : 'up'}">${J(ch.past)}</b>`, 'c-age hm', 'right'),
+        return grow('ar:' + ch.chain, [cell(esc(ch.chain), 'c-store one c1'), cell(J(ch.owed), 'c-age hm', 'right'), cell(mini(ch), 'hm'), cell(`<span class="mlab">Past due </span><b class="${ch.past ? 'dn' : 'up'}">${J(ch.past)}</b><span class="mlab"> of ${J(ch.owed)}</span>`, 'c-age hm m2', 'right'),
           `<button type="button" class="stcell ${isSent ? 'st-sorted' : 'st-todo'} c2" data-tick="${esc(sk)}" aria-label="Statement ${isSent ? 'sent' : 'not sent'}. Tap to change">${isSent ? 'Sent' : 'Not sent'}</button>`],
           `<div class="alegend">${SEG(ch).map(x => `<span><i style="background:${x[2]}"></i>${esc(x[0])} <b>${J(x[1])}</b></span>`).join('')}${ch.credTot ? `<span>Unapplied <b>${J(ch.credTot)}</b></span>` : ''}</div>
           <div class="bfacts"><div><span>Payment rhythm</span>${esc(rhythm(ch))}</div><div><span>Last paid</span>${ch.lastPay ? J(ch.lastPay.amt) + ' on ' + esc(fd(ch.lastPay.date)) : '–'}</div><div><span>Next expected</span>${ch.nextPay ? esc(fd(ch.nextPay)) : '–'}</div>
@@ -1256,7 +1322,7 @@ function vStores() {
       {k:'qtd', label:'QTD', num:1, cls:'ctr', get:s => s.qtd, show:s => J(s.qtd)},
       {k:'qtdly', label:'Last year', num:1, cls:'hide-sm ctr', get:s => s.qtdly, show:s => `<span class="note" style="margin:0">${J(s.qtdly)}</span>`},
       {k:'qtdP', label:'Change', num:1, w:'14%', get:s => s.qtdP, show:s => dbar(s.qtdP)},
-      {k:'qtdD', label:'Difference', num:1, cls:'hide-sm', get:s => s.qtdD, show:s => `<b class="${s.qtdD >= 0 ? 'up' : 'dn'}">${s.qtdD >= 0 ? '+' : ''}${J(s.qtdD)}</b>`},
+      {k:'qtdD', label:'Difference', num:1, key:1, cls:'hide-sm', get:s => s.qtdD, show:s => `<b class="${s.qtdD >= 0 ? 'up' : 'dn'}">${s.qtdD >= 0 ? '+' : ''}${J(s.qtdD)}</b>`},
       {k:'qBud', label:'Q' + QN + ' target', num:1, cls:'hide-sm ctr', get:s => s.qBud, show:s => s.qBud ? J(s.qBud) : '<span class="note" style="margin:0">–</span>'},
       {k:'qProg', label:'Progress', num:1, cls:'ctr', get:s => s.qBud ? s.qtd / s.qBud : -1, tip:s => s.qBud ? (s.qGap >= 0 ? 'Ahead of pace by ' : 'Behind pace by ') + J(Math.abs(s.qGap)) : '', show:s => s.qBud ? `<b class="${s.qGap >= 0 ? 'up' : 'dn'}">${Math.round(s.qtd / s.qBud * 100)}%</b>` : '<span class="note" style="margin:0">–</span>'}], list, 'qtdD', 1, true, s => s.id); }
   if (SUB.stores === 'ytd') body = lead1('s-y', `Year to date against the same days last year (to ${lyLbl}).`, 'The chart shows monthly sales for the stores in view, this year against last. Hover a % to see the J$ difference. The current month is month to date.') +
@@ -1305,8 +1371,8 @@ function vTeam() {
     gboard('#127F8C', SUB.team === 'nomgr' ? 'No manager yet' : SUB.team === 'nobk' ? 'No backup orderer yet' : 'Stores', shown.length + ' stores', 'minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,1.1fr) 40px',
       [['Store'], ['Merchandiser'], ['Rep'], ['Manager'], ['Backup orderer'], ['']],
       shown.map(s => { const m = mgrOf(s.id), b = bkOf(s.id); const notes = notesFor(n => n.c === s.id && n.kind === 'note');
-        return grow('tm:' + s.id, [cell(esc(s.name), 'c-store one c1'), cell(whoCell(s.merch, true), 'hm'), cell(whoCell(s.rep, true), 'hm'),
-          cell(m ? whoCell(m.name, true) : addBtn('manager', s, 'Add'), 'c2'), cell(b ? whoCell(b.name, true) : addBtn('backup', s, 'Set'), 'hm')],
+        return grow('tm:' + s.id, [cell(esc(s.name), 'c-store one c1'), cell(whoCell(s.merch, true), 'hm mr'), cell(whoCell(s.rep, true), 'hm'),
+          cell(m ? whoCell(m.name, true) : addBtn('manager', s, 'Add manager'), 'c2'), cell(b ? whoCell(b.name, true) : addBtn('backup', s, 'Set'), 'hm')],
           `<div class="bfacts"><div><span>Area</span>${esc(s.area || '–')}</div><div><span>Service days</span>${esc(s.sday || '–')}</div><div><span>Store phone</span>${esc(s.phone || '–')}</div>
           <div><span>Merchandiser</span>${esc(s.merch || 'None on file')}</div><div><span>Manager</span>${m ? esc(m.name) + (m.phone ? ' · ' + esc(m.phone) : '') + (m.text ? `<div class="m2">${esc(m.text)}</div>` : '') : 'None recorded'}</div><div><span>Backup orderer</span>${b ? esc(b.name) : 'None set'}</div></div>
           ${notes.length ? noteList(notes.slice(0, 3)) : ''}
@@ -1578,6 +1644,8 @@ function strip() {
 function render() {
   const n = todayItems().filter(x => !isDone(x.key)).length;
   document.getElementById('tabs').innerHTML = TABS.map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}</button>`).join('');
+  // on a phone the tab bar scrolls sideways: keep the open tab in view
+  { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
   const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', Andrea', `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], orders:['Orders', 'What is keyed, on a truck and due'], backorders:['Back orders', 'What we owe the stores, and why'], ar:['AR', 'Statements, promises and payments by chain'], stores:['Stores', 'Sales against last year and budget'], team:['Team', 'Who covers each store']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
@@ -1615,6 +1683,7 @@ __on(document, 'click', e => {
   if (d.copyshelf) { copyText(shelfText(d.copyshelf), 'Shelf-check list copied. Paste it into WhatsApp.'); return; }
   if (d.briefcopy) { copyText(briefText(d.briefcopy), 'Store brief copied. Paste it into WhatsApp.'); return; }
   if (d.brief) { briefPrint(d.brief); return; }
+  if (d.msortdir) { const [id, k, dir] = d.msortdir.split('|'); SORT[id] = {k, dir:-(+dir || 1)}; render(); return; }
   if (d.sort) { const [id, k] = d.sort.split('|'); const st = SORT[id]; SORT[id] = {k, dir:st && st.k === k ? -st.dir : (b.closest('th').classList.contains('n') ? -1 : 1)};
     const sc = b.closest('.tbl'), top = sc ? sc.scrollTop : 0; render(); return; }
   if (d.chain) { CHAINF = d.chain; render(); return; }
@@ -1635,7 +1704,8 @@ __on(document, 'click', e => {
   if (d.copy !== undefined) { const [q, a] = HOWTO[+d.copy]; const txt = q.replace(/[“”]/g, '"') + '\n' + a;
     navigator.clipboard && navigator.clipboard.writeText(txt).then(() => toast('Copied. Paste it into WhatsApp.'), () => toast('Copy did not work here. Select the text and copy it.')); return; }
 });
-__on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); } });
+__on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
+  else if (e.target.dataset && e.target.dataset.msort) { const id = e.target.dataset.msort, th = document.querySelector(`[data-sort="${id}|${e.target.value}"]`); SORT[id] = {k:e.target.value, dir:th && th.closest('th').classList.contains('n') ? -1 : 1}; e.target.blur(); render(); } });
 // ---------- soft tooltips: replaces the browser's black title boxes ----------
 const TIP = document.getElementById('hubtip') || (() => { const t = document.createElement('div'); t.id = 'hubtip'; t.className = 'hubtip'; t.setAttribute('role', 'tooltip'); t.hidden = true; document.body.appendChild(t); return t; })();
 let TIPEL = null, TIPT = null;
