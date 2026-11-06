@@ -178,7 +178,7 @@ main{padding-block:8px 90px}
 .gh h3{font-family:var(--head);font-size:14.5px;font-weight:800;color:var(--gc);margin:0}
 .gh .gn{font-size:12px;color:var(--ink3)}
 .gh .gv{margin-left:auto;font-family:var(--head);font-weight:700;font-size:12.5px;color:var(--ink2)}
-.bhead,.brow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,2.3fr) minmax(0,1.1fr) 112px 48px 68px;align-items:center}
+.bhead,.brow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,2.1fr) minmax(0,1fr) minmax(0,1fr) 112px 48px 68px;align-items:center}
 .c-issue .nx{display:block;color:var(--blue);font-size:11.5px;font-weight:600;margin-top:2px}
 .bhead{padding:6px 14px;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);background:#FAFBFD}
 .bhead div{font-family:var(--head);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink3);padding:0 8px}
@@ -530,6 +530,11 @@ th.on{color:var(--ink)}
 .dstats .v{font-family:var(--head);font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrlist>li.rr{display:block;padding:10px 0}
 .briefbar{display:flex;gap:8px;flex-wrap:wrap}
+.tochips{display:flex;flex-wrap:wrap;gap:6px}
+.tochip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px;background:#fff;font-size:12.5px;cursor:pointer}
+.tochip b{font-family:var(--head);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3);margin-right:2px}
+.nbox .tochip input{width:15px;height:15px;margin:0;padding:0}
+.tochip .av{width:20px;height:20px;font-size:9px}
 .chks{display:flex;flex-direction:column;gap:2px;padding:2px 0}
 .chk{display:grid;grid-template-columns:18px 110px 110px 1fr;gap:8px;align-items:center;font-size:13px;color:var(--ink);padding:4px 2px;border-bottom:1px solid var(--line2)}
 .nbox .chk input{width:16px;height:16px;margin:0;padding:0}
@@ -670,7 +675,11 @@ const chainOf = n => { n = n.toUpperCase();
 const nice = n => n.replace(/\.$/, '').toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\bHilo\b/g, 'Hi-Lo').replace(/\bMegamart\b/g, 'MegaMart').replace(/\bUwi\b/g, 'UWI').replace(/\bMobay\b/g, 'MoBay').replace(/\bJr'S\b/g, "JR's").replace(/\bBlvd\b/g, 'Blvd').replace(/\bT\/A\b/g, 't/a').replace(/\bLtd\b/g, 'Ltd').replace(/\s+/g, ' ').trim();
 const firstName = n => (n || '').split(/[ ,]/)[0];
 
-const STORES = S.stores.map(r => ({id:r[0], raw:r[1], name:nice(r[1]), chain:chainOf(r[1]), area:r[2], parent:r[3], terms:r[4], phone:r[5], merch:r[6] || '', sday:r[7] || '', rep:(S.rep || {})[r[0]] || ''}))
+// people who have left DFL: never shown as a store's rep or offered in the name lists, even while old invoices still carry their name
+// (Ruth Ann Lewis, Scott 6 Nov 2026; her 5 stores show no rep until the salesperson is changed in Acumatica)
+const LEFT = new Set(['Ruth Ann Lewis']);
+const current = n => n && !LEFT.has(String(n).trim()) ? n : '';
+const STORES = S.stores.map(r => ({id:r[0], raw:r[1], name:nice(r[1]), chain:chainOf(r[1]), area:r[2], parent:r[3], terms:r[4], phone:r[5], merch:String(r[6] || '').split(',').map(x => x.trim()).filter(current).join(', '), sday:r[7] || '', rep:current((S.rep || {})[r[0]])}))
   .sort((a, b) => a.chain.localeCompare(b.chain) || a.name.localeCompare(b.name));
 const byId = {}; STORES.forEach(s => byId[s.id] = s);
 const CHAINS = [...new Set(STORES.map(s => s.chain))];
@@ -835,7 +844,8 @@ Object.values(CH).forEach(ch => {
   ch.payGap = gaps.length >= 2 ? Math.round(median(gaps)) : null;
   ch.payDom = ch.pays.length >= 2 ? Math.round(median(ch.pays.map(p => d8(p.date).getDate()))) : null;
   ch.lastPay = ch.pays[0] || null;
-  ch.nextPay = ch.lastPay && ch.payGap ? addDays(ch.lastPay.date, ch.payGap) : null;
+  // no collections or payments at weekends: an expected date on Saturday or Sunday moves to the Monday after (Scott, 6 Nov)
+  ch.nextPay = ch.lastPay && ch.payGap ? toWorkday(addDays(ch.lastPay.date, ch.payGap)) : null;
   ch.past = ch.b30 + ch.b60 + ch.b90;
   ch.credTot = ch.credits.reduce((a, r) => a + r.bal, 0);
 });
@@ -884,7 +894,15 @@ function dealState(n) {
 }
 const dealClosed = n => { const t = TICKS[keyOk('dealx:' + n.id)]; return !!(t && t.v); };
 const DEALS_LOG = () => NOTES.filter(n => n.kind === 'deal' && n.c && byId[n.c]).map(n => ({n, s:byId[n.c], st:dealState(n), closed:dealClosed(n), age:daysBetween(n.date || n.at.slice(0, 10), ASOF)}));
-const dealMsg = n => { const s = byId[n.c], who1 = firstName(n.name) || 'team';
+// "sent to" can be several people (merchandiser and rep): stored as "Name A, Name B"
+const namesOf = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+const firstNames = v => { const f = namesOf(v).map(firstName); return f.length > 1 ? f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] : f[0] || ''; };
+// deal form: tick boxes for the store's merchandiser(s) and rep, all ticked to start
+const toPicks = s => { if (!s) return '<span class="note" style="margin:0">Choose the store first</span>';
+  const list = namesOf(s.merch).map(n => ['Merch', n]).concat(s.rep ? [['Rep', s.rep]] : []);
+  return list.length ? list.map(([r, n]) => `<label class="tochip"><input type="checkbox" name="fto" value="${esc(n)}" checked>${av(n)}<span><b>${r}</b> ${esc(n)}</span></label>`).join('') : '<span class="note" style="margin:0">No merchandiser or rep on file; use Other</span>'; };
+const whoMulti = v => { const l = namesOf(v); return l.length > 1 ? `<div class="who" title="${esc(l.join(', '))}">${av(l[0])}<span>${esc(shortName(l[0]))} +${l.length - 1}</span></div>` : whoCell(l[0] || '', true); };
+const dealMsg = n => { const s = byId[n.c], who1 = firstNames(n.name) || 'team';
   return [`Hi ${who1}, deal for *${s ? s.name : n.c}*:`, `• ${descOf(n.sku)}: *${n.label || 'deal'}*`, n.text ? n.text : '', 'Please offer it on your next visit and get it on the order. Tell me what the buyer says.'].filter(Boolean).join('\n'); };
 
 // collections: Shallet hands a store's past-due invoices to a collector (team leader or merchandiser) for the week.
@@ -944,17 +962,17 @@ function todayItems() {
   CHECKS.filter(x => x.kind === 'deal').forEach(x => it.push({key:x.key, pri:1, col:'blue', kind:'Special', c:x.o.c, issue:`Add ${x.h.add} to get ${x.h.free} free`, sub:x.l.desc, age:x.o.age,
     t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
     d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is buy ${x.h.buy}, get ${x.h.free} free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
-    act:'Call the merchandiser to add it', value:x.value + 1e6}));
-  // free goods left off an open order: Alicia adds them before it ships
+    act:'Call Rep or Merch to add it', value:x.value + 1e6}));
+  // free goods left off an open order: sales support adds them before it ships
   CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
     t:`${byId[x.o.c].name}: free goods missing on order ${x.o.nbr}`,
     d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal is buy ${x.f.buy}, get ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
-    act:'Send it to Alicia to add the free goods', value:x.value}));
+    act:'Ask sales support to add the free goods', value:x.value}));
   // deals Shallet logged that the store has since ordered without
   DEALS_LOG().filter(x => !x.closed && x.st.k === 'missed').forEach(x => it.push({key:'dealm:' + x.n.id, pri:1.5, col:'red', kind:'Deal not taken', c:x.n.c, order:x.st.nbr || null, issue:'Ordered without the deal', sub:`${descOf(x.n.sku)}: ${x.n.label || ''}`, age:x.age,
     t:`${x.s.name}: ordered without the ${descOf(x.n.sku)} deal`,
     d:`Sent to <b>${esc(x.n.name || 'the team')}</b> on ${fd(x.n.date)}: ${esc(x.n.label || '')}. ${esc(x.st.why)}.`,
-    act:`Ask ${firstName(x.n.name) || 'the merchandiser'} why it wasn’t offered`, value:5e5}));
+    act:`Ask ${firstNames(x.n.name) || 'Rep or Merch'} why it wasn’t offered`, value:5e5}));
   // collections: past the date with no update, or collected but not handed in after 2 days
   COLS().filter(x => !x.cleared).forEach(x => { const nm2 = x.n.name || 'the collector';
     if (x.st === 'assigned' && x.n.date && x.n.date < ASOF) it.push({key:'colx:' + x.n.id + ':' + x.n.date, pri:5.5, col:'amber', kind:'Collection', c:x.n.c, issue:`${firstName(nm2)} hasn’t collected`, sub:`${J(x.left)} due by ${fds(x.n.date)}`, age:daysBetween(x.n.date, ASOF),
@@ -963,15 +981,15 @@ function todayItems() {
       t:`${byId[x.n.c] ? byId[x.n.c].name : x.n.c}: ${J(x.left)} collected by ${nm2}, not handed in`, d:`Collected ${fd(x.stAt)}. Invoices ${esc(x.open.join(', '))} still open in AR.`, act:`Check where the money is with ${firstName(nm2)}`, value:x.left}); });
   STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No order in ${s.cad.since} days`, sub:`Usually every ${s.cad.med} days`, age:s.cad.since,
     t:`${s.name}: no order in ${s.cad.since} days`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
-    act:`Call ${firstName(s.merch) || 'the store'} for the order`, value:(s.l3 / 3)}));
+    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
+    act:'Call Rep or Merch for the order', value:(s.l3 / 3)}));
   // due today: expected today or a little late, not yet missed, nothing keyed in — follow up before it becomes a missed order
   STORES.filter(s => !isHQ(s) && s.cad.next && s.cad.next <= ASOF && (s.cad.state === 'due' || s.cad.state === 'ok')).forEach(s => { const over = daysBetween(s.cad.next, ASOF);
     it.push({key:'due:' + s.id + ':' + s.cad.next, pri:2.5, col:'amber', kind:'Due today', c:s.id,
     issue:over > 0 ? `Due ${over} day${over === 1 ? '' : 's'} ago, no order yet` : 'Order due today', sub:`Usually every ${s.cad.med} days · last ${fds(s.cad.last)}`, age:s.cad.since,
     t:`${s.name}: order due ${over > 0 ? over + ' days ago' : 'today'}`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
-    act:`Check with ${firstName(s.merch) || 'the store'} the order is coming`, value:(s.l3 / 3)}); });
+    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
+    act:'Check with Rep or Merch that the order is coming', value:(s.l3 / 3)}); });
   // will ship short: open / on-hold orders with lines we don't have the stock for — call before the truck leaves
   const shortOrd = {}; CHECKS.filter(x => x.kind === 'stock').forEach(x => (shortOrd[x.o.nbr] = shortOrd[x.o.nbr] || {o:x.o, ls:[]}).ls.push(x.l));
   Object.values(shortOrd).forEach(({o, ls}) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0);
@@ -1039,6 +1057,8 @@ const rows = list => `<ul class="rl">${list.join('')}</ul>`;
 const row = (m1, m2, r1, r2, full) => `<li><div class="m1">${m1}</div><div class="r1">${r1 == null ? '' : r1}</div>${m2 || r2 ? `<div class="m2">${m2 || ''}</div><div class="r2">${r2 || ''}</div>` : ''}${full ? `<div class="full">${full}</div>` : ''}</li>`;
 // sortable table: cols = [{k, label, num, get(r), show(r)}]
 const SORT = {};
+// short column headings, with the full name on hover (Scott, 6 Nov)
+const HEADFULL = {Merch:'Merchandiser', LY:'Last year, same days', Growth:'Change vs last year', Diff:'Difference vs last year (J$)', Prog:'Progress to target', ['Q' + QN + ' Tgt']:'Q' + QN + ' target (all three months)'};
 function stable(id, cols, data, defKey, defDir, scroll, rowStore, rowAttr) {
   rowAttr = rowAttr || 'store';
   const st = SORT[id] || {k:defKey, dir:defDir || 1};
@@ -1048,7 +1068,7 @@ function stable(id, cols, data, defKey, defDir, scroll, rowStore, rowAttr) {
   // The key figure is the column marked key:1, else the last number column. A hidden "brk" cell forces the line break.
   const keyK = (cols.find(c => c.key) || [...cols].reverse().find(c => c.num && c.label) || {}).k;
   const sortSel = `<div class="msort"><label for="ms-${id}">Sort by</label><select id="ms-${id}" data-msort="${id}">${cols.filter(c => c.label).map(c => `<option value="${c.k}"${c.k === st.k ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select><button type="button" class="btn sm" data-msortdir="${id}|${st.k}|${st.dir}" aria-label="Reverse the order">${st.dir > 0 ? '↑' : '↓'}</button></div>`;
-  return `${sortSel}<div class="tbl${scroll ? ' scroll' : ''}"><table class="flat"><thead><tr>${cols.map(c => `<th class="${c.num ? 'n' : ''} ${c.cls || ''} ${c.k === st.k ? 'on' : ''}"${c.w ? ` style="width:${c.w}"` : ''}><button type="button" class="sort" data-sort="${id}|${c.k}">${esc(c.label)}${c.k === st.k ? `<span class="ar">${st.dir > 0 ? '▲' : '▼'}</span>` : ''}</button></th>`).join('')}</tr></thead>
+  return `${sortSel}<div class="tbl${scroll ? ' scroll' : ''}"><table class="flat"><thead><tr>${cols.map(c => `<th class="${c.num ? 'n' : ''} ${c.cls || ''} ${c.k === st.k ? 'on' : ''}"${c.w ? ` style="width:${c.w}"` : ''}><button type="button" class="sort" data-sort="${id}|${c.k}"${HEADFULL[c.label] ? ` title="${esc(HEADFULL[c.label])}"` : ''}>${esc(c.label)}${c.k === st.k ? `<span class="ar">${st.dir > 0 ? '▲' : '▼'}</span>` : ''}</button></th>`).join('')}</tr></thead>
   <tbody>${list.map(r => { const sid = rowStore ? rowStore(r) : null; return `<tr${sid ? ` class="clickrow" data-${rowAttr}="${esc(sid)}"` : ''}>${cols.map((c, i) => `<td class="${c.num ? 'n' : ''} ${c.cls || ''}${c.k === keyK && i ? ' mk' : ''}${c.label ? '' : ' nolab'}" data-l="${esc(c.label)}"${c.tip ? ` title="${esc(c.tip(r))}"` : ''}>${c.show(r)}</td>`).join('')}<td class="brk" aria-hidden="true"></td><td class="brk brk2" aria-hidden="true"></td></tr>`; }).join('') || `<tr><td colspan="${cols.length}">Nothing to show.</td></tr>`}</tbody></table></div>`;
 }
 // % is hidden when last year was too small to compare (shown as "new")
@@ -1082,7 +1102,8 @@ function formFor(k) {
     return `<div class="nbox"><div class="nrow"><label class="note" for="f-store">Store</label><select id="f-store">${s0 ? '' : '<option value="">Choose a store</option>'}${STORES.filter(s => !isHQ(s)).map(s => `<option value="${esc(s.id)}" ${s.id === ref ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
     <div class="nrow"><label class="note" for="f-sku">Product</label><input id="f-sku" type="text" list="dl-prod" placeholder="Type a product name or code" autocomplete="off"><datalist id="dl-prod">${PRODS.map(p => `<option value="${esc(prodLabel(p))}"></option>`).join('')}</datalist></div>
     <div class="nrow"><label class="note" for="f-deal">Deal</label><input id="f-deal" type="text" placeholder="e.g. buy 15 get 1 free, or J$2,150 a case on 24+"></div>
-    <div class="nrow"><label class="note" for="f-nm">Sent to</label><input id="f-nm" type="text" list="dl-team" placeholder="Merchandiser or rep" value="${esc(s0 && s0.merch ? s0.merch.split(',')[0].trim() : '')}">${teamList}<label class="note" for="f-date">On</label><input id="f-date" type="date" value="${ASOF}"></div>
+    <div class="nrow"><span class="note" style="margin:0">Sent to</span><span id="f-to" class="tochips">${toPicks(s0)}</span></div>
+    <div class="nrow"><label class="note" for="f-nm">Other</label><input id="f-nm" type="text" list="dl-team" placeholder="Anyone else (optional)">${teamList}<label class="note" for="f-date">On</label><input id="f-date" type="date" value="${ASOF}"></div>
     <label class="sr" for="f-tx">Message</label><textarea id="f-tx" rows="2" placeholder="Anything to add to the message, e.g. the buyer will take 55 cases on 15 + 1"></textarea>
     <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Log deal and copy message</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`; }
   if (kind === 'collect') { const s0 = byId[ref], taken = assignedRefs();
@@ -1104,24 +1125,28 @@ function formFor(k) {
 }
 const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
 async function saveForm(k) {
+  let moved = '';   // set when a weekend date was moved to Monday
   const [kind, ...rest] = k.split('|'); const ref = rest.join('|');
   let n = null;
   if (kind === 'reason') n = {kind, sku:ref, src:val('f-src'), label:val('f-why'), eta:val('f-eta'), text:val('f-tx')};
-  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:val('f-date'), text:val('f-tx')}; }
+  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the promise is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'manager') { if (!val('f-nm').trim()) { toast('Add the manager’s name.'); return; } n = {kind, c:ref, name:val('f-nm').trim(), phone:val('f-ph').trim(), text:val('f-tx')}; }
   else if (kind === 'backup') { if (!val('f-nm').trim()) return; n = {kind, c:ref, name:val('f-nm').trim(), text:''}; }
   else if (kind === 'deal') { const c = val('f-store'), sku = skuFromLabel(val('f-sku'));
     if (!c || !sku) { toast('Choose the store, and a product from the list.'); return; }
     if (!val('f-deal').trim()) { toast('Add the deal, e.g. buy 15 get 1 free.'); return; }
-    n = {kind:'deal', c, sku, label:val('f-deal').trim(), name:val('f-nm').trim(), date:val('f-date') || ASOF, text:val('f-tx')};
+    const to = [...new Set([...document.querySelectorAll('input[name=fto]:checked')].map(b => b.value).concat(val('f-nm').trim() ? [val('f-nm').trim()] : []))];
+    if (!to.length) { toast('Tick the merchandiser or rep, or add who you sent it to.'); return; }
+    n = {kind:'deal', c, sku, label:val('f-deal').trim(), name:to.join(', '), date:val('f-date') || ASOF, text:val('f-tx')};
     if (await addNote(n)) { OPEN = null; render(); copyText(dealMsg(n), 'Deal logged. The WhatsApp message is copied.'); }
     return; }
   else if (kind === 'collect') { const boxes = [...document.querySelectorAll('input[name=finv]:checked')];
     if (!val('f-nm').trim()) { toast('Add who is collecting.'); return; }
     if (!boxes.length) { toast('Tick at least one invoice.'); return; }
-    n = {kind:'collect', c:ref, ref:boxes.map(b => b.value).join(','), name:val('f-nm').trim(), date:val('f-date') || fridayOf(ASOF), amount:boxes.reduce((a, b) => a + (+b.dataset.amt || 0), 0), text:val('f-tx')}; }
+    n = {kind:'collect', c:ref, ref:boxes.map(b => b.value).join(','), name:val('f-nm').trim(), date:toWorkday(val('f-date') || fridayOf(ASOF)), amount:boxes.reduce((a, b) => a + (+b.dataset.amt || 0), 0), text:val('f-tx')};
+    if (val('f-date') && n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the collection is due Monday ' + fds(n.date) + '.'; }
   else { if (!val('f-tx').trim()) return; const c = ref.split(':')[1]; n = {kind:'note', ref, c:byId[c] ? c : '', text:val('f-tx')}; }
-  if (await addNote(n)) { OPEN = null; render(); }
+  if (await addNote(n)) { OPEN = null; render(); if (moved) toast(moved); }
 }
 function card(x) {
   const done = isDone(x.key);
@@ -1169,7 +1194,7 @@ const ICO = {
   note:'<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>',
   chev:'<path d="M6 9l6 6 6-6"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Free goods':['#D63B3B', 'Deal free goods left off open orders, for Alicia to add'], 'Deals':['#326BD3', 'Deals you sent that the store ordered without'], 'Collections':['#127F8C', 'Money with collectors that is late or not handed in'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Stuck orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
+const GRPC = {'Free goods':['#D63B3B', 'Deal free goods left off open orders, for sales support to add'], 'Deals':['#326BD3', 'Deals you sent that the store ordered without'], 'Collections':['#127F8C', 'Money with collectors that is late or not handed in'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Stuck orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
 let TODAYF = 'All', EXP = null;
 
 function weekStrip() {
@@ -1199,6 +1224,7 @@ function brow(x) {
     <div class="c-store one">${esc(s ? s.name : x.ch || '')}</div>
     <div class="c-issue one">${esc(x.issue)}</div>
     <div class="c-who">${whoCell(who1, true)}</div>
+    <div class="c-who">${s ? whoCell(s.rep, true) : ''}</div>
     <button type="button" class="stcell ${ST[st][0]}" data-status="${esc(x.key)}" aria-label="Status: ${ST[st][1]}. Tap to change">${ST[st][1]}</button>
     <div class="c-age">${x.age == null ? '–' : x.age + 'd'}</div>
     <div class="c-act">${notes.length ? `<span class="ncount" title="${notes.length} note${notes.length === 1 ? '' : 's'}">${icon('note')}${notes.length}</span>` : ''}<span class="chev">${icon('chev')}</span></div>
@@ -1227,7 +1253,7 @@ function brow(x) {
   <div class="legend"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To call</span><span><i style="background:#FDAB3D"></i>Waiting</span><span><i style="background:#00C875"></i>Sorted</span>${TODAYF !== 'All' ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show sorted (${all.length - open.length})</button>`}</div>
   ${dbMsg()}
   ${groups.length ? groups.map(({k, list}) => `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
-    <div class="bhead"><div>Store</div><div>Issue</div><div>Merchandiser</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
+    <div class="bhead"><div>Store</div><div>Issue</div><div>Merch</div><div>Rep</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
     ${(SHOWALL['g:' + k] ? list : list.slice(0, 8)).map(brow).join('')}
     ${list.length > 8 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="g:${esc(k)}">${SHOWALL['g:' + k] ? 'Show fewer' : 'Show the other ' + (list.length - 8)}</button></div>` : ''}</section>`).join('')
   : `<div class="empty">Nothing here. ${TODAYF === 'All' ? 'Every store has ordered on time, nothing is stuck and AR is up to date.' : ''}</div>`}
@@ -1263,16 +1289,17 @@ function vOrders() {
   const shipped = SHIPS.filter(s => SHIPPED(s.status) && inChain(s.c) && s.date >= addDays(ASOF, -7));
   const missed = watch.filter(s => s.cad.state === 'missed').length, due = watch.filter(s => s.cad.state === 'due').length;
   let body = '';
-  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders that can still change before they ship.', 'Three kinds of line show here: free goods left off (the order reaches a deal tier at the sheet price but has no J$0 line; send it to Alicia), a special the store is just short of (add a few cases to reach the free-goods tier), and stock we do not have enough of. Act while the order is still open.') +
+  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders that can still change before they ship.', 'Three kinds of line show here: free goods left off (the order reaches a deal tier at the sheet price but has no J$0 line; ask sales support to add it), a special the store is just short of (add a few cases to reach the free-goods tier), and stock we do not have enough of. Act while the order is still open.') +
     gboard('#E2445C', 'Check before it ships', checks.length + ' lines', 'minmax(0,1.5fr) 88px minmax(0,1.5fr) minmax(0,2fr) 104px 40px', [['Store'], ['Order'], ['Problem'], ['Product'], ['Status', 'center'], ['']],
       checks.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
         return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}">${x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), stBtn(k)],
-          `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'stock' ? 'Ordered' : 'Deal'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : x.kind === 'free' ? `Buy ${x.f.buy}, get ${x.f.free} free · ${x.f.oq} on the order, ${x.f.have || 'no'} free · send to Alicia` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
+          `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'stock' ? 'Ordered' : 'Deal'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : x.kind === 'free' ? `Buy ${x.f.buy}, get ${x.f.free} free · ${x.f.oq} on the order, ${x.f.have || 'no'} free · ask sales support` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
   if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
-      {k:'merch', label:'Merchandiser', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+      {k:'merch', label:'Merch', w:'13%', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+      {k:'rep', label:'Rep', w:'13%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)},
       {k:'state', label:'Status', key:1, get:s => ORDER.indexOf(s.cad.state) * 1000 - (s.cad.late || 0), tip:s => s.cad.state === 'inhand' ? 'Order ' + s.cad.open[0].nbr + ' is in' : '', show:s => solid(CAD[s.cad.state][0], CAD[s.cad.state][1])},
       {k:'late', label:'Late', num:1, get:s => s.cad.state === 'missed' || s.cad.state === 'due' ? s.cad.late : null, show:s => s.cad.state === 'missed' || s.cad.state === 'due' ? `<b class="${s.cad.state === 'missed' ? 'dn' : ''}">${s.cad.late}d</b>` : '<span class="note nil">–</span>'},
       {k:'every', label:'Usually', num:1, cls:'hide-sm', get:s => s.cad.med, show:s => s.cad.med ? 'every ' + s.cad.med + 'd' : '–'},
@@ -1315,7 +1342,7 @@ function vDeals() {
   if (SUB.deals !== 'sheet') body = lead1('d-log', 'Deals you sent to merchandisers and reps, and whether they reached an order.', 'Log a deal when you send it. The hub checks the store’s orders and invoices from that day on: green when the product is invoiced, blue when it is on an open order, red when the store ordered without it. Close a deal once it is done or dropped.') +
     gboard('#326BD3', SUB.deals === 'missed' ? 'Ordered without the deal' : SUB.deals === 'won' ? 'On an order or invoice' : SUB.deals === 'closed' ? 'Closed deals' : 'Open deals', shown.length + ' deals', 'minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,1fr) 128px 52px 40px', [['Store'], ['Product'], ['Deal'], ['Sent to'], ['Status', 'center'], ['Age', 'center'], ['']],
       shown.sort((a, b) => ['missed', 'wait', 'order', 'stale', 'won'].indexOf(a.st.k) - ['missed', 'wait', 'order', 'stale', 'won'].indexOf(b.st.k) || b.age - a.age).map(x => { const k = 'deal:' + x.n.id, notes = notesFor(n => n.kind === 'note' && n.ref === k);
-        return grow(k, [cell(esc(x.s.name), 'c-store one c1'), cell(esc(descOf(x.n.sku)), 'c-issue one hm'), cell(esc(x.n.label || ''), 'one c2'), cell(whoCell(x.n.name, true), 'hm'),
+        return grow(k, [cell(esc(x.s.name), 'c-store one c1'), cell(esc(descOf(x.n.sku)), 'c-issue one hm'), cell(esc(x.n.label || ''), 'one c2'), cell(whoMulti(x.n.name), 'hm'),
           cell(`<span title="${esc(x.st.why)}">${solid(DSTC[x.st.k], x.closed ? 'Closed' : x.st.t)}</span>`, '', 'center'), cell(x.age + 'd', 'c-age hm', 'center')],
           `<div class="bfacts"><div><span>Product</span>${esc(descOf(x.n.sku))} <span class="note" style="margin:0">${esc(x.n.sku)}</span></div><div><span>Deal</span>${esc(x.n.label || '')}${DSH[x.n.sku] ? `<div class="m2">Deal sheet: ${esc(tierTxt(DSH[x.n.sku].tiers))}</div>` : ''}</div><div><span>Sent</span>${esc(fd(x.n.date))} to ${esc(x.n.name || '–')} · logged by ${esc(who(x.n.by))}</div><div><span>Where it stands</span>${esc(x.st.why)}${x.st.nbr ? ' · ' + acuOrder(x.st.nbr) : ''}</div>${x.n.text ? `<div><span>Message</span>${esc(x.n.text)}</div>` : ''}</div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm pri" type="button" data-dealcopy="${esc(x.n.id)}">Copy message for WhatsApp</button><button class="btn sm" type="button" data-dealclose="${esc(x.n.id)}">${x.closed ? 'Reopen' : 'Close deal'}</button><button class="btn sm" type="button" data-store="${esc(x.n.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'deals');
@@ -1420,8 +1447,8 @@ function vAR() {
       Object.entries(byCol).sort((a, b) => b[1].reduce((s, x) => s + x.left, 0) - a[1].reduce((s, x) => s + x.left, 0)).map(([nm3, list]) =>
         `<section class="grp gen colgrp" style="--gc:#127F8C;--cols:minmax(0,1.6fr) minmax(0,1fr) 100px 80px 116px 40px"><div class="gh">${av(nm3)}<h3 style="margin-left:6px">${esc(nm3)}</h3><span class="gn">${list.length} store${list.length === 1 ? '' : 's'} · ${J(list.reduce((a, x) => a + x.left, 0))}</span><button class="btn sm pri" type="button" data-colcopy="${esc(nm3)}">Copy list for WhatsApp</button></div>
         <div class="bhead"><div>Store</div><div class="hm">Area</div><div style="text-align:right">Open</div><div class="hm" style="text-align:center">By</div><div style="text-align:center">Status</div><div></div></div>${list.map(colRow).join('')}</section>`).join('') +
-      gboard('#E8862A', 'Still to hand out', toGive.length + ' stores · past due or due within 7 days', 'minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) 100px 100px 40px', [['Store'], ['Area', '', 'hm'], ['Merchandiser', '', 'hm'], ['Past due', 'right'], ['Due this week', 'right', 'hm'], ['']],
-        toGive.map(x => grow('cg:' + x.s.id, [cell(esc(x.s.name), 'c-store one c1'), cell(esc(x.s.area), 'one hm'), cell(whoCell(x.s.merch, true), 'hm'), cell(`<b class="${x.past ? 'dn' : ''}">${J(x.past)}</b><span class="mlab"> past due</span>`, 'c-age hm mr', 'right'), cell(J(x.week), 'c-age hm', 'right')],
+      gboard('#E8862A', 'Still to hand out', toGive.length + ' stores · past due or due within 7 days', 'minmax(0,1.6fr) minmax(0,0.9fr) minmax(0,1fr) minmax(0,1fr) 100px 100px 40px', [['Store'], ['Area', '', 'hm'], ['Merch', '', 'hm'], ['Rep', '', 'hm'], ['Past due', 'right'], ['Due this week', 'right', 'hm'], ['']],
+        toGive.map(x => grow('cg:' + x.s.id, [cell(esc(x.s.name), 'c-store one c1'), cell(esc(x.s.area), 'one hm'), cell(whoCell(x.s.merch, true), 'hm'), cell(whoCell(x.s.rep, true), 'hm'), cell(`<b class="${x.past ? 'dn' : ''}">${J(x.past)}</b><span class="mlab"> past due</span>`, 'c-age hm mr', 'right'), cell(J(x.week), 'c-age hm', 'right')],
           `<div class="acts"><button class="btn sm pri" type="button" data-open="collect|${esc(x.s.id)}">Hand to a collector</button><button class="btn sm" type="button" data-store="${esc(x.s.id)}">Open store</button></div>${formFor('collect|' + x.s.id)}`)), 'colgive'); }
   return `<div class="ftiles">
     ${ctile('chains', 'money', J(tot.owed), 'Owed by your stores', 'Under a year old', '#127F8C')}
@@ -1467,11 +1494,11 @@ function vStores() {
     return `<div class="pace"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${s.gapPace >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div><span>${Math.round(p)}%</span></div>`; };
   const monthCols = [
     {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
-    {k:'merch', label:'Merchandiser', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+    {k:'merch', label:'Merch', w:'13%', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)}, {k:'rep', label:'Rep', w:'13%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)},
     {k:'bud', label:'Target', num:1, get:s => s.budM, show:s => J(s.budM)},
     {k:'mtd', label:'Achieved', num:1, cls:'ctr', get:s => s.mtd, show:s => J(s.mtd)},
     {k:'bar', label:'', cls:'hide-sm', w:'18%', get:s => s.budM ? s.mtd / s.budM : 0, tip:s => 'The line marks where the store should be today (' + Math.round(PACE * 100) + '% of the month gone)', show:s => { const p = s.budM ? s.mtd / s.budM * 100 : 0; return `<div class="pace" style="justify-content:center"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${s.gapPace >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div></div>`; }},
-    {k:'pct', label:'Progress', num:1, cls:'ctr', get:s => s.budM ? s.mtd / s.budM : 0, show:s => `<b style="font-family:var(--head);color:var(--ink2)">${Math.round(s.budM ? s.mtd / s.budM * 100 : 0)}%</b>`},
+    {k:'pct', label:'Prog', num:1, cls:'ctr', get:s => s.budM ? s.mtd / s.budM : 0, show:s => `<b style="font-family:var(--head);color:var(--ink2)">${Math.round(s.budM ? s.mtd / s.budM * 100 : 0)}%</b>`},
     {k:'gap', label:'vs pace', num:1, get:s => s.gapPace, show:s => `<b class="${s.gapPace >= 0 ? 'up' : 'dn'}">${s.gapPace >= 0 ? '+' : ''}${J(s.gapPace)}</b>`}];
   let body = '';
   if (SUB.stores === 'month' || SUB.stores === 'behind') body = lead1('s-m', `${monName} target, what each store has bought so far, and whether it is on pace.`, `Pace is the target multiplied by the share of working days gone (${WD_DONE} of ${WD_ALL}). The line on each bar marks where the store should be today. Tap a store for its year-to-date figures, categories and the lines it has stopped buying.`) +
@@ -1480,28 +1507,28 @@ function vStores() {
     body = lead1('s-q', `Q${QN} so far (${q0} to ${fds(ASOF)}) against the same days last year, and against the quarter’s target.`, `Target is the budget for all three months of Q${QN}. Progress is the share of it bought so far; green means the store is on pace (finished months in full, plus ${Math.round(PACE * 100)}% of this month’s target). Hover a % to see last year in J$.`) +
     stable('qtr', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
-      {k:'merch', label:'Merchandiser', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+      {k:'merch', label:'Merch', w:'13%', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)}, {k:'rep', label:'Rep', w:'13%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)},
       {k:'qtd', label:'QTD', num:1, cls:'ctr', get:s => s.qtd, show:s => J(s.qtd)},
-      {k:'qtdly', label:'Last year', num:1, cls:'hide-sm ctr', get:s => s.qtdly, show:s => `<span class="note" style="margin:0">${J(s.qtdly)}</span>`},
-      {k:'qtdP', label:'Change', num:1, w:'14%', get:s => s.qtdP, show:s => dbar(s.qtdP)},
-      {k:'qtdD', label:'Difference', num:1, key:1, cls:'hide-sm', get:s => s.qtdD, show:s => `<b class="${s.qtdD >= 0 ? 'up' : 'dn'}">${s.qtdD >= 0 ? '+' : ''}${J(s.qtdD)}</b>`},
-      {k:'qBud', label:'Q' + QN + ' target', num:1, cls:'hide-sm ctr', get:s => s.qBud, show:s => s.qBud ? J(s.qBud) : '<span class="note" style="margin:0">–</span>'},
-      {k:'qProg', label:'Progress', num:1, cls:'ctr', get:s => s.qBud ? s.qtd / s.qBud : -1, tip:s => s.qBud ? (s.qGap >= 0 ? 'Ahead of pace by ' : 'Behind pace by ') + J(Math.abs(s.qGap)) : '', show:s => s.qBud ? `<b class="${s.qGap >= 0 ? 'up' : 'dn'}">${Math.round(s.qtd / s.qBud * 100)}%</b>` : '<span class="note" style="margin:0">–</span>'}], list, 'qtdD', 1, true, s => s.id); }
+      {k:'qtdly', label:'LY', num:1, cls:'hide-sm ctr', get:s => s.qtdly, show:s => `<span class="note" style="margin:0">${J(s.qtdly)}</span>`},
+      {k:'qtdP', label:'Growth', num:1, w:'14%', get:s => s.qtdP, show:s => dbar(s.qtdP)},
+      {k:'qtdD', label:'Diff', num:1, key:1, cls:'hide-sm', get:s => s.qtdD, show:s => `<b class="${s.qtdD >= 0 ? 'up' : 'dn'}">${s.qtdD >= 0 ? '+' : ''}${J(s.qtdD)}</b>`},
+      {k:'qBud', label:'Q' + QN + ' Tgt', num:1, cls:'hide-sm ctr', get:s => s.qBud, show:s => s.qBud ? J(s.qBud) : '<span class="note" style="margin:0">–</span>'},
+      {k:'qProg', label:'Prog', num:1, cls:'ctr', get:s => s.qBud ? s.qtd / s.qBud : -1, tip:s => s.qBud ? (s.qGap >= 0 ? 'Ahead of pace by ' : 'Behind pace by ') + J(Math.abs(s.qGap)) : '', show:s => s.qBud ? `<b class="${s.qGap >= 0 ? 'up' : 'dn'}">${Math.round(s.qtd / s.qBud * 100)}%</b>` : '<span class="note" style="margin:0">–</span>'}], list, 'qtdD', 1, true, s => s.id); }
   if (SUB.stores === 'ytd') body = lead1('s-y', `Year to date against the same days last year (to ${lyLbl}).`, 'The chart shows monthly sales for the stores in view, this year against last. Hover a % to see the J$ difference. The current month is month to date.') +
     monthChart(list) + stable('ytd', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
-      {k:'merch', label:'Merchandiser', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+      {k:'merch', label:'Merch', w:'13%', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)}, {k:'rep', label:'Rep', w:'13%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)},
       {k:'ytd', label:'YTD', num:1, cls:'ctr', get:s => s.ytd, show:s => J(s.ytd)},
-      {k:'ytdly', label:'Last year', num:1, cls:'hide-sm ctr', get:s => s.ytdly, show:s => `<span class="note" style="margin:0">${J(s.ytdly)}</span>`},
-      {k:'ytdP', label:'Change', num:1, w:'22%', get:s => s.ytdP, show:s => dbar(s.ytdP)},
-      {k:'ytdD', label:'Difference', num:1, cls:'hide-sm', get:s => s.ytdD, show:s => `<b class="${s.ytdD >= 0 ? 'up' : 'dn'}">${s.ytdD >= 0 ? '+' : ''}${J(s.ytdD)}</b>`}], list, 'ytdD', 1, true, s => s.id);
+      {k:'ytdly', label:'LY', num:1, cls:'hide-sm ctr', get:s => s.ytdly, show:s => `<span class="note" style="margin:0">${J(s.ytdly)}</span>`},
+      {k:'ytdP', label:'Growth', num:1, w:'22%', get:s => s.ytdP, show:s => dbar(s.ytdP)},
+      {k:'ytdD', label:'Diff', num:1, cls:'hide-sm', get:s => s.ytdD, show:s => `<b class="${s.ytdD >= 0 ? 'up' : 'dn'}">${s.ytdD >= 0 ? '+' : ''}${J(s.ytdD)}</b>`}], list, 'ytdD', 1, true, s => s.id);
   if (SUB.stores === 'cats') body = lead1('s-c', `Category sales year to date against the same days last year (to ${lyLbl}).`, 'Sorted by the biggest drop in J$. Tap a category to see which stores are behind the drop or the growth. Use the chain dropdown to see one chain. Categories with no sales this year are left out.') +
     stable('cats', [
       {k:'cls', label:'Category', get:x => x.cls, show:x => ctag(x.cls)},
       {k:'y', label:'YTD', num:1, cls:'ctr', get:x => x.y, show:x => J(x.y)},
-      {k:'yl', label:'Last year', num:1, cls:'hide-sm ctr', get:x => x.yl, show:x => `<span class="note" style="margin:0">${J(x.yl)}</span>`},
-      {k:'yp', label:'Change', num:1, w:'22%', get:x => pct(x.y, x.yl), show:x => dbar(pct(x.y, x.yl))},
-      {k:'yd', label:'Difference', num:1, cls:'hide-sm', get:x => x.y - x.yl, show:x => `<b class="${x.y >= x.yl ? 'up' : 'dn'}">${x.y >= x.yl ? '+' : ''}${J(x.y - x.yl)}</b>`}], cats, 'yd', 1, true, x => x.cls, 'cat');
+      {k:'yl', label:'LY', num:1, cls:'hide-sm ctr', get:x => x.yl, show:x => `<span class="note" style="margin:0">${J(x.yl)}</span>`},
+      {k:'yp', label:'Growth', num:1, w:'22%', get:x => pct(x.y, x.yl), show:x => dbar(pct(x.y, x.yl))},
+      {k:'yd', label:'Diff', num:1, cls:'hide-sm', get:x => x.y - x.yl, show:x => `<b class="${x.y >= x.yl ? 'up' : 'dn'}">${x.y >= x.yl ? '+' : ''}${J(x.y - x.yl)}</b>`}], cats, 'yd', 1, true, x => x.cls, 'cat');
   return `<div class="ftiles four">
     ${ctile('month', 'stores', J(sub.mtd), monName + ' so far', `<span class="tbar"><i style="width:${Math.min(100, sub.mtd / (sub.bud || 1) * 100)}%"></i><b style="left:${PACE * 100}%"></b></span><b>${Math.round(sub.mtd / (sub.bud || 1) * 100)}% of ${J(sub.bud)}</b> · pace ${Math.round(PACE * 100)}%`, sub.mtd >= sub.bud * PACE ? '#1A8F4C' : '#326BD3')}
     ${ctile('behind', 'alert', behind.length, 'Behind pace', J(behind.reduce((a, s) => a + s.gapPace, 0)) + ' short of pace', '#E2445C')}
@@ -1876,7 +1903,7 @@ __on(document, 'click', e => {
 });
 // picking a deal-sheet product fills in the deal
 __on(document, 'input', e => { if (e.target.id !== 'f-sku') return; const d = DSH[skuFromLabel(e.target.value)], f = document.getElementById('f-deal'); if (d && f && !f.value) f.value = tierTxt(d.tiers); });
-__on(document, 'change', e => { if (e.target.id === 'f-store') { const s = byId[e.target.value], f = document.getElementById('f-nm'); if (s && f && !f.value) f.value = String(s.merch || '').split(',')[0].trim(); } });
+__on(document, 'change', e => { if (e.target.id === 'f-store') { const box = document.getElementById('f-to'); if (box) box.innerHTML = toPicks(byId[e.target.value]); } });
 __on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
   else if (e.target.dataset && e.target.dataset.msort) { const id = e.target.dataset.msort, th = document.querySelector(`[data-sort="${id}|${e.target.value}"]`); SORT[id] = {k:e.target.value, dir:th && th.closest('th').classList.contains('n') ? -1 : 1}; e.target.blur(); render(); } });
 // ---------- soft tooltips: replaces the browser's black title boxes ----------
