@@ -154,6 +154,9 @@ const DFL_PAGE_ROLES = {
   // chain_hub_data(), which itself requires is_manager(); the side-nav link
   // is shown only to Andrea and the price approver (Scott) — see chainHub.
   '/management/chain-hub.html':             ['manager', 'admin'],
+  // Key Account Hub (Shallet Marsh's 35 key accounts): key_hub_data() requires is_manager();
+  // the side-nav link is shown only to Shallet and the price approver (Scott) — see keyHub.
+  '/management/key-hub.html':               ['manager', 'admin'],
   // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
   // which gates writes on leave_tracker_* — reads also allow HR/management.
   '/management/leave-tracker.html':         ['manager', 'admin'],
