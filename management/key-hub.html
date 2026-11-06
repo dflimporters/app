@@ -728,6 +728,10 @@ const stageOf = o => {
   if (o.status === 'Back Order') return {k:'bo', t:'Part shipped, rest on back order', c:'amber', why:'Some lines waiting for stock'};
   return {k:'other', t:o.status, c:'grey', why:''}; };
 ORD.forEach(o => { o.stage = stageOf(o); o.age = daysBetween(o.date, ASOF); });
+// what is actually stuck (Scott, 6 Nov): for an order on a truck, the unconfirmed shipment(s); otherwise the lines still open.
+// Goods value without GCT; the order total (with GCT, including lines already shipped) is only shown for reference.
+ORD.forEach(o => { const sh = (shipsOfOrder[o.nbr] || []).filter(x => !SHIPPED(x.status)), openV = (o.lines || []).reduce((a, l) => a + l.open * l.price, 0);
+  o.stuck = o.stage.k === 'truck' && sh.length ? sh.reduce((a, x) => a + x.value, 0) : openV || o.total; });
 const openOf = c => ORD.filter(o => o.c === c && o.status !== 'Back Order');
 
 // deal tier check: is the order just short of the next free-goods tier?
@@ -756,6 +760,20 @@ const SHORT = (() => { const m = {};
     const x = m[k] = m[k] || {c:r[0], date:r[1], order:r[2], sku:r[3], desc:r[4], oq:+r[5] || 0, sq:0, price:+r[7] || 0};
     x.oq = Math.max(x.oq, +r[5] || 0); x.sq += +r[6] || 0; if (r[1] > x.date) x.date = r[1]; });
   return Object.values(m).filter(x => x.sq < x.oq); })();
+// was a short-shipped item sent later? (Scott, 6 Nov) Looks at the store's invoices for the same item after the short shipment
+// (O.inv: invoiced_items, last 45 days, paid + free units). Catches the rest of the same order or a different order.
+const sentLater = x => { if (!Array.isArray(O.inv)) return {k:'load', t:'Checking', c:'grey', why:'Still loading the latest invoices'};
+  if (daysBetween(x.date, ASOF) > 44) return {k:'old', t:'Too old to check', c:'grey', why:'Invoices are only checked for 45 days'};
+  const need = x.oq - x.sq, rows = O.inv.filter(r => r[0] === x.c && r[2] === x.sku && r[1] > x.date && (+r[3] || 0) + (+r[4] || 0) > 0).sort((a, b) => a[1] < b[1] ? -1 : 1);
+  let q = 0, when = null; rows.forEach(r => { q += (+r[3] || 0) + (+r[4] || 0); if (!when && q >= need) when = r[1]; });
+  const why = rows.length ? 'Invoiced since: ' + rows.map(r => fds(r[1]) + ' × ' + ((+r[3] || 0) + (+r[4] || 0))).join(', ') : 'Not invoiced to this store since ' + fds(x.date);
+  if (when) return {k:'full', t:'Sent ' + fds(when), c:'green', why};
+  if (q > 0) return {k:'part', t:`${q} of ${need} sent`, c:'amber', why};
+  // the same order shipped again later without this item: usually a substitute (e.g. Island Foil lids for CoveBay lids, Lee's 6 Nov)
+  const again = (shipsOfOrder[x.order] || []).filter(sh => SHIPPED(sh.status) && sh.date > x.date).sort((a, b) => a.date < b.date ? -1 : 1)[0];
+  if (again) return {k:'sub', t:'Re-shipped ' + fds(again.date), c:'amber', why:`Order ${x.order} shipped again on ${fds(again.date)} (shipment ${again.nbr}) without this item. Check whether a substitute was sent.`};
+  return {k:'none', t:'Not sent yet', c:'red', why}; };
+const sentCell = x => { const v = sentLater(x); return `<span title="${esc(v.why)}">${solid(v.c, v.t)}</span>`; };
 const shortBySku = (() => { const m = {};
   SHORT.forEach(x => { const s = m[x.sku] = m[x.sku] || {sku:x.sku, desc:x.desc, n:0, stores:new Set(), qty:0, val:0, last:''};
     s.n++; s.stores.add(x.c); s.qty += x.oq - x.sq; s.val += (x.oq - x.sq) * x.price; if (x.date > s.last) s.last = x.date; });
@@ -1012,10 +1030,10 @@ function todayItems() {
     t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
     d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
     act:can.length ? 'Find out why it has not shipped' : 'Tell the store when it is due', value:v}); });
-  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.total)}${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
+  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
-    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago), ${J(o.total)}.`,
-    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.total}));
+    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
+    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.stuck}));
   // Shallet has ~30 separate accounts: statements still to send become one card (opens AR → Statements) instead of one per store
   const stmtDue = AR_CH.filter(ch => !tick('stmt:' + ch.chain + ':' + MON) && TODAY.getDate() >= 3 && ch.owed > 0);
   if (stmtDue.length > 3) { const owed = stmtDue.reduce((a, ch) => a + ch.owed, 0), past = stmtDue.reduce((a, ch) => a + ch.past, 0);
@@ -1387,10 +1405,10 @@ function vBackorders() {
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
         `${rows(g.rows.map(b => row(storeLink(b.c), 'Order ' + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', '')))}${rExp(g.sku)}`)), 'bo');
-  if (SUB.backorders === 'short') body = lead1('b-short', 'Items shipped short to your stores in the last 90 days.', 'Each order counts once. Raise these with purchasing, and warn store managers before they order. Once a reason is noted it shows wherever that item is short.') +
+  if (SUB.backorders === 'short') body = lead1('b-short', 'Items shipped short to your stores in the last 90 days.', 'Each order counts once. Tap an item to see each short shipment and whether the missing units were sent later, on the rest of the order or a different one (checked against the store’s invoices for 45 days). Raise repeat shorts with purchasing and note the reason.') +
     gboard('#C47A1A', 'Most often short', shorts.length + ' items · ' + noReason + ' without a reason', 'minmax(0,2.4fr) 70px 70px 90px minmax(0,1.5fr) 40px', [['Item'], ['Times', 'center'], ['Stores', 'center'], ['Last', 'center'], ['Reason', '', 'rsn'], ['']],
       shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b><span class="mlab"> times</span>`, 'c-age hm mr', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
-        `<div class="bfacts"><div><span>Stores</span>${[...x.stores].map(c => esc(byId[c] ? byId[c].name : c)).join(', ')}</div><div><span>Short in total</span>${Math.round(x.qty)} units</div><div><span>Last short</span>${esc(fd(x.last))}</div></div>${rExp(x.sku)}`)), 'short');
+        `${rows(SHORT.filter(e => e.sku === x.sku).sort((a, b) => a.date < b.date ? 1 : -1).map(e => row(storeLink(e.c), `Order ${acuOrder(e.order)} · ${e.oq - e.sq} short on ${esc(fds(e.date))}`, sentCell(e), '')))}<div class="bfacts"><div><span>Short in total</span>${Math.round(x.qty)} units</div><div><span>Last short</span>${esc(fd(x.last))}</div></div>${rExp(x.sku)}`)), 'short');
   return `<div class="ftiles three">
     ${ctile('bo', 'box', groups.length, 'Items owed', bo.length + ' lines across ' + new Set(bo.map(b => b.c)).size + ' stores', '#7B4FD0')}
     ${ctile('bohand', 'orders', onHand, 'Stock shows on hand', 'Find out why it has not shipped', '#1A8F4C')}
@@ -1752,8 +1770,8 @@ function vStoreDrawer(c) {
   ${bo.length ? sec('Back order items', String(bo.length), gl('minmax(0,1fr) 78px 66px 60px', [['Item'], ['Stock', 'c'], ['Owed', 'r'], ['Since', 'r']],
       bo.map(x => [[esc(x.desc), 'nm'], [x.canShip ? '<span class="pill green">On hand</span>' : '<span class="pill red">Out</span>', 'c'], [x.open, 'r val'], [esc(fds(x.date)), 'r rt']]))) : ''}
   ${!open.length && !bo.length ? sec('Orders in progress', null, '<p class="hint" style="margin:6px 0">Nothing open for this store.</p>') : ''}
-  ${sh.length ? sec('Shipped short lately', null, gl('minmax(0,1fr) 70px 60px', [['Item'], ['Short', 'r'], ['Date', 'r']],
-      sh.map(x => [[esc(x.desc), 'nm'], [`<span class="dn">${x.oq - x.sq}</span>`, 'r val'], [esc(fds(x.date)), 'r rt']]))) : ''}
+  ${sh.length ? sec('Shipped short lately', null, gl('minmax(0,1fr) 54px 56px 116px', [['Item'], ['Short', 'r'], ['Date', 'r'], ['Sent later?', 'c']],
+      sh.map(x => [[esc(x.desc), 'nm'], [`<span class="dn">${x.oq - x.sq}</span>`, 'r val'], [esc(fds(x.date)), 'r rt'], [sentCell(x), 'c']]), 'gshort')) : ''}
   ${(() => { const u = usualOf(c); if (!u.length) return ''; const all = SHOWALL['u:' + c];
     return sec('Usual order', String(u.length), gl('minmax(0,1fr) 72px 78px 82px 60px', [['Item'], ['Avg / month', 'r'], ['This month', 'r'], ['Gap today', 'r'], ['Last', 'r']],
       (all ? u : u.slice(0, 10)).map(x => [[esc(x.desc), 'nm'], [qty(x.avg), 'r rt'], [qty(x.qm), 'r val'], [x.gap >= 0 || x.exp < 1 ? '<span class="up">on track</span>' : `<span class="dn">−${qty(-x.gap)}</span>`, 'r val'], [esc(fds(x.last)), 'r rt']]), 'gusual') +

@@ -717,6 +717,10 @@ const stageOf = o => {
   if (o.status === 'Back Order') return {k:'bo', t:'Part shipped, rest on back order', c:'amber', why:'Some lines waiting for stock'};
   return {k:'other', t:o.status, c:'grey', why:''}; };
 ORD.forEach(o => { o.stage = stageOf(o); o.age = daysBetween(o.date, ASOF); });
+// what is actually stuck (Scott, 6 Nov): for an order on a truck, the unconfirmed shipment(s); otherwise the lines still open.
+// Goods value without GCT; the order total (with GCT, including lines already shipped) is only shown for reference.
+ORD.forEach(o => { const sh = (shipsOfOrder[o.nbr] || []).filter(x => !SHIPPED(x.status)), openV = (o.lines || []).reduce((a, l) => a + l.open * l.price, 0);
+  o.stuck = o.stage.k === 'truck' && sh.length ? sh.reduce((a, x) => a + x.value, 0) : openV || o.total; });
 const openOf = c => ORD.filter(o => o.c === c && o.status !== 'Back Order');
 
 // deal tier check: is the order just short of the next free-goods tier?
@@ -918,10 +922,10 @@ function todayItems() {
     t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
     d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
     act:can.length ? 'Find out why it has not shipped' : 'Tell the store when it is due', value:v}); });
-  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.total)}${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
+  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
-    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago), ${J(o.total)}.`,
-    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.total}));
+    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
+    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.stuck}));
   AR_CH.forEach(ch => {
     const sk = 'stmt:' + ch.chain + ':' + MON;
     if (!tick(sk) && TODAY.getDate() >= 3 && ch.owed > 0) it.push({key:sk, pri:5, col:'amber', kind:'Statement', ch:ch.chain, issue:'Statement not marked sent', sub:`${J(ch.owed)} open · ${J(ch.past)} past due`, age:TODAY.getDate() - 1,
