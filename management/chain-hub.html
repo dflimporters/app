@@ -833,7 +833,8 @@ Object.values(CH).forEach(ch => {
   ch.payGap = gaps.length >= 2 ? Math.round(median(gaps)) : null;
   ch.payDom = ch.pays.length >= 2 ? Math.round(median(ch.pays.map(p => d8(p.date).getDate()))) : null;
   ch.lastPay = ch.pays[0] || null;
-  ch.nextPay = ch.lastPay && ch.payGap ? addDays(ch.lastPay.date, ch.payGap) : null;
+  // no collections or payments at weekends: an expected date on Saturday or Sunday moves to the Monday after (Scott, 6 Nov)
+  ch.nextPay = ch.lastPay && ch.payGap ? toWorkday(addDays(ch.lastPay.date, ch.payGap)) : null;
   ch.past = ch.b30 + ch.b60 + ch.b90;
   ch.credTot = ch.credits.reduce((a, r) => a + r.bal, 0);
 });
@@ -1008,14 +1009,15 @@ function formFor(k) {
 }
 const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
 async function saveForm(k) {
+  let moved = '';   // set when a weekend date was moved to Monday
   const [kind, ...rest] = k.split('|'); const ref = rest.join('|');
   let n = null;
   if (kind === 'reason') n = {kind, sku:ref, src:val('f-src'), label:val('f-why'), eta:val('f-eta'), text:val('f-tx')};
-  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:val('f-date'), text:val('f-tx')}; }
+  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the promise is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'manager') { if (!val('f-nm').trim()) { toast('Add the manager’s name.'); return; } n = {kind, c:ref, name:val('f-nm').trim(), phone:val('f-ph').trim(), text:val('f-tx')}; }
   else if (kind === 'backup') { if (!val('f-nm').trim()) return; n = {kind, c:ref, name:val('f-nm').trim(), text:''}; }
   else { if (!val('f-tx').trim()) return; const c = ref.split(':')[1]; n = {kind:'note', ref, c:byId[c] ? c : '', text:val('f-tx')}; }
-  if (await addNote(n)) { OPEN = null; render(); }
+  if (await addNote(n)) { OPEN = null; render(); if (moved) toast(moved); }
 }
 function card(x) {
   const done = isDone(x.key);
