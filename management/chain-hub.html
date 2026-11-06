@@ -750,6 +750,13 @@ const shortBySku = (() => { const m = {};
     s.n++; s.stores.add(x.c); s.qty += x.oq - x.sq; s.val += (x.oq - x.sq) * x.price; if (x.date > s.last) s.last = x.date; });
   return Object.values(m).sort((a, b) => b.n - a.n || b.val - a.val); })();
 
+// fresher delivery days: Sales Explorer only refreshes at 7am and 1pm, so today's deliveries are added from
+// confirmed shipments (and, where loaded, invoiced lines). An order that went out today means the store is not due,
+// even if part of it is now on back order (Scott, 6 Nov 2026: General Foods Liguanea).
+(() => { const add = {};
+  (O.inv || []).forEach(r => { if ((+r[3] || 0) > 0) (add[r[0]] = add[r[0]] || new Set()).add(r[1]); });
+  SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => (add[x.c] = add[x.c] || new Set()).add(x.date));
+  STORES.forEach(s => { const a = add[s.id]; if (a) s.days = [...new Set([...s.days, ...[...a].filter(d => d <= ASOF)])].sort(); }); })();
 // ---------- order cadence (from invoice days, last 150 days) ----------
 // DFL doesn't deliver at weekends: a due date on Saturday or Sunday moves to the Monday after (Scott, 5 Nov)
 const toWorkday = ds => { const w = d8(ds).getDay(); return w === 6 ? addDays(ds, 2) : w === 0 ? addDays(ds, 1) : ds; };
