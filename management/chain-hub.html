@@ -656,8 +656,9 @@ const keyOk = k => String(k).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 180);
 // ---------- chains and stores ----------
 const chainOf = n => { n = n.toUpperCase();
   if (n.startsWith('HILO')) return 'Hi-Lo';
-  // Progressive and Shoppers Fair are one group (Scott, 5 Nov 2026)
-  if (n.includes('SHOPPERS FAIR') || n.startsWith('PROGRESSIVE')) return 'Progressive / Shoppers Fair';
+  // Progressive, Shoppers Fair, D & Y and JR's Bargain World are one group (Scott, 5 and 6 Nov 2026).
+  // The name stays "Progressive / Shoppers Fair" so statement ticks and statuses already saved under it are kept.
+  if (n.includes('SHOPPERS FAIR') || n.startsWith('PROGRESSIVE') || n.startsWith('D & Y') || n.startsWith("JR'S")) return 'Progressive / Shoppers Fair';
   if (n.startsWith('MEGAMART')) return 'MegaMart';
   if (n.startsWith('SAMPARS') || n.startsWith('SELECT GROCERS')) return 'Sampars / Select';
   if (n.startsWith("JR'S")) return "JR's Bargain World";
@@ -704,19 +705,35 @@ const DEALS = O.deals || {};
 const SHIPPED = s => /Confirmed|Completed|Invoiced/.test(s);
 // trucker (Acumatica ship via): the shipment's is the reliable one; the order's is often blank. BATCHnn is a placeholder, not a trucker.
 const realVia = v => v && !/^BATCH\d+$/i.test(v) ? v : '';
-const truckOf = o => { const sh = (shipsOfOrder[o.nbr] || []).filter(s => realVia(s.via)).sort((a, b) => (b.date || '').localeCompare(a.date || '')); return sh.length ? realVia(sh[0].via) : realVia(o.via); };
+const truckOf = o => { const sh = (shipsOfOrder[o.nbr] || []).map(s => ({...s, via:(typeof LOADS !== 'undefined' && LOADS[s.nbr] && LOADS[s.nbr].via) || s.via})).filter(s => realVia(s.via)).sort((a, b) => (b.date || '').localeCompare(a.date || '')); return sh.length ? realVia(sh[0].via) : realVia(o.via); };
 const truckCell = v => v ? `<span class="truck" title="Ship via ${esc(v)}">${icon('orders', 2)}<span>${esc(v)}</span></span>` : '<span class="note nil" style="margin:0">–</span>';
 
 // stage of an open order, in plain words
+// order stages in plain words (Scott, 6 Nov: "keyed" and "on truck" confused the KAMs). Uses the warehouse load system:
+// which load a shipment is on, its date and truck, and whether picking and checking are done (O.loads).
+const LOADS = {}; (O.loads || []).forEach(r => LOADS[r[0]] = {load:r[1], date:r[2], via:r[3] || '', picked:!!r[4], checked:!!r[5], closed:r[6] || ''});
+const DONE_SHIP = s => /Completed|Invoiced/.test(s);
+const liveShipOf = o => { const sh = (shipsOfOrder[o.nbr] || []).filter(x => !DONE_SHIP(x.status)).map(x => ({...x, ld:LOADS[x.nbr] || null}));
+  return sh.find(x => x.status === 'Confirmed') || sh.find(x => x.ld) || sh[0] || null; };
 const stageOf = o => {
-  const sh = (shipsOfOrder[o.nbr] || []).filter(s => !SHIPPED(s.status));
-  if (o.status === 'Credit Hold') return {k:'credit', t:'Credit hold', c:'red', why:'Held by AR for the account balance'};
-  if (o.status === 'On Hold') return {k:'hold', t:'On hold', c:'amber', why:'Keyed in but on hold'};
-  if (o.status === 'Open') return {k:'open', t:'Keyed, not on a truck', c:'blue', why:'In Acumatica, not picked yet'};
-  if (o.status === 'Shipping') return sh.length ? {k:'truck', t:'On a truck, not shipped', c:'amber', why:'Shipment ' + sh[0].nbr + (sh[0].via ? ' on ' + sh[0].via : '') + ' is ' + sh[0].status} : {k:'ship', t:'Shipping', c:'blue', why:'Being picked or loaded'};
-  if (o.status === 'Back Order') return {k:'bo', t:'Part shipped, rest on back order', c:'amber', why:'Some lines waiting for stock'};
-  return {k:'other', t:o.status, c:'grey', why:''}; };
+  if (o.status === 'Credit Hold') return {k:'credit', t:'Credit hold (AR)', s:'Credit hold', c:'red', why:'Held by AR for the account balance. It will not be picked until AR releases it.'};
+  if (o.status === 'On Hold') return {k:'hold', t:'On hold in Acumatica', s:'On hold', c:'amber', why:'Keyed in but put on hold in Acumatica (not a credit hold). Ask sales support why.'};
+  if (o.status === 'Open') return {k:'open', t:'Order entered, not on a load yet', s:'Entered', c:'blue', why:'In Acumatica, waiting to go on a load for picking.'};
+  if (o.status === 'Shipping') { const sh = liveShipOf(o);
+    if (!sh) return {k:'ship', t:'Shipment being created', s:'Preparing', c:'blue', why:'Acumatica is creating the shipment.'};
+    const ld = sh.ld, lt = ld ? `Load ${ld.load} for ${fd(ld.date)}${ld.via ? ', truck ' + ld.via : ''}` : `Shipment ${sh.nbr}${realVia(sh.via) ? ', truck ' + realVia(sh.via) : ''}`;
+    if (sh.status === 'Confirmed') return {k:'left', t:'Left the warehouse', s:'Left', c:'green', why:lt + '. Acumatica shows the shipment confirmed.'};
+    if (ld && ld.checked) return {k:'truck', t:'Picked and checked, ready to go', s:'Ready to go', c:'green', why:lt + '. Picked and checked at the warehouse.'};
+    if (ld && ld.picked) return {k:'truck', t:'Picked, waiting to be checked', s:'Picked', c:'amber', why:lt + '. Picking is done.'};
+    if (ld) return {k:'truck', t:'On a load, being picked', s:'On load', c:'amber', why:lt + '. Not marked picked yet.'};
+    return {k:'truck', t:'Shipment made, not on a load yet', s:'Shipment', c:'amber', why:lt + ' (' + sh.status + ').'}; }
+  if (o.status === 'Back Order') return {k:'bo', t:'Part delivered, rest owed', s:'Part owed', c:'amber', why:'Some lines delivered; the rest are waiting for stock.'};
+  return {k:'other', t:o.status, s:o.status, c:'grey', why:''}; };
 ORD.forEach(o => { o.stage = stageOf(o); o.age = daysBetween(o.date, ASOF); });
+// what is actually stuck (Scott, 6 Nov): for an order on a truck, the unconfirmed shipment(s); otherwise the lines still open.
+// Goods value without GCT; the order total (with GCT, including lines already shipped) is only shown for reference.
+ORD.forEach(o => { const sh = (shipsOfOrder[o.nbr] || []).filter(x => !SHIPPED(x.status)), openV = (o.lines || []).reduce((a, l) => a + l.open * l.price, 0);
+  o.stuck = o.stage.k === 'truck' && sh.length ? sh.reduce((a, x) => a + x.value, 0) : openV || o.total; });
 const openOf = c => ORD.filter(o => o.c === c && o.status !== 'Back Order');
 
 // deal tier check: is the order just short of the next free-goods tier?
@@ -750,6 +767,13 @@ const shortBySku = (() => { const m = {};
     s.n++; s.stores.add(x.c); s.qty += x.oq - x.sq; s.val += (x.oq - x.sq) * x.price; if (x.date > s.last) s.last = x.date; });
   return Object.values(m).sort((a, b) => b.n - a.n || b.val - a.val); })();
 
+// fresher delivery days: Sales Explorer only refreshes at 7am and 1pm, so today's deliveries are added from
+// confirmed shipments (and, where loaded, invoiced lines). An order that went out today means the store is not due,
+// even if part of it is now on back order (Scott, 6 Nov 2026: General Foods Liguanea).
+(() => { const add = {};
+  (O.inv || []).forEach(r => { if ((+r[3] || 0) > 0) (add[r[0]] = add[r[0]] || new Set()).add(r[1]); });
+  SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => (add[x.c] = add[x.c] || new Set()).add(x.date));
+  STORES.forEach(s => { const a = add[s.id]; if (a) s.days = [...new Set([...s.days, ...[...a].filter(d => d <= ASOF)])].sort(); }); })();
 // ---------- order cadence (from invoice days, last 150 days) ----------
 // DFL doesn't deliver at weekends: a due date on Saturday or Sunday moves to the Monday after (Scott, 5 Nov)
 const toWorkday = ds => { const w = d8(ds).getDay(); return w === 6 ? addDays(ds, 2) : w === 0 ? addDays(ds, 1) : ds; };
@@ -833,7 +857,8 @@ Object.values(CH).forEach(ch => {
   ch.payGap = gaps.length >= 2 ? Math.round(median(gaps)) : null;
   ch.payDom = ch.pays.length >= 2 ? Math.round(median(ch.pays.map(p => d8(p.date).getDate()))) : null;
   ch.lastPay = ch.pays[0] || null;
-  ch.nextPay = ch.lastPay && ch.payGap ? addDays(ch.lastPay.date, ch.payGap) : null;
+  // no collections or payments at weekends: an expected date on Saturday or Sunday moves to the Monday after (Scott, 6 Nov)
+  ch.nextPay = ch.lastPay && ch.payGap ? toWorkday(addDays(ch.lastPay.date, ch.payGap)) : null;
   ch.past = ch.b30 + ch.b60 + ch.b90;
   ch.credTot = ch.credits.reduce((a, r) => a + r.bal, 0);
 });
@@ -842,6 +867,19 @@ const rhythm = ch => !ch.pays.length ? 'No account payments of J$50K+ in the las
   ch.payGap && ch.payGap <= 10 ? `Pays about every ${ch.payGap} days` :
   ch.payDom ? `Usually pays around the ${ord(ch.payDom)} of the month` : 'Paid once in 6 months';
 function ord(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+
+// ---------- back orders a newer order may have replaced (Scott, 6 Nov) ----------
+// "Likely replaced" = the same store has a newer order, or a newer invoice, for the same item covering at least 70% of what is still owed.
+// The KAM then checks it and closes the old back order in Acumatica.
+const replacedBy = b => { const need = b.open * 0.7;
+  const ol = LINES.filter(l => l.sku === b.sku && l.nbr !== b.nbr && ordBy[l.nbr].c === b.c && ordBy[l.nbr].date > b.date && l.oq >= need).sort((x, y) => ordBy[x.nbr].date < ordBy[y.nbr].date ? -1 : 1)[0];
+  if (ol) return {src:'order', nbr:ol.nbr, date:ordBy[ol.nbr].date, q:ol.oq, t:`order ${ol.nbr} (${fds(ordBy[ol.nbr].date)}) has ${ol.oq}`};
+  const iv = (O.inv || []).filter(r => r[0] === b.c && r[2] === b.sku && r[1] > b.date && (+r[3] || 0) + (+r[4] || 0) >= need).sort((x, y) => x[1] < y[1] ? -1 : 1)[0];
+  if (iv) { const q = (+iv[3] || 0) + (+iv[4] || 0); return {src:'inv', date:iv[1], q, t:`${q} invoiced on ${fds(iv[1])}`}; }
+  return null; };
+BO.forEach(b => { b.rep = replacedBy(b); });
+// statement reminders: a dated "send a statement" note on an account (kind 'note', ref 'stmtdue:<account>'); shows on Today from that date until marked sent
+const STMTDUE = () => NOTES.filter(n => n.kind === 'note' && String(n.ref || '').startsWith('stmtdue:') && !(TICKS[keyOk('stmtdue:' + n.id)] || {}).v);
 
 // ---------- shared state: notes + ticks (Supabase: chain_hub_notes / chain_hub_ticks) ----------
 let DB = true, DBERR = '';
@@ -905,15 +943,19 @@ function todayItems() {
     act:'Tell the store and offer a substitute', value:v}); });
   // back orders 5+ days old, one card per order
   const boOrd = {}; BO.filter(b => b.age >= 5).forEach(b => (boOrd[b.nbr] = boOrd[b.nbr] || []).push(b));
-  Object.entries(boOrd).forEach(([nbr, ls]) => { const c = ls[0].c, can = ls.filter(b => b.canShip), v = ls.reduce((a, b) => a + b.open * b.price, 0);
+  Object.entries(boOrd).forEach(([nbr, ls]) => { const c = ls[0].c, can = ls.filter(b => b.canShip), v = ls.reduce((a, b) => a + b.open * b.price, 0), rep = ls.filter(b => b.rep);
+    if (rep.length) { it.push({key:'bo:' + nbr, pri:3, col:'blue', kind:'Back order', c, order:nbr, issue:rep.length === ls.length ? 'Likely replaced by a newer order' : `${rep.length} of ${ls.length} items likely replaced`, sub:`Order ${nbr} · ${rep[0].desc}: ${rep[0].rep.t}`, age:ls[0].age,
+      t:`${byId[c].name}: back order ${nbr} may have been replaced`,
+      d:`${rep.slice(0, 3).map(b => `<b>${esc(b.desc)}</b>: ${b.open} owed, ${esc(b.rep.t)}`).join('; ')}${rep.length > 3 ? '…' : ''}. If the store re-ordered, close the old back order.`,
+      act:'Check it and close the back order in Acumatica', value:v}); return; }
     it.push({key:'bo:' + nbr, pri:3, col:can.length ? 'green' : 'amber', kind:'Back order', c, order:nbr, issue:`Not delivered: ${ls.length} item${ls.length === 1 ? '' : 's'}`, sub:`Order ${nbr} · ${J(v)} to go`, age:ls[0].age,
     t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
     d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
     act:can.length ? 'Find out why it has not shipped' : 'Tell the store when it is due', value:v}); });
-  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.total)}${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
+  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
-    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago), ${J(o.total)}.`,
-    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.total}));
+    d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
+    act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.stuck}));
   AR_CH.forEach(ch => {
     const sk = 'stmt:' + ch.chain + ':' + MON;
     if (!tick(sk) && TODAY.getDate() >= 3 && ch.owed > 0) it.push({key:sk, pri:5, col:'amber', kind:'Statement', ch:ch.chain, issue:'Statement not marked sent', sub:`${J(ch.owed)} open · ${J(ch.past)} past due`, age:TODAY.getDate() - 1,
@@ -925,6 +967,9 @@ function todayItems() {
     else if (ch.nextPay && ch.nextPay < addDays(ASOF, -5) && ch.past > 100000) it.push({key:'pay:' + ch.chain + ':' + ch.nextPay, pri:6, col:'amber', kind:'Payment late', ch:ch.chain, issue:'Payment looks late', sub:`Expected ${fds(ch.nextPay)} · ${J(ch.past)} past due`, age:daysBetween(ch.nextPay, ASOF),
       t:`${ch.chain}: payment looks late`, d:`${esc(rhythm(ch))}. Last paid ${J(ch.lastPay.amt)} on ${fd(ch.lastPay.date)}. ${J(ch.past)} past due.`, act:'Ask when it is coming', value:ch.past});
   });
+  STMTDUE().filter(n => n.date && n.date <= ASOF).forEach(n => { const ch = n.ref.slice(8);
+    it.push({key:'stmtdue:' + n.id, pri:4.9, col:'amber', kind:'Statement', ch, issue:'Statement reminder', sub:`Set for ${fds(n.date)}${n.text ? ' · ' + n.text : ''}`, age:daysBetween(n.date, ASOF),
+      t:`${ch}: send the statement (reminder for ${fds(n.date)})`, d:`${esc(n.text || 'Statement reminder')}. Set by ${esc(who(n.by))}.`, act:'Send it, then mark it sent', tickKey:'stmtdue:' + n.id, value:1e6}); });
   const reasonless = shortBySku.filter(x => x.n >= 2 && !latest(n => n.kind === 'reason' && n.sku === x.sku));
   if (reasonless.length) { const times = reasonless.reduce((a, x) => a + x.n, 0);
     it.push({key:'why:' + reasonless.map(x => x.sku).join('-').slice(0, 120), pri:7, col:'amber', kind:'Often short', shortlist:1, issue:`${reasonless.length} items with no reason`, sub:`${times} short shipments in 90 days`, age:null,
@@ -992,6 +1037,9 @@ function formFor(k) {
     <label class="note" for="f-eta">Due</label><input id="f-eta" type="date"></div>
     <label class="sr" for="f-tx">Detail</label><textarea id="f-tx" rows="2" placeholder="Who told you and what they said, e.g. Brandon: on transfer, ships Thursday"></textarea>
     <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Save reason</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
+  if (kind === 'stmtdue') return `<div class="nbox"><div class="nrow"><label class="note" for="f-date">Send by</label><input id="f-date" type="date" value="${toWorkday(addDays(ASOF, 7))}"></div>
+    <label class="sr" for="f-tx">Note</label><textarea id="f-tx" rows="2" placeholder="Why, e.g. accounts need a fresh statement for their audit"></textarea>
+    <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Set reminder</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
   if (kind === 'promise') return `<div class="nbox"><div class="nrow"><label class="note" for="f-amt">Amount J$</label><input id="f-amt" type="number" min="0" step="1000" inputmode="numeric"><label class="note" for="f-date">By</label><input id="f-date" type="date"></div>
     <label class="sr" for="f-tx">Detail</label><textarea id="f-tx" rows="2" placeholder="Who promised it, e.g. Accounts payable (Tia), cheque ready Friday"></textarea>
     <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Log promise</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
@@ -1008,14 +1056,16 @@ function formFor(k) {
 }
 const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
 async function saveForm(k) {
+  let moved = '';   // set when a weekend date was moved to Monday
   const [kind, ...rest] = k.split('|'); const ref = rest.join('|');
   let n = null;
   if (kind === 'reason') n = {kind, sku:ref, src:val('f-src'), label:val('f-why'), eta:val('f-eta'), text:val('f-tx')};
-  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:val('f-date'), text:val('f-tx')}; }
+  else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the promise is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'manager') { if (!val('f-nm').trim()) { toast('Add the manager’s name.'); return; } n = {kind, c:ref, name:val('f-nm').trim(), phone:val('f-ph').trim(), text:val('f-tx')}; }
+  else if (kind === 'stmtdue') { if (!val('f-date')) { toast('Add the date.'); return; } n = {kind:'note', ref:'stmtdue:' + ref, chain:ref, label:'Statement reminder', date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the reminder is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'backup') { if (!val('f-nm').trim()) return; n = {kind, c:ref, name:val('f-nm').trim(), text:''}; }
   else { if (!val('f-tx').trim()) return; const c = ref.split(':')[1]; n = {kind:'note', ref, c:byId[c] ? c : '', text:val('f-tx')}; }
-  if (await addNote(n)) { OPEN = null; render(); }
+  if (await addNote(n)) { OPEN = null; render(); if (moved) toast(moved); }
 }
 function card(x) {
   const done = isDone(x.key);
@@ -1131,7 +1181,7 @@ function recentNotes() { const l = NOTES.slice(0, 8); if (!l.length) return '';
 const SUB = {orders:'check', backorders:'bo', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
 // solid tile that switches a sub-tab
 const ctile = (sub, ic, n, l, x, col) => `<button type="button" class="ft" data-sub="${esc(sub)}" aria-pressed="${SUB[TAB] === sub}" style="--ftc:${col}"><span class="ic">${icon(ic, 2)}</span><span class="l">${esc(l)}</span><span class="n">${n}</span><span class="x">${x}</span></button>`;
-const segs = list => `<div class="seg" role="tablist">${list.map(([k, t, n]) => `<button type="button" role="tab" data-sub="${esc(k)}" aria-selected="${SUB[TAB] === k || (k === 'bo' && SUB[TAB] === 'bohand') || (k === 'chains' && SUB[TAB] === 'stmt') || (k === 'month' && SUB[TAB] === 'behind') || (k === 'stores' && (SUB[TAB] === 'nomgr' || SUB[TAB] === 'nobk'))}">${esc(t)}${n != null ? `<span>${n}</span>` : ''}</button>`).join('')}</div>`;
+const segs = list => `<div class="seg" role="tablist">${list.map(([k, t, n]) => `<button type="button" role="tab" data-sub="${esc(k)}" aria-selected="${SUB[TAB] === k || (k === 'bo' && (SUB[TAB] === 'bohand' || SUB[TAB] === 'borep')) || (k === 'chains' && SUB[TAB] === 'stmt') || (k === 'month' && SUB[TAB] === 'behind') || (k === 'stores' && (SUB[TAB] === 'nomgr' || SUB[TAB] === 'nobk'))}">${esc(t)}${n != null ? `<span>${n}</span>` : ''}</button>`).join('')}</div>`;
 // one short line, with the longer explanation behind ⓘ
 const lead1 = (id, short, long) => `<p class="lead1">${esc(short)}${long ? ` <button type="button" class="info" data-info="${esc(id)}" aria-expanded="${!!INFO[id]}" aria-label="More about this">i</button>` : ''}</p>${long && INFO[id] ? `<p class="infobox">${esc(long)}</p>` : ''}`;
 // generic one-line board: cols = CSS grid columns, heads = header labels, rows = html
@@ -1168,11 +1218,11 @@ function vOrders() {
       {k:'late', label:'Late', num:1, get:s => s.cad.state === 'missed' || s.cad.state === 'due' ? s.cad.late : null, show:s => s.cad.state === 'missed' || s.cad.state === 'due' ? `<b class="${s.cad.state === 'missed' ? 'dn' : ''}">${s.cad.late}d</b>` : '<span class="note nil">–</span>'},
       {k:'every', label:'Usually', num:1, cls:'hide-sm', get:s => s.cad.med, show:s => s.cad.med ? 'every ' + s.cad.med + 'd' : '–'},
       {k:'last', label:'Last delivery', num:1, get:s => s.cad.last, show:s => s.cad.last ? esc(fds(s.cad.last)) : '–'}], watch, 'state', 1, true, s => s.id);
-  if (SUB.orders === 'open') body = lead1('o-open', 'Chain orders keyed in but not delivered yet.', '“On truck” means a truck is assigned but Acumatica has not confirmed the shipment. Hover a stage for the detail.') +
+  if (SUB.orders === 'open') body = lead1('o-open', 'Chain orders keyed in but not delivered yet.', 'Stages, in order: Entered = in Acumatica, not on a load yet. On hold = held in Acumatica (ask sales support). Credit hold = held by AR. On load = on a warehouse load for a delivery date and truck, being picked. Picked = picking done. Ready to go = picked and checked. Left = shipment confirmed, on its way. Part owed = some lines delivered, the rest waiting for stock. Hover a stage for the load, date and truck.') +
     stable('open', [
       {k:'store', label:'Store', get:o => byId[o.c].name, show:o => storeLink(o.c)},
       {k:'nbr', label:'Order', get:o => o.nbr, show:o => acuOrder(o.nbr)},
-      {k:'stage', label:'Stage', get:o => o.stage.t, tip:o => o.stage.why, show:o => solid(o.stage.c, o.stage.k === 'truck' ? 'On truck' : o.stage.k === 'bo' ? 'Back order' : o.stage.k === 'open' ? 'Keyed' : o.stage.t)},
+      {k:'stage', label:'Stage', get:o => o.stage.t, tip:o => o.stage.why, show:o => solid(o.stage.c, o.stage.s || o.stage.t)},
       {k:'truck', label:'Truck', cls:'hide-sm', get:o => truckOf(o) || '~', show:o => truckCell(truckOf(o))},
       {k:'by', label:'Keyed by', cls:'hide-sm', get:o => o.by, show:o => esc(o.by || '–')},
       {k:'val', label:'Value', num:1, key:1, get:o => o.total, show:o => J(o.total)},
@@ -1196,7 +1246,7 @@ function vOrders() {
 }
 
 function vBackorders() {
-  if (!['bo', 'bohand', 'short'].includes(SUB.backorders)) SUB.backorders = 'bo';
+  if (!['bo', 'bohand', 'borep', 'short'].includes(SUB.backorders)) SUB.backorders = 'bo';
   const bo = BO.filter(b => inChain(b.c));
   const bySku = {}; bo.forEach(b => { const x = bySku[b.sku] = bySku[b.sku] || {sku:b.sku, desc:b.desc, rows:[], qty:0, onhand:b.onhand, val:0, oldest:b.date}; x.rows.push(b); x.qty += b.open; x.val += b.open * b.price; if (b.date < x.oldest) x.oldest = b.date; });
   const groups = Object.values(bySku).sort((a, b) => (b.onhand >= b.qty) - (a.onhand >= a.qty) || b.val - a.val);
@@ -1206,18 +1256,20 @@ function vBackorders() {
   const rTag = sku => { const r = reasonOf(sku); return r ? `<span class="reason one">${esc(r.label)}${r.eta ? ', ' + esc(fds(r.eta)) : ''}</span>` : '<span class="reason none">No reason yet</span>'; };
   const rExp = sku => { const r = reasonOf(sku); return `<div class="bfacts one-col"><div><span>Reason</span>${reasonTag(r)}</div></div><div class="acts"><button class="btn sm ${r ? '' : 'pri'}" type="button" data-open="reason|${esc(sku)}">${r ? 'Update reason' : 'Add reason'}</button></div>${formFor('reason|' + sku)}`; };
   let body = '';
-  const gShow = SUB.backorders === 'bohand' ? groups.filter(g => g.onhand >= g.qty) : groups;
-  if (SUB.backorders === 'bo' || SUB.backorders === 'bohand') body = lead1('b-bo', 'Items still owed to chain stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
-    gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
+  const gShow = SUB.backorders === 'bohand' ? groups.filter(g => g.onhand >= g.qty) : SUB.backorders === 'borep' ? groups.filter(g => g.rows.some(b => b.rep)) : groups;
+  const repN = groups.filter(g => g.rows.some(b => b.rep)).length;
+  if (SUB.backorders === 'bo' || SUB.backorders === 'bohand' || SUB.backorders === 'borep') body = lead1('b-bo', 'Items still owed to chain stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
+    gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : SUB.backorders === 'borep' ? 'Likely replaced by a newer order' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
-        `${rows(g.rows.map(b => row(storeLink(b.c), 'Order ' + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', '')))}${rExp(g.sku)}`)), 'bo');
+        `${rows(g.rows.map(b => row(storeLink(b.c), 'Order ' + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="A newer order or invoice for this store has the same item. Check it and close the old back order in Acumatica.">Likely replaced: ${esc(b.rep.t)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
   if (SUB.backorders === 'short') body = lead1('b-short', 'Items shipped short to chain stores in the last 90 days.', 'Each order counts once. Raise these with purchasing, and warn store managers before they order. Once a reason is noted it shows wherever that item is short.') +
     gboard('#C47A1A', 'Most often short', shorts.length + ' items · ' + noReason + ' without a reason', 'minmax(0,2.4fr) 70px 70px 90px minmax(0,1.5fr) 40px', [['Item'], ['Times', 'center'], ['Stores', 'center'], ['Last', 'center'], ['Reason', '', 'rsn'], ['']],
       shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b><span class="mlab"> times</span>`, 'c-age hm mr', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
         `<div class="bfacts"><div><span>Stores</span>${[...x.stores].map(c => esc(byId[c] ? byId[c].name : c)).join(', ')}</div><div><span>Short in total</span>${Math.round(x.qty)} units</div><div><span>Last short</span>${esc(fd(x.last))}</div></div>${rExp(x.sku)}`)), 'short');
-  return `<div class="ftiles three">
+  return `<div class="ftiles four">
     ${ctile('bo', 'box', groups.length, 'Items owed', bo.length + ' lines across ' + new Set(bo.map(b => b.c)).size + ' stores', '#7B4FD0')}
     ${ctile('bohand', 'orders', onHand, 'Stock shows on hand', 'Find out why it has not shipped', '#1A8F4C')}
+    ${ctile('borep', 'note', repN, 'Likely replaced', 'Newer order for the same item: close the old one', '#326BD3')}
     ${ctile('short', 'alert', noReason, 'Short, no reason yet', shorts.length + ' items short in 90 days', '#E8862A')}
   </div>
   ${segs([['bo', 'Back orders', groups.length], ['short', 'Often short', shorts.length]])}
@@ -1247,7 +1299,7 @@ function vAR() {
           `<div class="alegend">${SEG(ch).map(x => `<span><i style="background:${x[2]}"></i>${esc(x[0])} <b>${J(x[1])}</b></span>`).join('')}${ch.credTot ? `<span>Unapplied <b>${J(ch.credTot)}</b></span>` : ''}</div>
           <div class="bfacts"><div><span>Payment rhythm</span>${esc(rhythm(ch))}</div><div><span>Last paid</span>${ch.lastPay ? J(ch.lastPay.amt) + ' on ' + esc(fd(ch.lastPay.date)) : '–'}</div><div><span>Next expected</span>${ch.nextPay ? esc(fd(ch.nextPay)) : '–'}</div>
           <div><span>Statement for ${esc(monName)}</span>${isSent ? 'Sent, ' + esc(fds(st.at.slice(0,10))) + ' by ' + esc(who(st.by)) : 'Not marked sent'}</div><div><span>Promise</span>${pr ? `<b>${J(pr.amount)}</b> by ${esc(fds(pr.date))}${pr.text ? ' · ' + esc(pr.text) : ''}` : 'None logged'}</div></div>
-          ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm pri" type="button" data-open="promise|${esc(ch.chain)}">Log promise</button>${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('promise|' + ch.chain)}${formFor(nk)}`); }), 'archains');
+          ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm pri" type="button" data-open="promise|${esc(ch.chain)}">Log promise</button>${(() => { const r = STMTDUE().filter(n => n.ref === 'stmtdue:' + ch.chain).sort((a, b) => a.date < b.date ? -1 : 1)[0]; return `<button class="btn sm" type="button" data-open="stmtdue|${esc(ch.chain)}">${r ? 'Statement reminder: ' + esc(fds(r.date)) : 'Remind me to send a statement'}</button>`; })()}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('promise|' + ch.chain)}${formFor('stmtdue|' + ch.chain)}${formFor(nk)}`); }), 'archains');
   if (SUB.ar === 'credits') body = lead1('a-cr', 'Payments and credit notes not matched to an invoice.', 'Leave an overpayment as a credit on the account and apply it only to the invoice the customer names.') +
     stable('cred', [
       {k:'c', label:'Customer', get:r => byId[r.c] ? byId[r.c].name : r.chain, show:who2},
@@ -1531,7 +1583,7 @@ function vStoreDrawer(c) {
   const person = (name, role, kind, addLabel) => name ? l1(`<div class="who">${av(name)}${nm(esc(name))}</div>`, rt(role, 'trunc'), kind ? `<button type="button" class="editchip" data-open="${kind}|${esc(c)}" aria-label="Edit or remove ${esc(name)}">Edit</button>` : '') + (kind ? formFor(kind + '|' + c) : '') :
     (kind ? l1(`<button type="button" class="addchip" data-open="${kind}|${esc(c)}">+ ${esc(addLabel)}</button>`, rt(role)) + formFor(kind + '|' + c) : l1(nm('<span class="note" style="margin:0">None on file</span>'), rt(role)));
   const nameOf = id => esc(SKUD[id] ? SKUD[id][0] : id);
-  const stg = o => solid(o.stage.c, o.stage.k === 'truck' ? 'On truck' : o.stage.k === 'open' ? 'Keyed' : o.stage.k === 'bo' ? 'Back order' : o.stage.t);
+  const stg = o => `<span title="${esc(o.stage.why)}">${solid(o.stage.c, o.stage.s || o.stage.t)}</span>`;
   const onPace = x => x.m >= x.t * PACE;
   return shell(s.name, `${esc(s.chain)} · ${esc(s.area)} · account ${esc(short(s.id))} · ${esc(String(s.terms || '').replace('DAYS', ' days'))}`, `
   ${dtiles([
@@ -1779,7 +1831,7 @@ function boot() {
   const keep = window.__hubSnap ? window.__hubSnap() : null, y = window.scrollY, dr = document.querySelector('.drawer'), dy = dr ? dr.scrollTop : 0;
   for (const v of __L.values()) v.length = 0;
   window.__hubKeep = keep;
-  window.__hubBoot(Object.assign({}, DATA.sales, DATA.skus), DATA.ops, Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
+  window.__hubBoot(Object.assign({}, DATA.sales, DATA.skus), Object.assign({}, DATA.ops, DATA.inv || {}),Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
   window.scrollTo(0, y); const d2 = document.querySelector('.drawer'); if (d2) d2.scrollTop = dy;
 }
 const busy = () => { const a = document.activeElement; return (window.__hubBusy && window.__hubBusy()) || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== 'chainsel'); };
@@ -1797,15 +1849,23 @@ async function loadPskus() {
   try { const r = await sb.rpc('chain_hub_data', { p_part: 'pskus' }); if (r.error) throw r.error; DATA.pskus = r.data; LOADED_AT.pskus = Date.now(); PSKUS_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('product detail failed', e); if (++PSKUS_TRY <= 3) setTimeout(loadPskus, 60000 * PSKUS_TRY); }
 }
+// invoiced lines, last 45 days (back orders replaced by a newer order). From invoiced_items, which syncs through the day.
+// Loaded after the main parts so a slow cold read never holds up the page; until it arrives the replaced check uses open orders only.
+let INV_TRY = 0;
+async function loadInv() {
+  try { const r = await sb.rpc('chain_hub_data', { p_part: 'inv' }); if (r.error) throw r.error; DATA.inv = r.data; LOADED_AT.inv = Date.now(); INV_TRY = 0; if (BOOTED && !busy()) boot(); }
+  catch (e) { console.warn('invoice lines failed', e); if (++INV_TRY <= 3) setTimeout(loadInv, 20000 * INV_TRY); }
+}
+const afterMain = () => { loadInv(); loadPskus(); };
 let STARTED = false;
 function start() {
   if (STARTED) return; STARTED = true;
   document.body.style.visibility = 'visible';
   sb.rpc('is_price_approver').then(r => { HUBD.approver = !!(r && r.data === true); }, () => {});
-  refresh(['ops', 'sales', 'skus', 'period'], true).then(loadPskus);
-  document.getElementById('hubRefresh').addEventListener('click', () => refresh(['ops', 'sales', 'skus', 'period'], true).then(loadPskus));
-  // orders every 10 minutes while open; sales and targets hourly (they only change at 7am and 1pm)
-  setInterval(() => { if (document.hidden) return; const parts = ['ops'], full = Date.now() - LOADED_AT.sales > 55 * 60000; if (full) parts.push('sales', 'skus', 'period'); refresh(parts, false).then(() => { if (full) loadPskus(); }); }, 10 * 60000);
+  refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain);
+  document.getElementById('hubRefresh').addEventListener('click', () => refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain));
+  // orders (and invoiced lines) every 10 minutes while open; sales and targets hourly (they only change at 7am and 1pm)
+  setInterval(() => { if (document.hidden) return; const parts = ['ops'], full = Date.now() - LOADED_AT.sales > 55 * 60000; if (full) parts.push('sales', 'skus', 'period'); refresh(parts, false).then(() => { loadInv(); if (full) loadPskus(); }); }, 10 * 60000);
   // notes and ticks from others every 2 minutes
   setInterval(async () => { if (document.hidden || busy() || BOOTING) return; try { await loadNotes(); boot(); } catch (e) {} }, 2 * 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - LOADED_AT.ops > 10 * 60000) refresh(['ops'], false); });

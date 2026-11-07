@@ -1,0 +1,25 @@
+-- Chain Store Hub + Key Account Hub, 6 Nov 2026. Approved by Scott ("build all four").
+-- Applied as migration hubs_loads_and_chain_inv. Read-only additions; nothing writes to any table.
+--
+-- 1. chain_hub_data('ops') and key_hub_data('ops') also return 'loads': for each shipment in the last 21 days that is on a
+--    live warehouse load, [shipment_nbr, load_nbr, load_date, ship_via, picked, checked, closed_reason]. The hubs use it for
+--    plain-English order stages (On load / Picked / Ready to go / Left) and the truck code. Added before the 'sync' key:
+--
+--      'loads', (select json_agg(json_build_array(ls.shipment_nbr, l.load_nbr, to_char(l.load_date,'YYYY-MM-DD'), l.ship_via,
+--          exists(select 1 from load_events ev where ev.load_id = l.id and ev.kind = 'pick_done'),
+--          (l.check_status = 'confirmed' or l.checker_done_at is not null), l.closed_reason))
+--        from load_shipments ls join loads l on l.id = ls.load_id
+--        where ls.env = 'live' and l.env = 'live' and ls.shipment_nbr in (select shipment_nbr from sh where shipment_date >= current_date - 21)),
+--
+-- 2. chain_hub_data gets the same 'inv' part as key_hub_data (invoiced lines, last 45 days, from invoiced_items), loaded by the
+--    page after the main parts. Used to flag back orders a newer order has likely replaced:
+--
+--      elsif p_part = 'inv' then
+--        with s as (select customer_id from ask_kam_accounts where kam = 'Andrea Skelton')
+--        select json_build_object(
+--          'inv', (select json_agg(json_build_array(customer_id, to_char(invoice_date,'YYYY-MM-DD'), inventory_id, q, fq, p)) from (select customer_id, invoice_date, inventory_id, sum(quantity) filter (where unit_price > 0) q, sum(quantity) filter (where unit_price = 0) fq, round(max(unit_price)) p from invoiced_items where customer_id in (select customer_id from s) and invoice_date >= current_date - 45 and tran_type in ('INV','CRM','DRM') and (invoice_status not in ('Voided','Rejected') or invoice_status is null) and inventory_id is not null group by 1,2,3) iv),
+--          'inv_synced', (select max(synced_at) from invoiced_items where customer_id in (select customer_id from s) and invoice_date >= current_date - 45)
+--        ) into v_out;
+--
+-- Timings as Andrea / Shallet right after: chain ops 1.6s, chain inv 1.6s (first run), key ops 1.1s.
+-- Statement reminders need no DB change: they are notes (kind 'note', ref 'stmtdue:<account>', date) in the existing tables.
