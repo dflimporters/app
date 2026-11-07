@@ -530,6 +530,13 @@ th.on{color:var(--ink)}
 .dstats .v{font-family:var(--head);font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrlist>li.rr{display:block;padding:10px 0}
 .briefbar{display:flex;gap:8px;flex-wrap:wrap}
+.repl{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.repl .rp{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
+.repl .rpl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;font-size:13px;color:var(--ink)}
+.repl .rpl+.rpl{border-top:1px dashed var(--line)}
+.repl .rpk{flex:none;min-width:124px;white-space:nowrap;font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:999px;text-align:center}
+.repl .rpk.old{background:#FDECEE;color:#C0283F}.repl .rpk.new{background:#E6F7EE;color:#147A43}
+.repl .rpm{color:var(--ink3);font-size:12px}
 @media (max-width:640px){.gusual{--gc:minmax(0,1fr) 78px 74px !important}.gusual>li>span:nth-child(2),.gusual>li>span:nth-child(5){display:none}}
 .l1h{font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--ink3);margin:10px 0 0}
 .l1h:first-child{margin-top:2px}
@@ -878,6 +885,10 @@ const replacedBy = b => { const need = b.open * 0.7;
   if (iv) { const q = (+iv[3] || 0) + (+iv[4] || 0); return {src:'inv', date:iv[1], q, t:`${q} invoiced on ${fds(iv[1])}`}; }
   return null; };
 BO.forEach(b => { b.rep = replacedBy(b); });
+// old -> new, in the same words everywhere (Scott, 6 Nov: make it clear which order is the possible replacement)
+const repText = r => r.src === 'order' ? `Replaced by newer order ${acuOrder(r.nbr)} (keyed ${esc(fds(r.date))}): ${r.q} ordered` : `Already invoiced: ${r.q} on ${esc(fds(r.date))}`;
+const repBlock = (nbr, list) => `<div class="repl">${list.map(b => `<div class="rp"><div class="rpl"><span class="rpk old">Old back order</span>${acuOrder(nbr)} <span class="rpm">keyed ${esc(fds(b.date))}</span> · <b>${esc(b.desc)}</b>: ${b.open} still owed</div>
+  <div class="rpl"><span class="rpk new">${b.rep.src === 'order' ? 'Newer order' : 'Already invoiced'}</span>${b.rep.src === 'order' ? `${acuOrder(b.rep.nbr)} <span class="rpm">keyed ${esc(fds(b.rep.date))}</span> · ${b.rep.q} ordered` : `${b.rep.q} invoiced on ${esc(fds(b.rep.date))}`}</div></div>`).join('')}</div>`;
 // statement reminders: a dated "send a statement" note on an account (kind 'note', ref 'stmtdue:<account>'); shows on Today from that date until marked sent
 const STMTDUE = () => NOTES.filter(n => n.kind === 'note' && String(n.ref || '').startsWith('stmtdue:') && !(TICKS[keyOk('stmtdue:' + n.id)] || {}).v);
 
@@ -944,10 +955,11 @@ function todayItems() {
   // back orders 5+ days old, one card per order
   const boOrd = {}; BO.filter(b => b.age >= 5).forEach(b => (boOrd[b.nbr] = boOrd[b.nbr] || []).push(b));
   Object.entries(boOrd).forEach(([nbr, ls]) => { const c = ls[0].c, can = ls.filter(b => b.canShip), v = ls.reduce((a, b) => a + b.open * b.price, 0), rep = ls.filter(b => b.rep);
-    if (rep.length) { it.push({key:'bo:' + nbr, pri:3, col:'blue', kind:'Back order', c, order:nbr, issue:rep.length === ls.length ? 'Likely replaced by a newer order' : `${rep.length} of ${ls.length} items likely replaced`, sub:`Order ${nbr} · ${rep[0].desc}: ${rep[0].rep.t}`, age:ls[0].age,
+    if (rep.length) { it.push({key:'bo:' + nbr, pri:3, col:'blue', kind:'Back order', c, order:nbr, issue:rep.length === ls.length ? 'Likely replaced by a newer order' : `${rep.length} of ${ls.length} items likely replaced`, sub:`Back order ${nbr} → ${rep[0].rep.src === 'order' ? 'newer order ' + rep[0].rep.nbr : 'already invoiced ' + fds(rep[0].rep.date)}`, age:ls[0].age,
+      order2:(rep.find(b => b.rep.src === 'order') || {rep:{}}).rep.nbr || null, repHtml:repBlock(nbr, rep.slice(0, 4)) + (rep.length > 4 ? `<p class="note">and ${rep.length - 4} more items: See the items</p>` : ''),
       t:`${byId[c].name}: back order ${nbr} may have been replaced`,
-      d:`${rep.slice(0, 3).map(b => `<b>${esc(b.desc)}</b>: ${b.open} owed, ${esc(b.rep.t)}`).join('; ')}${rep.length > 3 ? '…' : ''}. If the store re-ordered, close the old back order.`,
-      act:'Check it and close the back order in Acumatica', value:v}); return; }
+      d:repBlock(nbr, rep.slice(0, 3)),
+      act:`Check, then close back order ${nbr} in Acumatica`, value:v}); return; }
     it.push({key:'bo:' + nbr, pri:3, col:can.length ? 'green' : 'amber', kind:'Back order', c, order:nbr, issue:`Not delivered: ${ls.length} item${ls.length === 1 ? '' : 's'}`, sub:`Order ${nbr} · ${J(v)} to go`, age:ls[0].age,
     t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
     d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
@@ -1144,9 +1156,9 @@ function brow(x) {
     <div class="c-age">${x.age == null ? '–' : x.age + 'd'}</div>
     <div class="c-act">${notes.length ? `<span class="ncount" title="${notes.length} note${notes.length === 1 ? '' : 's'}">${icon('note')}${notes.length}</span>` : ''}<span class="chev">${icon('chev')}</span></div>
     ${exp ? `<div class="bexp">
-      <div class="bfacts"><div><span>Detail</span>${esc(x.sub || '–')}</div><div><span>Next step</span><b>${esc(x.act)}</b></div>${s ? `<div><span>Store</span>${esc(s.chain)} · ${esc(s.area)}</div>` : ''}</div>
+      ${x.repHtml || ''}<div class="bfacts">${x.repHtml ? '' : `<div><span>Detail</span>${esc(x.sub || '–')}</div>`}<div><span>Next step</span><b>${esc(x.act)}</b></div>${s ? `<div><span>Store</span>${esc(s.chain)} · ${esc(s.area)}</div>` : ''}</div>
       ${notes.length ? noteList(notes) : ''}
-      <div class="acts">${extra}${acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor(nk)}</div>` : ''}
+      <div class="acts">${extra}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor(nk)}</div>` : ''}
   </div>`;
 }function vToday() {
   const all = todayItems(); all.forEach(x => x.st = stOf(x.key));
@@ -1261,7 +1273,7 @@ function vBackorders() {
   if (SUB.backorders === 'bo' || SUB.backorders === 'bohand' || SUB.backorders === 'borep') body = lead1('b-bo', 'Items still owed to chain stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : SUB.backorders === 'borep' ? 'Likely replaced by a newer order' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
-        `${rows(g.rows.map(b => row(storeLink(b.c), 'Order ' + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="A newer order or invoice for this store has the same item. Check it and close the old back order in Acumatica.">Likely replaced: ${esc(b.rep.t)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
+        `${rows(g.rows.map(b => row(storeLink(b.c), (b.rep ? 'Back order ' : 'Order ') + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="Check it, then close back order ${esc(b.nbr)} in Acumatica.">${repText(b.rep)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
   if (SUB.backorders === 'short') body = lead1('b-short', 'Items shipped short to chain stores in the last 90 days.', 'Each order counts once. Raise these with purchasing, and warn store managers before they order. Once a reason is noted it shows wherever that item is short.') +
     gboard('#C47A1A', 'Most often short', shorts.length + ' items · ' + noReason + ' without a reason', 'minmax(0,2.4fr) 70px 70px 90px minmax(0,1.5fr) 40px', [['Item'], ['Times', 'center'], ['Stores', 'center'], ['Last', 'center'], ['Reason', '', 'rsn'], ['']],
       shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b><span class="mlab"> times</span>`, 'c-age hm mr', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
@@ -1446,7 +1458,7 @@ function vTeam() {
 const ACU = 'https://dflimporters.acumatica.com/Main';
 const acuOrder = (nbr, label) => nbr ? `<a class="acu" href="${ACU}?ScreenId=SO301000&OrderType=SO&OrderNbr=${encodeURIComponent(nbr)}" target="_blank" rel="noopener" title="Open order ${esc(nbr)} in Acumatica">${esc(label || nbr)}<span class="ext">↗</span></a>` : '';
 const acuShip = (nbr, label) => nbr ? `<a class="acu" href="${ACU}?ScreenId=SO302000&ShipmentNbr=${encodeURIComponent(nbr)}" target="_blank" rel="noopener" title="Open shipment ${esc(nbr)} in Acumatica">${esc(label || nbr)}<span class="ext">↗</span></a>` : '';
-const acuBtn = nbr => nbr ? `<a class="btn sm acubtn" href="${ACU}?ScreenId=SO301000&OrderType=SO&OrderNbr=${encodeURIComponent(nbr)}" target="_blank" rel="noopener">Open order ${esc(nbr)} in Acumatica ↗</a>` : '';
+const acuBtn = (nbr, label) => nbr ? `<a class="btn sm acubtn" href="${ACU}?ScreenId=SO301000&OrderType=SO&OrderNbr=${encodeURIComponent(nbr)}" target="_blank" rel="noopener">${esc(label || 'Open order ' + nbr)} in Acumatica ↗</a>` : '';
 // AR documents: invoices / credit and debit memos on AR301000, payments on AR302000
 const ACU_DOC = {'Invoice':['AR301000', 'INV'], 'Credit Memo':['AR301000', 'CRM'], 'Debit Memo':['AR301000', 'DRM'], 'Payment':['AR302000', 'PMT'], 'Prepayment':['AR302000', 'PPM']};
 const acuDoc = (type, ref, label) => { const m = ACU_DOC[type]; if (!m || !ref) return esc(label || ref || '');
@@ -1630,7 +1642,7 @@ function vOrderDrawer(nbr) {
   ${oships.length ? sec('Shipments', String(oships.length), gl('minmax(0,1fr) 92px minmax(0,1.2fr) 70px', [['Shipment'], ['Status', 'c'], ['Truck'], ['Date', 'r']],
       oships.map(s => [[`<b>${acuShip(s.nbr)}</b>`, ''], [SHIPPED(s.status) ? '<span class="pill green">Delivered</span>' : `<span class="pill">${esc(s.status)}</span>`, 'c'], [truckCell(realVia(s.via)), ''], [esc(fds(s.date)), 'r rt']]))) : ''}
   ${dtiles([['Still to deliver', ls.length, 'items', '#7B4FD0'], ['Value', J(v), 'at order price', '#326BD3'], ['Stage', esc(o.stage.k === 'bo' ? 'Back order' : o.stage.t), o.age + ' days old', SOLID[o.stage.c] || '#8A95B0']])}
-  ${sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(l => reasonRow(l.sku, l.desc, l.onhand >= l.open ? `<span class="up">${l.onhand} on hand</span>, may be promised to other orders` : `<span class="dn">${Math.max(0, l.onhand)} on hand</span>`, l.open + ' owed', 'of ' + l.oq + ' ordered')).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
+  ${sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(l => reasonRow(l.sku, l.desc, ((b => b && b.rep ? `<span class="up">${repText(b.rep)}</span> · ` : '')(BO.find(b => b.nbr === l.nbr && b.sku === l.sku))) + (l.onhand >= l.open ? `<span class="up">${l.onhand} on hand</span>, may be promised to other orders` : `<span class="dn">${Math.max(0, l.onhand)} on hand</span>`), l.open + ' owed', 'of ' + l.oq + ' ordered')).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
   <div class="briefbar"><button class="btn sm" type="button" data-store="${esc(o.c)}">Open ${esc(byId[o.c].name)}</button></div>`);
 }
 function vShortDrawer() {
