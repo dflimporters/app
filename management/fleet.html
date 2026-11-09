@@ -180,6 +180,8 @@
       <option value="department">Sort: Department</option>
     </select>
     <button class="btn ghost" id="refreshBtn">Refresh</button>
+    <button class="btn ghost" id="exportBtn" title="Download the vehicles shown as an Excel workbook">Export Excel</button>
+    <button class="btn ghost" id="printBtn" title="Print the vehicles shown">Print</button>
   </div>
   <div id="tableWrap"><div class="loading">Loading vehicles…</div></div>
 </div>
@@ -480,6 +482,7 @@ async function loadAll(){
   ]);
   if(!vRes.ok || !dRes.ok){
     document.getElementById('tableWrap').innerHTML = '<div class="loading">Could not load vehicles (HTTP ' + (vRes.ok ? dRes.status : vRes.status) + '). Check your connection or sign-in, then refresh.</div>';
+    shownRows = [];
     return;
   }
   vehicles = await vRes.json();
@@ -495,6 +498,10 @@ function renderStats(pendingCount){
   document.getElementById('statAction').textContent = vehicles.filter(v=>overallStatus(v)==='bad').length;
   document.getElementById('statPending').textContent = pendingCount;
 }
+
+/* The rows currently shown (after search, filter and sort). Export and Print
+   both use this, so what you get is exactly what's on screen. */
+let shownRows = [];
 
 function renderTable(){
   const q = document.getElementById('search').value.trim().toLowerCase();
@@ -512,6 +519,7 @@ function renderTable(){
     if(av && !bv) return -1;
     return av.localeCompare(bv) || a.reg_number.localeCompare(b.reg_number);
   });
+  shownRows = rows;
   if(!rows.length){
     document.getElementById('tableWrap').innerHTML = '<div class="empty">No vehicles match your filters.</div>';
     return;
@@ -537,6 +545,241 @@ function renderTable(){
     </tbody>
   </table>`;
   document.getElementById('tableWrap').innerHTML = html;
+}
+
+/* ---------- Export / Print ---------- */
+function requiredDocLabel(dateStr){
+  const s = requiredDocStatus(dateStr);
+  return {bad: dateStr ? 'Expired' : 'Missing', soon:'Due soon', ok:'Valid'}[s];
+}
+function overallLabel(v){
+  return {bad:'Action needed', soon:'Due soon', ok:'All clear'}[overallStatus(v)];
+}
+function todayStamp(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+/* Plain-language summary of the active search/filter, shown on the printout. */
+function filterSummary(){
+  const q = document.getElementById('search').value.trim();
+  const f = document.getElementById('filterStatus');
+  const parts = [];
+  if(q) parts.push(`search "${q}"`);
+  if(f.value) parts.push(f.options[f.selectedIndex].text.toLowerCase());
+  return parts.length ? 'Filtered: ' + parts.join(', ') : 'All vehicles';
+}
+
+/* ExcelJS is ~200 KB, so it's only fetched the first time someone exports. */
+let excelJsPromise = null;
+function loadExcelJs(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if(!excelJsPromise){
+    excelJsPromise = new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      s.onload = ()=> resolve(window.ExcelJS);
+      s.onerror = ()=>{ excelJsPromise = null; reject(new Error('Could not load ExcelJS')); };
+      document.head.appendChild(s);
+    });
+  }
+  return excelJsPromise;
+}
+/* 'YYYY-MM-DD' -> a real Excel date (UTC midnight, so no timezone drift). */
+function xlDate(str){
+  if(!str) return null;
+  const [y,m,d] = str.slice(0,10).split('-').map(Number);
+  return new Date(Date.UTC(y, m-1, d));
+}
+
+async function exportExcel(){
+  if(!shownRows.length){ toast('No vehicles to export', true); return; }
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true; btn.textContent = 'Preparing…';
+  try{
+    const ExcelJS = await loadExcelJs();
+    const rows = shownRows.slice();
+
+    const NAVY = 'FF0F2044', WHITE = 'FFFFFFFF', LINE = 'FFD9E1EA', BAND = 'FFF5F8FB';
+    const STATUS_STYLE = {
+      ok:   {fill:'FFDCFCE7', font:'FF166534'},
+      soon: {fill:'FFFEF3C7', font:'FF92400E'},
+      bad:  {fill:'FFFEE2E2', font:'FF991B1B'},
+    };
+    const DATE_FMT = 'dd mmm yyyy';
+
+    // type: text | int | date | status (status cells are coloured by `st`)
+    const cols = [
+      {h:'Reg Number',          w:12, v:r=>r.reg_number, bold:true},
+      {h:'Make',                w:12, v:r=>r.make},
+      {h:'Model',               w:14, v:r=>r.model},
+      {h:'Year',                w:7,  v:r=>r.year, type:'int', center:true},
+      {h:'Driver / Officer',    w:22, v:r=>r.driver_name},
+      {h:'Department',          w:13, v:r=>r.department},
+      {h:'Overall Status',      w:15, v:r=>overallLabel(r), type:'status', st:r=>overallStatus(r)},
+      {h:'Insurance Expiry',    w:14, v:r=>xlDate(r.insurance_expiry), type:'date'},
+      {h:'Insurance',           w:11, v:r=>requiredDocLabel(r.insurance_expiry), type:'status', st:r=>requiredDocStatus(r.insurance_expiry)},
+      {h:'Fitness Expiry',      w:14, v:r=>xlDate(r.fitness_expiry), type:'date'},
+      {h:'Fitness',             w:11, v:r=>requiredDocLabel(r.fitness_expiry), type:'status', st:r=>requiredDocStatus(r.fitness_expiry)},
+      {h:'Registration Expiry', w:14, v:r=>xlDate(r.registration_expiry), type:'date'},
+      {h:'Registration',        w:12, v:r=>requiredDocLabel(r.registration_expiry), type:'status', st:r=>requiredDocStatus(r.registration_expiry)},
+      {h:'Carriers License Expiry', w:14, v:r=>xlDate(r.carriers_license_expiry), type:'date'},
+      {h:'Chassis No',          w:21, v:r=>r.chassis_no},
+      {h:'Engine No',           w:15, v:r=>r.engine_no},
+      {h:'Current Mileage (km)',w:13, v:r=>r.current_mileage, type:'int'},
+      {h:'Last Service',        w:13, v:r=>xlDate(r.last_service_date), type:'date'},
+      {h:'Next Service',        w:13, v:r=>xlDate(r.next_service_date), type:'date'},
+      {h:'Pending Docs',        w:9,  v:r=>allDocsByVehicle[r.id]?.length || 0, type:'int', center:true},
+    ];
+    const lastCol = cols.length;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'DFL Fleet Management';
+    wb.created = new Date();
+    const ws = wb.addWorksheet('Fleet Assets', {
+      views:[{state:'frozen', xSplit:1, ySplit:5, showGridLines:false}],
+      pageSetup:{orientation:'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0,
+                 margins:{left:0.4, right:0.4, top:0.5, bottom:0.5, header:0.2, footer:0.2},
+                 printTitlesRow:'5:5'},
+      headerFooter:{oddFooter:'&LDFL Importers & Distributors — Fleet Asset List&RPage &P of &N'},
+    });
+    ws.columns = cols.map(c=>({width:c.w}));
+
+    // Title block (rows 1-3), blank row 4, header row 5.
+    const action = rows.filter(r=>overallStatus(r)==='bad').length;
+    const soon = rows.filter(r=>overallStatus(r)==='soon').length;
+    ws.mergeCells(1,1,1,lastCol);
+    Object.assign(ws.getCell('A1'), {value:'DFL Importers & Distributors — Fleet Asset List'});
+    ws.getCell('A1').font = {name:'Calibri', size:16, bold:true, color:{argb:NAVY}};
+    ws.getRow(1).height = 24;
+    ws.mergeCells(2,1,2,lastCol);
+    ws.getCell('A2').value = `${filterSummary()}  ·  ${rows.length} vehicle${rows.length===1?'':'s'}  ·  ${action} need action  ·  ${soon} due within 30 days`;
+    ws.getCell('A2').font = {name:'Calibri', size:11, color:{argb:'FF475569'}};
+    ws.mergeCells(3,1,3,lastCol);
+    ws.getCell('A3').value = `Exported ${new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}. Missing insurance, fitness or registration dates count as action needed.`;
+    ws.getCell('A3').font = {name:'Calibri', size:9, italic:true, color:{argb:'FF64748B'}};
+
+    const border = {style:'thin', color:{argb:LINE}};
+    const head = ws.getRow(5);
+    cols.forEach((c,i)=>{
+      const cell = head.getCell(i+1);
+      cell.value = c.h;
+      cell.font = {name:'Calibri', size:10, bold:true, color:{argb:WHITE}};
+      cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:NAVY}};
+      cell.alignment = {vertical:'middle', horizontal: c.center||c.type==='int'||c.type==='date'||c.type==='status' ? 'center' : 'left', wrapText:true};
+      cell.border = {top:border, bottom:border, left:border, right:border};
+    });
+    head.height = 30;
+
+    rows.forEach((r, ri)=>{
+      const row = ws.getRow(6 + ri);
+      cols.forEach((c, ci)=>{
+        const cell = row.getCell(ci+1);
+        const val = c.v(r);
+        cell.value = (val === '' || val === undefined) ? null : val;
+        cell.font = {name:'Calibri', size:10, bold:!!c.bold};
+        cell.border = {top:border, bottom:border, left:border, right:border};
+        cell.alignment = {vertical:'middle', horizontal: c.center||c.type==='date'||c.type==='status' ? 'center' : (c.type==='int' ? 'right' : 'left')};
+        if(ri % 2) cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:BAND}};
+        if(c.type==='date') cell.numFmt = DATE_FMT;
+        if(c.type==='int' && c.h.includes('Mileage')) cell.numFmt = '#,##0';
+        if(c.type==='status'){
+          const s = STATUS_STYLE[c.st(r)];
+          if(s){
+            cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:s.fill}};
+            cell.font = {name:'Calibri', size:10, bold:true, color:{argb:s.font}};
+          }
+        }
+        if(val === null || val === undefined || val === ''){
+          if(c.type!=='int' && c.type!=='status'){ cell.value = '—'; cell.font = {...cell.font, color:{argb:'FF94A3B8'}}; }
+        }
+      });
+      row.height = 18;
+    });
+
+    ws.autoFilter = {from:{row:5, column:1}, to:{row:5 + rows.length, column:lastCol}};
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `DFL Fleet Assets ${todayStamp()}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    toast(`Exported ${rows.length} vehicle${rows.length===1?'':'s'} to Excel`);
+  }catch(e){
+    console.error(e);
+    toast('Could not create the Excel file. Please try again.', true);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Export Excel';
+  }
+}
+
+/* Prints a clean, light A4-landscape copy of the list from a hidden iframe,
+   so the dark theme, nav and side rail never reach the paper. */
+function printList(){
+  if(!shownRows.length){ toast('No vehicles to print', true); return; }
+  const doc = (d, s) => `<td class="${s}">${escH(fmtDate(d) || '—')}<br><span>${escH(requiredDocLabel(d))}</span></td>`;
+  const body = shownRows.map(v=>`<tr>
+      <td class="plate">${escH(v.reg_number)}</td>
+      <td>${escH([v.make, v.model, v.year].filter(Boolean).join(' '))}</td>
+      <td>${escH(v.driver_name || '—')}</td>
+      <td>${escH(v.department || '—')}</td>
+      ${doc(v.insurance_expiry, requiredDocStatus(v.insurance_expiry))}
+      ${doc(v.fitness_expiry, requiredDocStatus(v.fitness_expiry))}
+      ${doc(v.registration_expiry, requiredDocStatus(v.registration_expiry))}
+      <td class="mono">${escH(v.chassis_no || '—')}</td>
+    </tr>`).join('');
+  const action = shownRows.filter(v=>overallStatus(v)==='bad').length;
+  const printed = new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>DFL Fleet Assets ${todayStamp()}</title>
+<style>
+  @page{size:A4 landscape; margin:12mm;}
+  *{box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,'Segoe UI',Arial,sans-serif; color:#1e293b; margin:0; font-size:10.5px;}
+  header{display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #0f2044; padding-bottom:8px; margin-bottom:10px;}
+  header img{height:30px;}
+  h1{font-size:16px; margin:0; color:#0f2044;}
+  .meta{color:#64748b; font-size:10px; text-align:right; line-height:1.5;}
+  table{width:100%; border-collapse:collapse;}
+  thead{display:table-header-group;}
+  th{text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:#475569; border-bottom:1px solid #94a3b8; padding:5px 6px; background:#f1f5f9;}
+  td{padding:5px 6px; border-bottom:1px solid #e2e8f0; vertical-align:top;}
+  tr{break-inside:avoid;}
+  td span{font-size:8.5px; font-weight:700; text-transform:uppercase;}
+  td.ok span{color:#15803d;} td.soon span{color:#b45309;} td.bad span{color:#b91c1c;}
+  .plate{font-family:Consolas,'SF Mono',monospace; font-weight:700;}
+  .mono{font-family:Consolas,'SF Mono',monospace; font-size:9.5px;}
+  footer{margin-top:10px; color:#94a3b8; font-size:9px;}
+</style></head><body>
+<header>
+  <div><img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL Importers"><h1>Fleet Asset List</h1></div>
+  <div class="meta">${escH(filterSummary())}<br>${shownRows.length} vehicle${shownRows.length===1?'':'s'} · ${action} need action<br>Printed ${escH(printed)}</div>
+</header>
+<table>
+  <thead><tr><th>Reg</th><th>Vehicle</th><th>Driver / Officer</th><th>Dept</th><th>Insurance</th><th>Fitness</th><th>Registration</th><th>Chassis No</th></tr></thead>
+  <tbody>${body}</tbody>
+</table>
+<footer>DFL Importers &amp; Distributors — Internal Fleet Tool</footer>
+</body></html>`;
+
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed; right:0; bottom:0; width:0; height:0; border:0;';
+  document.body.appendChild(frame);
+  const fdoc = frame.contentWindow.document;
+  fdoc.open(); fdoc.write(html); fdoc.close();
+  const go = () => {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    setTimeout(()=>frame.remove(), 1000);
+  };
+  // Wait for the logo so it isn't missing from the printout (give up after 2s).
+  const img = fdoc.querySelector('img');
+  if(img && !img.complete){
+    let done = false;
+    const once = () => { if(!done){ done = true; go(); } };
+    img.addEventListener('load', once); img.addEventListener('error', once);
+    setTimeout(once, 2000);
+  } else go();
 }
 
 async function openVehicle(id){
@@ -698,6 +941,8 @@ document.getElementById('search').addEventListener('input', renderTable);
 document.getElementById('filterStatus').addEventListener('change', renderTable);
 document.getElementById('sortBy').addEventListener('change', renderTable);
 document.getElementById('refreshBtn').addEventListener('click', loadAll);
+document.getElementById('exportBtn').addEventListener('click', exportExcel);
+document.getElementById('printBtn').addEventListener('click', printList);
 document.getElementById('addVehicleBtn').addEventListener('click', openAddVehicle);
 document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
 </script>
