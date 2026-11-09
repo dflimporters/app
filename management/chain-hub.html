@@ -789,16 +789,23 @@ const shortBySku = (() => { const m = {};
 // ---------- order cadence (from invoice days, last 150 days) ----------
 // DFL doesn't deliver at weekends: a due date on Saturday or Sunday moves to the Monday after (Scott, 5 Nov)
 const toWorkday = ds => { const w = d8(ds).getDay(); return w === 6 ? addDays(ds, 2) : w === 0 ? addDays(ds, 1) : ds; };
+// Order schedule (Scott, 9 Nov 2026): every chain store orders weekly, except these, which order every two weeks.
+const BIWEEKLY = new Set(['C000007077',   // Progressive Mandeville
+  'C000005652',   // Shoppers Fair Manchester
+  'C000003043',   // Megamart Mandeville
+  'C000003042',   // Megamart Kingston
+  'C000004657',   // Super Shoppers Fair May Pen
+  'C000006110',   // Select Grocers May Pen (Millennium Mall)
+  'C000001908']); // Hi-Lo Basix (UWI)
+const everyTxt = med => med === 14 ? 'every 2 weeks' : med === 7 ? 'weekly' : med ? 'every ' + med + ' days' : '';
 STORES.forEach(s => {
-  const d = s.days.filter(x => x >= addDays(ASOF, -120));
-  const gaps = []; for (let i = 1; i < d.length; i++) gaps.push(daysBetween(d[i-1], d[i]));
-  const med = gaps.length >= 3 ? Math.max(2, Math.round(median(gaps.slice(-12)))) : null;
+  const med = BIWEEKLY.has(s.id) ? 14 : 7;
   const last = s.days[s.days.length - 1] || null;
   const since = last ? daysBetween(last, ASOF) : null;
   const open = openOf(s.id);
   const next = last && med ? toWorkday(addDays(last, med)) : null;
   let state = 'ok', late = 0;
-  if (!med || isHQ(s)) state = 'irregular';
+  if (!last || isHQ(s)) state = 'irregular';
   else { late = daysBetween(next, ASOF);   // days past the working-day due date
     if (open.length) state = 'inhand';
     else if (late >= Math.max(4, Math.round(med * 0.6))) state = 'missed';
@@ -1001,16 +1008,16 @@ function todayItems() {
     d:`Sent to <b>${esc(x.n.name || 'the team')}</b> on ${fd(x.n.date)}: ${esc(x.n.label || '')}. ${esc(x.st.why)}.`,
     act:`Ask ${firstNames(x.n.name) || 'the merchandiser'} why it wasn’t offered`, value:5e5}));
 
-  STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No order in ${s.cad.since} days`, sub:`Usually every ${s.cad.med} days`, age:s.cad.since,
+  STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No order in ${s.cad.since} days`, sub:`Orders ${everyTxt(s.cad.med)}`, age:s.cad.since,
     t:`${s.name}: no order in ${s.cad.since} days`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
+    d:`Orders <b>${everyTxt(s.cad.med)}</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
     act:`Call ${firstName(s.merch) || 'the store'} for the order`, value:(s.l3 / 3)}));
   // due today: expected today or a little late, not yet missed, nothing keyed in — follow up before it becomes a missed order
   STORES.filter(s => !isHQ(s) && s.cad.next && s.cad.next <= ASOF && (s.cad.state === 'due' || s.cad.state === 'ok')).forEach(s => { const over = daysBetween(s.cad.next, ASOF);
     it.push({key:'due:' + s.id + ':' + s.cad.next, pri:2.5, col:'amber', kind:'Due today', c:s.id,
-    issue:over > 0 ? `Due ${over} day${over === 1 ? '' : 's'} ago, no order yet` : 'Order due today', sub:`Usually every ${s.cad.med} days · last ${fds(s.cad.last)}`, age:s.cad.since,
+    issue:over > 0 ? `Due ${over} day${over === 1 ? '' : 's'} ago, no order yet` : 'Order due today', sub:`Orders ${everyTxt(s.cad.med)} · last ${fds(s.cad.last)}`, age:s.cad.since,
     t:`${s.name}: order due ${over > 0 ? over + ' days ago' : 'today'}`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
+    d:`Orders <b>${everyTxt(s.cad.med)}</b>. Last delivery ${fd(s.cad.last)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
     act:`Check with ${firstName(s.merch) || 'the store'} the order is coming`, value:(s.l3 / 3)}); });
   // will ship short: open / on-hold orders with lines we don't have the stock for — call before the truck leaves
   const shortOrd = {}; CHECKS.filter(x => x.kind === 'stock').forEach(x => (shortOrd[x.o.nbr] = shortOrd[x.o.nbr] || {o:x.o, ls:[]}).ls.push(x.l));
@@ -1309,13 +1316,13 @@ function vOrders() {
         return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}">${x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), stBtn(k)],
           `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'stock' ? 'Ordered' : 'Deal'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : x.kind === 'free' ? `Buy ${x.f.buy}, get ${x.f.free} free · ${x.f.oq} on the order, ${x.f.have || 'no'} free · ask sales support` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
-  if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
+  if (SUB.orders === 'watch') body = lead1('o-watch', 'Each store’s order schedule, and whether this week’s order is late.', 'Chain stores order weekly. Progressive Mandeville, Shoppers Fair Manchester, MegaMart Mandeville and Kingston, Super Shoppers Fair May Pen, Select Grocers May Pen and Hi-Lo Basix order every 2 weeks. The next order is due one schedule after the last delivery, moved to Monday if it falls at a weekend. “Irregular” means no delivery on record. Head-office and warehouse billing accounts are left out.') +
     stable('watch', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
       {k:'merch', label:'Merchandiser', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
       {k:'state', label:'Status', key:1, get:s => ORDER.indexOf(s.cad.state) * 1000 - (s.cad.late || 0), tip:s => s.cad.state === 'inhand' ? 'Order ' + s.cad.open[0].nbr + ' is in' : '', show:s => solid(CAD[s.cad.state][0], CAD[s.cad.state][1])},
       {k:'late', label:'Late', num:1, get:s => s.cad.state === 'missed' || s.cad.state === 'due' ? s.cad.late : null, show:s => s.cad.state === 'missed' || s.cad.state === 'due' ? `<b class="${s.cad.state === 'missed' ? 'dn' : ''}">${s.cad.late}d</b>` : '<span class="note nil">–</span>'},
-      {k:'every', label:'Usually', num:1, cls:'hide-sm', get:s => s.cad.med, show:s => s.cad.med ? 'every ' + s.cad.med + 'd' : '–'},
+      {k:'every', label:'Orders', num:1, cls:'hide-sm', get:s => s.cad.med, show:s => s.cad.med ? everyTxt(s.cad.med) : '–'},
       {k:'last', label:'Last delivery', num:1, get:s => s.cad.last, show:s => s.cad.last ? esc(fds(s.cad.last)) : '–'}], watch, 'state', 1, true, s => s.id);
   if (SUB.orders === 'open') body = lead1('o-open', 'Chain orders keyed in but not delivered yet.', 'Stages, in order: Entered = in Acumatica, not on a load yet. On hold = held in Acumatica (ask sales support). Credit hold = held by AR. On load = on a warehouse load for a delivery date and truck, being picked. Picked = picking done. Ready to go = picked and checked. Left = shipment confirmed, on its way. Part owed = some lines delivered, the rest waiting for stock. Hover a stage for the load, date and truck.') +
     stable('open', [
@@ -1720,7 +1727,7 @@ function vStoreDrawer(c) {
   const onPace = x => x.m >= x.t * PACE;
   return shell(s.name, `${esc(s.chain)} · ${esc(s.area)} · account ${esc(short(s.id))} · ${esc(String(s.terms || '').replace('DAYS', ' days'))}`, `
   ${dtiles([
-    ['Ordering', CAD[cad.state][1], cad.last ? 'Last ' + esc(fds(cad.last)) + (cad.med ? ' · every ' + cad.med + 'd' : '') : 'No recent deliveries', STATEC[cad.state]],
+    ['Ordering', CAD[cad.state][1], cad.last ? 'Last ' + esc(fds(cad.last)) + (cad.med ? ' · orders ' + everyTxt(cad.med) : '') : 'No recent deliveries', STATEC[cad.state]],
     ['This month', s.budM ? prog + '% of target' : 'No target', J(s.mtd) + ' · pace ' + Math.round(PACE * 100) + '%', s.gapPace >= 0 ? '#1A8F4C' : '#E2445C'],
     ['Past due', J(pastAmt), pastAmt ? 'oldest ' + oldest + ' days late' : 'Nothing late', pastAmt ? '#E2445C' : '#127F8C']])}
   <div class="briefbar">${window.DFL_PORTAL ? `<button class="btn sm pri" type="button" data-brief="${esc(c)}">Store brief (PDF)</button>` : ''}<button class="btn sm" type="button" data-briefcopy="${esc(c)}">Copy brief for WhatsApp</button><button class="btn sm" type="button" data-open="deal|${esc(c)}">+ Log a deal</button></div>${formFor('deal|' + c)}
