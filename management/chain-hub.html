@@ -530,6 +530,11 @@ th.on{color:var(--ink)}
 .dstats .v{font-family:var(--head);font-weight:700;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rrlist>li.rr{display:block;padding:10px 0}
 .briefbar{display:flex;gap:8px;flex-wrap:wrap}
+.tochips{display:flex;flex-wrap:wrap;gap:6px}
+.tochip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px;background:#fff;font-size:12.5px;cursor:pointer}
+.tochip b{font-family:var(--head);font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink3);margin-right:2px}
+.nbox .tochip input{width:15px;height:15px;margin:0;padding:0}
+.tochip .av{width:20px;height:20px;font-size:9px}
 .repl{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
 .repl .rp{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden}
 .repl .rpl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;font-size:13px;color:var(--ink)}
@@ -875,6 +880,58 @@ const rhythm = ch => !ch.pays.length ? 'No account payments of J$50K+ in the las
   ch.payDom ? `Usually pays around the ${ord(ch.payDom)} of the month` : 'Paid once in 6 months';
 function ord(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 
+// ---------- free goods left off, deal log (ported from the Key Account Hub, Scott 9 Nov) ----------
+// free goods left off: an open / on-hold order has an item at or past a deal tier, at the deal-sheet price, but no J$0 line for it.
+// A price below the sheet means the deal was given as a lower price instead, so it is not flagged (from Shallet's meeting, 5 Nov).
+ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => {
+  const by = {}; (o.lines || []).forEach(l => { const x = by[l.sku] = by[l.sku] || {paid:null, oq:0, free:0}; if (l.price > 0) { x.paid = x.paid || l; x.oq += l.oq; } else x.free += l.oq; });
+  Object.entries(by).forEach(([sku, x]) => { const d = DEALS[sku]; if (!x.paid || !d || !Array.isArray(d[1])) return;
+    const tiers = d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy);
+    const t = [...tiers].reverse().find(t => t.buy <= x.oq); if (!t || x.free >= t.free) return;
+    if (+d[0] && x.paid.price < +d[0] * 0.98) return;
+    CHECKS.push({kind:'free', o, l:x.paid, f:{buy:t.buy, free:t.free, have:x.free, oq:x.oq}, key:'free:' + o.nbr + ':' + sku, value:(t.free - x.free) * x.paid.price + 2e6}); });
+});
+// deal sheet (all live deals) and invoiced lines for the last 45 days
+const DSH = {}; (O.dsheet || []).forEach(r => { const tiers = (Array.isArray(r[3]) ? r[3] : []).map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy); DSH[r[0]] = {sku:r[0], desc:r[1], price:+r[2] || 0, tiers, cls:r[4]}; });
+const tierTxt = tiers => tiers.map(t => `buy ${t.buy} get ${t.free} free`).join(', ');
+// O.inv arrives a moment after the rest in the portal (its own part); until then deal statuses show "Checking"
+const INV_READY = Array.isArray(O.inv);
+const INVL = (O.inv || []).map(r => ({c:r[0], date:r[1], sku:r[2], q:+r[3] || 0, fq:+r[4] || 0, p:+r[5] || 0}));
+const invDays = {}; INVL.forEach(r => { if (r.q > 0) (invDays[r.c] = invDays[r.c] || new Set()).add(r.date); });
+const descOf = sku => (DSH[sku] && DSH[sku].desc) || (SKUD[sku] && SKUD[sku][0]) || ((Object.values(USUAL_RAW).flat().find(u => u[1] === sku) || [])[2]) || sku;
+// product list for the deal form: deal-sheet items first, then anything the stores buy
+const PRODS = (() => { const m = new Map(); Object.values(DSH).forEach(d => m.set(d.sku, d.desc)); Object.entries(SKUD).forEach(([k, v]) => { if (k && !m.has(k)) m.set(k, v[0]); }); (S.usual || []).forEach(u => { if (!m.has(u[1])) m.set(u[1], u[2]); }); return [...m].map(([sku, desc]) => ({sku, desc: desc || sku})); })();
+const USUAL_RAW = {}; (S.usual || []).forEach(u => (USUAL_RAW[u[0]] = USUAL_RAW[u[0]] || []).push(u));
+const prodLabel = p => `${p.desc} [${p.sku}]`;
+const skuFromLabel = v => { const m = /\[([^\]]+)\]\s*$/.exec(v || ''); return m ? m[1] : (PRODS.find(p => p.desc.toLowerCase() === String(v || '').trim().toLowerCase()) || {}).sku || ''; };
+// where a logged deal stands: on an invoice, on an open order, ordered without it, or still waiting
+function dealState(n) {
+  const from = n.date || (n.at || '').slice(0, 10);
+  const inv = INVL.filter(r => r.c === n.c && r.sku === n.sku && r.date >= from && r.q > 0);
+  if (inv.length) { const q = inv.reduce((a, r) => a + r.q, 0), fq = inv.reduce((a, r) => a + r.fq, 0); return {k:'won', t:'On an invoice', c:'green', why:`${qty(q)} invoiced${fq ? ' + ' + qty(fq) + ' free' : ''} since ${fds(from)}`, last:inv.map(r => r.date).sort().pop()}; }
+  const ol = LINES.filter(l => l.sku === n.sku && ordBy[l.nbr].c === n.c && ordBy[l.nbr].date >= from);
+  if (ol.length) return {k:'order', t:'On an order', c:'blue', why:`Order ${ol[0].nbr}: ${qty(ol.reduce((a, l) => a + l.oq, 0))} ordered`, nbr:ol[0].nbr};
+  if (!INV_READY) return {k:'load', t:'Checking', c:'grey', why:'Still loading the latest invoices'};
+  const after = [...(invDays[n.c] || [])].filter(d => d > from).sort();
+  const okeyed = ORD.filter(o => o.c === n.c && o.date > from);
+  if (after.length || okeyed.length) return {k:'missed', t:'Ordered without it', c:'red', why:`The store ordered ${after.length ? 'on ' + fds(after[0]) : 'order ' + okeyed[0].nbr} without it`, nbr:okeyed.length ? okeyed[0].nbr : null};
+  return daysBetween(from, ASOF) > 21 ? {k:'stale', t:'No order yet', c:'grey', why:`No order from the store since ${fds(from)}`} : {k:'wait', t:'Waiting', c:'amber', why:`No order from the store since ${fds(from)}`};
+}
+const dealClosed = n => { const t = TICKS[keyOk('dealx:' + n.id)]; return !!(t && t.v); };
+const DEALS_LOG = () => NOTES.filter(n => n.kind === 'deal' && n.c && byId[n.c]).map(n => ({n, s:byId[n.c], st:dealState(n), closed:dealClosed(n), age:daysBetween(n.date || n.at.slice(0, 10), ASOF)}));
+// "sent to" can be several people (merchandiser and rep): stored as "Name A, Name B"
+const namesOf = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+const firstNames = v => { const f = namesOf(v).map(firstName); return f.length > 1 ? f.slice(0, -1).join(', ') + ' and ' + f[f.length - 1] : f[0] || ''; };
+// deal form: tick boxes for the store's merchandiser(s) and rep, all ticked to start
+const toPicks = s => { if (!s) return '<span class="note" style="margin:0">Choose the store first</span>';
+  const list = namesOf(s.merch).map(n => ['Merch', n]);   // chain stores have no rep (Scott): merchandisers only
+  return list.length ? list.map(([r, n]) => `<label class="tochip"><input type="checkbox" name="fto" value="${esc(n)}" checked>${av(n)}<span><b>${r}</b> ${esc(n)}</span></label>`).join('') : '<span class="note" style="margin:0">No merchandiser or rep on file; use Other</span>'; };
+const whoMulti = v => { const l = namesOf(v); return l.length > 1 ? `<div class="who" title="${esc(l.join(', '))}">${av(l[0])}<span>${esc(shortName(l[0]))} +${l.length - 1}</span></div>` : whoCell(l[0] || '', true); };
+const dealMsg = n => { const s = byId[n.c], who1 = firstNames(n.name) || 'team';
+  return [`Hi ${who1}, deal for *${s ? s.name : n.c}*:`, `• ${descOf(n.sku)}: *${n.label || 'deal'}*`, n.text ? n.text : '', 'Please offer it on your next visit and get it on the order. Tell me what the buyer says.'].filter(Boolean).join('\n'); };
+
+const TEAM = () => [...new Set(STORES.flatMap(s => [...String(s.merch || '').split(',')]).map(x => String(x || '').trim()).filter(Boolean))].sort();
+
 // ---------- back orders a newer order may have replaced (Scott, 6 Nov) ----------
 // "Likely replaced" = the same store has a newer order, or a newer invoice, for the same item covering at least 70% of what is still owed.
 // The KAM then checks it and closes the old back order in Acumatica.
@@ -933,6 +990,17 @@ function todayItems() {
     t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
     d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is buy ${x.h.buy}, get ${x.h.free} free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
     act:'Call the merchandiser to add it', value:x.value + 1e6}));
+  // free goods left off an open order: sales support adds them before it ships
+  CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
+    t:`${byId[x.o.c].name}: free goods missing on order ${x.o.nbr}`,
+    d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal is buy ${x.f.buy}, get ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
+    act:'Ask sales support to add the free goods', value:x.value}));
+  // deals Andrea logged that the store has since ordered without
+  DEALS_LOG().filter(x => !x.closed && x.st.k === 'missed').forEach(x => it.push({key:'dealm:' + x.n.id, pri:1.5, col:'red', kind:'Deal not taken', c:x.n.c, order:x.st.nbr || null, issue:'Ordered without the deal', sub:`${descOf(x.n.sku)}: ${x.n.label || ''}`, age:x.age,
+    t:`${x.s.name}: ordered without the ${descOf(x.n.sku)} deal`,
+    d:`Sent to <b>${esc(x.n.name || 'the team')}</b> on ${fd(x.n.date)}: ${esc(x.n.label || '')}. ${esc(x.st.why)}.`,
+    act:`Ask ${firstNames(x.n.name) || 'the merchandiser'} why it wasn’t offered`, value:5e5}));
+
   STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No order in ${s.cad.since} days`, sub:`Usually every ${s.cad.med} days`, age:s.cad.since,
     t:`${s.name}: no order in ${s.cad.since} days`,
     d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b>.`,
@@ -987,7 +1055,7 @@ function todayItems() {
     it.push({key:'why:' + reasonless.map(x => x.sku).join('-').slice(0, 120), pri:7, col:'amber', kind:'Often short', shortlist:1, issue:`${reasonless.length} items with no reason`, sub:`${times} short shipments in 90 days`, age:null,
     t:`${reasonless.length} item${reasonless.length === 1 ? '' : 's'} shipped short ${times} times in 90 days`,
     d:`No reason noted yet. The most frequent is <b>${esc(reasonless[0].desc)}</b> (${reasonless[0].n} times).`, act:'Check each one and add a reason', value:0}); }
-  const GROUP = {'Special':'Specials', 'Missed order':'Missed orders', 'Due today':'Due today', 'Will ship short':'Will ship short', 'Back order':'Back orders', 'Stuck order':'Stuck orders', 'Statement':'AR', 'Promise':'AR', 'Payment late':'AR', 'Often short':'Often short'};
+  const GROUP = {'Free goods':'Free goods', 'Deal not taken':'Deals', 'Special':'Specials', 'Missed order':'Missed orders', 'Due today':'Due today', 'Will ship short':'Will ship short', 'Back order':'Back orders', 'Stuck order':'Stuck orders', 'Statement':'AR', 'Promise':'AR', 'Payment late':'AR', 'Often short':'Often short'};
   it.forEach(x => x.group = GROUP[x.kind] || x.kind);
   return it.sort((a, b) => a.pri - b.pri || b.value - a.value);
 }
@@ -1055,6 +1123,15 @@ function formFor(k) {
   if (kind === 'promise') return `<div class="nbox"><div class="nrow"><label class="note" for="f-amt">Amount J$</label><input id="f-amt" type="number" min="0" step="1000" inputmode="numeric"><label class="note" for="f-date">By</label><input id="f-date" type="date"></div>
     <label class="sr" for="f-tx">Detail</label><textarea id="f-tx" rows="2" placeholder="Who promised it, e.g. Accounts payable (Tia), cheque ready Friday"></textarea>
     <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Log promise</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
+  const teamList = `<datalist id="dl-team">${TEAM().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>`;
+  if (kind === 'deal') { const s0 = byId[ref];
+    return `<div class="nbox"><div class="nrow"><label class="note" for="f-store">Store</label><select id="f-store">${s0 ? '' : '<option value="">Choose a store</option>'}${STORES.filter(s => !isHQ(s)).map(s => `<option value="${esc(s.id)}" ${s.id === ref ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
+    <div class="nrow"><label class="note" for="f-sku">Product</label><input id="f-sku" type="text" list="dl-prod" placeholder="Type a product name or code" autocomplete="off"><datalist id="dl-prod">${PRODS.map(p => `<option value="${esc(prodLabel(p))}"></option>`).join('')}</datalist></div>
+    <div class="nrow"><label class="note" for="f-deal">Deal</label><input id="f-deal" type="text" placeholder="e.g. buy 15 get 1 free, or J$2,150 a case on 24+"></div>
+    <div class="nrow"><span class="note" style="margin:0">Sent to</span><span id="f-to" class="tochips">${toPicks(s0)}</span></div>
+    <div class="nrow"><label class="note" for="f-nm">Other</label><input id="f-nm" type="text" list="dl-team" placeholder="Anyone else (optional)">${teamList}<label class="note" for="f-date">On</label><input id="f-date" type="date" value="${ASOF}"></div>
+    <label class="sr" for="f-tx">Message</label><textarea id="f-tx" rows="2" placeholder="Anything to add to the message, e.g. the buyer will take 55 cases on 15 + 1"></textarea>
+    <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Log deal and copy message</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`; }
   const cur = (kind === 'manager' || kind === 'backup') ? contactOf(kind, ref) : null;
   const rm = cur ? `<button class="btn sm danger" type="button" data-clear="${esc(k)}" style="margin-left:auto">Remove</button>` : '';
   if (kind === 'manager') return `<div class="nbox"><div class="nrow"><label class="sr" for="f-nm">Manager name</label><input id="f-nm" type="text" placeholder="Manager name" value="${esc(cur ? cur.name : '')}"><label class="sr" for="f-ph">Phone</label><input id="f-ph" type="text" placeholder="Phone" value="${esc(cur ? cur.phone || '' : '')}"></div>
@@ -1076,6 +1153,15 @@ async function saveForm(k) {
   else if (kind === 'manager') { if (!val('f-nm').trim()) { toast('Add the manager’s name.'); return; } n = {kind, c:ref, name:val('f-nm').trim(), phone:val('f-ph').trim(), text:val('f-tx')}; }
   else if (kind === 'stmtdue') { if (!val('f-date')) { toast('Add the date.'); return; } n = {kind:'note', ref:'stmtdue:' + ref, chain:ref, label:'Statement reminder', date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the reminder is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'backup') { if (!val('f-nm').trim()) return; n = {kind, c:ref, name:val('f-nm').trim(), text:''}; }
+  else if (kind === 'deal') { const c = val('f-store'), sku = skuFromLabel(val('f-sku'));
+    if (!c || !sku) { toast('Choose the store, and a product from the list.'); return; }
+    if (!val('f-deal').trim()) { toast('Add the deal, e.g. buy 15 get 1 free.'); return; }
+    const to = [...new Set([...document.querySelectorAll('input[name=fto]:checked')].map(b => b.value).concat(val('f-nm').trim() ? [val('f-nm').trim()] : []))];
+    if (!to.length) { toast('Tick the merchandiser, or add who you sent it to.'); return; }
+    n = {kind:'deal', c, sku, label:val('f-deal').trim(), name:to.join(', '), date:val('f-date') || ASOF, text:val('f-tx')};
+    if (await addNote(n)) { OPEN = null; render(); copyText(dealMsg(n), 'Deal logged. The WhatsApp message is copied.'); }
+    return; }
+
   else { if (!val('f-tx').trim()) return; const c = ref.split(':')[1]; n = {kind:'note', ref, c:byId[c] ? c : '', text:val('f-tx')}; }
   if (await addNote(n)) { OPEN = null; render(); if (moved) toast(moved); }
 }
@@ -1099,7 +1185,7 @@ const chainChips = () => '';
 const inChain = s => CHAINF === 'All' || (byId[s] || s).chain === CHAINF;
 
 // ---------- tabs ----------
-const TABS = [['today', 'Today'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['ar', 'AR'], ['stores', 'Stores'], ['team', 'Team']];
+const TABS = [['today', 'Today'], ['orders', 'Orders'], ['deals', 'Deals'], ['backorders', 'Back orders'], ['ar', 'AR'], ['stores', 'Stores'], ['team', 'Team']];
 // ---------- v3: status cells, avatars, icons ----------
 const ST = {todo:['st-todo', 'To call'], waiting:['st-waiting', 'Waiting'], sorted:['st-sorted', 'Sorted']};
 const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; const d = tick('done:' + ASOF + ':' + k); return d && d.v ? 'sorted' : 'todo'; };
@@ -1111,6 +1197,7 @@ const ICO = {
   today:'<path d="M4 12l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
   orders:'<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
   backorders:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  deals:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
   ar:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   stores:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   team:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2c3 .3 5.5 2.6 5.5 5.8"/>',
@@ -1122,7 +1209,7 @@ const ICO = {
   note:'<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>',
   chev:'<path d="M6 9l6 6 6-6"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Stuck orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
+const GRPC = {'Free goods':['#D63B3B', 'Deal free goods left off open orders, for sales support to add'], 'Deals':['#326BD3', 'Deals you sent that the store ordered without'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Stuck orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
 let TODAYF = 'All', EXP = null;
 
 function weekStrip() {
@@ -1190,7 +1277,7 @@ function recentNotes() { const l = NOTES.slice(0, 8); if (!l.length) return '';
   return `<details class="fold"><summary>Latest notes from the team (${NOTES.length})</summary><div class="sec"><ul class="nlog">${l.map(n => `<li><span class="m">${esc(fds(n.at.slice(0,10)))} · ${esc(who(n.by))} · ${esc(n.kind === 'reason' ? 'Reason: ' + (SKUD[n.sku] ? SKUD[n.sku][0] : n.sku) : n.kind === 'promise' ? 'Promise: ' + n.chain : n.c && byId[n.c] ? byId[n.c].name : n.kind)}</span><br>${esc(n.label ? n.label + '. ' : '')}${esc(n.text || n.name || '')}</li>`).join('')}</ul></div></details>`; }
 
 // ---------- shared pieces for Orders, Back orders and AR ----------
-const SUB = {orders:'check', backorders:'bo', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
+const SUB = {orders:'check', deals:'open', backorders:'bo', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
 // solid tile that switches a sub-tab
 const ctile = (sub, ic, n, l, x, col) => `<button type="button" class="ft" data-sub="${esc(sub)}" aria-pressed="${SUB[TAB] === sub}" style="--ftc:${col}"><span class="ic">${icon(ic, 2)}</span><span class="l">${esc(l)}</span><span class="n">${n}</span><span class="x">${x}</span></button>`;
 const segs = list => `<div class="seg" role="tablist">${list.map(([k, t, n]) => `<button type="button" role="tab" data-sub="${esc(k)}" aria-selected="${SUB[TAB] === k || (k === 'bo' && (SUB[TAB] === 'bohand' || SUB[TAB] === 'borep')) || (k === 'chains' && SUB[TAB] === 'stmt') || (k === 'month' && SUB[TAB] === 'behind') || (k === 'stores' && (SUB[TAB] === 'nomgr' || SUB[TAB] === 'nobk'))}">${esc(t)}${n != null ? `<span>${n}</span>` : ''}</button>`).join('')}</div>`;
@@ -1216,11 +1303,11 @@ function vOrders() {
   const shipped = SHIPS.filter(s => SHIPPED(s.status) && inChain(s.c) && s.date >= addDays(ASOF, -7));
   const missed = watch.filter(s => s.cad.state === 'missed').length, due = watch.filter(s => s.cad.state === 'due').length;
   let body = '';
-  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders that can still change before they ship.', 'Two kinds of line show here: a special the store is just short of (add a few cases to reach the free-goods tier), and stock we do not have enough of. Call the merchandiser or the store while the order is still open.') +
+  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders that can still change before they ship.', 'Three kinds of line show here: free goods left off (the order reaches a deal tier at the sheet price but has no J$0 line; ask sales support to add it), a special the store is just short of (add a few cases to reach the free-goods tier), and stock we do not have enough of. Act while the order is still open.') +
     gboard('#E2445C', 'Check before it ships', checks.length + ' lines', 'minmax(0,1.5fr) 88px minmax(0,1.5fr) minmax(0,2fr) 104px 40px', [['Store'], ['Order'], ['Problem'], ['Product'], ['Status', 'center'], ['']],
       checks.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
-        return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}">${x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), stBtn(k)],
-          `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'deal' ? 'Deal' : 'Ordered'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
+        return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}">${x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), stBtn(k)],
+          `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'stock' ? 'Ordered' : 'Deal'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : x.kind === 'free' ? `Buy ${x.f.buy}, get ${x.f.free} free · ${x.f.oq} on the order, ${x.f.have || 'no'} free · ask sales support` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
   if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
@@ -1248,7 +1335,7 @@ function vOrders() {
       {k:'truck', label:'Delivered by', get:s => realVia(s.via) || '~', show:s => truckCell(realVia(s.via))},
       {k:'val', label:'Value', num:1, get:s => s.value, show:s => J(s.value)}], shipped, 'date', -1, true, s => s.c);
   return `<div class="ftiles four">
-    ${ctile('check', 'alert', checks.length, 'To check', 'Specials or stock before it ships', '#E2445C')}
+    ${ctile('check', 'alert', checks.length, 'To check', 'Free goods, specials or stock', '#E2445C')}
     ${ctile('watch', 'clock', missed, 'Missed orders', due + ' more a day or two late', '#1A2E5A')}
     ${ctile('open', 'orders', open.length, 'Open orders', J(open.reduce((a, o) => a + o.total, 0)) + ' not shipped yet', '#326BD3')}
     ${ctile('shipped', 'box', shipped.length, 'Shipped this week', J(shipped.reduce((a, s) => a + s.value, 0)) + ' delivered', '#1A8F4C')}
@@ -1256,6 +1343,40 @@ function vOrders() {
   ${segs([['check', 'To check', checks.length], ['watch', 'Order watch', watch.length], ['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length]])}
   ${body}`;
 }
+
+// ---------- Deals: what Andrea sent to the team, and whether it reached an order ----------
+const DSTC = {won:'green', order:'blue', missed:'red', wait:'amber', stale:'grey', load:'grey'};
+function vDeals() {
+  if (!['open', 'missed', 'won', 'closed', 'sheet'].includes(SUB.deals)) SUB.deals = 'open';
+  const all = DEALS_LOG().filter(x => inChain(x.n.c));
+  const live = all.filter(x => !x.closed), missed = live.filter(x => x.st.k === 'missed'), won = live.filter(x => x.st.k === 'won' || x.st.k === 'order'), waiting = live.filter(x => x.st.k === 'wait' || x.st.k === 'stale');
+  const shown = SUB.deals === 'missed' ? missed : SUB.deals === 'won' ? won : SUB.deals === 'closed' ? all.filter(x => x.closed) : live;
+  let body = '';
+  if (SUB.deals !== 'sheet') body = lead1('d-log', 'Deals you sent to merchandisers, and whether they reached an order.', 'Log a deal when you send it. The hub checks the store’s orders and invoices from that day on: green when the product is invoiced, blue when it is on an open order, red when the store ordered without it. Close a deal once it is done or dropped.') +
+    gboard('#326BD3', SUB.deals === 'missed' ? 'Ordered without the deal' : SUB.deals === 'won' ? 'On an order or invoice' : SUB.deals === 'closed' ? 'Closed deals' : 'Open deals', shown.length + ' deals', 'minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,1.1fr) minmax(0,1fr) 128px 52px 40px', [['Store'], ['Product'], ['Deal'], ['Sent to'], ['Status', 'center'], ['Age', 'center'], ['']],
+      shown.sort((a, b) => ['missed', 'wait', 'order', 'stale', 'won'].indexOf(a.st.k) - ['missed', 'wait', 'order', 'stale', 'won'].indexOf(b.st.k) || b.age - a.age).map(x => { const k = 'deal:' + x.n.id, notes = notesFor(n => n.kind === 'note' && n.ref === k);
+        return grow(k, [cell(esc(x.s.name), 'c-store one c1'), cell(esc(descOf(x.n.sku)), 'c-issue one hm'), cell(esc(x.n.label || ''), 'one c2'), cell(whoMulti(x.n.name), 'hm'),
+          cell(`<span title="${esc(x.st.why)}">${solid(DSTC[x.st.k], x.closed ? 'Closed' : x.st.t)}</span>`, '', 'center'), cell(x.age + 'd', 'c-age hm', 'center')],
+          `<div class="bfacts"><div><span>Product</span>${esc(descOf(x.n.sku))} <span class="note" style="margin:0">${esc(x.n.sku)}</span></div><div><span>Deal</span>${esc(x.n.label || '')}${DSH[x.n.sku] ? `<div class="m2">Deal sheet: ${esc(tierTxt(DSH[x.n.sku].tiers))}</div>` : ''}</div><div><span>Sent</span>${esc(fd(x.n.date))} to ${esc(x.n.name || '–')} · logged by ${esc(who(x.n.by))}</div><div><span>Where it stands</span>${esc(x.st.why)}${x.st.nbr ? ' · ' + acuOrder(x.st.nbr) : ''}</div>${x.n.text ? `<div><span>Message</span>${esc(x.n.text)}</div>` : ''}</div>
+          ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm pri" type="button" data-dealcopy="${esc(x.n.id)}">Copy message for WhatsApp</button><button class="btn sm" type="button" data-dealclose="${esc(x.n.id)}">${x.closed ? 'Reopen' : 'Close deal'}</button><button class="btn sm" type="button" data-store="${esc(x.n.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'deals');
+  else { const list = Object.values(DSH).sort((a, b) => (a.cls || '').localeCompare(b.cls || '') || a.desc.localeCompare(b.desc));
+    body = lead1('d-sheet', 'Every live deal on the deal sheet, to pick from when you write to the team.') +
+    stable('dsheet', [
+      {k:'desc', label:'Product', get:d => d.desc, show:d => esc(d.desc)},
+      {k:'cls', label:'Category', cls:'hide-sm', get:d => d.cls || '~', show:d => esc(d.cls || '–')},
+      {k:'deal', label:'Deal', get:d => d.tiers.length ? d.tiers[0].buy : 0, show:d => esc(tierTxt(d.tiers))},
+      {k:'price', label:'Sheet price', num:1, get:d => d.price, show:d => J(d.price)}], list, 'cls', 1, true); }
+  return `<div class="ftiles four">
+    ${ctile('open', 'note', live.length, 'Open deals', waiting.length + ' waiting for an order', '#326BD3')}
+    ${ctile('missed', 'alert', missed.length, 'Ordered without it', 'Ask the merchandiser why', '#E2445C')}
+    ${ctile('won', 'box', won.length, 'On an order', 'Invoiced or keyed since you sent it', '#1A8F4C')}
+    ${ctile('sheet', 'deals', Object.keys(DSH).length, 'Deal sheet', 'Live deals to offer', '#7B4FD0')}
+  </div>
+  <div class="briefbar" style="margin:-4px 0 12px"><button class="btn pri" type="button" data-open="deal|" data-openexp="">+ Log a deal</button></div>${OPEN === 'deal|' ? formFor('deal|') : ''}
+  ${segs([['open', 'Open', live.length], ['missed', 'Ordered without it', missed.length], ['won', 'On an order', won.length], ['closed', 'Closed', all.length - live.length], ['sheet', 'Deal sheet', Object.keys(DSH).length]])}
+  ${dbMsg()}${body}`;
+}
+
 
 function vBackorders() {
   if (!['bo', 'bohand', 'borep', 'short'].includes(SUB.backorders)) SUB.backorders = 'bo';
@@ -1602,7 +1723,10 @@ function vStoreDrawer(c) {
     ['Ordering', CAD[cad.state][1], cad.last ? 'Last ' + esc(fds(cad.last)) + (cad.med ? ' · every ' + cad.med + 'd' : '') : 'No recent deliveries', STATEC[cad.state]],
     ['This month', s.budM ? prog + '% of target' : 'No target', J(s.mtd) + ' · pace ' + Math.round(PACE * 100) + '%', s.gapPace >= 0 ? '#1A8F4C' : '#E2445C'],
     ['Past due', J(pastAmt), pastAmt ? 'oldest ' + oldest + ' days late' : 'Nothing late', pastAmt ? '#E2445C' : '#127F8C']])}
-  <div class="briefbar">${window.DFL_PORTAL ? `<button class="btn sm pri" type="button" data-brief="${esc(c)}">Store brief (PDF)</button>` : ''}<button class="btn sm" type="button" data-briefcopy="${esc(c)}">Copy brief for WhatsApp</button></div>
+  <div class="briefbar">${window.DFL_PORTAL ? `<button class="btn sm pri" type="button" data-brief="${esc(c)}">Store brief (PDF)</button>` : ''}<button class="btn sm" type="button" data-briefcopy="${esc(c)}">Copy brief for WhatsApp</button><button class="btn sm" type="button" data-open="deal|${esc(c)}">+ Log a deal</button></div>${formFor('deal|' + c)}
+  ${(() => { const dl = DEALS_LOG().filter(x => x.n.c === c && !x.closed); if (!dl.length) return '';
+    return sec('Deals sent', String(dl.length), gl('minmax(0,1fr) minmax(0,1fr) 120px', [['Product'], ['Deal'], ['Status', 'c']],
+      dl.map(x => [[esc(descOf(x.n.sku)), 'nm'], [esc(x.n.label || ''), 'rt'], [`<span title="${esc(x.st.why)}">${solid(DSTC[x.st.k], x.st.t)}</span>`, 'c']]))); })()}
   ${sec('People', null, `<ul class="l1">
     ${person(s.merch, 'Merchandiser' + (s.sday ? ' · ' + esc(s.sday) : ''), null, '')}
     ${person(s.rep, 'Rep', null, '')}
@@ -1711,16 +1835,16 @@ function render() {
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
-  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', Andrea', `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], orders:['Orders', 'What is keyed, on a truck and due'], backorders:['Back orders', 'What we owe the stores, and why'], ar:['AR', 'Statements, promises and payments by chain'], stores:['Stores', 'Sales against last year and budget'], team:['Team', 'Who covers each store']};
+  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', Andrea', `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], orders:['Orders', 'What is keyed, on a truck and due'], deals:['Deals', 'What you sent the team, and whether it reached an order'], backorders:['Back orders', 'What we owe the stores, and why'], ar:['AR', 'Statements, promises and payments by chain'], stores:['Stores', 'Sales against last year and budget'], team:['Team', 'Who covers each store']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   document.getElementById('tctl').innerHTML = TAB === 'today' ? '' : `<label class="chainsel"><span>Chain</span><select id="chainsel">${['All', ...CHAINS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All chains' : c)}</option>`).join('')}</select></label>`;
-  document.getElementById('main').innerHTML = ({today:vToday, orders:vOrders, backorders:vBackorders, ar:vAR, stores:vStores, team:vTeam}[TAB] || vToday)();
+  document.getElementById('main').innerHTML = ({today:vToday, orders:vOrders, deals:vDeals, backorders:vBackorders, ar:vAR, stores:vStores, team:vTeam}[TAB] || vToday)();
   // keep the pop-up where it was when it redraws (same pop-up), instead of jumping back to the top
   const dOld = document.querySelector('.drawer'), dKey = JSON.stringify(DRAWER), dTop = dOld && render.__dKey === dKey ? dOld.scrollTop : 0;
   document.getElementById('drawer').innerHTML = DRAWER ? vDrawer(DRAWER) : '';
   const dNew = document.querySelector('.drawer'); if (dNew) dNew.scrollTop = dTop; render.__dKey = dKey;
   // a form that has just opened is brought into view and focused
-  if (OPEN) { const t = document.getElementById('f-tx') || document.getElementById('f-nm') || document.getElementById('f-amt'); if (t && document.activeElement !== t) try { t.focus({preventScroll:true}); const box = t.closest('.nbox') || t; box.scrollIntoView({block:'nearest', behavior:'smooth'}); } catch (e) {} }
+  if (OPEN) { const t = document.getElementById('f-sku') || document.getElementById('f-tx') || document.getElementById('f-nm') || document.getElementById('f-amt'); if (t && document.activeElement !== t) try { t.focus({preventScroll:true}); const box = t.closest('.nbox') || t; box.scrollIntoView({block:'nearest', behavior:'smooth'}); } catch (e) {} }
 }
 // don't wipe a form someone is typing in when shared data arrives
 function softRender() { const a = document.activeElement; if (OPEN && a && /^f-/.test(a.id) && a.value) return; render(); }
@@ -1757,6 +1881,8 @@ __on(document, 'click', e => {
   if (d.openexp) EXP = d.openexp;
   if (d.open !== undefined) { OPEN = OPEN === d.open ? null : (d.open || null); render(); return; }
   if (d.save) { saveForm(d.save); return; }
+  if (d.dealcopy) { const n = NOTES.find(x => x.id === d.dealcopy); if (n) copyText(dealMsg(n), 'Message copied. Paste it into WhatsApp.'); return; }
+  if (d.dealclose) { const k = 'dealx:' + d.dealclose, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); toastUndo(was ? 'Deal reopened' : 'Deal closed', () => setTick(k, was ? 1 : null)); return; }
   if (d.clear) { clearContact(d.clear); return; }
   if (d.done) { setTick('st:' + d.done, isDone(d.done) ? 'todo' : 'sorted'); return; }
   if (d.status) { setTick('st:' + d.status, NEXTST[stOf(d.status)]); return; }
@@ -1768,6 +1894,9 @@ __on(document, 'click', e => {
   if (d.copy !== undefined) { const [q, a] = HOWTO[+d.copy]; const txt = q.replace(/[“”]/g, '"') + '\n' + a;
     navigator.clipboard && navigator.clipboard.writeText(txt).then(() => toast('Copied. Paste it into WhatsApp.'), () => toast('Copy did not work here. Select the text and copy it.')); return; }
 });
+// picking a deal-sheet product fills in the deal; picking the store lists its merchandisers to send it to
+__on(document, 'input', e => { if (e.target.id !== 'f-sku') return; const d = DSH[skuFromLabel(e.target.value)], f = document.getElementById('f-deal'); if (d && f && !f.value) f.value = tierTxt(d.tiers); });
+__on(document, 'change', e => { if (e.target.id === 'f-store') { const box = document.getElementById('f-to'); if (box) box.innerHTML = toPicks(byId[e.target.value]); } });
 __on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
   else if (e.target.dataset && e.target.dataset.msort) { const id = e.target.dataset.msort, th = document.querySelector(`[data-sort="${id}|${e.target.value}"]`); SORT[id] = {k:e.target.value, dir:th && th.closest('th').classList.contains('n') ? -1 : 1}; e.target.blur(); render(); } });
 // ---------- soft tooltips: replaces the browser's black title boxes ----------
