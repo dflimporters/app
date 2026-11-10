@@ -1,0 +1,14 @@
+-- Ask DFL — database objects (already applied to hzagwndglwhcepsirafi).
+-- The full SQL is in Supabase's migration history; read it with:
+--   select name, statements from supabase_migrations.schema_migrations where name like 'ask_dfl%' order by version;
+--
+--   20261030183255  ask_dfl_phase1               schema `ask` (read-only views: sales_lines, sales_monthly matview,
+--                                                customers, customer_owner_2026, category_owners, reps, budgets,
+--                                                budget_2027_by_cm), role ask_reader, ask_kam_accounts (148 KAM ids),
+--                                                ask_dfl_log, ask_dfl_run(sql) (service role only), ask_dfl_refresh()
+--                                                + cron 'ask-dfl-refresh' (hourly at :15)
+--   20261030183530  ask_dfl_run_block_set_config ask_dfl_run rejects set_config / u& / server-file functions
+--   20261110170645  ask_dfl_saved_chats          ask_dfl_log.conversation_id + tables (saved chats, approved by Scott)
+--
+-- Edge function: supabase/functions/ask-dfl/index.ts (deployed as `ask-dfl`, verify_jwt on).
+select 1;

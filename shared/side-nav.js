@@ -106,6 +106,7 @@
     {
       group: 'Tools',
       items: [
+        { label: 'Ask DFL',           href: '/ask.html',             icon: '💬' },
         { label: 'Specials & Flyers', href: '/specials.html',        icon: '🎯' },
         { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' },
         { label: 'Price Requests',    href: '/price-requests.html',  icon: '💲' },

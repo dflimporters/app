@@ -124,6 +124,12 @@ const DFL_PAGE_ROLES = {
   '/price-requests.html':        ['admin', 'manager', 'rep_management'],
   '/admin/price-approvals.html': ['admin'],
 
+  // ---- Ask DFL ----
+  // Plain-English questions over sales, prices and budgets. Management only for now
+  // (Scott, 2026-11-10): management, Category Managers and the KAMs. The ask-dfl edge
+  // function checks the same roles (ALLOWED_ROLES) — change both together.
+  '/ask.html':                   ['admin', 'management', 'manager', 'rep_management'],
+
   // ---- 2027 category budget ----
   // Shared by direct link only (not in the rail or the rep app). The guard admits these roles so every
   // Category Manager can open it (Phobea is a 'rep'); what each person SEES is decided in Postgres —

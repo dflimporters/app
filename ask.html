@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.json">
+<title>DFL · Ask DFL</title>
+<style>body { visibility: hidden; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<!--
+  Ask DFL — staff ask questions about sales, prices, customers and budgets in plain
+  English. The ask-dfl edge function has Claude write read-only SQL against the `ask`
+  schema (views over invoiced_items, customers, budgets; DFL revenue rules built in),
+  runs it through ask_dfl_run() as role ask_reader, and returns an answer plus any
+  tables. Every question is saved in ask_dfl_log with its conversation_id, which is
+  what the Search tab lists and searches (the function only returns the caller's rows).
+  Pilot: admin, management, manager, rep_management (routes.js and the function's
+  ALLOWED_ROLES must match).
+-->
+<style>
+:root{
+  --navy:#0D1B3E; --navy2:#1a2e5a; --blue:#326BD3; --blue-t:#E8EFFB;
+  --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E6EF;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --red:#D63B3B; --red-t:#FBE9E9;
+  --hf:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bf:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--bf)}
+.hidden{display:none!important}
+.page{max-width:820px;margin:0 auto;padding:24px 16px 40px}
+
+/* Brand block: big and centred on the home screen, small once a chat starts */
+.hero{text-align:center;padding:56px 0 8px;transition:padding .2s}
+.brand{display:inline-flex;align-items:center;gap:16px}
+.brand img{width:78px;height:78px}
+.brand .sep{width:2px;height:64px;background:var(--blue);opacity:.6;border-radius:2px}
+.brand .bt{font:800 40px/1 var(--hf);color:var(--navy);letter-spacing:-.01em}
+.tag{color:var(--ink2);font-size:15px;margin:14px 0 26px}
+body.chatting .hero{display:flex;align-items:center;justify-content:space-between;padding:0 0 14px;text-align:left}
+body.chatting .brand{gap:10px}
+body.chatting .brand img{width:34px;height:34px}
+body.chatting .brand .sep{height:26px}
+body.chatting .brand .bt{font-size:20px}
+body.chatting .tag{display:none}
+
+/* Assistant / Search toggle */
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:28px;padding:4px;gap:2px}
+.seg button{font:600 15px var(--hf);color:var(--ink2);background:none;border:0;border-radius:24px;padding:9px 24px;cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--blue);color:#fff}
+body.chatting .seg button{font-size:13px;padding:6px 16px}
+.toprow{display:flex;justify-content:center;margin-bottom:18px}
+body.chatting .toprow{display:none}
+.hero .seg-mini{display:none}
+body.chatting .hero .seg-mini{display:inline-flex;align-items:center;gap:8px}
+.newchat{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.07em;color:var(--blue);background:var(--card);border:1px solid var(--line);border-radius:18px;padding:7px 12px;cursor:pointer}
+
+/* Pill input used by both tabs */
+.pill{display:flex;align-items:flex-end;gap:8px;background:var(--card);border:1.5px solid var(--line);border-radius:28px;padding:7px 7px 7px 20px;box-shadow:0 2px 10px rgba(13,27,62,.06)}
+.pill:focus-within{border-color:var(--blue)}
+.pill textarea,.pill input{flex:1;border:0;outline:0;resize:none;font:15px/1.45 var(--bf);color:var(--ink);background:transparent;padding:8px 0;max-height:150px;overflow-y:hidden}
+.pill textarea.tall{overflow-y:auto}
+.go{flex:none;width:42px;height:42px;border-radius:50%;border:0;background:var(--blue);color:#fff;cursor:pointer;display:grid;place-items:center}
+.go:disabled{background:#B9C2D3;cursor:default}
+.go svg{width:20px;height:20px}
+.hint{text-align:center;color:var(--ink3);font-size:12.5px;margin:10px 0 0}
+
+/* Starter questions (home screen only) */
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:22px}
+.chip{font:600 13px var(--bf);color:var(--ink2);background:var(--card);border:1px solid var(--line);border-radius:18px;padding:7px 14px;cursor:pointer}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+body.chatting .chips,body.chatting .hint.home{display:none}
+
+/* Chat thread */
+.thread{display:flex;flex-direction:column;gap:14px}
+.q{align-self:flex-end;max-width:85%;background:var(--blue);color:#fff;border-radius:16px 16px 4px 16px;padding:10px 14px;white-space:pre-wrap}
+.a{background:var(--card);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:16px 18px;max-width:100%;overflow:hidden}
+.a .md p{margin:0 0 10px}
+.a .md p:last-child{margin-bottom:0}
+.a .md ul,.a .md ol{margin:0 0 10px;padding-left:20px}
+.a .md table{border-collapse:collapse;margin:6px 0 12px;font-size:13px;display:block;overflow-x:auto}
+.a .md th,.a .md td{border-bottom:1px solid var(--line);padding:5px 10px;text-align:left;white-space:nowrap}
+.a .md th{font:700 11px var(--hf);color:var(--ink2);text-transform:uppercase;letter-spacing:.05em}
+.a .md h1,.a .md h2,.a .md h3{font:700 14px var(--hf);margin:12px 0 6px}
+.a.err{border-color:var(--red);background:var(--red-t)}
+.thinking{color:var(--ink2);display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--blue);animation:pulse 1.2s infinite ease-in-out}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+.afoot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.rate{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink3)}
+.rate button{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:14px}
+.rate button[aria-pressed="true"]{border-color:var(--blue);background:var(--blue-t)}
+
+/* Result tables */
+.tbl{margin-top:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tbl-h{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);padding:8px 12px;border-bottom:1px solid var(--line)}
+.tbl-h .t{font:700 12px var(--hf)}
+.tbl-h .n{font-size:12px;color:var(--ink3)}
+.tbl-wrap{overflow:auto;max-height:420px}
+.tbl table{border-collapse:collapse;width:100%;font-size:12.5px}
+.tbl th{position:sticky;top:0;background:var(--card);font:700 11px var(--hf);color:var(--ink2);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:6px 10px;border-bottom:1px solid #EEF1F6;white-space:nowrap}
+.tbl td.num,.tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .more{padding:8px 12px;font-size:12px;color:var(--ink3)}
+.btn{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.07em;border-radius:6px;padding:7px 12px;cursor:pointer;border:1px solid var(--blue);background:var(--card);color:var(--blue);white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* Composer pinned to the bottom once a chat starts */
+body.chatting .page{padding-bottom:150px}
+body.chatting #composer{position:fixed;left:0;right:0;bottom:0;padding:16px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 72%,rgba(245,247,250,0));z-index:4}
+body.chatting #composer .pill{max-width:788px;margin:0 auto}
+body.chatting #composer .hint{display:none}
+
+/* Search tab */
+.sec-h{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--ink2);margin:22px 0 10px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;font:inherit;color:inherit}
+.item:hover{border-color:var(--blue)}
+.item .t{font-weight:600;color:var(--ink)}
+.item .s{color:var(--ink2);font-size:13px;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item .m{color:var(--ink3);font-size:12px;margin-top:4px}
+.item mark{background:#FFF1B8;color:inherit;border-radius:2px}
+.empty{color:var(--ink3);text-align:center;padding:26px 10px}
+
+@media (max-width:640px){
+  .hero{padding-top:34px}
+  .brand img{width:58px;height:58px}
+  .brand .sep{height:48px}
+  .brand .bt{font-size:30px}
+  .seg button{padding:8px 20px;font-size:14px}
+  .q{max-width:94%}
+  .a{padding:14px}
+  body.chatting .hero .newchat span{display:none}
+  body.chatting .brand .sep,body.chatting .brand .bt{display:none}
+  body.chatting .seg button{padding:6px 13px}
+}
+.brand .bt{white-space:nowrap}
+.pill textarea,.pill input{min-width:0;width:100%}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="hero">
+    <div class="brand"><img src="/icon-192x192.png" alt=""><span class="sep"></span><div class="bt">Ask DFL</div></div>
+    <p class="tag">Ask about your customers, prices, products and sales.</p>
+    <div class="seg-mini">
+      <div class="seg" role="tablist" data-seg></div>
+      <button type="button" class="newchat" id="newChat" title="New chat">+<span> New chat</span></button>
+    </div>
+  </header>
+
+  <div class="toprow"><div class="seg" role="tablist" data-seg></div></div>
+
+  <!-- Assistant -->
+  <section id="viewAssistant">
+    <div class="thread" id="thread" aria-live="polite"></div>
+    <div id="composer">
+      <form class="pill" id="form">
+        <textarea id="q" rows="1" placeholder="Ask anything about DFL…" aria-label="Your question"></textarea>
+        <button class="go" id="send" type="submit" aria-label="Ask" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      </form>
+      <p class="hint home">Answers take about 20–30 seconds.</p>
+    </div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <!-- Search: past chats, and a search across everything you've asked -->
+  <section id="viewSearch" class="hidden">
+    <form class="pill" id="sform" role="search">
+      <input id="sq" type="search" placeholder="Search your past questions" aria-label="Search your past questions" autocomplete="off">
+      <button class="go" type="submit" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+    </form>
+    <div class="sec-h" id="sHead">Your chats</div>
+    <div class="list" id="sList"><div class="empty">Loading…</div></div>
+  </section>
+</div>
+
+<script>window.DFL_PAGE_TITLE = 'Ask DFL';</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/user-menu.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+// Wrapped so nothing here collides with the shared scripts' globals.
+(function () {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const STARTERS = [
+  'How is FOIL tracking this year vs last?',
+  'Last price Hi-Lo Cross Roads paid for Termopac trays',
+  'Top 20 PLASTIC customers this year',
+  'How are we tracking against budget?'
+];
+
+let tab = 'assistant';
+let conversationId = null;   // set on the first question of a chat
+let history = [];            // [{role, content}] sent back so follow-ups have context
+let busy = false;
+
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() :
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
+
+async function call(body) {
+  const { data, error } = await sb.functions.invoke('ask-dfl', { body });
+  if (error) {
+    let msg = error.message;
+    try { const j = await error.context.json(); if (j && j.error) msg = j.error; } catch (e) {}
+    throw new Error(msg);
+  }
+  return data;
+}
+
+/* ---------- formatting ---------- */
+const md = text => DOMPurify.sanitize(marked.parse(text || '', { gfm: true, breaks: false }));
+const isNum = v => typeof v === 'number' || (typeof v === 'string' && v !== '' && !isNaN(v) && !/^0\d/.test(v) && !/^C\d+$/.test(v));
+function fmtCell(v, col) {
+  if (v === null || v === undefined) return '';
+  if (isNum(v)) {
+    const n = Number(v), pct = /%|pct|percent/i.test(col);
+    const dec = pct || (Math.abs(n) < 100 && !Number.isInteger(n)) ? 1 : 0;
+    return n.toLocaleString('en-JM', { minimumFractionDigits: dec, maximumFractionDigits: dec ? 2 : 0 });
+  }
+  return esc(v);
+}
+const when = iso => {
+  const d = new Date(iso), days = Math.floor((Date.now() - d) / 864e5);
+  if (days < 1 && d.getDate() === new Date().getDate()) return 'Today, ' + d.toLocaleTimeString('en-JM', { hour: 'numeric', minute: '2-digit' });
+  if (days < 2) return 'Yesterday';
+  return d.toLocaleDateString('en-JM', { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+};
+
+/* ---------- tables + Excel ---------- */
+function tableHtml(t, i) {
+  const cols = t.columns, show = t.rows.slice(0, 200);
+  const numCol = cols.map(c => t.rows.slice(0, 50).every(r => r[c] === null || isNum(r[c])) && t.rows.some(r => r[c] !== null));
+  return `<div class="tbl">
+    <div class="tbl-h"><div><div class="t">${esc(t.title)}</div><div class="n">${t.rows.length.toLocaleString()} row${t.rows.length === 1 ? '' : 's'}</div></div>
+      <button class="btn" type="button" data-dl="${i}">Download Excel</button></div>
+    <div class="tbl-wrap"><table><thead><tr>${cols.map((c, j) => `<th class="${numCol[j] ? 'num' : ''}">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${show.map(r => `<tr>${cols.map((c, j) => `<td class="${numCol[j] ? 'num' : ''}">${fmtCell(r[c], c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${t.rows.length > show.length ? `<div class="more">Showing the first ${show.length} rows. Download for all ${t.rows.length.toLocaleString()}.</div>` : ''}
+  </div>`;
+}
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+async function downloadXlsx(t, question) {
+  await loadExcelJS();
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Data', { views: [{ state: 'frozen', ySplit: 3 }] });
+  ws.getCell('A1').value = t.title; ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FF0D1B3E' } };
+  ws.getCell('A2').value = `Ask DFL · "${question}" · ${new Date().toLocaleString('en-JM')} · J$`;
+  ws.getCell('A2').font = { italic: true, size: 9, color: { argb: 'FF8A95B0' } };
+  const head = ws.getRow(3); head.values = t.columns;
+  head.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF326BD3' } }; });
+  t.rows.forEach(r => ws.addRow(t.columns.map(c => isNum(r[c]) ? Number(r[c]) : r[c])));
+  t.columns.forEach((c, j) => {
+    const col = ws.getColumn(j + 1);
+    if (t.rows.slice(0, 50).filter(r => r[c] !== null).every(r => isNum(r[c]))) col.numFmt = /%|pct|percent/i.test(c) ? '0.0' : '#,##0';
+    col.width = Math.min(45, Math.max(10, c.length + 2, ...t.rows.slice(0, 200).map(r => String(r[c] ?? '').length + 2)));
+  });
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = 'Ask_DFL_' + t.title.replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60) + '.xlsx';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- PowerPoint: the answer's headline, points and tables as a short DFL deck ---------- */
+// The PowerPoint button only appears when the question asks for slides.
+const WANTS_SLIDES = /presentation|power\s?point|pptx|slide|\bdeck\b/i;
+function loadPptx() {
+  if (window.PptxGenJS) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+const plain = s => String(s || '').replace(/\*\*|__|`/g, '').replace(/(^|\s)[*_](\S[^*_]*)[*_]/g, '$1$2').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim();
+const pptCell = (v, col) => v === null || v === undefined ? '' : isNum(v) ? fmtCell(v, col) : String(v);
+async function downloadPptx(question, answer, tables) {
+  await loadPptx();
+  const NAVY = '0D1B3E', BLUE = '326BD3', INK = '1A2340', INK2 = '4A5578', LINE = 'E1E6EF';
+  const HF = 'Montserrat', BF = 'Open Sans';
+  const pptx = new PptxGenJS(); pptx.layout = 'LAYOUT_WIDE'; pptx.title = question;   // 13.33 x 7.5 in
+  const dated = new Date().toLocaleDateString('en-JM', { day: 'numeric', month: 'long', year: 'numeric' });
+  const frame = (title) => {
+    const s = pptx.addSlide(); s.background = { color: 'FFFFFF' };
+    s.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.12, fill: { color: BLUE } });
+    s.addText(title, { x: 0.6, y: 0.35, w: 12.1, h: 0.8, fontFace: HF, fontSize: 24, bold: true, color: NAVY, fit: 'shrink' });
+    s.addText(`Ask DFL · ${dated}`, { x: 0.6, y: 7.0, w: 12.1, h: 0.3, fontFace: BF, fontSize: 9, color: '8A95B0' });
+    return s;
+  };
+
+  // Title slide
+  const t = pptx.addSlide(); t.background = { color: NAVY };
+  t.addImage({ path: '/icon-192x192.png', x: 0.6, y: 0.6, w: 0.9, h: 0.9 });
+  t.addText('Ask DFL', { x: 1.65, y: 0.75, w: 6, h: 0.6, fontFace: HF, fontSize: 20, bold: true, color: 'FFFFFF' });
+  t.addText(question, { x: 0.6, y: 2.4, w: 12.1, h: 2.2, fontFace: HF, fontSize: 34, bold: true, color: 'FFFFFF', valign: 'top', fit: 'shrink' });
+  t.addText(dated + '  ·  J$', { x: 0.6, y: 6.6, w: 12.1, h: 0.4, fontFace: BF, fontSize: 12, color: '9FB0D6' });
+
+  // Split the answer into a headline, bullet points and any small tables written in it.
+  const tokens = marked.lexer(answer || '');
+  let headline = ''; const points = []; const mdTables = [];   // points: { text, level } (level 1 = sub-bullet)
+  const addList = (list, level) => list.items.forEach(i => {
+    const own = (i.tokens || []).filter(t => t.type !== 'list').map(t => t.text || '').join(' ');
+    if (own.trim()) points.push({ text: plain(own), level });
+    (i.tokens || []).filter(t => t.type === 'list').forEach(sub => addList(sub, Math.min(level + 1, 1)));
+  });
+  for (const tk of tokens) {
+    if (tk.type === 'heading' || tk.type === 'paragraph') { if (!headline) headline = plain(tk.text); else if (tk.type === 'paragraph') points.push({ text: plain(tk.text), level: 0 }); }
+    else if (tk.type === 'list') addList(tk, 0);
+    else if (tk.type === 'table') mdTables.push({ columns: tk.header.map(h => plain(h.text)), rows: tk.rows.map(r => r.map(c => plain(c.text))) });
+  }
+
+  // Lines about the page itself ("tables are below", "Excel download", offers to do more) don't belong on a slide.
+  const pagey = /excel download|tables? (are |is )?(below|attached)|download powerpoint|i can (also )?(add|break|pull|re-?cut)|want me to|would you like/i;
+  for (let i = points.length - 1; i >= 0; i--) if (pagey.test(points[i].text)) points.splice(i, 1);
+
+  // Key points (7 lines to a slide)
+  const PER = 7, pages = Math.max(1, Math.ceil(points.length / PER));
+  for (let p = 0; p < pages; p++) {
+    const s = frame(p === 0 ? 'Key points' : 'Key points (continued)');
+    let y = 1.3;
+    if (p === 0 && headline) {
+      s.addShape(pptx.ShapeType.rect, { x: 0.6, y, w: 12.1, h: 1.1, fill: { color: 'E8EFFB' }, line: { color: 'E8EFFB' } });
+      s.addText(headline, { x: 0.8, y, w: 11.7, h: 1.1, fontFace: HF, fontSize: 16, bold: true, color: NAVY, valign: 'middle', fit: 'shrink' });
+      y += 1.35;
+    }
+    const chunk = points.slice(p * PER, p * PER + PER);
+    if (chunk.length) s.addText(chunk.map(x => ({ text: x.text, options: { bullet: { indent: 18 }, indentLevel: x.level, fontSize: x.level ? 13 : 15, color: x.level ? INK2 : INK, paraSpaceAfter: 6 } })),
+      { x: 0.6, y, w: 12.1, h: 6.8 - y, fontFace: BF, fontSize: 15, color: INK, valign: 'top', fit: 'shrink' });
+  }
+
+  // Tables: the ones written in the answer, then the attached ones (12 rows a slide, at most 3 slides each)
+  const tableSlides = (title, columns, rows, fmt) => {
+    const per = 12, chunks = Math.min(3, Math.max(1, Math.ceil(rows.length / per)));
+    for (let c = 0; c < chunks; c++) {
+      const s = frame(chunks > 1 ? `${title} (${c + 1}/${chunks})` : title);
+      const head = columns.map(h => ({ text: h, options: { bold: true, color: 'FFFFFF', fill: { color: BLUE }, fontFace: HF, fontSize: 11 } }));
+      const body = rows.slice(c * per, c * per + per).map(r => columns.map((col, j) => {
+        const v = fmt(r, col, j);
+        return { text: v, options: { align: /^[+−-]?(J\$)?[\d,.]+\s?(%|M|B|K|pts)?$/.test(v) ? 'right' : 'left' } };
+      }));
+      s.addTable([head, ...body], { x: 0.6, y: 1.3, w: 12.1, fontFace: BF, fontSize: 11, color: INK, border: { type: 'solid', pt: 0.5, color: LINE }, autoPage: false });
+      if (c === chunks - 1 && rows.length > per * chunks)
+        s.addText(`Showing ${per * chunks} of ${rows.length.toLocaleString()} rows. The full list is in the Excel download.`, { x: 0.6, y: 6.6, w: 12.1, h: 0.3, fontFace: BF, fontSize: 10, italic: true, color: INK2 });
+    }
+  };
+  mdTables.forEach(tb => tableSlides('Summary', tb.columns, tb.rows, (r, col, j) => r[j]));
+  tables.forEach(tb => tableSlides(tb.title, tb.columns, tb.rows, (r, col) => pptCell(r[col], col)));
+
+  await pptx.writeFile({ fileName: 'Ask_DFL_' + question.replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60) + '.pptx' });
+}
+
+/* ---------- thread ---------- */
+function addQuestion(text) {
+  const d = document.createElement('div'); d.className = 'q'; d.textContent = text; $('thread').appendChild(d); return d;
+}
+function addPending() {
+  const d = document.createElement('div'); d.className = 'a';
+  d.innerHTML = `<div class="thinking"><span class="dot"></span><span>Looking that up… <span class="secs">0s</span></span></div>`;
+  $('thread').appendChild(d); d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const t0 = Date.now(); const iv = setInterval(() => { const s = d.querySelector('.secs'); if (s) s.textContent = Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
+  return { el: d, stop: () => clearInterval(iv) };
+}
+function renderAnswer(el, turn, question) {
+  const tables = turn.tables || [];
+  el.innerHTML = `<div class="md">${md(turn.answer)}</div>${tables.map(tableHtml).join('')}
+    <div class="afoot">
+      ${WANTS_SLIDES.test(question) ? '<button type="button" class="btn" data-ppt>Download PowerPoint</button>' : '<span></span>'}
+      ${turn.log_id ? `<div class="rate"><span>Was this right?</span>
+        <button type="button" data-r="1" aria-pressed="${turn.rating === 1}" title="Yes">👍</button>
+        <button type="button" data-r="-1" aria-pressed="${turn.rating === -1}" title="No">👎</button></div>` : ''}
+    </div>`;
+  el.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true; try { await downloadXlsx(tables[+b.dataset.dl], question); } catch (e) { alert('Download failed: ' + e.message); } b.disabled = false;
+  }));
+  el.querySelector('[data-ppt]')?.addEventListener('click', async e => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = 'Building slides…';
+    try { await downloadPptx(question, turn.answer, tables); } catch (err) { alert('PowerPoint failed: ' + err.message); }
+    b.disabled = false; b.textContent = 'Download PowerPoint';
+  });
+  el.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => {
+    el.querySelectorAll('[data-r]').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    call({ rate: { log_id: turn.log_id, rating: +b.dataset.r } }).catch(() => {});
+  }));
+}
+
+function setChatting(on) { document.body.classList.toggle('chatting', on); }
+
+async function ask(text) {
+  text = (text || '').trim();
+  if (!text || busy) return;
+  busy = true; updateSend();
+  if (!conversationId) conversationId = newId();
+  setChatting(true);
+  $('q').value = ''; autosize();
+  addQuestion(text);
+  const p = addPending();
+  try {
+    const data = await call({ question: text, history, conversation_id: conversationId });
+    p.stop();
+    renderAnswer(p.el, { answer: data.answer, tables: data.tables, log_id: data.log_id }, text);
+    history.push({ role: 'user', content: text }, { role: 'assistant', content: data.answer });
+    chatsCache = null;   // the Search tab re-reads its list next time it opens
+  } catch (e) {
+    p.stop();
+    p.el.classList.add('err');
+    p.el.textContent = (e.message || 'Something went wrong.') + ' Please try again.';
+  }
+  busy = false; updateSend(); $('q').focus();
+}
+
+function newChat() {
+  if (busy) return;
+  conversationId = null; history = [];
+  $('thread').innerHTML = '';
+  setChatting(false); showTab('assistant'); $('q').focus();
+}
+
+async function openChat(id) {
+  if (busy) return;
+  showTab('assistant'); setChatting(true);
+  $('thread').innerHTML = '<div class="empty">Opening chat…</div>';
+  try {
+    const { turns } = await call({ action: 'open', conversation_id: id });
+    $('thread').innerHTML = '';
+    conversationId = id; history = [];
+    for (const t of turns) {
+      addQuestion(t.question);
+      const a = document.createElement('div'); a.className = 'a'; $('thread').appendChild(a);
+      renderAnswer(a, { answer: t.answer, tables: t.tables, log_id: t.id, rating: t.rating }, t.question);
+      history.push({ role: 'user', content: t.question }, { role: 'assistant', content: t.answer || '' });
+    }
+    window.scrollTo({ top: document.body.scrollHeight });
+  } catch (e) {
+    $('thread').innerHTML = `<div class="a err">${esc(e.message)}</div>`;
+  }
+}
+
+/* ---------- Search tab ---------- */
+let chatsCache = null, searchSeq = 0;
+async function showChats() {
+  $('sHead').textContent = 'Your chats';
+  if (!chatsCache) {
+    $('sList').innerHTML = '<div class="empty">Loading…</div>';
+    try { chatsCache = (await call({ action: 'list' })).chats; }
+    catch (e) { $('sList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  }
+  $('sList').innerHTML = chatsCache.length ? chatsCache.map(c => `<button type="button" class="item" data-c="${esc(c.conversation_id)}">
+      <div class="t">${esc(c.title)}</div><div class="m">${when(c.updated_at)} · ${c.count} question${c.count === 1 ? '' : 's'}</div></button>`).join('')
+    : '<div class="empty">No chats yet. Ask something on the Assistant tab and it will be saved here.</div>';
+}
+function highlight(text, term) {
+  const t = String(text || ''), i = t.toLowerCase().indexOf(term.toLowerCase());
+  if (i < 0) return esc(t.slice(0, 160)) + (t.length > 160 ? '…' : '');
+  const start = Math.max(0, i - 60), end = i + term.length + 100, snip = t.slice(start, end);
+  const j = i - start;
+  return (start ? '…' : '') + esc(snip.slice(0, j)) + '<mark>' + esc(snip.slice(j, j + term.length)) + '</mark>' + esc(snip.slice(j + term.length)) + (end < t.length ? '…' : '');
+}
+async function runSearch() {
+  const term = $('sq').value.trim();
+  if (!term) return showChats();
+  const seq = ++searchSeq;
+  $('sHead').textContent = 'Results';
+  $('sList').innerHTML = '<div class="empty">Searching…</div>';
+  try {
+    const { results } = await call({ action: 'search', q: term });
+    if (seq !== searchSeq) return;
+    const plain = s => String(s || '').replace(/[*_#|`>]/g, '');
+    $('sList').innerHTML = results.length ? results.map(r => `<button type="button" class="item" data-c="${esc(r.conversation_id)}">
+        <div class="t">${highlight(r.question, term)}</div>
+        <div class="s">${highlight(plain(r.answer), term)}</div>
+        <div class="m">${when(r.created_at)}</div></button>`).join('')
+      : `<div class="empty">Nothing you've asked matches “${esc(term)}”.</div>`;
+  } catch (e) { if (seq === searchSeq) $('sList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+/* ---------- tabs + composer ---------- */
+function showTab(t) {
+  tab = t;
+  document.querySelectorAll('[data-seg] button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false'));
+  $('viewAssistant').classList.toggle('hidden', t !== 'assistant');
+  $('viewSearch').classList.toggle('hidden', t !== 'search');
+  // The small header only makes sense inside a chat; Search always shows the big one.
+  setChatting(t === 'assistant' && $('thread').children.length > 0);
+  if (t === 'search') { runSearch(); $('sq').focus(); }
+}
+function autosize() {
+  const t = $('q');
+  t.style.height = '';
+  if (t.value) t.style.height = Math.min(150, t.scrollHeight) + 'px';
+  t.classList.toggle('tall', t.scrollHeight > 150);
+}
+function updateSend() { $('send').disabled = busy || !$('q').value.trim(); }
+
+function init() {
+  document.querySelectorAll('[data-seg]').forEach(s => {
+    s.innerHTML = '<button type="button" role="tab" data-tab="assistant">Assistant</button><button type="button" role="tab" data-tab="search">Search</button>';
+    s.querySelectorAll('button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  });
+  $('chips').innerHTML = STARTERS.map(s => `<button class="chip" type="button">${esc(s)}</button>`).join('');
+  $('chips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => ask(b.textContent)));
+  $('form').addEventListener('submit', e => { e.preventDefault(); ask($('q').value); });
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask($('q').value); } });
+  $('q').addEventListener('input', () => { autosize(); updateSend(); });
+  $('newChat').addEventListener('click', newChat);
+  let deb; $('sq').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(runSearch, 350); });
+  $('sform').addEventListener('submit', e => { e.preventDefault(); clearTimeout(deb); runSearch(); });
+  $('sList').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) openChat(b.dataset.c); });
+  showTab('assistant');
+  $('q').focus();
+}
+
+let started = false;
+const start = () => { if (!started) { started = true; init(); } };
+if (window.DFL_PROFILE) start(); else document.addEventListener('dfl-auth-ready', start);
+})();
+</script>
+</body>
+</html>
