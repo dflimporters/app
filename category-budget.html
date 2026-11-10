@@ -743,6 +743,13 @@ function renderMT(){
   <div class="tw tall" style="margin-top:10px"><table class="mtt"><thead><tr><th class="mt1">${head}</th>${MONTHS.map(m=>`<th class="n">${m}</th>`).join('')}<th class="n bl">2027</th><th class="n">2026 RR</th><th class="n">Growth</th></tr></thead>
    <tbody>${body||'<tr><td colspan="16" class="empty">Nothing to show.</td></tr>'}</tbody>
    <tfoot>${mtRow(mtView==='one'?'Total '+esc(mtRep):'Company',' ',tot,totB,'tot')}</tfoot></table></div>`;
+  // By category download: one row per category with its category manager, no subtotal rows, one company total
+  if(mtView==='cat'){
+    const ex=[];
+    for(const m of CMS) (CMCATS[m.key]||[]).filter(c=>D.catM[c]).forEach(c=>ex.push([c,m.name,D.catM[c],D.catB[c]]));
+    Object.values(CAT).filter(C=>!C.owner&&D.catM[C.cat]).forEach(C=>ex.push([C.cat,'Uncoded credits (held flat)',D.catM[C.cat],D.catB[C.cat]]));
+    MT_EXPORT={labels:['Category','Category manager'],rows:ex.map(([c,n,m,b])=>[c,n,...m,sum12(m),b]),total:['Company total','',...co,sum12(co),coB]};
+  }
 }
 let MT_EXPORT=null;
 function repMonthHtml(rep){
@@ -756,7 +763,10 @@ async function mtExport(btn){
   if(!DL){btn.textContent='Export not available here';btn.disabled=true;return;}
   if(!MT_EXPORT) return;
   const q=v=>{v=String(v??'');return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const lines=[[MT_EXPORT.head,...MONTHS_L,'2027 total','2026 run-rate'].join(',')].concat(MT_EXPORT.rows.map(r=>[q(r[0]),...r.slice(1).map(v=>(v*1000).toFixed(2))].join(',')));
+  const labels=MT_EXPORT.labels||[MT_EXPORT.head], nl=labels.length;
+  const row=r=>[...r.slice(0,nl).map(q),...r.slice(nl).map(v=>(v*1000).toFixed(2))].join(',');
+  const lines=[[...labels,...MONTHS_L,'2027 total','2026 run-rate'].join(',')].concat(MT_EXPORT.rows.map(row));
+  if(MT_EXPORT.total) lines.push(row(MT_EXPORT.total));
   const name=tab==='rep'?`DFL_Rep_Monthly_Targets_2027_${slug(repSel)}.csv`:`DFL_Monthly_Targets_2027_${mtView==='cat'?'by_category':'by_rep'}.csv`;
   try{await DL.save({filename:name,data:lines.join('\n')});}catch(e){if(e&&e.code!=='declined')btn.textContent='Export failed, try again';}
 }
