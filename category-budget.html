@@ -666,7 +666,7 @@ function renderRep(){
   $('#pane').innerHTML=`<div class="bar"><div class="fld"><label for="repSel2">Rep</label><select id="repSel2" class="pl" data-act="repsel" style="font-family:var(--head);font-weight:700">${REPLIST.map(r=>`<option${r===repSel?' selected':''}>${esc(r)}</option>`).join('')}</select></div>
     <span class="lbl">2026 run-rate <b>${fj(T.base)}</b> → 2027 target <b>${fj(T.rev)}</b> · <span class="${cls(g)}">${fp(g)}</span> · ${rows.length} stores</span>
     <div class="chips" role="group" aria-label="View">${[['year','Year'],['month','By month']].map(([k,l])=>`<button class="chip" data-act="repmode" data-v="${k}" aria-pressed="${repMode===k}">${l}</button>`).join('')}</div>
-    <div class="signoff"><button class="btn ghost sm" data-act="${repMode==='month'?'mtexport':'export'}" data-scope="rep">Export this rep's targets</button></div></div>
+    <div class="signoff">${repMode==='month'?'<button class="btn sm" data-act="mtexcel">Download Excel</button><button class="btn ghost sm" data-act="mtexport">CSV</button>':'<button class="btn ghost sm" data-act="export" data-scope="rep">Export this rep\'s targets</button>'}</div></div>
   <div class="banner" style="margin-bottom:10px"><b>Internal planning view. Not for sharing with reps.</b> These targets change as the category managers work and are not final.</div>
   ${guide(K?`${first}'s 2027 target: the ${esc(K.label)} on the Key Account dashboard${other.length?`, plus other accounts billed under ${first}`:''}.`:`${first}'s 2027 target, from the category managers' budgets.${movedTxt}`,['It updates as the category managers work.','Stores on a KAM\'s dashboard (Chain, Key, Hospitality) count toward that KAM. All other stores sit with the rep who billed them most in 2026.','Click a store to see its categories.'])}
   ${repMode==='month'?repMonthHtml(repSel):''}<div class="grid2"${repMode==='month'?' hidden':''}>
@@ -736,7 +736,7 @@ function renderMT(){
   const tot=mtView==='one'?(D.repM[mtRep]||Array(12).fill(0)):co, totB=mtView==='one'?(D.repB[mtRep]||0):coB;
   $('#pane').innerHTML=`<div class="bar"><div class="chips" role="group" aria-label="View">${[['cat','By category'],['rep','By rep']].map(([k,l])=>`<button class="chip" data-act="mtview" data-v="${k}" aria-pressed="${mtView===k}">${l}</button>`).join('')}</div>
     ${mtView==='one'?`<div class="fld"><label for="mtRep">Rep</label><select id="mtRep" class="pl" data-act="mtrep" style="font-family:var(--head);font-weight:700">${reps.map(r=>`<option${r===mtRep?' selected':''}>${esc(r)}</option>`).join('')}</select></div>`:''}
-    <div class="signoff"><button class="btn ghost sm" data-act="mtexport">Export this view</button></div></div>
+    <div class="signoff"><button class="btn sm" data-act="mtexcel">Download Excel</button><button class="btn ghost sm" data-act="mtexport">CSV</button></div></div>
   <div class="banner" style="margin-bottom:10px"><b>Internal planning view. Not for sharing with reps.</b> These targets change as the category managers work and are not final.</div>
   ${guide(mtView==='one'?`${esc(mtRep.split(' ')[0])}'s 2027 targets by month and category.`:`Company 2027 targets by month, ${mtView==='cat'?'by category':'by rep'}.`,['Built from every category manager\'s budget as it stands now.','Each category follows its 2025 monthly pattern. Price increases and new lines start in the month chosen.','Rep months are each rep\'s share of every category, so reps add up exactly to the category totals.','The dashed line on the chart is the 2026 run-rate spread the same way.'])}
   ${mtView==='one'?'':svg}
@@ -769,6 +769,75 @@ async function mtExport(btn){
   if(MT_EXPORT.total) lines.push(row(MT_EXPORT.total));
   const name=tab==='rep'?`DFL_Rep_Monthly_Targets_2027_${slug(repSel)}.csv`:`DFL_Monthly_Targets_2027_${mtView==='cat'?'by_category':'by_rep'}.csv`;
   try{await DL.save({filename:name,data:lines.join('\n')});}catch(e){if(e&&e.code!=='declined')btn.textContent='Export failed, try again';}
+}
+/* ---------- Excel monthly: formatted .xlsx of Monthly targets / a rep's months (same look as the Excel summary) ---------- */
+function xlMonthSheet(wb,name,title,head,groups,total,banded,withCM){
+  const C={navy:'FF1A2E5A',blue:'FF326BD3',band:'FFEEF4FF',tot:'FFDDE7F8',tint:'FFF3F7FD',totTint:'FFCFDCF4',grid:'FFE4E9F2',text:'FF1A2340',mid:'FF4A5578',soft:'FF8A95B0'};
+  const lc=withCM?2:1, nc=lc+15, cT=lc+13, cB=lc+14, cG=lc+15;   // label cols, months, 2027 total, 2026 RR, growth
+  const ws=wb.addWorksheet(name,{views:[{state:'frozen',xSplit:lc,ySplit:5,showGridLines:false}],
+    pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.3,right:0.3,top:0.5,bottom:0.5,header:0.2,footer:0.2}}});
+  ws.columns=[{width:28},...(withCM?[{width:22}]:[]),...MONTHS.map(()=>({width:10.5})),{width:13},{width:13},{width:9}];
+  const M='"J$"#,##0.0"M";-"J$"#,##0.0"M";"–"', PCTG='+0.0%;[Red]-0.0%;0.0%';
+  const fill=c=>({type:'pattern',pattern:'solid',fgColor:{argb:c}});
+  const font=(o={})=>Object.assign({name:'Calibri',size:10.5,color:{argb:C.text}},o);
+  const L=n=>ws.getColumn(n).letter;
+  ws.mergeCells(`A1:${L(nc)}1`); ws.getCell('A1').value='DFL Category Budget 2027'; ws.getCell('A1').font=font({size:18,bold:true,color:{argb:C.navy}}); ws.getRow(1).height=28;
+  ws.mergeCells(`A2:${L(nc)}2`); ws.getCell('A2').value=title+'  ·  January–December 2027  ·  J$ millions'; ws.getCell('A2').font=font({size:11,color:{argb:C.mid}});
+  ws.mergeCells(`A3:${L(nc)}3`); ws.getCell('A3').value='Prepared '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+    +'  ·  Baseline: Jan–Sep 2026 × 12/9  ·  Built from the category managers\' budgets as they stand  ·  Internal, not for sharing with reps';
+  ws.getCell('A3').font=font({size:10,italic:true,color:{argb:C.soft}});
+  const hr=ws.getRow(5); hr.values=[head,...(withCM?['Category manager']:[]),...MONTHS,'2027 total','2026 run-rate','Growth']; hr.height=24;
+  hr.eachCell((c,i)=>{c.fill=fill(C.navy); c.font=font({bold:true,color:{argb:'FFFFFFFF'},size:10}); c.alignment={vertical:'middle',horizontal:i<=lc?'left':'right'};});
+  const k=v=>v==null?null:v/1000, sum=a=>a.reduce((p,q)=>p+q,0);
+  const put=(label,cm,m,b,kind)=>{
+    const tot=sum(m), row=ws.addRow([label,...(withCM?[cm||'']:[]),...m.map(k),k(tot),k(b),b>0?tot/b-1:null]);
+    row.height=kind==='tot'?24:(kind==='band'?20:17);
+    row.eachCell({includeEmpty:true},(c,i)=>{
+      if(i>nc) return;
+      c.font=font(kind==='tot'||kind==='band'?{bold:true,color:{argb:C.navy}}:{});
+      if(withCM&&i===2&&kind==='row') c.font=font({size:9.5,color:{argb:C.soft}});
+      c.alignment={vertical:'middle',horizontal:i<=lc?'left':'right',indent:banded&&kind==='row'&&i===1?2:0};
+      if(i>lc&&i<cG) c.numFmt=M; if(i===cG) c.numFmt=PCTG;
+      if(kind==='band') c.fill=fill(i===cT?C.totTint:C.band); else if(kind==='tot') c.fill=fill(i===cT?C.totTint:C.tot); else if(i===cT) c.fill=fill(C.tint);
+      if(i===cT) c.font=Object.assign({},c.font,{bold:true});
+      c.border=kind==='tot'?{top:{style:'medium',color:{argb:C.blue}},bottom:{style:'thin',color:{argb:C.grid}}}:{bottom:{style:'thin',color:{argb:C.grid}}};
+      if(kind==='band'&&i===1) c.border=Object.assign({},c.border,{left:{style:'thick',color:{argb:C.blue}}});
+    });
+  };
+  for(const g of groups){
+    if(banded&&g.name){ const mm=Array(12).fill(0); let bb=0; g.rows.forEach(r=>{r.m.forEach((v,i)=>mm[i]+=v); bb+=r.b;}); put(g.name,'',mm,bb,'band'); }
+    for(const r of g.rows) put(r.label,r.sub,r.m,r.b,'row');
+  }
+  put(total.label,'',total.m,total.b,'tot');
+  ws.addRow([]);
+  const n1=ws.addRow(['Each category follows its 2025 monthly pattern; price increases and new lines start in the month chosen. Rep months are each rep\'s share of every category, so reps add up to the category totals.']);
+  n1.getCell(1).font=font({italic:true,size:9.5,color:{argb:C.soft}}); ws.mergeCells(n1.number,1,n1.number,nc);
+  return ws;
+}
+async function mtExcel(btn){
+  if(!MT_EXPORT) return;
+  const label=btn.textContent; btn.disabled=true; btn.textContent='Preparing Excel…';
+  try{
+    const ExcelJS=await loadExcelJS(), E=MT_EXPORT;
+    const wb=new ExcelJS.Workbook(); wb.creator='DFL Category Budget 2027'; wb.created=new Date();
+    let file;
+    if(E.labels){   // Monthly targets → By category: rows [category, CM, 12 months, total, 2026 RR]
+      const groups=[]; for(const r of E.rows){let g=groups.find(x=>x.name===r[1]); if(!g) groups.push(g={name:r[1],rows:[]}); g.rows.push({label:r[0],sub:r[1],m:r.slice(2,14),b:r[15]});}
+      const total={label:'Company total',m:E.total.slice(2,14),b:E.total[15]};
+      xlMonthSheet(wb,'By category','Company monthly budget by category','Category',groups,total,true,false);
+      xlMonthSheet(wb,'Table','Company monthly budget, one row per category','Category',[{name:null,rows:groups.flatMap(g=>g.rows)}],total,false,true);
+      file='DFL_Monthly_Budget_2027_by_category.xlsx';
+    } else {        // By rep, or one rep's months: rows [label, 12 months, total, 2026 RR]; the last row is the total
+      const rows=E.rows.slice(0,-1).map(r=>({label:r[0],m:r.slice(1,13),b:r[14]})), t=E.rows[E.rows.length-1];
+      const one=tab==='rep';
+      xlMonthSheet(wb,one?'By month':'By rep',one?`${repSel}: monthly targets by category`:'Company monthly budget by rep',one?'Category':'Rep',
+        [{name:null,rows}],{label:one?'Total '+repSel:'Company total',m:t.slice(1,13),b:t[14]},false,false);
+      file=one?`DFL_Monthly_Targets_2027_${slug(repSel)}.xlsx`:'DFL_Monthly_Budget_2027_by_rep.xlsx';
+    }
+    const buf=await wb.xlsx.writeBuffer();
+    downloadBlob(file,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  }catch(e){ setSave('err',(e&&e.message)||'Excel download failed'); }
+  btn.disabled=false; btn.textContent=label;
 }
 function renderTeam(){
   const T={base:0,rev:0,gp:0,r25:0,b26:0,g26:0,r26:0,gp26w:0}, RP={};
@@ -911,6 +980,7 @@ document.addEventListener('click',e=>{
     case 'mtview': mtView=el.dataset.v; renderMT(); return;
     case 'repmode': repMode=el.dataset.v; renderRep(); return;
     case 'mtexport': mtExport(el); return;
+    case 'mtexcel': mtExcel(el); return;
     case 'inputs': showInputs=!showInputs; clearArm=''; render(); return;
     case 'clearcm': if(!IS_OWNER) return; if(clearArm!==cur.key){clearArm=cur.key;render();setTimeout(()=>{if(clearArm===cur.key){clearArm='';render();}},5000);return;}
       clearArm=''; resetCM(cur.key); setSave('pending','Saving…'); clearTimeout(tm); tm=setTimeout(flush,200); render(); return;
