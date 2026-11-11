@@ -249,6 +249,7 @@ tbody tr.clickable{cursor:pointer}
   <div class="main-tab" id="navAudits" onclick="showAudits()">✅ Store Audits</div>
   <div class="main-tab" id="navEvals" onclick="showEvals()">📋 Evaluations</div>
   <div class="main-tab" id="navRelief" onclick="showRelief()">🔁 Relief Coverage</div>
+  <div class="main-tab" id="navDays" onclick="showDays()">🗓️ Days Worked</div>
 </div>
 
 <!-- MONTH TABS -->
@@ -480,6 +481,12 @@ tbody tr.clickable{cursor:pointer}
      src is set on first open so it doesn't load until someone clicks the tab. -->
 <div id="reliefSection" style="display:none">
   <iframe id="reliefFrame" title="Relief Coverage" style="display:block;width:100%;height:calc(100vh - 100px);border:0;background:#f3f5f4"></iframe>
+</div>
+
+<!-- DAYS WORKED — every area: days worked per pay fortnight, extra/relief days,
+     and the TLs' Wednesday payroll submissions. View is /shared/days-worked.js. -->
+<div id="daysSection" style="display:none">
+  <div id="daysBody" style="max-width:900px;margin:0 auto;padding:16px 16px 48px"></div>
 </div>
 
 <!-- EVALUATION DETAIL MODAL -->
@@ -1902,7 +1909,8 @@ function closeAuditDetail(){ document.getElementById('audit-detail-modal').class
 function setMainTab(tab){
   activeTab = tab;
   clearInterval(auditTimer); auditTimer = null;
-  ['navMerch','navTL','navPayroll','navVisits','navAudits','navEvals','navRelief'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['navMerch','navTL','navPayroll','navVisits','navAudits','navEvals','navRelief','navDays'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('daysSection').style.display = tab==='days' ? 'block' : 'none';
   document.getElementById('auditsSection').style.display = tab==='audits' ? 'block' : 'none';
   document.getElementById('merchSection').style.display = tab==='merch' ? 'block' : 'none';
   document.getElementById('tlSection').style.display = tab==='tl' ? 'block' : 'none';
@@ -1910,7 +1918,18 @@ function setMainTab(tab){
   document.getElementById('visitsSection').style.display = tab==='visits' ? 'block' : 'none';
   document.getElementById('evalsSection').style.display = tab==='evals' ? 'block' : 'none';
   document.getElementById('reliefSection').style.display = tab==='relief' ? 'block' : 'none';
-  document.getElementById('monthTabs').style.display = tab==='relief' ? 'none' : ''; // relief has its own date filters
+  document.getElementById('monthTabs').style.display = (tab==='relief' || tab==='days') ? 'none' : ''; // relief / days have their own date filters
+}
+let _daysView=null;
+function showDays(){
+  setMainTab('days'); document.getElementById('navDays').classList.add('active');
+  document.getElementById('headerSub').textContent='DAYS WORKED · EXTRA & RELIEF DAYS · ALL AREAS';
+  if(!_daysView) _daysView=DFL_DAYS.mount(document.getElementById('daysBody'),{
+    mode:'manager',
+    call:async (fn,args)=>{ const { data, error } = await sb.rpc(fn,args); if(error) throw new Error(error.message); return data; },
+    theme:{ink:'#0d1420',text:'#0d1420',muted:'#8a8378',line:'#d4cfc4',card:'#fff',good:'#1a7a3c',warn:'#b86f00',bad:'#c0180f',accent:'#2F5DBF',shadow:'0 1px 3px rgba(0,0,0,.08)',radius:'8px'}
+  });
+  _daysView.load(false);
 }
 function showMerch(){ setMainTab('merch'); document.getElementById('navMerch').classList.add('active'); document.getElementById('headerSub').textContent='2026 · BRAND AMBASSADOR COMMISSION TRACKER'; if(!storeRows.length) loadData(); }
 function showTL(){ setMainTab('tl'); document.getElementById('navTL').classList.add('active'); document.getElementById('headerSub').textContent='2026 · TEAM LEADER INCENTIVE'; renderTLSection(); }
@@ -1934,5 +1953,6 @@ window.DFL_PAGE_TITLE = 'Brand Ambassador Dashboard';
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
+<script src="/shared/days-worked.js"></script>
 </body>
 </html>
