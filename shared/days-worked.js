@@ -25,7 +25,8 @@
 //   const dw = DFL_DAYS.mount(el, {
 //     call: (fn, args) => Promise<json>,   // POST /rest/v1/rpc/<fn> as the signed-in user; throws on error
 //     mode: 'tl' | 'manager',
-//     readOnly: () => bool,                 // hide the submit form (e.g. admin viewing as a TL)
+//     readOnly: () => bool,                 // show the form but disable Submit (admin viewing as a TL)
+//     readOnlyNote: () => string,           // optional banner shown on the form in read-only mode
 //     theme: { ink, text, muted, line, card, good, warn, bad, accent, shadow, radius }
 //   });
 //   dw.load(force)
@@ -213,6 +214,7 @@
     ['ink', 'text', 'muted', 'line', 'card', 'good', 'warn', 'bad', 'accent', 'shadow', 'radius'].forEach(k => el.style.setProperty('--d-' + k, t[k]));
     const mode = opts.mode === 'manager' ? 'manager' : 'tl';
     const readOnly = typeof opts.readOnly === 'function' ? opts.readOnly : () => !!opts.readOnly;
+    const readOnlyNote = typeof opts.readOnlyNote === 'function' ? opts.readOnlyNote : () => '';
 
     let data = null, ix = null, today = jmToday(), loaded = false, loading = null;
     // draft = the form being filled in for ui.week: { week, lines:[{id, kind, dates:Set, reason, absent, rate, note}], note }
@@ -303,7 +305,7 @@
 
       if (isCur) h += '<div class="dfld-note" style="margin:-4px 0 10px">Fortnight ' + range(fs, fe) + '. Extra = days worked over ' + PAID_DAYS + ' (holidays and approved leave count toward the ' + PAID_DAYS + '). Today and the rest of the fortnight’s weekdays are assumed worked.</div>';
 
-      if (mode === 'tl' && isCur && !readOnly()) h += formHtml();
+      if (mode === 'tl' && isCur) h += formHtml();
 
       if (!rows.length) h += '<div class="dfld-empty">No one to show' + (ui.q || ui.tl ? ' for this filter' : '') + '.</div>';
       if (mode === 'manager' && !ui.tl) {
@@ -409,6 +411,7 @@
       let h = '<div class="dfld-form"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3>Submit relief &amp; extra days</h3>' +
         '<select class="dfld-sel" data-k="week">' + weeks.map((w, i) => '<option value="' + w + '"' + (w === ws ? ' selected' : '') + '>' + (i === 0 ? 'This week' : 'Last week') + ' · ' + range(w, addDays(w, 6)) + '</option>').join('') + '</select></div>';
 
+      if (readOnly() && readOnlyNote()) h += '<div class="dfld-due" style="background:#eef2ff;color:#1e3a8a">👁️ ' + esc(readOnlyNote()) + '</div>';
       if (ui.msg) h += '<div class="' + (ui.msg.ok ? 'dfld-ok' : 'dfld-err') + '" style="margin:8px 0">' + ui.msg.html + '</div>';
       else if (existing) h += '<div class="dfld-ok">Submitted ' + esc(new Date(existing.submitted_at).toLocaleString('en-JM', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + ' — it’s in Relief Coverage, waiting for the pay run. Submitting again replaces anything not paid yet.</div>';
       else h += '<div class="dfld-due">Not submitted for ' + range(ws, we) + ' yet — due Wednesday ' + short(addDays(ws, 2)) + '. Tap days to add or remove them.</div>';
@@ -421,7 +424,7 @@
         addable.map(p => '<option value="' + p.id + '">' + esc(p.name) + (isTemp(p) ? ' (relief)' : ' (extra days)') + '</option>').join('') + '</select></div>';
 
       h += '<textarea class="dfld-in" data-k="note" rows="2" placeholder="Note for payroll (optional)" style="margin-top:6px;resize:vertical">' + esc(dr.note) + '</textarea>' +
-        '<div class="dfld-gtot"><div><div data-gtot></div><div class="dfld-note">Assumes everyone finishes the week.</div></div><button class="dfld-btn" data-act="submit">' + (existing ? 'Resubmit' : 'Submit') + '</button></div></div>';
+        '<div class="dfld-gtot"><div><div data-gtot></div><div class="dfld-note" style="font-weight:400">Assumes everyone finishes the week.</div></div>' + (readOnly() ? '<button class="dfld-btn" disabled title="View only">Submit (view only)</button>' : '<button class="dfld-btn" data-act="submit">' + (existing ? 'Resubmit' : 'Submit') + '</button>') + '</div></div>';
       return h;
     }
 
@@ -440,6 +443,7 @@
     }
 
     async function submit(btn) {
+      if (readOnly()) return;
       const dr = ui.draft, byId = staffById();
       const lines = dr.lines.filter(l => l.dates.size);
       const noReason = lines.filter(l => l.kind === 'relief' && !l.reason).map(l => byId[l.id].name);

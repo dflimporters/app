@@ -3504,14 +3504,22 @@ function closeStockModal(){ document.getElementById('pl-modal').style.display='n
 // (extra days, relief days) and the Wednesday payroll submission. The view is
 // /shared/days-worked.js (also the Days Worked tab on the management merch
 // dashboard); data via get_days_worked() / submit_tl_payroll(), scoped server-side.
+// An admin/manager viewing a TL's app (viewAsTeamLeader) passes p_as_rep, so the
+// database scopes the data to that TL's team — exactly what the TL sees — and the
+// form is shown with Submit disabled (readOnly), never sending under their name.
 // ══════════════════════════════════════════════
-let _daysWorked=null;
+let _daysWorked=null, _daysWorkedFor=null;
 function daysWorked(){
-  if(!_daysWorked) _daysWorked=DFL_DAYS.mount(document.getElementById('dw-body'),{
-    call:(fn,args)=>restRpc(fn,args), mode:'tl',
-    readOnly:()=>document.body.classList.contains('dfl-readonly'),
-    theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',warn:'var(--amber)',bad:'var(--red)',accent:'var(--navy2)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
-  });
+  const who=(cu&&cu.viewingAs)?cu.id:'self';
+  if(!_daysWorked||_daysWorkedFor!==who){
+    _daysWorkedFor=who;
+    _daysWorked=DFL_DAYS.mount(document.getElementById('dw-body'),{
+      call:(fn,args)=>restRpc(fn,(fn==='get_days_worked'&&who!=='self')?Object.assign({},args,{p_as_rep:who}):args), mode:'tl',
+      readOnly:()=>document.body.classList.contains('dfl-readonly'),
+      readOnlyNote:()=>cu&&cu.viewingAs?'Viewing as '+cu.full_name+' — this is exactly what they see. Submitting is turned off.':'',
+      theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',warn:'var(--amber)',bad:'var(--red)',accent:'var(--navy2)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
+    });
+  }
   return _daysWorked;
 }
 function openDaysWorked(){
