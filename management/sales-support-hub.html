@@ -871,14 +871,17 @@ const DELIV = SHIPS.map(sh => { const st = STOPS[sh.nbr] || null, lx = LMX[sh.nb
   return {...sh, stop:st, load:ld, driver:lx.driver, phone:lx.phone, via:realVia((ld && ld.via) || sh.via), st:dState(sh, st), wait:daysBetween(sh.created || sh.date, ASOF), short:SLINES[sh.nbr] || []}; })
   .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-// deal tier check: is the order just short of the next free-goods tier?
+// deal levels repeat (Scott, 11 Nov: "buy 100 get 3 free" counts for every 100 bought). Free goods for a quantity:
+// the biggest level as many times as it fits, then the next level down on what is left, and so on (500 at buy 100 get 3 = 15).
+const tiersOf = sku => { const d = DEALS[sku]; return d && Array.isArray(d[1]) ? d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy) : []; };
+const freeFor = (tiers, q) => { let left = Math.max(0, q), f = 0; [...tiers].reverse().forEach(t => { const n = Math.floor(left / t.buy); f += n * t.free; left -= n * t.buy; }); return f; };
+const dealTxt = tiers => tiers.map(t => `buy ${t.buy}, get ${t.free} free`).join(' or ');
+// specials: is the order a few cases short of earning more free goods?
 const tierHint = l => {
-  const d = DEALS[l.sku]; if (!d || !Array.isArray(d[1]) || l.oq < 3) return null;
-  const tiers = d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy);
-  const next = tiers.find(t => t.buy > l.oq); if (!next) return null;
-  const gap = next.buy - l.oq; if (gap > Math.max(3, next.buy * 0.3)) return null;
-  const cur = [...tiers].reverse().find(t => t.buy <= l.oq);
-  return {add:gap, buy:next.buy, free:next.free, cur:cur ? cur.free : 0}; };
+  const tiers = tiersOf(l.sku); if (!tiers.length || l.oq < 3) return null;
+  const now = freeFor(tiers, l.oq), lim = Math.max(3, Math.ceil(tiers[0].buy * 0.3));
+  for (let add = 1; add <= lim; add++) { const f = freeFor(tiers, l.oq + add); if (f > now) return {add, buy:l.oq + add, free:f - now, cur:now, total:f, deal:dealTxt(tiers)}; }
+  return null; };
 
 // order checks on orders that can still change (Open / On Hold)
 const CHECKS = [];
@@ -932,14 +935,14 @@ const plCards = rows => `<div class="plines">${rows.map(r => `<div class="pl"><d
 const chkTable = xs => plCards(xs.map(x => { const g = lineGp(x.l), loss = (x.kind === 'gp' ? x.gp : g) < 0;
   return {name:x.l.desc, title:x.l.sku, tone:loss || x.kind === 'noprice' ? 'loss' : '', tag:x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'price' ? 'Below deal ' + JP(x.floor) : x.kind === 'freeover' ? `${x.f.have} free on order` : (x.st || CHKTXT[x.kind]),
     // too many free (Scott, 11 Nov: "130 free, deal 3" was unclear): say what the deal allows for the quantity bought
-    sub:x.kind === 'freeover' ? `${x.f.oq} bought at ${JP(x.l.price)} · the deal allows ${x.f.free} free${x.f.buy ? ` (buy ${x.f.buy}, get ${x.f.free} free)` : ''}` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
-const chkStep = x => x.kind === 'free' ? `The deal (buy ${x.f.buy}, get ${x.f.free} free) gives ${x.f.free - x.f.have} more free. Check with the rep whether they should be added; if so, add them with the Free Item box ticked.` :
-  x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more to reach buy ${x.h.buy}, get ${x.h.free} free.` :
+    sub:x.kind === 'freeover' ? `${x.f.oq} bought at ${JP(x.l.price)} · the deal allows ${x.f.free} free (${esc(x.f.deal)}, per multiple)` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
+const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought, the deal (${x.f.deal}, per multiple) gives ${x.f.free} free and the order has ${x.f.have || 'none'}: ${x.f.free - x.f.have} more. Check with the rep whether they should be added; if so, add them with the Free Item box ticked.` :
+  x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more (${x.h.buy} in all) for ${x.h.free} more free (${x.h.deal}, per multiple).` :
   x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
   x.kind === 'stock' ? `Only ${Math.max(0, x.l.onhand)} in stock for ${x.l.open}. Ask the rep about a substitute (same colour and size) or cut the quantity.` :
   x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy}). Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
   x.kind === 'noprice' ? `This line is J$0 but the item has no deal on the sheet. Add the price, or untick Free Item if it was ticked by mistake.` :
-  x.kind === 'freeover' ? `${x.f.have} free on the order, but ${x.f.oq} bought only earns ${x.f.free} free${x.f.buy ? ` (deal: buy ${x.f.buy}, get ${x.f.free} free)` : ''}. Reduce the free quantity, or check the deal with the rep.` :
+  x.kind === 'freeover' ? `${x.f.have} free on the order, but ${x.f.oq} bought only earns ${x.f.free} free (${x.f.deal}, per multiple). Reduce the free quantity, or check the deal with the rep.` :
   x.kind === 'gp' ? `Priced at ${JP(x.l.price)} but the cost is ${JP(x.l.cost)}: a ${Math.abs(x.gp)}% loss. Check the price and the item cost${/25PAPC/.test(x.l.desc) ? ' (Covebay 25PAPC has a known cost/UOM error)' : ''}, then ask ${repTxt(x)} about the price.` :
   `${x.st} in Acumatica: we no longer carry it. Remove the line and ask the rep to offer what we carry now.`;
 
@@ -1088,16 +1091,14 @@ function ord(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s
 // A price below the sheet means the deal was given as a lower price instead, so it is not flagged (Shallet, 5 Nov meeting).
 ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => {
   const by = {}; (o.lines || []).forEach(l => { const x = by[l.sku] = by[l.sku] || {paid:null, oq:0, free:0}; if (l.price > 0) { x.paid = x.paid || l; x.oq += l.oq; } else x.free += l.oq; });
-  Object.entries(by).forEach(([sku, x]) => { const d = DEALS[sku]; if (!d || !Array.isArray(d[1])) return;
-    const tiers = d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy);
-    if (!tiers.length) return;
-    const t = [...tiers].reverse().find(t => t.buy <= x.oq), allowed = t ? t.free : 0;
-    // more free than the deal gives for the quantity bought (Scott, 11 Nov)
+  Object.entries(by).forEach(([sku, x]) => { const d = DEALS[sku]; const tiers = tiersOf(sku); if (!tiers.length) return;
+    const allowed = freeFor(tiers, x.oq), deal = dealTxt(tiers);
+    // more free than the deal gives for the quantity bought (levels repeat: Scott, 11 Nov)
     if (x.free > allowed) { const l0 = x.paid || (o.lines || []).find(l => l.sku === sku);
-      CHECKS.push({kind:'freeover', o, l:l0, f:{buy:t ? t.buy : tiers[0].buy, free:allowed, have:x.free, oq:x.oq}, key:'freeover:' + o.nbr + ':' + sku, value:(x.free - allowed) * ((x.paid || {}).price || 0) + 2.9e6}); return; }
-    if (!x.paid || !t || x.free >= t.free) return;
+      CHECKS.push({kind:'freeover', o, l:l0, f:{free:allowed, have:x.free, oq:x.oq, deal}, key:'freeover:' + o.nbr + ':' + sku, value:(x.free - allowed) * ((x.paid || {}).price || 0) + 2.9e6}); return; }
+    if (!x.paid || !allowed || x.free >= allowed) return;
     if (+d[0] && x.paid.price < +d[0] * 0.98) return;
-    CHECKS.push({kind:'free', o, l:x.paid, f:{buy:t.buy, free:t.free, have:x.free, oq:x.oq}, key:'free:' + o.nbr + ':' + sku, value:(t.free - x.free) * x.paid.price + 2e6}); });
+    CHECKS.push({kind:'free', o, l:x.paid, f:{free:allowed, have:x.free, oq:x.oq, deal}, key:'free:' + o.nbr + ':' + sku, value:(allowed - x.free) * x.paid.price + 2e6}); });
 });
 // deal sheet (all live deals) and invoiced lines for the last 45 days
 const DSH = {}; (O.dsheet || []).forEach(r => { const tiers = (Array.isArray(r[3]) ? r[3] : []).map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy); DSH[r[0]] = {sku:r[0], desc:r[1], price:+r[2] || 0, tiers, cls:r[4]}; });
@@ -1210,15 +1211,15 @@ async function delNote(id) {
 function todayItems() {
   const it = [];
   CHECKS.filter(x => x.kind === 'deal').forEach(x => it.push({key:x.key, pri:1, col:'blue', kind:'Special', c:x.o.c, issue:`Add ${x.h.add} to get ${x.h.free} free`, sub:x.l.desc, age:x.o.age,
-    html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.l.oq} on order ${esc(x.o.nbr)} · deal: buy ${x.h.buy}, get ${x.h.free} free`, tag:`Add ${x.h.add}`, tone:'blue'}]),
+    html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.l.oq} on order ${esc(x.o.nbr)} · deal: ${x.h.deal} · ${x.h.buy} earns ${x.h.total} free`, tag:`Add ${x.h.add}`, tone:'blue'}]),
     t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
-    d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is buy ${x.h.buy}, get ${x.h.free} free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
+    d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is ${x.h.deal}, per multiple: ${x.h.add} more earns ${x.h.free} more free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
     act:'Check with Rep or Merch whether to add it', value:x.value + 1e6}));
   // free goods left off an open order: sales support adds them before it ships
   CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
-    html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.f.oq} × ${JP(x.l.price)} · deal: buy ${x.f.buy}, get ${x.f.free} free · ${x.f.have ? x.f.have + ' free on the order' : 'no free line on the order'}`, tag:`${x.f.free - x.f.have} free missing`, tone:'loss'}]),
+    html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.f.oq} × ${JP(x.l.price)} · deal allows ${x.f.free} free (${x.f.deal}) · ${x.f.have ? x.f.have + ' free on the order' : 'no free line on the order'}`, tag:`${x.f.free - x.f.have} free missing`, tone:'loss'}]),
     t:`${byId[x.o.c].name}: free goods missing on order ${x.o.nbr}`,
-    d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal is buy ${x.f.buy}, get ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
+    d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal (${x.f.deal}, per multiple) gives ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
     act:`Check whether ${x.f.free - x.f.have} free need to be added (Free Item box)`, value:x.value}));
   // price checks (Scott, 11 Nov): below cost, below the deal price, no price, too many free, items we no longer carry.
   // Low margin above cost is the KAM / category manager's job, not this hub's. One card per order; the lines open underneath.
