@@ -84,6 +84,8 @@ const DFL_PAGE_ROLES = {
   // "no personal sales numbers" state — their home stays /merch.html.
   '/index.html':           ['admin', 'manager', 'rep', 'rep_management', 'team_leader', 'tl_merch'],
   '/merch.html':           ['merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'relief_merchandiser'],
+  // Training course (merch / TL workbook + completion log). Data via training_* RPCs.
+  '/training/course.html': ['merchandiser', 'relief_merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin'],
   // Quarterly Brand Ambassador evaluation form, framed by merch.html (the guard
   // no-ops in the frame; this entry decides who can open it directly).
   '/merch-eval.html':      ['team_leader', 'tl_merch', 'manager', 'admin'],
