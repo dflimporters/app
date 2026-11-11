@@ -68,6 +68,18 @@ body.chatting .hero .seg-mini{display:inline-flex;align-items:center;gap:8px}
 .go{flex:none;width:42px;height:42px;border-radius:50%;border:0;background:var(--blue);color:#fff;cursor:pointer;display:grid;place-items:center}
 .go:disabled{background:#B9C2D3;cursor:default}
 .go svg{width:20px;height:20px}
+.plus{flex:none;width:38px;height:38px;margin:2px 0 2px -12px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);color:var(--blue);cursor:pointer;display:grid;place-items:center}
+.plus:hover{border-color:var(--blue);background:var(--blue-t)}.plus svg{width:18px;height:18px}
+.attlist{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+body.chatting #composer .attlist{max-width:788px;margin:0 auto 8px}
+.att{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:5px 6px 5px 10px;font-size:12.5px;color:var(--ink);max-width:100%}
+.att .ic{font-size:13px}.att .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.att .sz{color:var(--ink3);font-size:11.5px}
+.att button{border:0;background:var(--bg);border-radius:50%;width:20px;height:20px;cursor:pointer;color:var(--ink2);font-size:14px;line-height:1}
+.att.err{border-color:var(--red);color:var(--red)}
+.qfiles{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;margin-top:6px}
+.qfiles .att{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35);color:#fff;padding:4px 10px}
+.qfiles .att.gone{opacity:.65;text-decoration:line-through}
 .hint{text-align:center;color:var(--ink3);font-size:12.5px;margin:10px 0 0}
 
 /* Starter questions (home screen only) */
@@ -93,6 +105,8 @@ body.chatting .chips,body.chatting .hint.home{display:none}
 @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
 .afoot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .rate{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink3)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.rp-wrap{margin:14px 0 4px}
 .rate button{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:14px}
 .rate button[aria-pressed="true"]{border-color:var(--blue);background:var(--blue-t)}
 
@@ -161,7 +175,10 @@ body.chatting #composer .hint{display:none}
   <section id="viewAssistant">
     <div class="thread" id="thread" aria-live="polite"></div>
     <div id="composer">
+      <div class="attlist" id="attList"></div>
       <form class="pill" id="form">
+        <button type="button" class="plus" id="attach" aria-label="Attach a file" title="Attach a file (Excel, CSV, PDF, Word or a photo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <input type="file" id="file" multiple hidden accept=".xlsx,.xls,.csv,.pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.gif,image/*">
         <textarea id="q" rows="1" placeholder="Ask anything about DFL…" aria-label="Your question"></textarea>
         <button class="go" id="send" type="submit" aria-label="Ask" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
       </form>
@@ -190,6 +207,7 @@ body.chatting #composer .hint{display:none}
 <script src="/shared/side-nav.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="/shared/ask-report.js"></script>
 <script>
 // Wrapped so nothing here collides with the shared scripts' globals.
 (function () {
@@ -362,9 +380,97 @@ async function downloadPptx(question, answer, tables) {
   await pptx.writeFile({ fileName: 'Ask_DFL_' + question.replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60) + '.pptx' });
 }
 
+/* ---------- file uploads (+ button) ---------- */
+// Files go to the private ask-dfl-uploads bucket under <user id>/<chat id>/. Spreadsheets, Word and text
+// files are turned into text here (saved beside the file as .txt) so the edge function can pass them on;
+// PDFs and photos go as they are (photos shrunk first).
+const UPLOADS = 'ask-dfl-uploads', MAX_FILES = 3, MAX_MB = 20, MAX_ROWS = 3000;
+let pendingFiles = [];
+const extOf = f => (f.name.split('.').pop() || '').toLowerCase();
+function fileKind(f) {
+  const e = extOf(f);
+  if (e === 'pdf' || f.type === 'application/pdf') return 'pdf';
+  if (/^image\//.test(f.type) || ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(e)) return 'image';
+  if (['xlsx', 'xls', 'csv', 'docx', 'txt'].includes(e)) return 'text';
+  return null;
+}
+const fileIcon = k => k === 'pdf' ? '📄' : k === 'image' ? '🖼️' : '📊';
+const sizeText = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function loadScript(src, test) {
+  if (test()) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load a file reader. Check your connection.')); document.head.appendChild(s); });
+}
+function renderPending() {
+  $('attList').innerHTML = pendingFiles.map((f, i) => `<span class="att"><span class="ic">${fileIcon(fileKind(f))}</span><span class="nm">${esc(f.name)}</span><span class="sz">${sizeText(f.size)}</span>
+    <button type="button" data-rm="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('');
+  updateSend();
+}
+function addFiles(list) {
+  const problems = [];
+  for (const f of list) {
+    if (pendingFiles.length >= MAX_FILES) { problems.push(`Up to ${MAX_FILES} files at a time.`); break; }
+    if (!fileKind(f)) { problems.push(`${f.name}: use Excel, CSV, PDF, Word, text or a photo.`); continue; }
+    if (f.size > MAX_MB * 1048576) { problems.push(`${f.name} is over ${MAX_MB} MB.`); continue; }
+    pendingFiles.push(f);
+  }
+  renderPending();
+  if (problems.length) alert(problems.join('\n'));
+}
+async function spreadsheetText(f) {
+  if (extOf(f) === 'csv') return await f.text();
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', () => window.XLSX);
+  const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: true });
+  return wb.SheetNames.map(name => {
+    const rows = XLSX.utils.sheet_to_csv(wb.Sheets[name], { blankrows: false }).split('\n');
+    const cut = rows.length > MAX_ROWS;
+    return `### Sheet: ${name} (${rows.length.toLocaleString()} rows)\n${rows.slice(0, MAX_ROWS).join('\n')}${cut ? `\n[… sheet cut short after ${MAX_ROWS} rows]` : ''}`;
+  }).join('\n\n');
+}
+async function wordText(f) {
+  await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js', () => window.mammoth);
+  return (await mammoth.extractRawText({ arrayBuffer: await f.arrayBuffer() })).value;
+}
+// Photos are shrunk to at most 2000px on the long side and saved as JPEG.
+function shrinkImage(f) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      const k = Math.min(1, 2000 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('Could not read that photo.')), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(`Could not read ${f.name}. Try a JPG or PNG.`)); };
+    img.src = url;
+  });
+}
+async function uploadFiles(files) {
+  const uid = window.DFL_PROFILE.id, out = [];
+  for (const f of files) {
+    const kind = fileKind(f), base = `${uid}/${conversationId}/${Date.now()}-${f.name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80)}`;
+    let body = f, type = f.type || 'application/octet-stream', path = base;
+    if (kind === 'image') { body = await shrinkImage(f); type = 'image/jpeg'; path = base.replace(/\.[^.\/]+$/, '') + '.jpg'; }
+    const up = await sb.storage.from(UPLOADS).upload(path, body, { contentType: type, upsert: false });
+    if (up.error) throw new Error(`Couldn't upload ${f.name}: ${up.error.message}`);
+    const a = { name: f.name, kind, path, media_type: type, size: f.size };
+    if (kind === 'text') {
+      const e = extOf(f);
+      const text = e === 'docx' ? await wordText(f) : (e === 'txt' ? await f.text() : await spreadsheetText(f));
+      a.text_path = path + '.txt';
+      const t = await sb.storage.from(UPLOADS).upload(a.text_path, new Blob([text], { type: 'text/plain' }), { contentType: 'text/plain', upsert: false });
+      if (t.error) throw new Error(`Couldn't upload ${f.name}: ${t.error.message}`);
+    }
+    out.push(a);
+  }
+  return out;
+}
+const fileChips = list => (list || []).length ? `<div class="qfiles">${list.map(a => `<span class="att${a.deleted ? ' gone' : ''}" title="${a.deleted ? 'Removed after 90 days' : ''}"><span class="ic">${fileIcon(a.kind)}</span><span class="nm">${esc(a.name)}</span></span>`).join('')}</div>` : '';
+
 /* ---------- thread ---------- */
-function addQuestion(text) {
-  const d = document.createElement('div'); d.className = 'q'; d.textContent = text; $('thread').appendChild(d); return d;
+function addQuestion(text, files) {
+  const d = document.createElement('div'); d.className = 'q'; d.textContent = text;
+  if (files && files.length) d.insertAdjacentHTML('beforeend', fileChips(files));
+  $('thread').appendChild(d); return d;
 }
 function addPending() {
   const d = document.createElement('div'); d.className = 'a';
@@ -374,10 +480,16 @@ function addPending() {
   return { el: d, stop: () => clearInterval(iv) };
 }
 function renderAnswer(el, turn, question) {
-  const tables = turn.tables || [];
-  el.innerHTML = `<div class="md">${md(turn.answer)}</div>${tables.map(tableHtml).join('')}
+  // A styled report (from the build_report tool) travels in the tables list as kind 'report'.
+  const report = (turn.tables || []).find(t => t && t.kind === 'report');
+  const tables = (turn.tables || []).filter(t => t && t.kind !== 'report');
+  const showPpt = report || WANTS_SLIDES.test(question);
+  el.innerHTML = `<div class="md">${md(turn.answer)}</div>
+    ${report ? `<div class="rp-wrap">${AskReport.html(report)}</div>` : ''}
+    ${tables.map(tableHtml).join('')}
     <div class="afoot">
-      ${WANTS_SLIDES.test(question) ? '<button type="button" class="btn" data-ppt>Download PowerPoint</button>' : '<span></span>'}
+      <div class="acts">${showPpt ? '<button type="button" class="btn" data-ppt>Download PowerPoint</button>' : ''}
+        ${report ? '<button type="button" class="btn" data-print>Print / PDF</button>' : ''}</div>
       ${turn.log_id ? `<div class="rate"><span>Was this right?</span>
         <button type="button" data-r="1" aria-pressed="${turn.rating === 1}" title="Yes">👍</button>
         <button type="button" data-r="-1" aria-pressed="${turn.rating === -1}" title="No">👎</button></div>` : ''}
@@ -387,9 +499,13 @@ function renderAnswer(el, turn, question) {
   }));
   el.querySelector('[data-ppt]')?.addEventListener('click', async e => {
     const b = e.currentTarget; b.disabled = true; b.textContent = 'Building slides…';
-    try { await downloadPptx(question, turn.answer, tables); } catch (err) { alert('PowerPoint failed: ' + err.message); }
+    try {
+      if (report) await AskReport.pptx(report, 'Ask_DFL_' + (report.title || question).replace(/[^A-Za-z0-9]+/g, '_').slice(0, 60) + '.pptx');
+      else await downloadPptx(question, turn.answer, tables);
+    } catch (err) { alert('PowerPoint failed: ' + err.message); }
     b.disabled = false; b.textContent = 'Download PowerPoint';
   });
+  el.querySelector('[data-print]')?.addEventListener('click', () => AskReport.print(report));
   el.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => {
     el.querySelectorAll('[data-r]').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
     call({ rate: { log_id: turn.log_id, rating: +b.dataset.r } }).catch(() => {});
@@ -400,15 +516,20 @@ function setChatting(on) { document.body.classList.toggle('chatting', on); }
 
 async function ask(text) {
   text = (text || '').trim();
-  if (!text || busy) return;
+  const files = pendingFiles.slice();
+  if ((!text && !files.length) || busy) return;
+  if (!text) text = 'What is in this file?';
   busy = true; updateSend();
   if (!conversationId) conversationId = newId();
   setChatting(true);
   $('q').value = ''; autosize();
-  addQuestion(text);
+  pendingFiles = []; renderPending();
+  addQuestion(text, files.map(f => ({ name: f.name, kind: fileKind(f) })));
   const p = addPending();
   try {
-    const data = await call({ question: text, history, conversation_id: conversationId });
+    if (files.length) p.el.querySelector('.thinking span:last-child').firstChild.textContent = 'Reading your file… ';
+    const attachments = files.length ? await uploadFiles(files) : [];
+    const data = await call({ question: text, history, conversation_id: conversationId, reports: true, attachments });
     p.stop();
     renderAnswer(p.el, { answer: data.answer, tables: data.tables, log_id: data.log_id }, text);
     history.push({ role: 'user', content: text }, { role: 'assistant', content: data.answer });
@@ -417,6 +538,7 @@ async function ask(text) {
     p.stop();
     p.el.classList.add('err');
     p.el.textContent = (e.message || 'Something went wrong.') + ' Please try again.';
+    if (files.length && !pendingFiles.length) { pendingFiles = files; renderPending(); }   // keep the files for a retry
   }
   busy = false; updateSend(); $('q').focus();
 }
@@ -437,7 +559,7 @@ async function openChat(id) {
     $('thread').innerHTML = '';
     conversationId = id; history = [];
     for (const t of turns) {
-      addQuestion(t.question);
+      addQuestion(t.question, t.attachments);
       const a = document.createElement('div'); a.className = 'a'; $('thread').appendChild(a);
       renderAnswer(a, { answer: t.answer, tables: t.tables, log_id: t.id, rating: t.rating }, t.question);
       history.push({ role: 'user', content: t.question }, { role: 'assistant', content: t.answer || '' });
@@ -502,7 +624,7 @@ function autosize() {
   if (t.value) t.style.height = Math.min(150, t.scrollHeight) + 'px';
   t.classList.toggle('tall', t.scrollHeight > 150);
 }
-function updateSend() { $('send').disabled = busy || !$('q').value.trim(); }
+function updateSend() { $('send').disabled = busy || (!$('q').value.trim() && !pendingFiles.length); }
 
 function init() {
   document.querySelectorAll('[data-seg]').forEach(s => {
@@ -515,6 +637,13 @@ function init() {
   $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask($('q').value); } });
   $('q').addEventListener('input', () => { autosize(); updateSend(); });
   $('newChat').addEventListener('click', newChat);
+  $('attach').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', e => { addFiles([...e.target.files]); e.target.value = ''; });
+  $('attList').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b) { pendingFiles.splice(+b.dataset.rm, 1); renderPending(); } });
+  // Files can also be dropped onto the page or pasted (e.g. a screenshot).
+  document.addEventListener('dragover', e => { if (tab === 'assistant') e.preventDefault(); });
+  document.addEventListener('drop', e => { if (tab === 'assistant' && e.dataTransfer.files.length) { e.preventDefault(); addFiles([...e.dataTransfer.files]); } });
+  $('q').addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
   let deb; $('sq').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(runSearch, 350); });
   $('sform').addEventListener('submit', e => { e.preventDefault(); clearTimeout(deb); runSearch(); });
   $('sList').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) openChat(b.dataset.c); });
