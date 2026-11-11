@@ -133,6 +133,10 @@ body.chatting #composer .hint{display:none}
 /* Search tab */
 .sec-h{font:700 11px var(--hf);text-transform:uppercase;letter-spacing:.09em;color:var(--ink2);margin:22px 0 10px}
 .list{display:flex;flex-direction:column;gap:8px}
+.crow{position:relative}.crow .item{padding-right:52px}
+.del{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:8px;border:1px solid transparent;background:none;color:var(--ink3);cursor:pointer;display:grid;place-items:center}
+.del:hover,.del:focus-visible{color:var(--red);background:var(--red-t);border-color:#F3C6C6}.del svg,.del-chat svg{width:17px;height:17px}
+.del-chat{color:var(--ink3);display:inline-grid;place-items:center;padding:6px 9px}.del-chat:hover{color:var(--red);border-color:#F3C6C6}
 .item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;font:inherit;color:inherit}
 .item:hover{border-color:var(--blue)}
 .item .t{font-weight:600;color:var(--ink)}
@@ -165,6 +169,7 @@ body.chatting #composer .hint{display:none}
     <p class="tag">Ask about your customers, prices, products and sales.</p>
     <div class="seg-mini">
       <div class="seg" role="tablist" data-seg></div>
+      <button type="button" class="newchat del-chat hidden" id="delChat" title="Delete this chat" aria-label="Delete this chat"></button>
       <button type="button" class="newchat" id="newChat" title="New chat">+<span> New chat</span></button>
     </div>
   </header>
@@ -512,7 +517,10 @@ function renderAnswer(el, turn, question) {
   }));
 }
 
-function setChatting(on) { document.body.classList.toggle('chatting', on); }
+function setChatting(on) {
+  document.body.classList.toggle('chatting', on);
+  $('delChat').classList.toggle('hidden', !(on && conversationId));
+}
 
 async function ask(text) {
   text = (text || '').trim();
@@ -557,7 +565,7 @@ async function openChat(id) {
   try {
     const { turns } = await call({ action: 'open', conversation_id: id });
     $('thread').innerHTML = '';
-    conversationId = id; history = [];
+    conversationId = id; history = []; setChatting(true);
     for (const t of turns) {
       addQuestion(t.question, t.attachments);
       const a = document.createElement('div'); a.className = 'a'; $('thread').appendChild(a);
@@ -579,9 +587,22 @@ async function showChats() {
     try { chatsCache = (await call({ action: 'list' })).chats; }
     catch (e) { $('sList').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
   }
-  $('sList').innerHTML = chatsCache.length ? chatsCache.map(c => `<button type="button" class="item" data-c="${esc(c.conversation_id)}">
-      <div class="t">${esc(c.title)}</div><div class="m">${when(c.updated_at)} · ${c.count} question${c.count === 1 ? '' : 's'}</div></button>`).join('')
+  $('sList').innerHTML = chatsCache.length ? chatsCache.map(c => `<div class="crow"><button type="button" class="item" data-c="${esc(c.conversation_id)}">
+      <div class="t">${esc(c.title)}</div><div class="m">${when(c.updated_at)} · ${c.count} question${c.count === 1 ? '' : 's'}</div></button>
+      <button type="button" class="del" data-del="${esc(c.conversation_id)}" aria-label="Delete this chat" title="Delete chat">${BIN}</button></div>`).join('')
     : '<div class="empty">No chats yet. Ask something on the Assistant tab and it will be saved here.</div>';
+}
+
+// Deletes a chat for good (its questions, answers and any files uploaded in it), after a confirm.
+const BIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+async function deleteChat(id) {
+  if (!id || busy) return false;
+  if (!confirm('Delete this chat?\n\nIts questions, answers and any files you uploaded in it will be removed. This can’t be undone.')) return false;
+  try { await call({ action: 'delete', conversation_id: id }); }
+  catch (e) { alert(e.message || 'Could not delete that chat.'); return false; }
+  if (chatsCache) chatsCache = chatsCache.filter(c => c.conversation_id !== id);
+  if (conversationId === id) { conversationId = null; history = []; $('thread').innerHTML = ''; }
+  return true;
 }
 function highlight(text, term) {
   const t = String(text || ''), i = t.toLowerCase().indexOf(term.toLowerCase());
@@ -646,7 +667,13 @@ function init() {
   $('q').addEventListener('paste', e => { const fs = [...(e.clipboardData?.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
   let deb; $('sq').addEventListener('input', () => { clearTimeout(deb); deb = setTimeout(runSearch, 350); });
   $('sform').addEventListener('submit', e => { e.preventDefault(); clearTimeout(deb); runSearch(); });
-  $('sList').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) openChat(b.dataset.c); });
+  $('sList').addEventListener('click', async e => {
+    const d = e.target.closest('[data-del]');
+    if (d) { if (await deleteChat(d.dataset.del)) runSearch(); return; }
+    const b = e.target.closest('[data-c]'); if (b) openChat(b.dataset.c);
+  });
+  $('delChat').innerHTML = BIN;
+  $('delChat').addEventListener('click', async () => { if (await deleteChat(conversationId)) newChat(); });
   showTab('assistant');
   $('q').focus();
 }

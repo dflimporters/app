@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
   }
 
   let body: {
-    action?: 'ask' | 'list' | 'open' | 'search';
+    action?: 'ask' | 'list' | 'open' | 'search' | 'delete';
     history?: { role: 'user' | 'assistant'; content: string }[]; question?: string; conversation_id?: string; q?: string;
     model?: string; rate?: { log_id: number; rating: number }; reports?: boolean; attachments?: unknown;
   };
@@ -263,6 +263,16 @@ Deno.serve(async (req) => {
     const { data } = await admin.from('ask_dfl_log').select('id, question, answer, tables, rating, attachments, created_at')
       .eq('user_id', profile.id).eq('conversation_id', body.conversation_id).order('created_at');
     return json({ turns: data || [] });
+  }
+  if (body.action === 'delete') {
+    // Deletes one of the caller's chats for good: its questions/answers and any files uploaded in it.
+    if (!isUuid(body.conversation_id)) return json({ error: 'Bad chat id' }, 400);
+    const { data: rows } = await admin.from('ask_dfl_log').select('attachments').eq('user_id', profile.id).eq('conversation_id', body.conversation_id);
+    const paths = (rows || []).flatMap(r => ((r.attachments || []) as Attachment[]).filter(a => !a.deleted).flatMap(a => [a.path, a.text_path].filter(Boolean) as string[]));
+    if (paths.length) await admin.storage.from(UPLOADS).remove(paths);
+    const { error } = await admin.from('ask_dfl_log').delete().eq('user_id', profile.id).eq('conversation_id', body.conversation_id);
+    if (error) return json({ error: 'Could not delete that chat. Please try again.' }, 500);
+    return json({ deleted: (rows || []).length });
   }
   if (body.action === 'search') {
     const term = (body.q || '').trim().slice(0, 100).replace(/[%_,()\\]/g, ' ');
