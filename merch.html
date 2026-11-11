@@ -567,6 +567,16 @@ body.dfl-readonly .readonly-note{display:block}
         });
       </script>
 
+      <!-- TRAINING COURSE — /training/course.html; progress filled by loadTrainingProgress(). -->
+      <div onclick="location.href='/training/course.html'" style="background:#FFFBEB;border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--amber);margin-bottom:4px">
+        <div style="font-size:22px">🎓</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--amber)">Training Course</div>
+          <div style="font-size:10px;color:var(--muted)" class="training-sub">Learn the app and mark each module complete</div>
+        </div>
+        <div style="color:var(--amber)">›</div>
+      </div>
+
       <!-- EVENTS & TRAINING — admin-assigned events; sign in as attending. -->
       <div id="m-events-tile" onclick="openEventsModal()" style="background:var(--card);border-radius:var(--rad-sm);padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);margin-bottom:4px">
         <div style="font-size:22px">📅</div>
@@ -1169,6 +1179,11 @@ body.dfl-readonly .readonly-note{display:block}
 
     <!-- HOW-TO GUIDES — the /training/ pages, which have a "Back to the app" link. -->
     <div class="sec-hdr" style="margin-top:6px">📘 How-to guides</div>
+    <button class="dash-link" onclick="window.location.href='/training/course.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin:8px 0 10px;border-color:var(--amber);background:#FFFBEB">
+      <div class="dash-link-ico">🎓</div>
+      <div><div class="dash-link-title" style="color:var(--amber)">Training Course</div><div class="dash-link-sub training-sub">Complete the Team Leader course — and see your team's progress</div></div>
+      <div class="dash-link-arr" style="color:var(--amber)">›</div>
+    </button>
     <button class="dash-link" onclick="window.location.href='/training/tl-days-worked-guide.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin:8px 0 10px">
       <div class="dash-link-ico">🗓️</div>
       <div><div class="dash-link-title">Days Worked &amp; Payroll guide</div><div class="dash-link-sub">Reading the screen, the 10-day rule, and the Wednesday submission</div></div>
@@ -1354,6 +1369,7 @@ body.dfl-readonly .readonly-note{display:block}
 <script src="/shared/user-menu.js"></script>
 <script src="/shared/stock-prices.js"></script>
 <script src="/shared/days-worked.js"></script>
+<script src="/training/course-data.js"></script>
 <script src="/shared/order-builder.js"></script>
 <script>
 // ============================================================
@@ -3545,6 +3561,23 @@ function openDaysWorked(){
   daysWorked().load(false);
 }
 function closeDaysWorked(){ document.getElementById('dw-modal').style.display='none'; }
+
+// TRAINING COURSE — "x of y modules complete" on the Training Course tiles (BA
+// home + TL screen). Course content is /training/course-data.js; completions come
+// from training_my_progress(). Non-fatal: the tiles keep their default text.
+async function loadTrainingProgress(role){
+  try{
+    const C=window.DFL_COURSE; if(!C) return;
+    const track=(role==='team_leader'||role==='tl_merch')?'tl':(role==='merchandiser'||role==='relief_merchandiser')?'ba':null;
+    if(!track) return;
+    const mods=C.tracks[track].modules;
+    const rows=await restRpc('training_my_progress')||[];
+    const n=mods.filter(k=>rows.some(r=>r.module_key===k)).length;
+    const txt=n===mods.length?'✓ Course complete — '+n+' of '+mods.length+' modules':n+' of '+mods.length+' modules complete'+(n?' — keep going':' — start here');
+    document.querySelectorAll('.training-sub').forEach(el=>{ el.textContent=txt; });
+  }catch(e){ console.warn('training progress failed',e); }
+}
+document.addEventListener('dfl-auth-ready',function(e){ const p=e.detail&&e.detail.profile; if(p) loadTrainingProgress(p.role); });
 
 // ══════════════════════════════════════════════
 // AREA LEAVE — every vacation requested/submitted in the viewer's own area,
