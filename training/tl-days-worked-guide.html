@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Days Worked &amp; Payroll — Team Leader Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --navy:#1B2B5E; --navy-2:#25397a;
+  --orange:#C8562E; --orange-soft:#f7e2d7;
+  --bg:#f3f4f8; --surface:#ffffff; --surface-2:#eceef5;
+  --text:#1c2333; --muted:#616a85; --border:#e1e3ee;
+  --good:#1f9d55; --warn:#c9860f; --bad:#c8443a;
+  --good-bg:#e8f7ee; --warn-bg:#fbf0dc; --bad-bg:#fbe9e7;
+  --shadow: 0 1px 2px rgba(27,43,94,0.06), 0 8px 24px -12px rgba(27,43,94,0.18);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:'IBM Plex Sans',system-ui,sans-serif; font-weight:700; text-wrap:balance; color:var(--text); margin:0;}
+code{
+  font-family:'IBM Plex Mono',monospace; font-size:0.8em;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:5px;
+  padding:0.1em 0.45em; color:var(--navy);
+}
+a{color:var(--navy);}
+.wrap{max-width:760px; margin:0 auto; padding:0 20px 80px;}
+.masthead{background:linear-gradient(155deg,var(--navy),var(--navy-2)); color:#fff; padding:36px 20px 28px;}
+.masthead .inner{max-width:760px; margin:0 auto;}
+.masthead .back{display:inline-block; margin-bottom:16px; color:#c3c9e6; font-size:0.9rem; text-decoration:none;}
+.masthead .back:hover{color:#fff;}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace;
+  font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--orange);
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18);
+  padding:4px 10px; border-radius:100px; margin-bottom:14px;
+}
+.masthead h1{font-size:clamp(1.7rem,5vw,2.3rem); color:#fff;}
+.masthead p{margin:10px 0 0; color:#c3c9e6; max-width:54ch; font-size:1.02rem;}
+.quicknav{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow);}
+.quicknav .row{max-width:760px; margin:0 auto; display:flex; gap:8px; overflow-x:auto; padding:10px 20px; scrollbar-width:none;}
+.quicknav .row::-webkit-scrollbar{display:none;}
+.quicknav a{
+  flex:none; text-decoration:none; font-size:0.86rem; font-weight:600; color:var(--text);
+  background:var(--surface-2); border:1px solid var(--border); padding:7px 13px; border-radius:100px; white-space:nowrap;
+}
+.quicknav a:hover{border-color:var(--orange); color:var(--navy);}
+section{padding-top:44px;}
+section:first-of-type{padding-top:36px;}
+.section-head{display:flex; align-items:baseline; gap:12px; margin-bottom:6px;}
+.section-num{font-family:'IBM Plex Mono',monospace; color:var(--orange); font-weight:600; font-size:0.95rem;}
+.section-head h2{font-size:1.4rem;}
+.section-sub{color:var(--muted); margin:6px 0 20px; max-width:60ch;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow); margin-bottom:16px;}
+.card h3{font-size:1.02rem; margin-bottom:10px;}
+ul.ref{margin:0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:10px;}
+ul.ref li{padding-left:18px; position:relative;}
+ul.ref li::before{content:"›"; position:absolute; left:0; color:var(--orange); font-weight:700;}
+.callout{border-radius:12px; padding:14px 16px; margin:16px 0; font-size:0.94rem; display:flex; gap:10px; align-items:flex-start;}
+.callout .tag{font-weight:700; flex:none;}
+.callout.tip{background:var(--surface-2); border:1px solid var(--border);}
+.callout.tip .tag{color:var(--navy);}
+.callout.watch{background:var(--warn-bg);} .callout.watch .tag{color:var(--warn);}
+.chiprow{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 4px;}
+.chip{display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; font-weight:600; padding:5px 12px; border-radius:100px; border:1px solid var(--border);}
+.chip .dot{width:8px; height:8px; border-radius:50%;}
+.chip.good{background:var(--good-bg); color:var(--good);} .chip.good .dot{background:var(--good);}
+.chip.warn{background:var(--warn-bg); color:var(--warn);} .chip.warn .dot{background:var(--warn);}
+.chip.bad{background:var(--bad-bg); color:var(--bad);} .chip.bad .dot{background:var(--bad);}
+.tabpills{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 24px;}
+.tabpill{font-family:'IBM Plex Mono',monospace; font-size:0.8rem; font-weight:500; padding:7px 14px; border-radius:9px; border:1px solid var(--border); color:var(--muted); background:var(--surface);}
+.tabpill.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+.stepper{display:flex; flex-direction:column; gap:0; margin:6px 0 8px;}
+.stepnode{display:flex; gap:16px;}
+.stepnode .rail{display:flex; flex-direction:column; align-items:center; flex:none;}
+.stepnode .num{
+  width:34px; height:34px; border-radius:50%; background:var(--navy); color:#fff;
+  font-family:'IBM Plex Mono',monospace; font-weight:600; display:flex; align-items:center; justify-content:center;
+  flex:none; z-index:1;
+}
+.stepnode .line{width:2px; flex:1; background:var(--border); margin:2px 0;}
+.stepnode:last-child .line{display:none;}
+.stepbody{padding-bottom:26px; flex:1;}
+.stepbody h3{font-size:1.05rem; margin-bottom:4px; display:flex; align-items:center; gap:8px;}
+.stepbody .req{
+  font-family:'IBM Plex Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em;
+  padding:2px 8px; border-radius:100px; font-weight:600;
+}
+.req.required{background:var(--bad-bg); color:var(--bad);}
+.req.optional{background:var(--surface-2); color:var(--muted); border:1px solid var(--border);}
+.stepbody p{margin:6px 0 0; color:var(--text);}
+.stepbody .muted{color:var(--muted); font-size:0.92rem;}
+.tablewrap{overflow-x:auto; border-radius:14px; border:1px solid var(--border); box-shadow:var(--shadow);}
+table{width:100%; border-collapse:collapse; background:var(--surface); font-size:0.92rem; min-width:520px;}
+th,td{text-align:left; padding:12px 16px; border-bottom:1px solid var(--border); vertical-align:top;}
+th{background:var(--surface-2); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted);}
+tr:last-child td{border-bottom:none;}
+td b{color:var(--navy);}
+details{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-bottom:10px;}
+details summary{font-weight:700; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;}
+details summary::-webkit-details-marker{display:none;}
+details summary::after{content:"+"; font-size:1.3rem; color:var(--orange); font-weight:400;}
+details[open] summary::after{content:"–";}
+details p{margin:10px 0 0; color:var(--muted);}
+footer{border-top:1px solid var(--border); margin-top:50px; padding-top:24px; color:var(--muted); font-size:0.88rem; text-align:center;}
+.divider{height:1px; background:var(--border); margin:44px 0 0;}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+</style>
+<style>
+/* day-box swatches, matching shared/days-worked.js */
+.sw{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:30px;height:34px;border-radius:5px;font-size:0.62rem;line-height:1.05;font-weight:700;flex:none;border:1.5px solid transparent;vertical-align:middle}
+.sw b{font-size:0.78rem}
+.sw.worked{background:#3B6D11;color:#fff}
+.sw.weekend{background:#BA7517;color:#fff}
+.sw.assumed{border:1.5px dashed #3B6D11;color:#3B6D11}
+.sw.today{border:1.5px solid #3B6D11;color:#3B6D11}
+.sw.missed{background:#fdecec;color:#C8202F}
+.sw.leave{background:#7c3aed;color:#fff}
+.sw.lpend{border:1.5px dashed #7c3aed;color:#7c3aed}
+.sw.hol{background:#cbd5e1;color:#334155}
+.sw.claim{position:relative;background:#3B6D11;color:#fff}
+.sw.claim::after{content:"";position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#2A3F7A;box-shadow:0 0 0 1px #fff}
+td.swcell{width:46px}
+.backapp{display:inline-block;margin:0 0 16px 14px;color:#c3c9e6;font-size:0.9rem;text-decoration:none}
+.backapp:hover{color:#fff}
+.example{display:flex;gap:3px;margin:10px 0 4px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="inner">
+    <a class="back" href="/training/">← All guides</a><a class="backapp" href="/merch.html">← Back to the app</a><br>
+    <span class="eyebrow">Team Leader Guide</span>
+    <h1>Days Worked &amp; Payroll</h1>
+    <p>See which days your team worked, and submit relief days and extra days for pay every Wednesday.</p>
+  </div>
+</div>
+
+<nav class="quicknav">
+  <div class="row">
+    <a href="#what">What it is</a>
+    <a href="#open">Opening it</a>
+    <a href="#read">Reading the screen</a>
+    <a href="#rules">The rules</a>
+    <a href="#submit">Submitting</a>
+    <a href="#after">After you submit</a>
+    <a href="#faq">Questions</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<section id="what">
+  <div class="section-head"><span class="section-num">00</span><h2>What it is</h2></div>
+  <p class="section-sub">Days Worked &amp; Payroll shows which days each person on your team worked, and is where you submit relief days and extra days for pay every <b>Wednesday</b>.</p>
+  <div class="card">
+    <ul class="ref">
+      <li><b>Who you see:</b> your own team, plus any temporary relief worker who covered one of your stores. Nobody from other teams.</li>
+      <li><b>A day worked</b> = the person logged at least one store visit that day. No visit logged means no day worked, so make sure your team logs every visit.</li>
+      <li><b>History:</b> this pay fortnight and the two before it (about one month).</li>
+      <li><b>Where the pay goes:</b> your submission goes straight into the Relief Coverage log. Admin pays it from there in the next pay run. You do not fill in Relief Coverage yourself.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="open">
+  <div class="section-head"><span class="section-num">01</span><h2>Opening it</h2></div>
+  <div class="stepper">
+    <div class="stepnode"><div class="rail"><div class="num">1</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Sign in</h3><p>Sign in at <code>dflhq.com</code> on your phone as usual. Your Team Leader screen opens.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">2</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Tap 🗓️ Days Worked &amp; Payroll</h3><p>It's the amber button on your Team Leader screen.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">3</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Start on This fortnight</h3><p>Tap <b>↻ Refresh</b> at the top to load the latest visits; tap <b>×</b> to close.</p></div></div>
+  </div>
+  <div class="callout tip"><span class="tag">Note</span><span>TL + Brand Ambassadors land on the same Team Leader screen, so it works the same for you.</span></div>
+</section>
+
+<section id="read">
+  <div class="section-head"><span class="section-num">02</span><h2>Reading the screen</h2></div>
+  <p class="section-sub">Each person has a card with one box per day of the fortnight: Monday to Sunday, twice.</p>
+  <div class="card">
+    <ul class="ref">
+      <li><b>Fortnight buttons</b> at the top switch between this fortnight and the two before it.</li>
+      <li><b>Totals:</b> how many Brand Ambassadors, extra days so far, and temporary relief days.</li>
+      <li><b>Card numbers:</b> "8/10 worked" means 8 days worked out of 10 owed. An amber <b>+1 extra</b> badge means they are over. Red text such as "2 weekdays not logged" means weekdays with no visit.</li>
+      <li><b>Sections:</b> Brand Ambassadors, then Permanent relief, then Temporary relief.</li>
+    </ul>
+  </div>
+  <div class="tablewrap"><table style="min-width:0">
+    <tr><th>Box</th><th>Meaning</th></tr>
+    <tr><td class="swcell"><span class="sw worked"><span>M</span><b>2</b></span></td><td><b>Worked</b> — a visit was logged</td></tr>
+    <tr><td class="swcell"><span class="sw weekend"><span>S</span><b>7</b></span></td><td><b>Weekend or public holiday worked</b></td></tr>
+    <tr><td class="swcell"><span class="sw assumed"><span>F</span><b>13</b></span></td><td><b>Not reached yet</b> — assumed worked</td></tr>
+    <tr><td class="swcell"><span class="sw today"><span>W</span><b>11</b></span></td><td><b>Today</b>, not logged yet</td></tr>
+    <tr><td class="swcell"><span class="sw missed"><span>T</span><b>3</b></span></td><td><b>Weekday with no visit logged</b></td></tr>
+    <tr><td class="swcell"><span class="sw leave"><span>M</span><b>2</b></span></td><td><b>Approved leave</b></td></tr>
+    <tr><td class="swcell"><span class="sw lpend"><span>T</span><b>12</b></span></td><td><b>Leave requested</b>, not approved yet</td></tr>
+    <tr><td class="swcell"><span class="sw hol"><span>M</span><b>19</b></span></td><td><b>Public holiday</b></td></tr>
+    <tr><td class="swcell"><span class="sw claim"><span>S</span><b>7</b></span></td><td><b>Blue dot</b> — already submitted for pay</td></tr>
+  </table></div>
+  <div class="callout tip"><span class="tag">Tip</span><span>On a computer, hover over a box to see the date and what happened that day.</span></div>
+</section>
+
+<section id="rules">
+  <div class="section-head"><span class="section-num">03</span><h2>The rules</h2></div>
+  <p class="section-sub">Everyone except temporary relief is owed <b>10 paid weekdays per fortnight</b>; only days over that are extra.</p>
+  <div class="card">
+    <ul class="ref">
+      <li><b>Pay fortnights</b> run Monday to Sunday, two weeks at a time, starting Monday 2 November 2026 (2–15 Nov, 16–29 Nov, 30 Nov–13 Dec, and so on).</li>
+      <li><b>Holidays and leave count toward the 10.</b> A public holiday or a day of approved leave reduces the days owed. A fortnight with Heroes Day owes 9 days.</li>
+      <li><b>Swaps are not extra.</b> Taking Wednesday off and working Saturday is still 10 days, so nothing extra is due.</li>
+      <li><b>Working a public holiday is extra.</b></li>
+      <li><b>The rest of the week is assumed worked.</b> You submit on Wednesday, so today and the remaining weekdays count as worked (dashed boxes).</li>
+    </ul>
+  </div>
+  <div class="tablewrap"><table>
+    <tr><th>Type</th><th>How they are paid</th><th>What you submit</th></tr>
+    <tr><td><b>Brand Ambassador</b> (full-time)</td><td>Regular pay for 10 days a fortnight</td><td>Extra days only</td></tr>
+    <tr><td><b>Permanent relief</b></td><td>Regular pay like a Brand Ambassador, plus the relief-visit incentive</td><td>Extra days only</td></tr>
+    <tr><td><b>Temporary relief</b></td><td>Day rate for every day worked</td><td>Every day they worked, each week</td></tr>
+  </table></div>
+</section>
+
+<section id="submit">
+  <div class="section-head"><span class="section-num">04</span><h2>Submitting every Wednesday</h2></div>
+  <p class="section-sub">Use the <b>Submit relief &amp; extra days</b> box at the top of the screen.</p>
+  <div class="stepper">
+    <div class="stepnode"><div class="rail"><div class="num">1</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Check the week</h3><p>The dropdown should say <b>This week</b>. Pick <b>Last week</b> only if you missed a Wednesday.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">2</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Check who is listed</h3><p>The app fills in a line for everyone with days to pay:</p>
+        <ul class="ref" style="margin-top:8px"><li><b>Temporary relief:</b> the days they logged this week are already ticked.</li><li><b>Brand Ambassadors and permanent relief:</b> only people over their 10 days, with their extra days ticked (weekend and holiday days first).</li></ul></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">3</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Tick the right days</h3><p>Tap a day to add or remove it. You can tick Thursday or Friday ahead of time. A small green dot under a day means a visit was logged. Greyed-out, crossed-out days are already in Relief Coverage and can't be added again.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">4</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Choose a reason <span class="req required">Relief</span></h3><p>Vacation Leave, Sick Leave, Emergency Leave, Backfill for resignation, Training, Absent or Other. Extra-day lines always say "Extra day worked".</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">5</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Covering for <span class="req optional">Optional</span></h3><p>For temporary relief, type who was off.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">6</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Check the rate per day</h3><p>It's filled in from their usual rate. Change it only if this week is different.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">7</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Remove or add people</h3><p>Remove anyone who shouldn't be paid with the <b>×</b> on their line. Add someone missing with <b>+ Add someone…</b>.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">8</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Add a note <span class="req optional">Optional</span></h3><p>Use <b>Note for payroll</b> if something needs explaining.</p></div></div>
+    <div class="stepnode"><div class="rail"><div class="num">9</div><div class="line"></div></div>
+      <div class="stepbody"><h3>Check the total and submit</h3><p>Check the days and J$ total at the bottom, tap <b>Submit</b>, then confirm.</p></div></div>
+  </div>
+  <div class="callout watch"><span class="tag">Watch</span><span>The app won't let you submit a relief line without a reason, or any line without a rate.</span></div>
+</section>
+
+<section id="after">
+  <div class="section-head"><span class="section-num">05</span><h2>After you submit</h2></div>
+  <p class="section-sub">A green message confirms how many days went to Relief Coverage, and those days get a blue dot on each person's card.</p>
+  <div class="card">
+    <ul class="ref">
+      <li><b>Relief Coverage:</b> each ticked day is now an entry in the Relief Coverage log, with you as supervisor, waiting for the pay run. Admin creates the pay run; you do nothing more.</li>
+      <li><b>Your recent submissions</b> (bottom of the screen) lists each week you sent: who, which dates, the reason and the J$ amount.</li>
+      <li><b>Skipped days:</b> if a day was already in Relief Coverage (for example logged by hand), the message says it was skipped. It is never paid twice.</li>
+      <li><b>Made a mistake?</b> Change the days, reasons or rates and tap <b>Resubmit</b>. This replaces that week's submission, as long as admin hasn't paid it yet.</li>
+      <li><b>Already paid?</b> Paid days can't be changed here. Tell admin.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="section-head"><span class="section-num">06</span><h2>Common questions</h2></div>
+  <details><summary>Someone worked but shows a red day</summary><p>They didn't log a visit that day. Ask them to log visits every day; a day with no visit doesn't count.</p></details>
+  <details><summary>A relief worker who covered my stores is missing</summary><p>They appear once they log a visit at one of your stores. If not, use <b>+ Add someone…</b> or tell admin.</p></details>
+  <details><summary>Someone on my team is missing</summary><p>They aren't set up under you as team leader. Tell admin.</p></details>
+  <details><summary>I missed Wednesday</summary><p>Submit anyway: pick <b>Last week</b> in the week dropdown.</p></details>
+  <details><summary>Someone takes a day off after I submit</summary><p>Change their days and tap <b>Resubmit</b> before the pay run.</p></details>
+  <details><summary>A day is greyed out and crossed out</summary><p>It's already in Relief Coverage (submitted before, or logged by hand).</p></details>
+  <details><summary>The extra days look wrong</summary><p>Check the card for unlogged days, holidays and approved leave. You can change the ticked days before submitting.</p></details>
+  <details><summary>Admin opened my app and saw a greyed-out Submit</summary><p>Admin can view your screen but can't submit for you. Only you can.</p></details>
+  <details><summary>Something else is wrong</summary><p>Tell your manager or admin.</p></details>
+</section>
+
+<footer>DFL Importers &amp; Distributors · Team Leader Guide · Updated November 2026</footer>
+</div>
+</body>
+</html>
