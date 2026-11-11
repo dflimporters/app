@@ -192,7 +192,7 @@ tr.picked td{background:var(--accent-soft)}
   <section class="tab" id="sec-team" hidden>
     <div class="bar">
       <label class="f grow">Search<input id="team-q" type="search" placeholder="Name or phone"></label>
-      <label class="f">Show<select id="team-show"><option value="active">Active</option><option value="all">All</option></select></label>
+      <label class="f">Show<select id="team-show"><option value="active">Active</option><option value="relief">Relief only</option><option value="full">Full-time BAs</option><option value="all">All</option></select></label>
       <button class="btn primary" id="team-add">+ Add relief merchandiser</button>
     </div>
     <div class="tbl"><table>
@@ -215,7 +215,7 @@ tr.picked td{background:var(--accent-soft)}
 /* ---------- config ---------- */
 const LOG_ROLES=["admin","management","manager","team_leader","tl_merch"]; // must match relief_can_log() in the database
 const REGIONS=["North East","North West","South Central","South East","South West"];
-const TYPES=["Relief Assigned","Route Split","Internal Coverage","Delayed Visit","No Coverage"];
+const TYPES=["Relief Assigned","Extra Day","Route Split","Internal Coverage","Delayed Visit","No Coverage"]; // "Extra Day" = a Brand Ambassador's extra day, sent from the TL's Days Worked submission
 const STATUSES=["Covered","Partial","Not Covered"];
 const REASONS=["Vacation Leave","Sick Leave","Emergency Leave","Backfill for resignation","Training","Absent","Other"];
 const PAYSTAT=["Pending","Approved","Paid"];
@@ -247,14 +247,18 @@ function pillStatus(s){const c={"Covered":"p-ok","Partial":"p-warn","Not Covered
 function notice(t){const n=$("notice");n.hidden=!t;n.textContent=t||""}
 function rosterByKey(n){return S.roster.find(r=>key(r.name)===key(n))}
 function rateFor(n){const r=rosterByKey(n);return r&&r.rate?Number(r.rate):4000}
+// A day logged from a TL submission carries its own rate per day (daily_rate); hand-logged days use the roster rate.
+// Same rule as relief_create_pay_run in the database: row rate, else roster rate, else 4000.
+const rowRate=r=>r.rate!=null?r.rate:rateFor(r.relief);
+const avgRate=rs=>{const d=rs.reduce((a,r)=>a+(r.days||0),0);return d?rs.reduce((a,r)=>a+(r.days||0)*rowRate(r),0)/d:(rs[0]?rowRate(rs[0]):4000)};
 function errText(e){const m=(e&&e.message)||"";if(/row-level security|permission|42501|Only admins/i.test(m))return"You don't have permission to make that change.";
   if(/relief_roster_name_key|duplicate key/i.test(m))return"That name is already on the relief team.";if(/Failed to fetch|NetworkError/i.test(m))return"Couldn't reach the server. Check your connection and try again.";return m||"Couldn't save. Try again."}
 async function must(p){const r=await p;if(r.error)throw r.error;return r.data}
 
 /* ---------- row mapping ---------- */
-const mapCov=r=>({_id:r.id,date:r.date,region:r.region,stores:r.stores,absent:r.absent,reason:r.reason,type:r.coverage_type,relief:r.relief_name,contact:r.contact,supervisor:r.supervisor,status:r.status,days:Number(r.days),payable:r.payable,notes:r.notes,paymentId:r.payment_id,imported:r.imported,period:r.period_id});
+const mapCov=r=>({_id:r.id,date:r.date,region:r.region,stores:r.stores,absent:r.absent,reason:r.reason,type:r.coverage_type,relief:r.relief_name,contact:r.contact,supervisor:r.supervisor,status:r.status,days:Number(r.days),payable:r.payable,notes:r.notes,paymentId:r.payment_id,imported:r.imported,period:r.period_id,rate:r.daily_rate!=null?Number(r.daily_rate):null});
 const mapPay=r=>({_id:r.id,payDate:r.pay_date,relief:r.relief_name,rosterId:r.roster_id,days:Number(r.days),rate:Number(r.rate),datesCovered:r.dates_covered,covering:r.covering,reason:r.reason,stores:r.stores,approvedBy:r.approved_by,verified:r.verified,status:r.status,notes:r.notes,source:r.source});
-const mapRos=r=>({_id:r.id,name:r.name,phone:r.phone,region:r.region,rate:Number(r.daily_rate),active:r.active});
+const mapRos=r=>({_id:r.id,name:r.name,phone:r.phone,region:r.region,rate:Number(r.daily_rate),active:r.active,fullTime:r.staff_type==="full_time"}); // full_time = a Brand Ambassador, on the roster so their extra days can be paid here
 async function selectAll(table,order){let out=[],from=0;const size=1000;
   for(;;){const {data,error}=await sb.from(table).select("*").order(order,{ascending:false}).order("id").range(from,from+size-1);if(error)throw error;out=out.concat(data);if(data.length<size)break;from+=size}
   return out}
@@ -361,7 +365,7 @@ function renderCov(){
     const statuses=distinct(p,"status").map(pillStatus).join(" ");
     const span=p.from===p.to?fmtDate(p.from):fmtDate(p.from)+" – "+fmtDate(p.to);
     const can=payableRows(p).length>0,on=S.sel.has(p._id);
-    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td>${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td>${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td>${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(rateFor(s.relief),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
+    return `<tr class="${on?"picked":""}"><td class="sel-col" ${S.isAdmin?"":"hidden"}>${can?`<input type="checkbox" data-sel="${p._id}" ${on?"checked":""} aria-label="Select for pay run">`:""}</td><td class="nowrap"><b>${span}</b>${p.rows.length>1?`<div class="tiny muted">${esc(compressDates(p.dates))}</div>`:""}</td><td>${multi(p,"region",", ")}</td><td class="wrap">${multi(p,"stores","; ")}</td><td>${multi(p,"absent",", ")}</td><td>${multi(p,"reason",", ")}</td><td>${multi(p,"type",", ")}</td><td class="nowrap">${multi(p,"relief",", ")}${s.contact?`<div class="tiny muted mono">${esc(s.contact)}</div>`:""}${S.isAdmin&&p.payCount&&s.relief?bankTag(s.relief):""}</td><td>${statuses}</td><td class="num">${fmtNum(p.totalDays)}</td><td class="nowrap">${pay}${p.payCount&&s.relief?payCalc(avgRate(p.rows.filter(r=>r.payable)),p.paidDays):""}</td><td class="wrap tiny">${multi(p,"notes"," / ")}${distinct(p,"supervisor").length?`<div class="muted">Supervisor: ${multi(p,"supervisor",", ")}</div>`:""}</td>
     <td>${canEditCov(p)?`<button class="btn sm" data-edit-cov="${p._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
@@ -398,11 +402,11 @@ function renderPay(){
 function renderTeam(){
   const q=key($("team-q").value),show=$("team-show").value;
   const stats={};for(const p of S.pay){const k=key(p.relief);const s=stats[k]||(stats[k]={days:0,total:0,last:""});s.days+=p.days;s.total+=p.days*p.rate;if(p.payDate>s.last)s.last=p.payDate}
-  const list=S.roster.filter(r=>(show==="all"||r.active!==false)&&(!q||key(r.name+" "+r.phone).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
+  const list=S.roster.filter(r=>(show==="all"||r.active!==false)&&(show!=="relief"||!r.fullTime)&&(show!=="full"||r.fullTime)&&(!q||key(r.name+" "+r.phone).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
   const body=$("team-body");
   if(!list.length){body.innerHTML=`<tr><td colspan="9" class="empty">No relief merchandisers match.${S.isAdmin?" Use <b>+ Add relief merchandiser</b> to set up their phone, rate and banking details.":""}</td></tr>`;return}
   body.innerHTML=list.map(r=>{const s=stats[key(r.name)]||{days:0,total:0,last:""};
-    return `<tr><td class="nowrap"><b>${esc(r.name)}</b>${r.active===false?` <span class="pill p-mute">Inactive</span>`:""}</td><td class="mono nowrap">${esc(r.phone||"—")}</td><td class="nowrap">${esc(r.region||"—")}</td><td class="num">${money(r.rate)}</td><td class="num">${fmtNum(s.days)}</td><td class="num">${money(s.total)}</td><td class="nowrap">${s.last?fmtLong(s.last):"—"}</td>
+    return `<tr><td class="nowrap"><b>${esc(r.name)}</b>${r.fullTime?` <span class="pill p-info" title="Full-time Brand Ambassador — extra days are paid through these pay runs">Full-time BA</span>`:""}${r.active===false?` <span class="pill p-mute">Inactive</span>`:""}</td><td class="mono nowrap">${esc(r.phone||"—")}</td><td class="nowrap">${esc(r.region||"—")}</td><td class="num">${money(r.rate)}</td><td class="num">${fmtNum(s.days)}</td><td class="num">${money(s.total)}</td><td class="nowrap">${s.last?fmtLong(s.last):"—"}</td>
     ${S.isAdmin?`<td><div class="bank">${esc(S.bank[r._id]||"—")}</div></td>`:""}<td>${S.isAdmin?`<button class="btn sm" data-edit-team="${r._id}">Edit</button>`:""}</td></tr>`}).join("");
 }
 
@@ -456,7 +460,7 @@ function covForm(p){
     const pick=datePicker($("dp"),p?p.dates:[],p?p.locked:[],n=>{$("c-save").textContent=n?`Save ${n} day${n>1?"s":""}`:"Save"});
     $("c-cancel").onclick=closeModal;
     $("c-relief").addEventListener("change",()=>{const x=rosterByKey($("c-relief").value);if(x&&x.phone&&!$("c-contact").value)$("c-contact").value=x.phone});
-    $("c-type").addEventListener("change",()=>{if($("c-type").value!==KEEP){$("c-pay").indeterminate=false;$("c-pay").checked=$("c-type").value==="Relief Assigned"}});
+    $("c-type").addEventListener("change",()=>{if($("c-type").value!==KEEP){$("c-pay").indeterminate=false;$("c-pay").checked=["Relief Assigned","Extra Day"].includes($("c-type").value)}});
     if($("c-del"))$("c-del").onclick=async()=>{if(!confirmBtn($("c-del"),`Tap again to delete ${p.rows.length} day${p.rows.length>1?"s":""}`))return;
       try{await must(sb.from("relief_coverage").delete().eq("period_id",p._id));closeModal();toast("Coverage period deleted");loadAll()}catch(err){$("c-msg").textContent=errText(err)}};
     function read([id,k,col,kind]){const el=$(id);
@@ -541,8 +545,8 @@ function buildPreview(){const a=$("run-from").value,b=$("run-to").value;
   return groupRun(S.cov.filter(r=>payableRow(r)&&r.date>=a&&r.date<=b))}
 function groupRun(rows){const groups={};
   for(const r of rows){const k=key(r.relief);(groups[k]||(groups[k]={relief:r.relief,items:[]})).items.push(r)}
-  return Object.values(groups).map(g=>{const days=g.items.reduce((s,x)=>s+(x.days||0),0),rate=rateFor(g.relief),ro=rosterByKey(g.relief);
-    return{relief:ro?ro.name:g.relief,days,rate,total:days*rate,datesCovered:compressDates(g.items.map(x=>x.date)),covering:[...new Set(g.items.map(x=>x.absent).filter(Boolean))].join(", "),known:!!ro}}).sort((x,y)=>x.relief.localeCompare(y.relief))}
+  return Object.values(groups).map(g=>{const days=g.items.reduce((s,x)=>s+(x.days||0),0),rate=Math.round(avgRate(g.items)*100)/100,ro=rosterByKey(g.relief);
+    return{relief:ro?ro.name:g.relief,days,rate,total:days*rate,datesCovered:compressDates(g.items.map(x=>x.date)),covering:[...new Set(g.items.map(x=>x.absent).filter(Boolean))].join(", "),known:!!ro||g.items.every(x=>x.type==="Extra Day")}}).sort((x,y)=>x.relief.localeCompare(y.relief))}
 $("run-preview").onclick=()=>{const run=buildPreview();const out=$("run-out");
   if(!run.length){out.innerHTML=`<p class="hint">No unpaid relief days between ${fmtLong($("run-from").value)} and ${fmtLong($("run-to").value)}.</p>`;return}
   const tot=run.reduce((a,x)=>a+x.total,0);

@@ -1137,6 +1137,12 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr">›</div>
     </button>
 
+    <button class="dash-link" onclick="openDaysWorked()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px;border-color:var(--amber);background:#FFFBEB">
+      <div class="dash-link-ico">🗓️</div>
+      <div><div class="dash-link-title" style="color:var(--amber)">Days Worked &amp; Payroll</div><div class="dash-link-sub">Who worked which days, extra days and relief days — submit every Wednesday</div></div>
+      <div class="dash-link-arr" style="color:var(--amber)">›</div>
+    </button>
+
     <button class="dash-link" onclick="openAreaLeave()" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
       <div class="dash-link-ico">🌴</div>
       <div><div class="dash-link-title">Area Leave</div><div class="dash-link-sub">Every vacation requested in your area, with clashes flagged</div></div>
@@ -1334,6 +1340,7 @@ body.dfl-readonly .readonly-note{display:block}
 <script src="/shared/hub-button.js"></script>
 <script src="/shared/user-menu.js"></script>
 <script src="/shared/stock-prices.js"></script>
+<script src="/shared/days-worked.js"></script>
 <script src="/shared/order-builder.js"></script>
 <script>
 // ============================================================
@@ -3491,6 +3498,27 @@ function openStockModal(){
   plStock().load(false);
 }
 function closeStockModal(){ document.getElementById('pl-modal').style.display='none'; }
+
+// ══════════════════════════════════════════════
+// DAYS WORKED & PAYROLL — TL view of their team's days worked per pay fortnight
+// (extra days, relief days) and the Wednesday payroll submission. The view is
+// /shared/days-worked.js (also the Days Worked tab on the management merch
+// dashboard); data via get_days_worked() / submit_tl_payroll(), scoped server-side.
+// ══════════════════════════════════════════════
+let _daysWorked=null;
+function daysWorked(){
+  if(!_daysWorked) _daysWorked=DFL_DAYS.mount(document.getElementById('dw-body'),{
+    call:(fn,args)=>restRpc(fn,args), mode:'tl',
+    readOnly:()=>document.body.classList.contains('dfl-readonly'),
+    theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',warn:'var(--amber)',bad:'var(--red)',accent:'var(--navy2)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
+  });
+  return _daysWorked;
+}
+function openDaysWorked(){
+  document.getElementById('dw-modal').style.display='flex';
+  daysWorked().load(false);
+}
+function closeDaysWorked(){ document.getElementById('dw-modal').style.display='none'; }
 
 // ══════════════════════════════════════════════
 // AREA LEAVE — every vacation requested/submitted in the viewer's own area,
@@ -7103,6 +7131,18 @@ window.addEventListener('offline', updateLiveDot);
     </div>
   </div>
   <div id="pl-body" style="flex:1;min-height:0;padding:10px 16px 0"></div>
+</div>
+
+<!-- DAYS WORKED & PAYROLL — TL: team days per fortnight + Wednesday submission. -->
+<div id="dw-modal" style="display:none;position:fixed;inset:0;z-index:99991;background:var(--bg);flex-direction:column">
+  <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:15px;font-weight:800">🗓️ Days Worked &amp; Payroll</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="daysWorked().load(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">↻ Refresh</button>
+      <button onclick="closeDaysWorked()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
+    </div>
+  </div>
+  <div style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch"><div id="dw-body" style="padding:12px 16px 40px;max-width:760px;margin:0 auto"></div></div>
 </div>
 
 <!-- AREA LEAVE — every vacation requested in the viewer's own area (read-only). -->
