@@ -1617,6 +1617,11 @@ function isFullTimeRelief(){
 }
 // Temporary / on-call relief: a relief login that is not the one full-time relief
 // merchandiser. These logins don't see Request Leave, Events & Training or Stock & Prices.
+// Same rule for a roster row (attendance headcounts): temporary relief only work
+// when covering, so they are not expected daily; the permanent relief (Dwayne) is.
+function isTempReliefRow(m){
+  return !!m && m.role==='relief_merchandiser' && m.id!==FULL_TIME_RELIEF_REP_ID;
+}
 function isTempRelief(){
   return isRelief() && !isFullTimeRelief();
 }
@@ -2836,7 +2841,7 @@ async function loadTLData(u){
     // Relief Brand Ambassadors (temp cover) only work when covering someone, so
     // they aren't expected in every day — left out of the headcount, same rule
     // as the admin overview's renderAttendanceStats().
-    const reliefNames=new Set((myMerch||[]).filter(m=>m.role==='relief_merchandiser').map(m=>m.name));
+    const reliefNames=new Set((myMerch||[]).filter(isTempReliefRow).map(m=>m.name));
     const attNames=myNames.filter(n=>!reliefNames.has(n));
     const presentNames=attNames.filter(n=>todayOwnByName[n]);
     const missingNames=attNames.filter(n=>!todayOwnByName[n]);
@@ -4836,7 +4841,7 @@ function renderTeamLeadOverview(){
   }
   list.innerHTML=teamLeadRows.map(r=>{
     const ini=r.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const teamMembers=overviewRows.filter(m=>m.team_lead_id===r.id && m.role!=='relief_merchandiser');
+    const teamMembers=overviewRows.filter(m=>m.team_lead_id===r.id && !isTempReliefRow(m));
     const present=teamMembers.filter(m=>latestVisitByName[m.name]).length;
     const attCls=!teamMembers.length?'b-pend':present===teamMembers.length?'b-ok':present===0?'b-issue':'b-pend';
     const attBadge=teamMembers.length
@@ -4859,7 +4864,7 @@ function renderTeamLeadOverview(){
 function renderAttendanceStats(){
   // Relief merchandisers only work when covering someone, so they aren't
   // expected to log a visit every day — leave them out of the headcount.
-  const expected=overviewRows.filter(r=>r.role!=='relief_merchandiser');
+  const expected=overviewRows.filter(r=>!isTempReliefRow(r));
   const total=expected.length;
   const present=expected.filter(r=>latestVisitByName[r.name]).length;
   const pct=total?Math.round(present/total*100):0;
