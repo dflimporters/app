@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFL Training Course</title>
+<style>body { visibility: hidden; }</style>
+<!--
+  DFL Training Course — the merch app / TL app workbook as a course people
+  complete and mark off, plus the completion log.
+    • Content: /training/course-data.js (tracks → modules → lessons + knowledge checks)
+    • Completions: training_completions via training_mark_complete() /
+      training_my_progress() / training_log()  (_staging/sql/2026-11-11_training_course.sql)
+    • Tabs: "My course" (merchandiser, relief → BA track; team_leader, tl_merch → TL track)
+            "Team progress" (TLs: their team; admin/manager: everyone + CSV). ?view=log opens it.
+    • Embedded as the Training tab of management/merch-dashboard.html; the guard
+      no-ops when framed, so this page loads its own profile in that case.
+-->
+<style>
+:root{
+  --navy:#1B2B5E; --navy2:#2A3F7A; --bg:#F2F4F8; --card:#fff; --border:#E2E5ED;
+  --text:#1A1A2E; --muted:#6B7280; --green:#3B6D11; --green-lt:#EAF3DE; --amber:#BA7517; --amber-lt:#FAEEDA;
+  --red:#C8202F; --red-lt:#FCEBEB; --blue:#2563eb; --blue-lt:#eff6ff;
+  --shadow:0 1px 4px rgba(0,0,0,.08); --rad:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5}
+.hdr{background:linear-gradient(155deg,var(--navy),var(--navy2));color:#fff;padding:14px 16px 18px}
+.hdr .in{max-width:820px;margin:0 auto}
+.hdr a.back{color:#c3c9e6;text-decoration:none;font-size:13px}
+.hdr h1{margin:8px 0 2px;font-size:22px}
+.hdr p{margin:0;color:#c3c9e6;font-size:14px}
+.tabs{max-width:820px;margin:12px auto 0;display:flex;gap:6px;padding:0 16px}
+.tab{border:1.5px solid var(--border);background:var(--card);border-radius:18px;padding:7px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)}
+.tab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+main{max-width:820px;margin:0 auto;padding:12px 16px 60px}
+.card{background:var(--card);border-radius:var(--rad);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
+.prog{height:10px;border-radius:6px;background:var(--border);overflow:hidden;margin:8px 0 4px}
+.prog i{display:block;height:100%;background:var(--green)}
+.muted{color:var(--muted);font-size:13px}
+.row{display:flex;align-items:center;gap:12px}
+.mod{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card);border-radius:var(--rad);box-shadow:var(--shadow);margin-bottom:8px;cursor:pointer;border:1.5px solid transparent;width:100%;text-align:left;font:inherit;color:inherit}
+.mod:hover{border-color:var(--navy2)}
+.mod .ico{font-size:24px;width:34px;text-align:center;flex:none}
+.mod .t{flex:1;min-width:0}
+.mod .t b{display:block}
+.badge{display:inline-block;border-radius:10px;padding:3px 9px;font-size:12px;font-weight:800;white-space:nowrap}
+.b-done{background:var(--green-lt);color:var(--green)}
+.b-todo{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.b-prog{background:var(--amber-lt);color:var(--amber)}
+.btn{border:none;border-radius:9px;padding:11px 16px;font:inherit;font-weight:800;cursor:pointer;background:var(--navy);color:#fff}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--border)}
+.btn.green{background:var(--green)}
+.lesson h2{font-size:20px;margin:0 0 4px}
+.lesson h3{font-size:16px;margin:18px 0 6px;color:var(--navy)}
+.lesson ul,.lesson ol{padding-left:22px;margin:6px 0}
+.lesson li{margin:4px 0}
+.lesson table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+.lesson th,.lesson td{border:1px solid var(--border);padding:7px 8px;text-align:left;vertical-align:top}
+.lesson th{background:var(--bg);font-size:12px;text-transform:uppercase;color:var(--muted)}
+.tip{background:var(--blue-lt);border-radius:9px;padding:9px 11px;font-size:14px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.dot.g{background:var(--green)}.dot.a{background:var(--amber)}.dot.r{background:var(--red)}
+.quiz h3{margin-top:0}
+.q{border-top:1px solid var(--border);padding:12px 0}
+.q:first-of-type{border-top:none}
+.q p{margin:0 0 8px;font-weight:700}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1.5px solid var(--border);border-radius:9px;margin-bottom:6px;cursor:pointer}
+.opt input{margin-top:3px}
+.opt.right{border-color:var(--green);background:var(--green-lt)}
+.opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.msg{border-radius:9px;padding:10px 12px;font-size:14px;margin:10px 0}
+.msg.ok{background:var(--green-lt);color:var(--green)}
+.msg.bad{background:var(--red-lt);color:var(--red)}
+.msg.info{background:var(--blue-lt);color:#1e3a8a}
+.done-banner{background:var(--green-lt);color:var(--green);border-radius:var(--rad);padding:14px 16px;font-weight:800;margin-bottom:12px}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap}
+table.log{width:100%;border-collapse:collapse;font-size:13px;background:var(--card)}
+table.log th,table.log td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}
+table.log th{font-size:11px;text-transform:uppercase;color:var(--muted);background:var(--bg);position:sticky;top:0}
+table.log tr.click{cursor:pointer}
+table.log tr.click:hover td{background:#f8fafc}
+.mini{height:6px;border-radius:4px;background:var(--border);overflow:hidden;width:80px;display:inline-block;vertical-align:middle;margin-right:6px}
+.mini i{display:block;height:100%;background:var(--green)}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.sel{border:1.5px solid var(--border);background:var(--card);border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border-radius:var(--rad);box-shadow:var(--shadow);padding:10px;text-align:center}
+.stat b{display:block;font-size:20px;color:var(--navy)}
+.stat span{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:700;letter-spacing:.3px}
+.scroll{overflow-x:auto;border-radius:var(--rad);box-shadow:var(--shadow)}
+.print-only{display:none}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)} .hide-sm{display:none}}
+@media print{
+  body{background:#fff;font-size:12pt}
+  .hdr,.tabs,.noprint,#app{display:none!important}
+  .print-only{display:block!important}
+  .pw h1{font-size:20pt;margin:0 0 4pt}
+  .pw .mod-p{page-break-before:always}
+  .pw .mod-p:first-of-type{page-break-before:avoid}
+  .pw h2{font-size:16pt;margin:0 0 4pt}
+  .pw h3{font-size:13pt;margin:12pt 0 4pt}
+  .pw table{width:100%;border-collapse:collapse} .pw th,.pw td{border:1px solid #999;padding:4pt 6pt;text-align:left}
+  .pw .box{display:inline-block;width:11pt;height:11pt;border:1px solid #333;margin-right:6pt;vertical-align:-2pt}
+  .pw .sign{margin-top:14pt;border-top:1px solid #333;padding-top:4pt;font-size:10pt;color:#333}
+  .pw .tip{background:none;border:1px solid #bbb}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/training/course-data.js"></script>
+</head>
+<body>
+<div class="hdr"><div class="in">
+  <a class="back" id="back" href="/merch.html">← Back to the app</a>
+  <h1 id="title">🎓 Training Course</h1>
+  <p id="sub">Loading…</p>
+</div></div>
+<div class="tabs" id="tabs"></div>
+<main id="app"><div class="card muted">Loading your course…</div></main>
+<div class="print-only pw" id="print"></div>
+
+<script>
+(function(){
+  const C = window.DFL_COURSE;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-JM', { day:'numeric', month:'short', year:'numeric' }) : '';
+  const framed = window.self !== window.top;
+  const TRACK_BY_ROLE = { merchandiser:'ba', relief_merchandiser:'ba', team_leader:'tl', tl_merch:'tl' };
+  const LOG_ROLES = ['team_leader','tl_merch','admin','manager'];
+  const $ = id => document.getElementById(id);
+
+  let profile = null, track = null, done = {}, view = 'course', current = null, answers = {}, checked = false, log = null;
+  const ui = { tl:'', status:'', q:'', open:null };
+
+  async function rpc(fn, args){ const { data, error } = await sb.rpc(fn, args || {}); if (error) throw new Error(error.message); return data; }
+
+  // ── boot ──
+  async function start(p){
+    profile = p;
+    track = TRACK_BY_ROLE[p.role] || null;
+    const canLog = LOG_ROLES.includes(p.role);
+    const q = new URLSearchParams(location.search);
+    if (q.get('track') && C.tracks[q.get('track')] && (p.role === 'admin' || p.role === 'manager')) track = q.get('track');
+    view = (q.get('view') === 'log' && canLog) || (!track && canLog) ? 'log' : 'course';
+    if (framed) $('back').style.display = 'none';
+    if (p.role === 'admin' || p.role === 'manager') $('back').href = '/hub.html';
+    renderTabs();
+    if (track) { try { (await rpc('training_my_progress')).forEach(r => { done[r.module_key] = r; }); } catch (e) { console.warn(e); } }
+    render();
+  }
+
+  function renderTabs(){
+    const canLog = LOG_ROLES.includes(profile.role);
+    const t = [];
+    if (track || profile.role === 'admin' || profile.role === 'manager') t.push(['course', 'My course']);
+    if (canLog) t.push(['log', profile.role === 'admin' || profile.role === 'manager' ? 'Training log' : 'Team progress']);
+    $('tabs').innerHTML = t.length > 1 ? t.map(([k, l]) => '<button class="tab' + (view === k ? ' on' : '') + '" data-view="' + k + '">' + l + '</button>').join('') : '';
+    $('tabs').querySelectorAll('[data-view]').forEach(b => b.onclick = () => { view = b.dataset.view; current = null; renderTabs(); render(); });
+  }
+
+  function render(){
+    window.scrollTo(0, 0);
+    if (view === 'log') return renderLog();
+    if (!track) return renderPickTrack();
+    if (current) return renderModule();
+    renderOverview();
+  }
+
+  // admin/manager previewing the course
+  function renderPickTrack(){
+    $('title').textContent = '🎓 Training Course';
+    $('sub').textContent = 'Preview a track';
+    $('app').innerHTML = Object.entries(C.tracks).map(([k, t]) =>
+      '<button class="mod" data-track="' + k + '"><span class="ico">' + (k === 'tl' ? '👥' : '🛒') + '</span><span class="t"><b>' + esc(t.title) + '</b><span class="muted">' + esc(t.who) + ' · ' + t.modules.length + ' modules</span></span><span>›</span></button>').join('');
+    $('app').querySelectorAll('[data-track]').forEach(b => b.onclick = () => { track = b.dataset.track; render(); });
+  }
+
+  // ── my course ──
+  function trackModules(){ return C.tracks[track].modules.map(k => Object.assign({ key:k }, C.modules[k])); }
+
+  function renderOverview(){
+    const T = C.tracks[track], mods = trackModules();
+    const n = mods.filter(m => done[m.key]).length, pct = Math.round(n / mods.length * 100);
+    const mins = mods.reduce((s, m) => s + (m.minutes || 0), 0);
+    $('title').textContent = '🎓 ' + T.title;
+    $('sub').textContent = T.who + ' · ' + mods.length + ' modules · about ' + mins + ' minutes';
+    let h = '';
+    if (n === mods.length) h += '<div class="done-banner">🎉 Course complete — well done' + (profile.full_name ? ', ' + esc(profile.full_name.split(' ')[0]) : '') + '! Your completion is recorded.</div>';
+    h += '<div class="card"><div class="row" style="justify-content:space-between"><b>Your progress</b><span class="muted">' + n + ' of ' + mods.length + ' complete</span></div>' +
+      '<div class="prog"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="muted">Read each module, answer the questions, then tap <b>Mark complete</b>. Your team leader and admin can see your progress.</div></div>';
+    const next = mods.find(m => !done[m.key]);
+    h += mods.map((m, i) => {
+      const d = done[m.key];
+      const b = d ? '<span class="badge b-done">✓ ' + esc(fmtDate(d.completed_at)) + '</span>' : (m === next ? '<span class="badge b-prog">Next</span>' : '<span class="badge b-todo">To do</span>');
+      return '<button class="mod" data-mod="' + m.key + '"><span class="ico">' + m.icon + '</span><span class="t"><b>' + (i + 1) + '. ' + esc(m.title) + '</b><span class="muted">' + esc(m.intro) + ' · ' + m.minutes + ' min</span></span>' + b + '</button>';
+    }).join('');
+    h += '<div class="nav noprint"><button class="btn ghost" id="printBtn">🖨️ Print workbook</button>' + (next ? '<button class="btn" data-mod="' + next.key + '">' + (n ? 'Continue' : 'Start') + ': ' + esc(next.title) + ' →</button>' : '') + '</div>';
+    $('app').innerHTML = h;
+    $('app').querySelectorAll('[data-mod]').forEach(b => b.onclick = () => openModule(b.dataset.mod));
+    $('printBtn').onclick = printWorkbook;
+  }
+
+  function openModule(key){ current = key; answers = {}; checked = false; render(); }
+
+  function renderModule(){
+    const mods = trackModules(), i = mods.findIndex(m => m.key === current), m = mods[i], d = done[m.key];
+    $('sub').textContent = 'Module ' + (i + 1) + ' of ' + mods.length + ' · about ' + m.minutes + ' minutes';
+    let h = '<div class="nav noprint" style="margin:0 0 10px"><button class="btn ghost" id="toList">← All modules</button></div>';
+    h += '<div class="card lesson"><h2>' + m.icon + ' ' + esc(m.title) + '</h2><div class="muted">' + esc(m.intro) + '</div>' +
+      m.sections.map(s => '<h3>' + esc(s.h) + '</h3>' + s.html).join('') + '</div>';
+    // knowledge check
+    h += '<div class="card quiz"><h3>✏️ Check your knowledge</h3><div class="muted" style="margin-bottom:6px">Answer all ' + m.quiz.length + ' questions correctly to mark this module complete.</div>' +
+      m.quiz.map((q, qi) => '<div class="q"><p>' + (qi + 1) + '. ' + esc(q.q) + '</p>' + q.options.map((o, oi) => {
+        let cls = '';
+        if (checked && answers[qi] === oi) cls = oi === q.answer ? ' right' : ' wrong';
+        return '<label class="opt' + cls + '"><input type="radio" name="q' + qi + '" value="' + oi + '"' + (answers[qi] === oi ? ' checked' : '') + '> <span>' + esc(o) + '</span></label>';
+      }).join('') + '</div>').join('');
+    const allAnswered = m.quiz.every((q, qi) => answers[qi] != null);
+    const score = m.quiz.filter((q, qi) => answers[qi] === q.answer).length;
+    if (checked) h += score === m.quiz.length
+      ? '<div class="msg ok">All correct! ' + (d ? 'You already completed this module.' : 'You can now mark this module complete.') + '</div>'
+      : '<div class="msg bad">' + score + ' of ' + m.quiz.length + ' correct. Re-read the lesson above and try the ones in red again.</div>';
+    if (d) h += '<div class="msg info">✓ Completed on ' + esc(fmtDate(d.completed_at)) + '.</div>';
+    h += '<div class="nav"><button class="btn ghost" id="check"' + (allAnswered ? '' : ' disabled') + '>Check answers</button>' +
+      (d ? '' : '<button class="btn green" id="markDone"' + (checked && score === m.quiz.length ? '' : ' disabled') + '>✓ Mark complete</button>') + '</div>';
+    h += '<div id="markMsg"></div></div>';
+    const next = mods[i + 1];
+    h += '<div class="nav noprint">' + (i > 0 ? '<button class="btn ghost" data-go="' + mods[i - 1].key + '">← ' + esc(mods[i - 1].title) + '</button>' : '<span></span>') +
+      (next ? '<button class="btn ghost" data-go="' + next.key + '">' + esc(next.title) + ' →</button>' : '') + '</div>';
+    $('app').innerHTML = h;
+    $('toList').onclick = () => { current = null; render(); };
+    $('app').querySelectorAll('[data-go]').forEach(b => b.onclick = () => openModule(b.dataset.go));
+    $('app').querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => {
+      answers[+r.name.slice(1)] = +r.value; checked = false;
+      const keep = window.scrollY; renderModule(); window.scrollTo(0, keep);
+    });
+    $('check').onclick = () => { checked = true; const keep = window.scrollY; renderModule(); window.scrollTo(0, keep); };
+    const mk = $('markDone');
+    if (mk) mk.onclick = async () => {
+      mk.disabled = true; mk.textContent = 'Saving…';
+      try {
+        const r = await rpc('training_mark_complete', { p_module: m.key, p_course: track, p_score: score, p_total: m.quiz.length });
+        done[m.key] = r;
+        const n = mods.filter(x => done[x.key]).length;
+        if (n === mods.length) { current = null; render(); return; }
+        $('markMsg').innerHTML = '<div class="msg ok">✓ Module complete — ' + n + ' of ' + mods.length + ' done.' + (next ? '' : '') + '</div>';
+        mk.remove();
+        if (next) { const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Next: ' + next.title + ' →'; b.onclick = () => openModule(next.key); $('markMsg').appendChild(b); }
+      } catch (e) {
+        mk.disabled = false; mk.textContent = '✓ Mark complete';
+        $('markMsg').innerHTML = '<div class="msg bad">Could not save: ' + esc(e.message) + '</div>';
+      }
+    };
+  }
+
+  // printable workbook: every lesson + the questions as a worksheet + sign-off
+  function printWorkbook(){
+    const T = C.tracks[track], mods = trackModules();
+    $('print').innerHTML = '<h1>' + esc(T.title) + ' — Workbook</h1><p>' + esc(T.who) + '. Name: ______________________ &nbsp; Date started: ____________</p>' +
+      mods.map((m, i) => '<div class="mod-p"><h2>' + (i + 1) + '. ' + esc(m.title) + '</h2><p><i>' + esc(m.intro) + '</i></p>' +
+        m.sections.map(s => '<h3>' + esc(s.h) + '</h3>' + s.html).join('') +
+        '<h3>Check your knowledge</h3>' + m.quiz.map((q, qi) => '<p><b>' + (qi + 1) + '. ' + esc(q.q) + '</b><br>' + q.options.map(o => '<span class="box"></span>' + esc(o)).join('<br>') + '</p>').join('') +
+        '<div class="sign">Completed in the app on: ____________ &nbsp; Team leader initials: ______</div></div>').join('');
+    window.print();
+  }
+
+  // ── team progress / training log ──
+  async function renderLog(){
+    $('title').textContent = '🎓 ' + (profile.role === 'admin' || profile.role === 'manager' ? 'Training log' : 'Team training progress');
+    $('sub').textContent = 'Who has completed which modules';
+    if (!log) {
+      $('app').innerHTML = '<div class="card muted">Loading…</div>';
+      try { log = await rpc('training_log'); } catch (e) { $('app').innerHTML = '<div class="msg bad">Could not load the training log: ' + esc(e.message) + '</div>'; return; }
+    }
+    const byRep = {};
+    (log.completions || []).forEach(c => { (byRep[c.rep_id] = byRep[c.rep_id] || {})[c.module] = c; });
+    const rows = (log.staff || []).map(s => {
+      const mods = C.tracks[s.track].modules, got = byRep[s.id] || {};
+      const n = mods.filter(k => got[k]).length;
+      const last = Object.values(got).map(c => c.completed_at).sort().pop();
+      return Object.assign({}, s, { mods, got, n, total: mods.length, last, status: n === 0 ? 'none' : n === mods.length ? 'done' : 'partial' });
+    });
+    let shown = rows;
+    if (ui.tl) shown = shown.filter(r => (r.team_lead || '—') === ui.tl);
+    if (ui.status) shown = shown.filter(r => r.status === ui.status);
+    if (ui.q) { const q = ui.q.toLowerCase(); shown = shown.filter(r => (r.name + ' ' + (r.area || '')).toLowerCase().includes(q)); }
+    const cnt = s => rows.filter(r => r.status === s).length;
+    const tls = Array.from(new Set(rows.map(r => r.team_lead || '—'))).sort();
+    let h = '<div class="stats"><div class="stat"><b>' + rows.length + '</b><span>People</span></div><div class="stat"><b style="color:var(--green)">' + cnt('done') + '</b><span>Completed</span></div>' +
+      '<div class="stat"><b style="color:var(--amber)">' + cnt('partial') + '</b><span>In progress</span></div><div class="stat"><b style="color:var(--red)">' + cnt('none') + '</b><span>Not started</span></div></div>';
+    h += '<div class="filters">' + (log.scope === 'all' ? '<select class="sel" data-f="tl"><option value="">All team leaders</option>' + tls.map(t => '<option value="' + esc(t) + '"' + (t === ui.tl ? ' selected' : '') + '>' + esc(t === '—' ? 'No team leader' : t) + '</option>').join('') + '</select>' : '') +
+      '<select class="sel" data-f="status"><option value="">Everyone</option><option value="done"' + (ui.status === 'done' ? ' selected' : '') + '>Completed</option><option value="partial"' + (ui.status === 'partial' ? ' selected' : '') + '>In progress</option><option value="none"' + (ui.status === 'none' ? ' selected' : '') + '>Not started</option></select>' +
+      '<input class="sel" data-f="q" placeholder="Search name or area" value="' + esc(ui.q) + '" style="flex:1;min-width:140px">' +
+      (log.scope === 'all' ? '<button class="btn ghost" id="csv" style="padding:7px 12px">⬇ CSV</button>' : '') + '</div>';
+    h += '<div class="scroll"><table class="log"><tr><th>Name</th><th class="hide-sm">Team leader</th><th>Course</th><th>Progress</th><th class="hide-sm">Last completed</th></tr>' +
+      (shown.length ? shown.map(r => {
+        const pct = Math.round(r.n / r.total * 100);
+        const st = r.status === 'done' ? '<span class="badge b-done">✓ Complete</span>' : r.status === 'none' ? '<span class="badge b-todo">Not started</span>' : '';
+        let row = '<tr class="click" data-rep="' + r.id + '"><td><b>' + esc(r.name) + '</b><div class="muted">' + esc(r.area || '') + (r.signed_in ? '' : ' · never signed in') + '</div></td><td class="hide-sm">' + esc(r.team_lead || '—') + '</td><td>' + (r.track === 'tl' ? 'Team Leader' : 'Brand Ambassador') + '</td>' +
+          '<td style="white-space:nowrap"><span class="mini"><i style="width:' + pct + '%"></i></span>' + r.n + '/' + r.total + ' ' + st + '</td><td class="hide-sm">' + esc(fmtDate(r.last) || '—') + '</td></tr>';
+        if (ui.open === r.id) row += '<tr><td colspan="5" style="background:#f8fafc">' + r.mods.map((k, i) => {
+          const c = r.got[k]; return '<div style="padding:3px 0">' + (c ? '✅' : '⬜') + ' ' + (i + 1) + '. ' + esc(C.modules[k].title) + (c ? ' <span class="muted">— ' + esc(fmtDate(c.completed_at)) + '</span>' : '') + '</div>';
+        }).join('') + '</td></tr>';
+        return row;
+      }).join('') : '<tr><td colspan="5" class="muted" style="text-align:center;padding:18px">No one matches.</td></tr>') + '</table></div>';
+    h += '<p class="muted">Tap a name to see each module. "Never signed in" means they have no app login yet.</p>';
+    $('app').innerHTML = h;
+    $('app').querySelectorAll('[data-f]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+      ui[el.dataset.f] = el.value;
+      if (el.dataset.f === 'q') { clearTimeout(el._t); el._t = setTimeout(() => { const pos = el.selectionStart; renderLog(); const n = $('app').querySelector('[data-f=q]'); n.focus(); n.setSelectionRange(pos, pos); }, 250); }
+      else renderLog();
+    }));
+    $('app').querySelectorAll('[data-rep]').forEach(tr => tr.onclick = () => { ui.open = ui.open === tr.dataset.rep ? null : tr.dataset.rep; renderLog(); });
+    const cv = $('csv'); if (cv) cv.onclick = () => csv(rows);
+  }
+
+  function csv(rows){
+    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const out = [['Name','Role','Area','Team leader','Course','Modules complete','Modules total','Status','Module','Module completed on'].map(q).join(',')];
+    rows.forEach(r => r.mods.forEach(k => { const c = r.got[k];
+      out.push([r.name, r.role, r.area, r.team_lead, r.track === 'tl' ? 'Team Leader' : 'Brand Ambassador', r.n, r.total, r.status === 'done' ? 'Complete' : r.status === 'none' ? 'Not started' : 'In progress', C.modules[k].title, c ? new Date(c.completed_at).toISOString().slice(0, 10) : ''].map(q).join(',')); }));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.join('\r\n')], { type: 'text/csv' }));
+    a.download = 'dfl-training-log-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ── auth: the guard fires dfl-auth-ready; when framed it no-ops, so load the profile here ──
+  document.addEventListener('dfl-auth-ready', e => start(e.detail.profile));
+  if (framed) document.addEventListener('DOMContentLoaded', async () => {
+    document.body.style.visibility = 'visible';
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { $('app').innerHTML = '<div class="msg bad">Please sign in to the portal first.</div>'; return; }
+      const { data: p } = await sb.from('profiles').select('id,full_name,role,rep_id,active').eq('id', session.user.id).maybeSingle();
+      if (!p) { $('app').innerHTML = '<div class="msg bad">Your account is not set up yet.</div>'; return; }
+      start(p);
+    } catch (err) { $('app').innerHTML = '<div class="msg bad">' + esc(err.message || err) + '</div>'; }
+  });
+})();
+</script>
+</body>
+</html>

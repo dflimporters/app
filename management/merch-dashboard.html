@@ -250,6 +250,7 @@ tbody tr.clickable{cursor:pointer}
   <div class="main-tab" id="navEvals" onclick="showEvals()">📋 Evaluations</div>
   <div class="main-tab" id="navRelief" onclick="showRelief()">🔁 Relief Coverage</div>
   <div class="main-tab" id="navDays" onclick="showDays()">🗓️ Days Worked</div>
+  <div class="main-tab" id="navTraining" onclick="showTraining()">🎓 Training</div>
 </div>
 
 <!-- MONTH TABS -->
@@ -485,6 +486,11 @@ tbody tr.clickable{cursor:pointer}
 
 <!-- DAYS WORKED — every area: days worked per pay fortnight, extra/relief days,
      and the TLs' Wednesday payroll submissions. View is /shared/days-worked.js. -->
+<!-- TRAINING — who has completed the training course; /training/course.html?view=log, embedded. -->
+<div id="trainingSection" style="display:none">
+  <iframe id="trainingFrame" title="Training log" style="display:block;width:100%;height:calc(100vh - 100px);border:0;background:#F2F4F8"></iframe>
+</div>
+
 <div id="daysSection" style="display:none">
   <div id="daysBody" style="max-width:900px;margin:0 auto;padding:16px 16px 48px"></div>
 </div>
@@ -1909,8 +1915,9 @@ function closeAuditDetail(){ document.getElementById('audit-detail-modal').class
 function setMainTab(tab){
   activeTab = tab;
   clearInterval(auditTimer); auditTimer = null;
-  ['navMerch','navTL','navPayroll','navVisits','navAudits','navEvals','navRelief','navDays'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['navMerch','navTL','navPayroll','navVisits','navAudits','navEvals','navRelief','navDays','navTraining'].forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('daysSection').style.display = tab==='days' ? 'block' : 'none';
+  document.getElementById('trainingSection').style.display = tab==='training' ? 'block' : 'none';
   document.getElementById('auditsSection').style.display = tab==='audits' ? 'block' : 'none';
   document.getElementById('merchSection').style.display = tab==='merch' ? 'block' : 'none';
   document.getElementById('tlSection').style.display = tab==='tl' ? 'block' : 'none';
@@ -1918,8 +1925,9 @@ function setMainTab(tab){
   document.getElementById('visitsSection').style.display = tab==='visits' ? 'block' : 'none';
   document.getElementById('evalsSection').style.display = tab==='evals' ? 'block' : 'none';
   document.getElementById('reliefSection').style.display = tab==='relief' ? 'block' : 'none';
-  document.getElementById('monthTabs').style.display = (tab==='relief' || tab==='days') ? 'none' : ''; // relief / days have their own date filters
+  document.getElementById('monthTabs').style.display = (tab==='relief' || tab==='days' || tab==='training') ? 'none' : ''; // relief / days / training have their own filters
 }
+function showTraining(){ setMainTab('training'); document.getElementById('navTraining').classList.add('active'); document.getElementById('headerSub').textContent='TRAINING COURSE · COMPLETION LOG'; const f=document.getElementById('trainingFrame'); if(!f.getAttribute('src')) f.src='/training/course.html?view=log'; }
 let _daysView=null;
 function showDays(){
   setMainTab('days'); document.getElementById('navDays').classList.add('active');
