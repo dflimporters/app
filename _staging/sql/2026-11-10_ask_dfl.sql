@@ -9,6 +9,8 @@
 --                                                + cron 'ask-dfl-refresh' (hourly at :15)
 --   20261030183530  ask_dfl_run_block_set_config ask_dfl_run rejects set_config / u& / server-file functions
 --   20261110170645  ask_dfl_saved_chats          ask_dfl_log.conversation_id + tables (saved chats, approved by Scott)
+--   (2026-11-11)    ask_dfl_uploads              private bucket ask-dfl-uploads (20 MB, <user id>/ folders, Ask DFL roles only via
+--                                                ask_dfl_can_use()), ask_dfl_log.attachments; the edge function deletes files after 90 days
 --
 -- Edge function: supabase/functions/ask-dfl/index.ts (deployed as `ask-dfl`, verify_jwt on).
 select 1;
