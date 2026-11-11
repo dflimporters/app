@@ -11,7 +11,9 @@
 //     Extra = days worked − (10 − holiday weekdays − approved-leave weekdays).
 //   • TLs submit on Wednesday, before the week ends, so the current fortnight is
 //     projected: today and the remaining weekdays are assumed worked.
-//   • Relief Brand Ambassadors have no fixed days — every day worked is payable.
+//   • Temporary relief (relief_roster.staff_type 'relief') have no fixed days — every
+//     day worked is payable. Permanent relief ('permanent_relief', Dwayne Granston)
+//     are staff: 10 days owed like a full-time BA, only extra days are claimed.
 //   • History goes back one month (this fortnight + the two before).
 //
 // Submitting: the TL ticks the dates for each person, picks a reason and a rate per
@@ -37,6 +39,9 @@
   const DEFAULT_RATE = 4000;
   // Same list as REASONS in management/relief-coverage.html
   const REASONS = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Backfill for resignation', 'Training', 'Absent', 'Other'];
+  // staff_type comes from relief_roster (get_days_worked); fall back to the role.
+  const isTemp = p => p.staff_type ? p.staff_type === 'relief' : p.role === 'relief_merchandiser';
+  const isPerm = p => p.staff_type === 'permanent_relief';
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -91,6 +96,7 @@
       '.dfld-badge{display:inline-block;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:800;margin-top:3px}',
       '.dfld-x{background:var(--d-warn);color:#fff}',
       '.dfld-r{background:var(--d-accent);color:#fff}',
+      '.dfld-p{background:transparent;color:var(--d-accent);border:1.5px solid var(--d-accent);margin:0 0 3px}',
       '.dfld-short{color:var(--d-bad);font-size:11px;font-weight:700;margin-top:3px}',
       '.dfld-strip{display:flex;gap:2px}',
       '.dfld-wk{display:flex;gap:2px;flex:1;min-width:0}',
@@ -164,7 +170,7 @@
 
   // One person, one fortnight → day cells + totals.
   function calc(person, fs, ix, today) {
-    const relief = person.role === 'relief_merchandiser';
+    const relief = isTemp(person);
     const w = ix.worked[person.id] || {}, lv = ix.leave[person.id] || {}, cl = ix.claimed[person.id] || {};
     const cells = [];
     let worked = 0, weekend = 0, credited = 0, assumed = 0, missed = 0;
@@ -251,10 +257,11 @@
       const sub = [p.area, mode === 'manager' ? (p.team_lead ? 'TL ' + p.team_lead : 'No team leader') : (p.on_team === false ? 'Relief cover for your stores' : '')].filter(Boolean).join(' · ');
       let nums;
       if (r.relief) {
-        nums = '<b>' + r.worked + '</b> day' + (r.worked === 1 ? '' : 's') + '<br><span class="dfld-badge dfld-r">Relief</span>';
+        nums = '<b>' + r.worked + '</b> day' + (r.worked === 1 ? '' : 's') + '<br><span class="dfld-badge dfld-r">Temp relief</span>';
       } else {
         const ex = isCur ? r.extraProj : r.extra;
-        nums = '<b>' + r.worked + '</b>/' + r.expected + ' worked' +
+        nums = (isPerm(p) ? '<span class="dfld-badge dfld-p">Permanent relief</span><br>' : '') +
+          '<b>' + r.worked + '</b>/' + r.expected + ' worked' +
           (ex ? '<br><span class="dfld-badge dfld-x">+' + ex + ' extra' + (isCur && r.extraProj !== r.extra ? ' (proj.)' : '') + '</span>' : '') +
           (r.weekend ? '<div class="dfld-sub">' + plural(r.weekend, 'weekend day') + '</div>' : '') +
           (r.missed ? '<div class="dfld-short">' + plural(r.missed, 'weekday') + ' not logged</div>' : '');
@@ -268,6 +275,9 @@
       const staff = visibleStaff();
       const rows = staff.map(p => ({ p, r: calc(p, fs, ix, today) }));
       const regular = rows.filter(x => !x.r.relief), relief = rows.filter(x => x.r.relief);
+      const fullTime = regular.filter(x => !isPerm(x.p)), perm = regular.filter(x => isPerm(x.p));
+      // manager view, within a team: full-time BAs, then permanent relief, then temporary relief
+      const rank = x => x.r.relief ? 2 : isPerm(x.p) ? 1 : 0;
       const totExtra = regular.reduce((s, x) => s + (isCur ? x.r.extraProj : x.r.extra), 0);
       const totRelief = relief.reduce((s, x) => s + x.r.worked, 0);
 
@@ -282,9 +292,9 @@
       }
 
       h += '<div class="dfld-stats">' +
-        '<div class="dfld-stat"><b>' + regular.length + '</b><span>Brand Ambassadors</span></div>' +
+        '<div class="dfld-stat"><b>' + fullTime.length + (perm.length ? '<small style="font-size:12px;color:var(--d-muted)"> +' + perm.length + '</small>' : '') + '</b><span>Brand Ambassadors' + (perm.length ? ' + perm. relief' : '') + '</span></div>' +
         '<div class="dfld-stat"><b style="color:var(--d-warn)">' + totExtra + '</b><span>Extra days' + (isCur ? ' (proj.)' : '') + '</span></div>' +
-        '<div class="dfld-stat"><b style="color:var(--d-accent)">' + totRelief + '</b><span>Relief days</span></div></div>';
+        '<div class="dfld-stat"><b style="color:var(--d-accent)">' + totRelief + '</b><span>Temp relief days</span></div></div>';
 
       h += '<div class="dfld-legend"><span><i style="background:var(--d-good)"></i>Worked</span><span><i style="background:var(--d-warn)"></i>Weekend / holiday worked</span>' +
         (isCur ? '<span><i style="border:1.5px dashed var(--d-good)"></i>Assumed worked</span>' : '') +
@@ -302,11 +312,12 @@
         Object.keys(groups).sort().forEach(k => {
           const g = groups[k], gx = g.filter(x => !x.r.relief).reduce((s, x) => s + (isCur ? x.r.extraProj : x.r.extra), 0);
           h += '<div class="dfld-team"><span>' + esc(k === '—' ? 'No team leader' : 'Team ' + k) + '</span><span class="dfld-note">' + g.length + ' people' + (gx ? ' · ' + gx + ' extra' : '') + '</span></div>' +
-            g.sort((a, b) => a.r.relief - b.r.relief || a.p.name.localeCompare(b.p.name)).map(x => cardHtml(x.p, x.r, isCur)).join('');
+            g.sort((a, b) => rank(a) - rank(b) || a.p.name.localeCompare(b.p.name)).map(x => cardHtml(x.p, x.r, isCur)).join('');
         });
       } else {
-        if (regular.length) h += '<div class="dfld-h">Brand Ambassadors</div>' + regular.map(x => cardHtml(x.p, x.r, isCur)).join('');
-        if (relief.length) h += '<div class="dfld-h">Relief Brand Ambassadors</div>' + relief.map(x => cardHtml(x.p, x.r, isCur)).join('');
+        if (fullTime.length) h += '<div class="dfld-h">Brand Ambassadors</div>' + fullTime.map(x => cardHtml(x.p, x.r, isCur)).join('');
+        if (perm.length) h += '<div class="dfld-h">Permanent relief</div>' + perm.map(x => cardHtml(x.p, x.r, isCur)).join('');
+        if (relief.length) h += '<div class="dfld-h">Temporary relief</div>' + relief.map(x => cardHtml(x.p, x.r, isCur)).join('');
       }
 
       h += submissionsHtml();
@@ -338,7 +349,7 @@
       }
       (data.staff || []).forEach(p => {
         const w = ix.worked[p.id] || {};
-        if (p.role === 'relief_merchandiser') {
+        if (isTemp(p)) {
           const dates = lineDays('relief', ws).filter(d => d <= today && w[d] && !locked(p.id, d, existing));
           if (dates.length) lines.push({ id: p.id, kind: 'relief', dates: new Set(dates), reason: '', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
         } else {
@@ -374,7 +385,7 @@
         : '<div class="dfld-picks"><div class="dfld-wk">' + days.slice(0, 7).map(pick).join('') + '</div><div class="dfld-wk">' + days.slice(7).map(pick).join('') + '</div></div>';
       const r = l.kind === 'extra' ? calc(p, fortnightStart(ui.week), ix, today) : null;
       const sub = l.kind === 'relief'
-        ? 'Relief · logged ' + (lineDays('relief', ui.week).filter(d => w[d]).map(d => DOW[dow(d)]).join(', ') || 'nothing yet this week')
+        ? 'Temp relief · logged ' + (lineDays('relief', ui.week).filter(d => w[d]).map(d => DOW[dow(d)]).join(', ') || 'nothing yet this week')
         : 'Extra days · ' + r.worked + ' worked' + (r.assumed ? ' + ' + r.assumed + ' assumed' : '') + ' of ' + r.expected + ' owed';
       const reason = l.kind === 'relief'
         ? '<label>Reason<select class="dfld-in" data-f="reason" data-i="' + i + '"><option value="">Choose…</option>' + REASONS.map(x => '<option' + (x === l.reason ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
@@ -402,12 +413,12 @@
       else if (existing) h += '<div class="dfld-ok">Submitted ' + esc(new Date(existing.submitted_at).toLocaleString('en-JM', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + ' — it’s in Relief Coverage, waiting for the pay run. Submitting again replaces anything not paid yet.</div>';
       else h += '<div class="dfld-due">Not submitted for ' + range(ws, we) + ' yet — due Wednesday ' + short(addDays(ws, 2)) + '. Tap days to add or remove them.</div>';
 
-      h += '<datalist id="dfld-team">' + (data.staff || []).filter(p => p.role !== 'relief_merchandiser').map(p => '<option value="' + esc(p.name) + '">').join('') + '</datalist>';
+      h += '<datalist id="dfld-team">' + (data.staff || []).filter(p => !isTemp(p)).map(p => '<option value="' + esc(p.name) + '">').join('') + '</datalist>';
       h += dr.lines.length ? dr.lines.map((l, i) => lineHtml(l, i, existing)).join('')
         : '<div class="dfld-note" style="padding:10px 0;border-top:1px solid var(--d-line)">No relief or extra days to submit this week. Add someone below if needed.</div>';
 
       if (addable.length) h += '<div style="padding:8px 0;border-top:1px solid var(--d-line)"><select class="dfld-sel" data-k="add" style="width:100%"><option value="">+ Add someone…</option>' +
-        addable.map(p => '<option value="' + p.id + '">' + esc(p.name) + (p.role === 'relief_merchandiser' ? ' (relief)' : ' (extra days)') + '</option>').join('') + '</select></div>';
+        addable.map(p => '<option value="' + p.id + '">' + esc(p.name) + (isTemp(p) ? ' (relief)' : ' (extra days)') + '</option>').join('') + '</select></div>';
 
       h += '<textarea class="dfld-in" data-k="note" rows="2" placeholder="Note for payroll (optional)" style="margin-top:6px;resize:vertical">' + esc(dr.note) + '</textarea>' +
         '<div class="dfld-gtot"><div><div data-gtot></div><div class="dfld-note">Assumes everyone finishes the week.</div></div><button class="dfld-btn" data-act="submit">' + (existing ? 'Resubmit' : 'Submit') + '</button></div></div>';
@@ -507,7 +518,7 @@
       const add = el.querySelector('[data-k=add]');
       if (add) add.onchange = () => {
         const p = staffById()[add.value]; if (!p) return;
-        dr.lines.push({ id: p.id, kind: p.role === 'relief_merchandiser' ? 'relief' : 'extra', dates: new Set(), reason: p.role === 'relief_merchandiser' ? '' : 'Extra day worked', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
+        dr.lines.push({ id: p.id, kind: isTemp(p) ? 'relief' : 'extra', dates: new Set(), reason: isTemp(p) ? '' : 'Extra day worked', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
         render();
       };
       const note = el.querySelector('[data-k=note]'); if (note) note.oninput = () => { dr.note = note.value; };
