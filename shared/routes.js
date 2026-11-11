@@ -165,6 +165,10 @@ const DFL_PAGE_ROLES = {
   // Key Account Hub (Shallet Marsh's 35 key accounts): key_hub_data() requires is_manager();
   // the side-nav link is shown only to Shallet and the price approver (Scott) — see keyHub.
   '/management/key-hub.html':               ['manager', 'admin'],
+  // Sales Support Hub (the support people behind the field reps): ss_hub_data() checks access itself
+  // (Scott, admins, or the support person named in ss_hub_support). The side-nav link is shown only to
+  // the support people and the price approver (Scott) — see ssHub. Their portal role is still to be set.
+  '/management/sales-support-hub.html':     ['manager', 'admin', 'sales_support'],
   // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
   // which gates writes on leave_tracker_* — reads also allow HR/management.
   '/management/leave-tracker.html':         ['manager', 'admin'],

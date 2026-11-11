@@ -126,6 +126,8 @@
         { label: 'Chain Store Hub', href: '/management/chain-hub.html', icon: '🏪', chainHub: true },
         // keyHub: Shallet Marsh (key KAM) and the price approver (Scott) only.
         { label: 'Key Account Hub', href: '/management/key-hub.html', icon: '🔑', keyHub: true },
+        // ssHub: the sales support people (Alecia, Jenelle, Althia) and the price approver (Scott) only.
+        { label: 'Sales Support Hub', href: '/management/sales-support-hub.html', icon: '🎧', ssHub: true },
         { label: 'Dashboards', href: '/management/', icon: '📊' },
         { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
         { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },
@@ -672,6 +674,7 @@
     if (item.approverOnly && !isPriceApprover) return false;
     if (item.chainHub && !isPriceApprover && !((window.DFL_PROFILE || {}).full_name === 'Andrea Skelton')) return false;
     if (item.keyHub && !isPriceApprover && !((window.DFL_PROFILE || {}).full_name === 'Shallet Marsh')) return false;
+    if (item.ssHub && !isPriceApprover && ['Alecia', 'Jenelle', 'Althia'].indexOf(String((window.DFL_PROFILE || {}).full_name || '').split(' ')[0]) === -1) return false;
     if (item.hrOnly && !isHr) return false;
     // HR Records: HR get People + Library; managers get the Library only.
     if (item.hrOrManager && !isHr && ['admin', 'manager'].indexOf(role) === -1) return false;
