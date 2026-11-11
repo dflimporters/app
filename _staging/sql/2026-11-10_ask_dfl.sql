@@ -11,6 +11,11 @@
 --   20261110170645  ask_dfl_saved_chats          ask_dfl_log.conversation_id + tables (saved chats, approved by Scott)
 --   (2026-11-11)    ask_dfl_uploads              private bucket ask-dfl-uploads (20 MB, <user id>/ folders, Ask DFL roles only via
 --                                                ask_dfl_can_use()), ask_dfl_log.attachments; the edge function deletes files after 90 days
+--   (2026-11-11)    ask_dfl_more_data            views: stock_on_hand (total + 71/Ashenheim split), stock_history (key SKUs), stock_moves,
+--                                                sales_orders, order_lines, shipments, truck_loads, ar_open_items, ar_payments,
+--                                                merch_visits, store_shelf_counts, store_audits, store_coverage, deal_prices, specials,
+--                                                price_requests, competitor_prices, field_intel, rebates. Still excluded: P&L, balance
+--                                                sheet, opex, pay/commission, bank details, HR/leave, fleet costs, emails.
 --
 -- Edge function: supabase/functions/ask-dfl/index.ts (deployed as `ask-dfl`, verify_jwt on).
 select 1;
