@@ -1167,6 +1167,19 @@ body.dfl-readonly .readonly-note{display:block}
       <div class="dash-link-arr">›</div>
     </button>
 
+    <!-- HOW-TO GUIDES — the /training/ pages, which have a "Back to the app" link. -->
+    <div class="sec-hdr" style="margin-top:6px">📘 How-to guides</div>
+    <button class="dash-link" onclick="window.location.href='/training/tl-days-worked-guide.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin:8px 0 10px">
+      <div class="dash-link-ico">🗓️</div>
+      <div><div class="dash-link-title">Days Worked &amp; Payroll guide</div><div class="dash-link-sub">Reading the screen, the 10-day rule, and the Wednesday submission</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+    <button class="dash-link" onclick="window.location.href='/training/merch-field-guide.html'" style="cursor:pointer;width:100%;text-align:left;font:inherit;margin-bottom:16px">
+      <div class="dash-link-ico">🛒</div>
+      <div><div class="dash-link-title">Merch Field Guide</div><div class="dash-link-sub">Store visits, stock counts, photos and the TL screen</div></div>
+      <div class="dash-link-arr">›</div>
+    </button>
+
     <div id="tl-upcoming-leave-wrap" style="display:none">
       <div class="sec-hdr" style="margin-top:6px">🌴 Upcoming leave</div>
       <div id="tl-upcoming-leave-list" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;margin-bottom:16px"></div>
@@ -7146,6 +7159,7 @@ window.addEventListener('offline', updateLiveDot);
   <div style="flex-shrink:0;background:var(--navy2);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
     <div style="font-size:15px;font-weight:800">🗓️ Days Worked &amp; Payroll</div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="window.location.href='/training/tl-days-worked-guide.html'" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">📘 Guide</button>
       <button onclick="daysWorked().load(true)" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:14px;cursor:pointer">↻ Refresh</button>
       <button onclick="closeDaysWorked()" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1">×</button>
     </div>
