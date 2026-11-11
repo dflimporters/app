@@ -930,10 +930,11 @@ const cmTxt = cls => { const n = CMOF(cls); return n ? `${firstName(n)} (categor
 const plCards = rows => `<div class="plines">${rows.map(r => `<div class="pl"><div class="pl-main"><b${r.title ? ` title="${esc(r.title)}"` : ''}>${esc(r.name)}</b><span>${r.sub}</span></div><span class="pl-tag${r.tone ? ' ' + r.tone : ''}">${esc(r.tag)}</span></div>`).join('')}</div>`;
 // one compact line per problem item: name, then "qty × price · cost", with the problem as a tag on the right (Scott, 9 Nov: neater)
 const chkTable = xs => plCards(xs.map(x => { const g = lineGp(x.l), loss = (x.kind === 'gp' ? x.gp : g) < 0;
-  return {name:x.l.desc, title:x.l.sku, tone:loss || x.kind === 'noprice' ? 'loss' : '', tag:x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'price' ? 'Below deal ' + JP(x.floor) : x.kind === 'freeover' ? `${x.f.have} free, deal ${x.f.free}` : (x.st || CHKTXT[x.kind]),
-    sub:`${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
-const chkStep = x => x.kind === 'free' ? `Add ${x.f.free - x.f.have} × ${x.l.desc} with the Free Item box ticked (deal: buy ${x.f.buy}, get ${x.f.free} free).` :
-  x.kind === 'deal' ? `Ask the rep whether the customer will take ${x.h.add} more to reach buy ${x.h.buy}, get ${x.h.free} free.` :
+  return {name:x.l.desc, title:x.l.sku, tone:loss || x.kind === 'noprice' ? 'loss' : '', tag:x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'price' ? 'Below deal ' + JP(x.floor) : x.kind === 'freeover' ? `${x.f.have} free on order` : (x.st || CHKTXT[x.kind]),
+    // too many free (Scott, 11 Nov: "130 free, deal 3" was unclear): say what the deal allows for the quantity bought
+    sub:x.kind === 'freeover' ? `${x.f.oq} bought at ${JP(x.l.price)} · the deal allows ${x.f.free} free${x.f.buy ? ` (buy ${x.f.buy}, get ${x.f.free} free)` : ''}` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
+const chkStep = x => x.kind === 'free' ? `The deal (buy ${x.f.buy}, get ${x.f.free} free) gives ${x.f.free - x.f.have} more free. Check with the rep whether they should be added; if so, add them with the Free Item box ticked.` :
+  x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more to reach buy ${x.h.buy}, get ${x.h.free} free.` :
   x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
   x.kind === 'stock' ? `Only ${Math.max(0, x.l.onhand)} in stock for ${x.l.open}. Ask the rep about a substitute (same colour and size) or cut the quantity.` :
   x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy}). Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
@@ -1212,13 +1213,13 @@ function todayItems() {
     html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.l.oq} on order ${esc(x.o.nbr)} · deal: buy ${x.h.buy}, get ${x.h.free} free`, tag:`Add ${x.h.add}`, tone:'blue'}]),
     t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
     d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is buy ${x.h.buy}, get ${x.h.free} free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
-    act:'Call Rep or Merch to add it', value:x.value + 1e6}));
+    act:'Check with Rep or Merch whether to add it', value:x.value + 1e6}));
   // free goods left off an open order: sales support adds them before it ships
   CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
     html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.f.oq} × ${JP(x.l.price)} · deal: buy ${x.f.buy}, get ${x.f.free} free · ${x.f.have ? x.f.have + ' free on the order' : 'no free line on the order'}`, tag:`${x.f.free - x.f.have} free missing`, tone:'loss'}]),
     t:`${byId[x.o.c].name}: free goods missing on order ${x.o.nbr}`,
     d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal is buy ${x.f.buy}, get ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
-    act:`Add ${x.f.free - x.f.have} free with the Free Item box ticked`, value:x.value}));
+    act:`Check whether ${x.f.free - x.f.have} free need to be added (Free Item box)`, value:x.value}));
   // price checks (Scott, 11 Nov): below cost, below the deal price, no price, too many free, items we no longer carry.
   // Low margin above cost is the KAM / category manager's job, not this hub's. One card per order; the lines open underneath.
 
@@ -1226,7 +1227,7 @@ function todayItems() {
   const ORDERK = ['gp', 'price', 'noprice', 'freeover', 'inact'];
   Object.values(pOrd).forEach(({o, xs}) => { const cnt = k => xs.filter(x => x.kind === k).length, first = ORDERK.find(k => cnt(k));
     const cm = repTxt({o});
-    const ACT = {gp:`Check the price and the item cost, then ask ${cm}`, price:`Ask ${cm} if the price was agreed; if not, fix it`, noprice:'Add the price, or untick Free Item if it was a mistake', freeover:'Reduce the free quantity to what the deal gives', inact:'Remove the line and tell the rep'};
+    const ACT = {gp:`Check the price and the item cost, then ask ${cm}`, price:`Ask ${cm} if the price was agreed; if not, fix it`, noprice:'Add the price, or untick Free Item if it was a mistake', freeover:'Check the free quantity against the deal with the rep', inact:'Remove the line and tell the rep'};
     it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Price check', c:o.c, order:o.nbr, issue:ORDERK.filter(k => cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', '), sub:`Order ${o.nbr}`, age:o.age,
     html:chkTable(xs), t:`${byId[o.c].name}: order ${o.nbr} needs a price check`,
     d:xs.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${esc(chkProblem(x))}`).join('; ') + (xs.length > 3 ? '…' : ''),
@@ -1433,7 +1434,7 @@ const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; con
 const NEXTST = {todo:'waiting', waiting:'sorted', sorted:'todo'};
 const AVC = ['#326BD3', '#7B4FD0', '#127F8C', '#C47A1A', '#D63B3B', '#1A8F4C', '#0D1B3E', '#B5487A'];
 const initials = n => (n || '?').split(/[\s,]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-const av = n => { return `<span class="av" style="background:#326BD3" aria-hidden="true">${esc(initials(n))}</span>`; };
+const av = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `<span class="av" style="background:${AVC[h % AVC.length]}" aria-hidden="true">${esc(initials(n))}</span>`; };
 const ICO = {
   today:'<path d="M4 12l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
   orders:'<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
