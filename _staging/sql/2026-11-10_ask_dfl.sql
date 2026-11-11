@@ -19,3 +19,6 @@
 --
 -- Edge function: supabase/functions/ask-dfl/index.ts (deployed as `ask-dfl`, verify_jwt on).
 select 1;
+-- (2026-11-11)  stock_by_warehouse / stock_by_warehouse_cron_and_views: table public.stock_by_warehouse (item x warehouse,
+--               from Acumatica GI DB-StorageDetailsByItemWarehouseLocation via edge function sync-stock-by-warehouse,
+--               cron every 30 min 6am-6pm Jamaica Mon-Sat + nightly); ask.stock_by_warehouse; ask.stock_on_hand rebuilt on it.

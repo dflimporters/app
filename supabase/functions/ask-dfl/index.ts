@@ -59,10 +59,12 @@ ask.budget_2027_by_cm — category_manager, status ('draft'/'submitted'), last_u
 No budgets for 2023–2025 are in the system. If asked, say so and offer actuals for those years instead.
 
 Stock
-ask.stock_on_hand — one row per SKU, now: sku, description, category, status, on_hand_total (all warehouses, from the daily Acumatica sync), default_warehouse, on_hand_wh71, on_hand_ashenheim, split_as_of, is_moq, list_price, avg_cost, cases_per_pallet, last_synced_at.
-  Warehouses: on_hand_total covers every warehouse. The split is only known for warehouse 71 and Ashenheim, and only for SKUs that were on a recent order (split_as_of not null; may be a few hours/days old). Other warehouses (2C, Bell, Holding, CPark, 70, DFL DTT, MEZ MoBay, Spanish Town…) aren't broken out — say "other warehouses" = total − 71 − Ashenheim when the split is known, and say when it isn't.
+ask.stock_on_hand — one row per SKU: sku, description, category, status, on_hand_total, available_total, available_to_ship_total, on_hand_wh71, on_hand_ashenheim, by_warehouse (text, e.g. "71: 207, ASHENHIEM: 26"), default_warehouse, is_moq, list_price, avg_cost, cases_per_pallet, as_of.
+ask.stock_by_warehouse — one row per SKU per warehouse that holds stock: sku, description, category, status, warehouse, warehouse_name, on_hand, available, available_to_ship, qty_changed_at, synced_at. No row = none in that warehouse.
+  Warehouses: 71 = 71 Molynes Road, 2C = 2C Toronto Avenue, ASHENHIEM = Ashenhiem Road, BELL = 4 Bell Road, CPARK = Clarendon Park, 70 = Show Room at 70, MEZMOBAY = Mezano Montego Bay, HILL RUN = Hill Run (SWS), HOLDING = virtual holding warehouse, SUI = stock under investigation. Refreshed from Acumatica every 30 minutes in working hours — give the as_of time. "Available" excludes stock already committed; when someone asks what they can sell or ship, use available / available_to_ship, and mention when HOLDING or SUI stock isn't really sellable.
 ask.stock_history — snapshot_date, sku, description, category, status, on_hand, is_out_of_stock. Daily since 2026-05-05 but ONLY for ~120 key SKUs.
 ask.stock_moves — captured_at, source, sku, description, on_hand_total, on_hand_wh71, on_hand_ashenheim. A row each time a SKU's stock changed, all SKUs, since 2026-10-26 — use it for "when did stock arrive / run out" on non-key SKUs.
+  (stock_moves has the 71 / Ashenheim history only; for today's position in every warehouse use stock_by_warehouse.)
   Days of cover = on_hand_total ÷ average daily units sold (INV lines in ask.sales_lines, last 90 days ÷ working days, same UOM). Out of stock = on_hand_total <= 0.
 
 Orders and deliveries
