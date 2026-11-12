@@ -40,14 +40,15 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet'
+  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet', 'sales_support'
 ];
 
 // Roles that may open ONLY the pages that explicitly list them. For everyone
 // else an unlisted page is open (see DFL_PAGE_ROLES); for these it's closed.
 // `hr` (Monique) is meant to see the HR Leave portal and nothing else.
 // `fleet` (Ordette Hamilton) sees the Fleet page and nothing else.
-const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet'];
+// `sales_support` (Alecia, Jenelle, Althia) sees the Sales Support Hub and nothing else.
+const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet', 'sales_support'];
 
 // ------------------------------------------------------------
 // Where each role belongs when it has nowhere more specific to be.
@@ -71,7 +72,8 @@ const DFL_HOME_BY_ROLE = {
   management:   '/morning-brief.html',
   rep_management: '/index.html',
   hr:           '/hr/index.html',
-  fleet:        '/management/fleet.html'
+  fleet:        '/management/fleet.html',
+  sales_support: '/management/sales-support-hub.html'
 };
 
 // ------------------------------------------------------------
@@ -171,7 +173,7 @@ const DFL_PAGE_ROLES = {
   '/management/key-hub.html':               ['manager', 'admin'],
   // Sales Support Hub (the support people behind the field reps): ss_hub_data() checks access itself
   // (Scott, admins, or the support person named in ss_hub_support). The side-nav link is shown only to
-  // the support people and the price approver (Scott) — see ssHub. Their portal role is still to be set.
+  // the support people and the price approver (Scott) — see ssHub. Their role is sales_support (a listed-only role: this page and nothing else).
   '/management/sales-support-hub.html':     ['manager', 'admin', 'sales_support'],
   // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
   // which gates writes on leave_tracker_* — reads also allow HR/management.
