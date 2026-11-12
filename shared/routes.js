@@ -40,13 +40,14 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management', 'rep_management', 'hr'
+  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet'
 ];
 
 // Roles that may open ONLY the pages that explicitly list them. For everyone
 // else an unlisted page is open (see DFL_PAGE_ROLES); for these it's closed.
 // `hr` (Monique) is meant to see the HR Leave portal and nothing else.
-const DFL_LISTED_ONLY_ROLES = ['hr'];
+// `fleet` (Ordette Hamilton) sees the Fleet page and nothing else.
+const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet'];
 
 // ------------------------------------------------------------
 // Where each role belongs when it has nowhere more specific to be.
@@ -69,7 +70,8 @@ const DFL_HOME_BY_ROLE = {
   relief_merchandiser: '/merch.html',
   management:   '/morning-brief.html',
   rep_management: '/index.html',
-  hr:           '/hr/index.html'
+  hr:           '/hr/index.html',
+  fleet:        '/management/fleet.html'
 };
 
 // ------------------------------------------------------------
@@ -147,7 +149,9 @@ const DFL_PAGE_ROLES = {
   '/management/relief-coverage.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
-  '/management/fleet.html':                 ['manager', 'admin'],
+  // `fleet` can view, search, export and print. Document upload/approve still
+  // needs is_manager() in Postgres, so those actions fail for her by design.
+  '/management/fleet.html':                 ['manager', 'admin', 'fleet'],
   // Head of Sales tabbed view. Admins get through this door, but the page itself
   // then requires is_price_approver() (Scott only) — same pattern as
   // /admin/price-approvals.html, because Travis is also an admin.
