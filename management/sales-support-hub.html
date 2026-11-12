@@ -216,7 +216,7 @@ main{padding-block:8px 90px}
 .tbl{border:0}
 th{background:#FAFBFD;border-bottom-color:var(--line2)}
 td{padding:9px 10px}
-.solid{display:inline-block;padding:5px 10px;border-radius:6px;color:#fff;font-family:var(--head);font-weight:700;font-size:11.5px;min-width:96px;text-align:center;white-space:nowrap}
+.solid{display:inline-block;padding:5px 10px;border-radius:6px;color:#fff;font-family:var(--head);font-weight:700;font-size:11.5px;min-width:96px;max-width:100%;overflow:hidden;text-overflow:ellipsis;text-align:center;white-space:nowrap;vertical-align:middle}
 .pbar{position:relative;height:8px;border-radius:4px;background:var(--line2);min-width:80px;margin-top:6px}
 .pbar i{position:absolute;inset:0 auto 0 0;border-radius:4px}
 .pbar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);border-radius:1px}
@@ -674,6 +674,10 @@ tr[data-chain]{cursor:pointer}
 .bol input{width:18px;height:18px;accent-color:#326BD3;flex:none}
 .bol-n{flex:1;min-width:0;font-weight:600;color:var(--ink);font-size:14px}
 .bol-q{flex:none;font-family:var(--head);font-weight:700;font-size:12.5px;color:var(--ink2)}
+.repr{cursor:pointer}
+.repr.sel{background:#EEF4FF;box-shadow:inset 3px 0 0 #326BD3}
+.achc{display:flex;align-items:center;gap:10px}.achc>b{font-family:var(--head);min-width:44px}.achc .rbar{flex:1;min-width:50px}
+.gen .gh+.bhead+.repr,.gen .repr{grid-template-columns:var(--cols)}
 /* header toolbar (Scott, 11 Nov: "looks very ugly"): one row of equal-height controls; on phones a neat 2-row grid, Refresh beside the title */
 .content.portal .topbar{align-items:center}
 #tctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -816,6 +820,8 @@ const LINES = (O.lines || []).filter(l => ordBy[l[0]]).map(l => ({nbr:l[0], sku:
 const RC = (O.orders || []).filter(o => o[1] === 'RC').map(o => ({nbr:o[0], status:o[2], date:o[3], c:o[5], total:Math.abs(+o[6] || 0), by:o[8] || '', reason:o[11] || 'No reason given'}));
 const rcLines = {}; (O.lines || []).forEach(l => { if (RC.some(r => r.nbr === l[0])) (rcLines[l[0]] = rcLines[l[0]] || []).push({sku:l[1], desc:l[2], q:Math.abs(+l[3] || 0), price:+l[6] || 0}); });
 const INACT = O.inact || {};
+// lowest price each customer has been invoiced each item in the last 6 months (only items on their open orders): [customer, sku, price, last date]
+const LOWP = {}; (O.lowp || []).forEach(r => LOWP[r[0] + '|' + r[1]] = {p:+r[2] || 0, d:r[3]});
 LINES.forEach(l => { (ordBy[l.nbr].lines = ordBy[l.nbr].lines || []).push(l); });
 const SHIPS = (O.ships || []).map(s => ({nbr:s[0], c:s[1], order:s[2], status:s[3], date:s[4], value:+s[5] || 0, via:s[6] || '', created:s[7]}));
 const shipsOfOrder = {}; SHIPS.forEach(s => (shipsOfOrder[s.order] = shipsOfOrder[s.order] || []).push(s));
@@ -863,13 +869,18 @@ const dState = (sh, st) => {
     if (/partial/.test(s)) return {k:'part', t:'Part delivered', c:'amber', when:st.done};
     if (/fail|not_|return|refus|skip/.test(s)) return {k:'fail', t:'Not delivered', c:'red', when:st.done || st.arrived};
     if (/arriv|on_the_way|en_route|transit/.test(s)) return {k:'road', t:'On the way', c:'blue', when:st.arrived}; }
-  if (SHIPPED(sh.status)) return {k:'left', t:'Left the warehouse', c:'blue', when:null};
+  if (SHIPPED(sh.status)) return {k:'left', t:'Left warehouse', c:'blue', when:null};
   return {k:'not', t:'Not shipped', c:'amber', when:null}; };
 const SLINES = {}; (O.slines || []).forEach(r => (SLINES[r[0]] = SLINES[r[0]] || []).push({nbr:r[0], sku:r[1], desc:r[2], exp:+r[3] || 0, got:+r[4] || 0, res:r[5] || '', why:r[6] || r[5] || 'No reason given', note:r[7] || ''}));
 const dlvTag = why => /not ordered/i.test(why) ? 'Not ordered' : /short pick|not on the truck/i.test(why) ? 'Short-picked' : /damag/i.test(why) ? 'Damaged' : /refus/i.test(why) ? 'Refused' : /no one|closed/i.test(why) ? 'No one to receive' : why.length > 20 ? why.slice(0, 18) + '…' : why;
 const DELIV = SHIPS.map(sh => { const st = STOPS[sh.nbr] || null, lx = LMX[sh.nbr] || {}, ld = LOADS[sh.nbr] || null;
   return {...sh, stop:st, load:ld, driver:lx.driver, phone:lx.phone, via:realVia((ld && ld.via) || sh.via), st:dState(sh, st), wait:daysBetween(sh.created || sh.date, ASOF), short:SLINES[sh.nbr] || []}; })
   .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+// one stop can carry several shipments, and the driver app marks the whole stop "partial". A shipment on such a stop whose own
+// items were all delivered is Delivered; the problem items sit on the other shipment(s) (Scott, 11 Nov: Shoppers Fair Manchester 283771)
+DELIV.forEach(d => { if (d.st.k !== 'part' || d.short.length || !d.stop) return;
+  const sib = DELIV.filter(x => x !== d && x.c === d.c && x.stop && x.stop.done === d.stop.done && x.short.length);
+  if (sib.length) { d.st = {k:'del', t:'Delivered', c:'green', when:d.stop.done}; d.sibNote = `All items delivered. The problem items on this stop were on shipment${sib.length === 1 ? '' : 's'} ${sib.map(x => x.nbr).join(', ')}.`; } });
 
 // deal levels repeat (Scott, 11 Nov: "buy 100 get 3 free" counts for every 100 bought). Free goods for a quantity:
 // the biggest level as many times as it fits, then the next level down on what is left, and so on (500 at buy 100 get 3 = 15).
@@ -905,7 +916,9 @@ ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.l
     return {p:sheet * t.buy / (t.buy + t.free), why:`buy ${t.buy} get ${t.free} free, taken as a price: ${JP(sheet)} × ${t.buy} ÷ ${t.buy + t.free}`, t}; };
   const fl = l.price > 0 && sheet && l.price < sheet * 0.98 ? floorOf() : null;
   if (l.price > 0 && l.cost > 0 && l.price < l.cost) CHECKS.push({kind:'gp', o, l, gp:Math.round((l.price - l.cost) / l.price * 100), key:'gp:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 3.5e6});
-  else if (fl && l.price < fl.p * 0.98) CHECKS.push({kind:'price', o, l, sheet, floor:fl.p, floorWhy:fl.why, key:'price:' + o.nbr + ':' + l.sku, value:(fl.p - l.price) * l.oq + 3e6});
+  // customers with their own price level (Scott, 11 Nov): if this customer has been invoiced this item at this price or lower in the
+  // last 6 months (O.lowp: lowest invoiced price per customer and item, from ss_hub_data ops), it is their usual price and is not flagged
+  else if (fl && l.price < fl.p * 0.98 && !(LOWP[o.c + '|' + l.sku] && LOWP[o.c + '|' + l.sku].p <= l.price * 1.02)) CHECKS.push({kind:'price', o, l, sheet, floor:fl.p, floorWhy:fl.why, low:LOWP[o.c + '|' + l.sku] || null, key:'price:' + o.nbr + ':' + l.sku, value:(fl.p - l.price) * l.oq + 3e6});
   if (l.price <= 0 && l.oq > 0 && !hasTier) CHECKS.push({kind:'noprice', o, l, key:'noprice:' + o.nbr + ':' + l.sku, value:3.2e6});
   // items we no longer carry (Althia: chain POs keep listing discontinued lines)
   if (INACT[l.sku]) CHECKS.push({kind:'inact', o, l, st:INACT[l.sku], key:'inact:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 1e6});
@@ -940,7 +953,7 @@ const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought, the deal (${x.f.
   x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more (${x.h.buy} in all) for ${x.h.free} more free (${x.h.deal}, per multiple).` :
   x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
   x.kind === 'stock' ? `Only ${Math.max(0, x.l.onhand)} in stock for ${x.l.open}. Ask the rep about a substitute (same colour and size) or cut the quantity.` :
-  x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy}). Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
+  x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy})${x.low ? `. In the last 6 months this customer has paid no less than ${JP(x.low.p)} for it` : `, and the customer hasn’t been invoiced this item in the last 6 months`}. Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
   x.kind === 'noprice' ? `This line is J$0 but the item has no deal on the sheet. Add the price, or untick Free Item if it was ticked by mistake.` :
   x.kind === 'freeover' ? `${x.f.have} free on the order, but ${x.f.oq} bought only earns ${x.f.free} free (${x.f.deal}, per multiple). Reduce the free quantity, or check the deal with the rep.` :
   x.kind === 'gp' ? `Priced at ${JP(x.l.price)} but the cost is ${JP(x.l.cost)}: a ${Math.abs(x.gp)}% loss. Check the price and the item cost${/25PAPC/.test(x.l.desc) ? ' (Covebay 25PAPC has a known cost/UOM error)' : ''}, then ask ${repTxt(x)} about the price.` :
@@ -1561,7 +1574,7 @@ function vOrders() {
   const shipped = SHIPS.filter(s => SHIPPED(s.status) && inChain(s.c) && inFocus(s.c) && s.date >= addDays(ASOF, -7));
   const missed = watch.filter(s => s.cad.state === 'missed').length, due = watch.filter(s => s.cad.state === 'due').length;
   let body = '';
-  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders to check before they ship. Fix them in Acumatica, then mark them sorted.', 'Every order that comes in is checked, whoever keyed it. Price: below cost; below the lowest deal price (the sheet price, or the prorated price when the deal is taken as a price instead of free items: sheet × buy ÷ (buy + free) at the level the quantity reaches); or J$0 on an item with no deal (no price). List price on orders too small for a deal is fine. Free items: missing (the order reaches a deal level but Free Item is not ticked) or more than the deal gives. Range: an item we no longer carry. Stock: short at 71 but in Ashenheim (transfer), or not enough anywhere (substitute or cut). Specials: just short of the next free-goods level. Low margin above cost is for the KAMs and category managers. The hub does not change orders: each line says what to do in Acumatica.') +
+  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders to check before they ship. Fix them in Acumatica, then mark them sorted.', 'Every order that comes in is checked, whoever keyed it. Price: below cost; below the lowest deal price and below anything the customer has paid for the item in the last 6 months (the deal floor is the sheet price, or the prorated price when the deal is taken as a price instead of free items: sheet × buy ÷ (buy + free) at the level the quantity reaches); or J$0 on an item with no deal (no price). List price on orders too small for a deal is fine. Free items: missing (the order reaches a deal level but Free Item is not ticked) or more than the deal gives. Range: an item we no longer carry. Stock: short at 71 but in Ashenheim (transfer), or not enough anywhere (substitute or cut). Specials: just short of the next free-goods level. Low margin above cost is for the KAMs and category managers. The hub does not change orders: each line says what to do in Acumatica.') +
     (chkSorted.length ? `<div class="acts" style="margin:0 0 8px"><button class="btn sm" type="button" data-more="chksorted">${SHOWALL.chksorted ? 'Hide sorted' : 'Show sorted (' + chkSorted.length + ')'}</button></div>` : '') +
     gboard('#E2445C', 'Check before it ships', chkOpen.length + ' lines to check', 'minmax(0,1.4fr) 88px minmax(0,1.3fr) minmax(0,1.8fr) minmax(0,.9fr) 104px 40px', [['Customer'], ['Order'], ['Problem'], ['Product'], ['Rep', '', 'hm'], ['Status', 'center'], ['']],
       chkShown.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
@@ -1627,20 +1640,23 @@ function vReps() {
   const banner = `<section class="teamban"><div class="tb-l"><span class="tb-k">${esc(SUPPORT)}’s reps · ${esc(monName)}</span><b class="tb-big tb-${tcol}">${T.t ? Math.round(tAch * 100) + '%' : '–'}</b><span class="tb-s">${J(T.sold)} sold of ${J(T.t)}</span></div>
     <div class="tb-r"><div class="tb-bar"><i style="width:${Math.min(100, tAch * 100)}%"></i><b style="left:${PACE * 100}%"><em>Today ${Math.round(PACE * 100)}%</em></b></div>
     <div class="tb-lines"><span>Should be at <b>${Math.round(PACE * 100)}%</b> today (${J(should)}) · ${WD_DONE} of ${WD_ALL} working days</span><span class="tb-${diff >= 0 ? 'ok' : 'bad'}">${diff >= 0 ? 'Ahead by ' + J(diff) : 'Behind by ' + J(-diff)}</span><span>Needs ${J(perDay)} a working day</span></div></div></section>`;
-  const cols = [
-    {k:'rep', label:'Rep', get:r => r.rep, show:r => `<div class="who">${av(r.rep)}<span>${esc(r.rep)}</span></div>`},
-    {k:'t', label:'Target', num:1, cls:'hide-sm', get:r => r.t, show:r => r.t ? J(r.t) : '–'},
-    {k:'sold', label:'Sold', num:1, get:r => r.sold, show:r => J(r.sold)},
-    {k:'ach', label:'Achieved', num:1, key:1, get:r => r.t ? r.ach : -1, tip:r => r.t ? `Should be ${Math.round(PACE * 100)}% today (${J(r.t * PACE)})` : '', show:r => r.t ? `<b style="color:${achCol[r.col]}">${Math.round(r.ach * 100)}%</b>` : '–'},
-    {k:'bar', label:'', cls:'hide-sm', w:'15%', get:r => r.ach, show:r => r.t ? bar(r.ach, r.col, 'sm') : ''},
-    {k:'day', label:'Needs / day', num:1, cls:'hide-sm', get:r => r.t ? r.perDay : -1, show:r => r.t && r.sold < r.t ? J(r.perDay) : r.t ? '<span class="up">Reached</span>' : '–'},
-    {k:'open', label:'Open orders', num:1, cls:'hide-sm', get:r => r.open.length, show:r => r.open.length ? `${r.open.length} <span class="note" style="margin:0">· ${J(r.open.reduce((a, o) => a + o.total, 0))}</span>` : '–'},
-    {k:'chk', label:'To check', num:1, get:r => r.checks, show:r => r.checks ? `<b class="dn">${r.checks}</b>` : '–'},
-    {k:'stuck', label:'Stuck', num:1, cls:'hide-sm', get:r => r.stuck, show:r => r.stuck ? `<b class="dn">${r.stuck}</b>` : '–'},
-    {k:'bo', label:'Back orders', num:1, cls:'hide-sm', get:r => r.bo, show:r => r.bo || '–'}];
+  // reps as rows in the same board style as the customer list below, sized to fit without side-scrolling (Scott, 11 Nov)
+  const repRows = rows.slice().sort((a, b) => (a.t ? a.ach : 9) - (b.t ? b.ach : 9)).map(r => { const sel = CHAINF === r.rep, ov = r.open.reduce((a, o) => a + o.total, 0);
+    return `<div class="brow repr${sel ? ' sel' : ''}" data-chain="${esc(sel ? 'All' : r.rep)}" role="button" tabindex="0" aria-pressed="${sel}" title="${sel ? 'Show all reps' : 'Show only ' + esc(r.rep) + '’s customers'}">
+      <div class="c-store one c1"><div class="who">${av(r.rep)}<span>${esc(r.rep)}</span></div></div>
+      <div class="one hm" style="text-align:right">${r.t ? J(r.t) : '–'}</div>
+      <div class="one" style="text-align:right">${J(r.sold)}</div>
+      <div class="one c2 achc">${r.t ? `<b style="color:${achCol[r.col]}">${Math.round(r.ach * 100)}%</b>${bar(r.ach, r.col, 'sm')}` : '–'}</div>
+      <div class="one hm" style="text-align:right">${r.t && r.sold < r.t ? J(r.perDay) : r.t ? '<span class="up">Reached</span>' : '–'}</div>
+      <div class="one hm" style="text-align:right">${r.open.length ? `${r.open.length} · ${J(ov)}` : '–'}</div>
+      <div class="one" style="text-align:center">${r.checks ? `<b class="dn">${r.checks}</b>` : '–'}</div>
+      <div class="one hm" style="text-align:center">${r.stuck ? `<b class="dn">${r.stuck}</b>` : '–'}</div></div>`; });
+  const repBoard = `<section class="grp gen" style="--gc:#326BD3;--cols:minmax(0,1.7fr) 88px 88px minmax(0,1.3fr) 96px minmax(0,1fr) 72px 60px"><div class="gh"><h3>Reps</h3><span class="gn">${CHAINF === 'All' ? 'Tap a rep to see only their customers on every tab' : 'Showing ' + esc(CHAINF) + ' · tap again for all reps'}</span></div>
+    <div class="bhead"><div>Rep</div><div class="hm" style="text-align:right">Target</div><div style="text-align:right">Sold</div><div>Achieved</div><div class="hm" style="text-align:right">Needs / day</div><div class="hm" style="text-align:right">Open orders</div><div style="text-align:center">To check</div><div class="hm" style="text-align:center">Stuck</div></div>
+    ${repRows.join('')}</section>`;
   const gaps = STORES.filter(s => inChain(s.id) && inFocus(s.id) && s.budM > 0 && s.gapPace < 0).sort((a, b) => a.gapPace - b.gapPace);
-  return banner + lead1('r-rows', 'Each rep’s sales this month against their target. Tap a rep to see only their customers on every tab; tap again for all.', 'Sales are invoices so far this month credited to the rep (Sales Explorer, refreshed at 7am and 1pm). The % is coloured against where they should be today: green on track, amber within 10% of it, red further behind. The line on each bar is where they should be today. “Needs / day” is what is left of the target divided by the working days left.') +
-    stable('reps', cols, rows, 'ach', 1, false, r => r.rep, 'chain') +
+  return banner + lead1('r-rows', 'Each rep’s sales this month against their target.', 'Sales are invoices so far this month credited to the rep (Sales Explorer, refreshed at 7am and 1pm). The % is coloured against where they should be today: green on track, amber within 10% of it, red further behind. The line on each bar is where they should be today. “Needs / day” is what is left of the target divided by the working days left.') +
+    repBoard +
     gboard('#E2445C', 'Customers furthest behind this month', gaps.length + ' behind where they should be today', 'minmax(0,1.6fr) minmax(0,.9fr) 90px 90px 120px 96px 40px', [['Customer'], ['Rep', '', 'hm'], ['Target', 'right', 'hm'], ['Sold', 'right'], ['Progress', 'center', 'hm'], ['Short by', 'right'], ['']],
       gaps.map(s => { const p = s.mtd / s.budM, op = openOf(s.id); return grow('gap:' + s.id, [cell(esc(s.name), 'c-store one c1'), cell(esc(firstName(s.rep)), 'one hm'), cell(J(s.budM), 'one hm', 'right'), cell(J(s.mtd), 'one', 'right'), cell(`<span class="rbar sm"><i style="width:${Math.min(100, p * 100)}%;background:${p >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span>`, 'one hm', 'center'), cell(`<b class="dn">${J(-s.gapPace)}</b>`, 'one c2', 'right')],
         // ordering: what is actually open and the last delivery. No "usually every N days": balance shipments of part orders skew it (Scott, 11 Nov)
@@ -1662,7 +1678,7 @@ function vDeliv() {
     return `${d.short.length ? plCards(d.short.map(x => ({name:x.desc, sub:`${x.got} of ${x.exp} delivered${x.note ? ' · “' + esc(x.note) + '”' : ''}`, tag:dlvTag(x.why), tone:/not ordered/i.test(x.why) ? 'loss' : ''}))) : ''}<div class="bfacts"><div><span>Acumatica</span>Shipment ${acuShip(d.nbr)} is <b>${esc(d.status)}</b>${d.order ? ' · order ' + acuOrder(d.order) : ''}</div>
       <div><span>Load</span>${ld ? `Load ${esc(ld.load)} for ${esc(fd(ld.date))}${ld.picked ? ', picked' : ''}${ld.checked ? ', checked' : ''}` : 'Not on a warehouse load'}</div>
       <div><span>Truck</span>${esc(d.via || 'Not set')}${d.driver ? ' · driver ' + esc(d.driver) + ' ' + tel(d.phone) : ''}</div>
-      <div><span>Driver app</span>${st ? `${esc(d.st.t)}${st.arrived ? ' · arrived ' + esc(st.arrived.slice(5)) : ''}${st.done ? ' · done ' + esc(st.done.slice(5)) : ''}${st.recv ? ' · received by ' + esc(st.recv) : ''}${st.fail ? ' · reason: ' + esc(st.fail) : ''}${st.failNote ? ' (' + esc(st.failNote) + ')' : ''}${st.inv ? ' · invoice ' + esc(st.inv) : ''}` : 'No stop recorded in the driver app'}</div>
+      <div><span>Driver app</span>${st ? `${esc(d.st.t)}${st.arrived ? ' · arrived ' + esc(st.arrived.slice(5)) : ''}${st.done ? ' · done ' + esc(st.done.slice(5)) : ''}${st.recv ? ' · received by ' + esc(st.recv) : ''}${st.fail ? ' · reason: ' + esc(st.fail) : ''}${st.failNote ? ' (' + esc(st.failNote) + ')' : ''}${st.inv ? ' · invoice ' + esc(st.inv) : ''}` : 'No stop recorded in the driver app'}${d.sibNote ? '<br>' + esc(d.sibNote) : d.st.k === 'part' && !d.short.length ? '<br>The driver marked it part delivered but did not record which items.' : ''}</div>
       <div><span>Value</span>${J(d.value)} · shipment dated ${esc(fd(d.date))}</div></div>
       <div class="acts"><button class="btn sm" type="button" data-store="${esc(d.c)}">Open customer</button>${d.order ? `<button class="btn sm" type="button" data-order="${esc(d.order)}">See the order</button>` : ''}${btnNote('note|dlv:' + d.nbr, '✎ Note')}</div>${formFor('note|dlv:' + d.nbr)}`; };
   const prob = base.filter(isProb).length, out = base.filter(d => d.date === ASOF || d.st.k === 'road').length;
@@ -1673,7 +1689,7 @@ function vDeliv() {
   </div>
   <div class="dsearch"><label for="dq">Find a delivery</label><input id="dq" type="search" placeholder="Customer, order, shipment, invoice or driver" value="${esc(DQ)}" autocomplete="off"></div>
   ${lead1('d-l', q ? `${list.length} match${list.length === 1 ? '' : 'es'} for “${DQ.trim()}”.` : 'Where each shipment is: Acumatica status, the load and truck, and what the driver app recorded at the stop.', 'Shipped is judged only from the Acumatica shipment status (Confirmed, Completed or Invoiced). A shipment on a truck that Acumatica still shows On Hold or Open is “Not shipped”. The driver app adds the stop result, arrival time, who received it and any reason it failed. Trucks without the app show “Left the warehouse”.')}
-  ${gboard('#326BD3', q ? 'Search results' : SUB.deliv === 'prob' ? 'Delivery problems' : SUB.deliv === 'today' ? 'Out today' : 'All shipments, last 3 weeks', list.length + ' shipments', 'minmax(0,1.5fr) 82px 78px 136px minmax(0,1.1fr) minmax(0,.8fr) 40px', [['Customer'], ['Shipment', '', 'hm'], ['Date', 'center', 'hm'], ['Where it is', 'center'], ['Truck / driver', '', 'hm'], ['Rep', '', 'hm'], ['']],
+  ${gboard('#326BD3', q ? 'Search results' : SUB.deliv === 'prob' ? 'Delivery problems' : SUB.deliv === 'today' ? 'Out today' : 'All shipments, last 3 weeks', list.length + ' shipments', 'minmax(0,1.5fr) 82px 70px 156px minmax(0,1.1fr) minmax(0,.8fr) 40px', [['Customer'], ['Shipment', '', 'hm'], ['Date', 'center', 'hm'], ['Where it is', 'center'], ['Truck / driver', '', 'hm'], ['Rep', '', 'hm'], ['']],
     list.map(d => grow('dl:' + d.nbr, [cell(esc(byId[d.c] ? byId[d.c].name : d.c), 'c-store one c1'), cell(esc(d.nbr), 'one hm'), cell(esc(fds(d.date)), 'one hm', 'center'), cell(stCell(d), 'one c2', 'center'), cell(esc(d.driver || d.via || '–'), 'one hm'), cell(esc(firstName(byId[d.c] && byId[d.c].rep)), 'one hm')], exp(d))), 'deliv')}`;
 }
 
@@ -1684,12 +1700,16 @@ const RGRPC = {'Order entry':['#E2445C', 'Did not order, not on their system, al
 function vReturns() {
   // a toggle bar across the top picks one reason group (Scott, 11 Nov); 'reason' = all of them
   if (!['reason', 'cust'].includes(SUB.returns) && !/^g:/.test(SUB.returns || '')) SUB.returns = 'reason';
-  const list = RC.filter(r => inChain(r.c)).map(r => ({...r, g:RGRP(r.reason)}));
+  // search (Scott, 11 Nov): customer, return number, product, reason or who keyed it
+  const rq = RQ.trim().toLowerCase(), rqHit = r => !rq || [byId[r.c] && byId[r.c].name, r.nbr, r.reason, rNice(r.reason), r.by, ...(rcLines[r.nbr] || []).map(l => l.desc + ' ' + l.sku)].some(v => v && String(v).toLowerCase().includes(rq));
+  const list = RC.filter(r => inChain(r.c) && rqHit(r)).map(r => ({...r, g:RGRP(r.reason)}));
   const tot = list.reduce((a, r) => a + r.total, 0), wk = list.filter(r => r.date >= addDays(ASOF, -7));
   const byG = g => list.filter(r => r.g === g);
   const lines = r => (rcLines[r.nbr] || []).map(l => `${l.q} × ${esc(l.desc)}`).join('; ') || 'No lines loaded';
   const rRow = r => grow('rc:' + r.nbr, [cell(esc(byId[r.c] ? byId[r.c].name : r.c), 'c-store one c1'), cell(esc(r.nbr), 'one hm'), cell(esc(fds(r.date)), 'one hm', 'center'), cell(esc(rNice(r.reason)), 'one c2'), cell(J(r.total), 'one', 'right')],
-    `<div class="bfacts"><div><span>Items</span>${lines(r)}</div><div><span>Reason</span>${esc(rNice(r.reason))} · ${esc(r.g)}</div><div><span>Keyed by</span>${esc(r.by || '–')} · ${esc(r.status)}</div><div><span>Rep</span>${esc((byId[r.c] || {}).rep || '–')}</div></div><div class="acts"><button class="btn sm" type="button" data-store="${esc(r.c)}">Open customer</button>${btnNote('note|rc:' + r.nbr, '✎ Note')}</div>${formFor('note|rc:' + r.nbr)}`);
+    // the products returned, then the facts, then a link to the return in Acumatica (Scott, 11 Nov)
+    `${(rcLines[r.nbr] || []).length ? plCards(rcLines[r.nbr].map(l => ({name:l.desc, title:l.sku, sub:`${l.q} returned${l.price ? ' · ' + JP(l.price) + ' each' : ''}`, tag:J(l.q * l.price)}))) : '<p class="note" style="margin:0 0 8px">The products on returns aren’t synced to the portal yet. Open the return in Acumatica to see them.</p>'}
+    <div class="bfacts"><div><span>Reason</span>${esc(rNice(r.reason))} · ${esc(r.g)}</div><div><span>Keyed by</span>${esc(r.by || '–')} · ${esc(r.status)}</div><div><span>Rep</span>${esc((byId[r.c] || {}).rep || '–')}</div></div><div class="acts"><a class="btn sm acubtn" href="${ACU}?ScreenId=SO301000&OrderType=RC&OrderNbr=${encodeURIComponent(r.nbr)}" target="_blank" rel="noopener">Open return ${esc(r.nbr)} in Acumatica ↗</a><button class="btn sm" type="button" data-store="${esc(r.c)}">Open customer</button>${btnNote('note|rc:' + r.nbr, '✎ Note')}</div>${formFor('note|rc:' + r.nbr)}`);
   let body = '';
   if (SUB.returns === 'reason' || /^g:/.test(SUB.returns)) body = lead1('rt-r', 'Returns (RC orders) in the last 60 days, grouped by the reason keyed in Acumatica.', '“Order entry” returns are the ones sales support can stop: the customer did not order it (an extra line or a duplicate order), it is not on the customer’s system (Progressive returns anything not on their list), or the customer had already received it (an old back order sent again). Value is the RC order total.') +
     Object.keys(RGRPC).filter(g => SUB.returns === 'reason' || SUB.returns === 'g:' + g).map(g => { const l = byG(g).sort((a, b) => b.date.localeCompare(a.date)); if (!l.length) return '';
@@ -1704,7 +1724,8 @@ function vReturns() {
     ${ctile('reason', 'returns', list.length, 'Returns, 60 days', J(tot) + ' · ' + wk.length + ' this week', '#326BD3')}
     ${ctile('g:Order entry', 'alert', byG('Order entry').length, 'Order entry', J(byG('Order entry').reduce((a, r) => a + r.total, 0)) + ' that could be stopped', '#E2445C')}
     ${ctile('cust', 'reps', Object.values(list.reduce((m, r) => (m[r.c] = (m[r.c] || 0) + 1, m), {})).filter(n => n >= 2).length, 'Repeat returners', 'Two or more in 60 days', '#E8862A')}
-  </div>${segs([['reason', 'All', list.length], ...Object.keys(RGRPC).filter(g => byG(g).length).map(g => ['g:' + g, g, byG(g).length]), ['cust', 'Repeat returners', null]])}${body}`;
+  </div>${segs([['reason', 'All', list.length], ...Object.keys(RGRPC).filter(g => byG(g).length).map(g => ['g:' + g, g, byG(g).length]), ['cust', 'Repeat returners', null]])}
+  <div class="dsearch"><label for="rq">Find a return</label><input id="rq" type="search" placeholder="Customer, return number, reason or who keyed it" value="${esc(RQ)}" autocomplete="off"></div>${body}`;
 }
 
 // ---------- weekly back-order review (Alecia 9 Nov; regrouped by order, Scott 11 Nov) ----------
@@ -1922,13 +1943,13 @@ function vStores() {
   const prog = s => { const p = s.budM ? s.mtd / s.budM * 100 : 0;
     return `<div class="pace"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${s.gapPace >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div><span>${Math.round(p)}%</span></div>`; };
   const monthCols = [
-    {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
-    {k:'merch', label:'Merch', w:'13%', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)}, {k:'rep', label:'Rep', w:'13%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)},
-    {k:'bud', label:'Target', num:1, get:s => s.budM, show:s => J(s.budM)},
-    {k:'mtd', label:'Achieved', num:1, cls:'ctr', get:s => s.mtd, show:s => J(s.mtd)},
-    {k:'bar', label:'', cls:'hide-sm', w:'18%', get:s => s.budM ? s.mtd / s.budM : 0, tip:s => 'The line marks where the store should be today (' + Math.round(PACE * 100) + '% of the month gone)', show:s => { const p = s.budM ? s.mtd / s.budM * 100 : 0; return `<div class="pace" style="justify-content:center"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${s.gapPace >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div></div>`; }},
-    {k:'pct', label:'Prog', num:1, cls:'ctr', get:s => s.budM ? s.mtd / s.budM : 0, show:s => `<b style="font-family:var(--head);color:var(--ink2)">${Math.round(s.budM ? s.mtd / s.budM * 100 : 0)}%</b>`},
-    {k:'gap', label:'vs pace', num:1, get:s => s.gapPace, show:s => `<b class="${s.gapPace >= 0 ? 'up' : 'dn'}">${s.gapPace >= 0 ? '+' : ''}${J(s.gapPace)}</b>`}];
+    {k:'store', label:'Customer', get:s => s.name, show:s => storeLink(s.id)},
+    {k:'rep', label:'Rep', w:'12%', cls:'hide-sm', get:s => s.rep || '~', show:s => whoCell(s.rep, true)}, {k:'merch', label:'Merch', w:'12%', cls:'hide-sm', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
+    {k:'bud', label:'Target', num:1, w:'10%', get:s => s.budM, show:s => J(s.budM)},
+    {k:'mtd', label:'Sold', num:1, w:'10%', cls:'ctr', get:s => s.mtd, show:s => J(s.mtd)},
+    {k:'bar', label:'', cls:'hide-sm', w:'13%', get:s => s.budM ? s.mtd / s.budM : 0, tip:s => 'The line marks where the store should be today (' + Math.round(PACE * 100) + '% of the month gone)', show:s => { const p = s.budM ? s.mtd / s.budM * 100 : 0; return `<div class="pace" style="justify-content:center"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${s.gapPace >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div></div>`; }},
+    {k:'pct', label:'Prog', num:1, w:'7%', cls:'ctr', get:s => s.budM ? s.mtd / s.budM : 0, show:s => `<b style="font-family:var(--head);color:var(--ink2)">${Math.round(s.budM ? s.mtd / s.budM * 100 : 0)}%</b>`},
+    {k:'gap', label:'Short by', num:1, key:1, w:'11%', get:s => s.gapPace, tip:s => 'Against where the customer should be today (' + Math.round(PACE * 100) + '% of the target)', show:s => s.gapPace >= 0 ? '<span class="up">on track</span>' : `<b class="dn">${J(-s.gapPace)}</b>`}];
   let body = '';
   if (SUB.stores === 'month' || SUB.stores === 'behind') body = lead1('s-m', `${monName} target, what each store has bought so far, and whether it is on pace.`, `Pace is the target multiplied by the share of working days gone (${WD_DONE} of ${WD_ALL}). The line on each bar marks where the store should be today. Tap a store for its year-to-date figures, categories and the lines it has stopped buying.`) +
     `<div class="dsearch"><label for="cq">Find a customer</label><input id="cq" type="search" placeholder="Type part of the name or account number" value="${esc(CQ)}" autocomplete="off"></div>` +
@@ -2263,6 +2284,7 @@ function render() {
   document.getElementById('tctl').innerHTML = focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
   document.getElementById('main').innerHTML = focusLine() + ({today:vToday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns}[TAB] || vToday)();
+  if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'deliv' && window.__dqFocus) { const q = document.getElementById('dq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__dqFocus = false; }
   // keep the pop-up where it was when it redraws (same pop-up), instead of jumping back to the top
@@ -2282,7 +2304,7 @@ function toastUndo(m, fn) { const e = document.getElementById('toast'); UNDO = f
 __on(document, 'click', e => {
   if (e.target.closest('.bexp') && !e.target.closest('button')) return;   // typing in an open row
   if (e.target.closest('a.acu, a.acubtn')) return;   // Acumatica links open in a new tab, nothing else
-  const b = e.target.closest('button, [data-close], [data-exp], tr[data-store], tr[data-cat], tr[data-chain]'); if (!b) return;
+  const b = e.target.closest('button, [data-close], [data-exp], tr[data-store], tr[data-cat], [data-chain]'); if (!b) return;
   const d = b.dataset;
   if (d.tab) { TAB = d.tab; OPEN = null; try { history.replaceState(null, '', '#' + TAB); } catch (x) {} render(); window.scrollTo(0, 0); return; }
   if (d.close) { DRAWER = null; OPEN = null; render(); return; }
@@ -2300,7 +2322,7 @@ __on(document, 'click', e => {
   if (d.msortdir) { const [id, k, dir] = d.msortdir.split('|'); SORT[id] = {k, dir:-(+dir || 1)}; render(); return; }
   if (d.sort) { const [id, k] = d.sort.split('|'); const st = SORT[id]; SORT[id] = {k, dir:st && st.k === k ? -st.dir : (b.closest('th').classList.contains('n') ? -1 : 1)};
     const sc = b.closest('.tbl'), top = sc ? sc.scrollTop : 0; render(); return; }
-  if (d.chain) { CHAINF = b.tagName === 'TR' && CHAINF === d.chain ? 'All' : d.chain; render(); return; }
+  if (d.chain) { CHAINF = d.chain; render(); return; }
   if (d.sub) { SUB[TAB] = d.sub; EXP = null; OPEN = null; render(); return; }
   if (d.info) { INFO[d.info] = !INFO[d.info]; render(); return; }
   if (d.focus) { SHOWALL.todayall = d.focus === 'all'; EXP = null; render(); return; }
@@ -2334,7 +2356,8 @@ __on(document, 'change', e => { if (e.target.id === 'supsel' && window.__ssSwitc
 // back-order "still wanted" tick boxes (inside an open row, so they use change, not click)
 __on(document, 'change', e => { const k = e.target.dataset && e.target.dataset.bok; if (k) setTick('bok:' + k, e.target.checked ? 'keep' : null); });
 // delivery search: redraw as they type, keeping the cursor in the box
-let CQ = '';
+let CQ = '', RQ = '';
+let RQT = null; __on(document, 'input', e => { if (e.target.id !== 'rq') return; RQ = e.target.value; clearTimeout(RQT); RQT = setTimeout(() => { window.__rqFocus = true; EXP = null; render(); }, 220); });
 let CQT = null; __on(document, 'input', e => { if (e.target.id !== 'cq') return; CQ = e.target.value; clearTimeout(CQT); CQT = setTimeout(() => { window.__cqFocus = true; render(); }, 220); });
 let DQT = null; __on(document, 'input', e => { if (e.target.id !== 'dq') return; DQ = e.target.value; clearTimeout(DQT); DQT = setTimeout(() => { window.__dqFocus = true; EXP = null; render(); }, 220); });
 __on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
