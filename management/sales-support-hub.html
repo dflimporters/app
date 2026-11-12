@@ -923,7 +923,10 @@ ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.l
     const t = [...tiers].reverse().find(t => t.buy <= paid);
     if (free > 0 || !t) return {p:sheet, why:free > 0 ? 'free items are on the order, so the price should be the sheet price' : 'the quantity doesn’t reach a deal level'};
     return {p:sheet * t.buy / (t.buy + t.free), why:`buy ${t.buy} get ${t.free} free, taken as a price: ${JP(sheet)} × ${t.buy} ÷ ${t.buy + t.free}`, t}; };
-  const fl = l.price > 0 && sheet && l.price < sheet * 0.98 ? floorOf() : null;
+  // a line at or above the item's list price is never "below the deal price": some sheet prices sit above list (Scott, 12 Nov: Tryall Club,
+  // White & Bright 20x350g, sheet J$3,038 vs list J$1,914). DEALS[sku][2] = list price (needs migration ss_hub_listprice; ignored until then)
+  const listP = DEALS[l.sku] && +DEALS[l.sku][2] > 0 ? +DEALS[l.sku][2] : 0;
+  const fl = l.price > 0 && sheet && l.price < sheet * 0.98 && !(listP && l.price >= listP * 0.98) ? floorOf() : null;
   if (l.price > 0 && l.cost > 0 && l.price < l.cost) CHECKS.push({kind:'gp', o, l, gp:Math.round((l.price - l.cost) / l.price * 100), key:'gp:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 3.5e6});
   // customers with their own price level (Scott, 11 Nov): if this customer has been invoiced this item at this price or lower in the
   // last 6 months (O.lowp: lowest invoiced price per customer and item, from ss_hub_data ops), it is their usual price and is not flagged
@@ -1789,6 +1792,13 @@ function vReturns() {
 const MONDAY = (() => { let d = ASOF; while (d8(d).getDay() !== 1) d = addDays(d, -1); return d; })();
 const wantedOf = b => { const t = tick('bok:' + b.nbr + ':' + b.sku); return !!(t && t.v === 'keep'); };
 const repliedOf = nbr => { const t = tick('bow:' + nbr); return !!(t && t.v); };
+// the items ticked "still wanted" (Scott, 12 Nov: needed a way to copy or download them for the new order). One entry per back order with kept items.
+const dlCsv = (name, text, ok) => { try { const b = new Blob(['﻿' + text], {type:'text/csv;charset=utf-8'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast(ok); } catch (x) { toast('Download did not work here. Use the copy button instead.'); } };
+const keptAll = () => REPS.flatMap(rep => boOrders(rep).map(x => ({...x, rep, kept:x.ls.filter(wantedOf)}))).filter(x => x.kept.length);
+const keptSel = k => { const all = keptAll(); return k === 'all' ? all.filter(x => CHAINF === 'All' || x.rep === CHAINF) : k.startsWith('o:') ? all.filter(x => x.nbr === k.slice(2)) : all.filter(x => x.rep === k.slice(2)); };
+const keptMsg = l => [`*Back order items to enter as new orders, ${fd(ASOF)}*`, '', ...l.flatMap(x => [`*${byId[x.c] ? byId[x.c].name : x.c}* (${firstName(x.rep)}, from back order ${x.nbr})`, ...x.kept.map(b => `• ${b.desc} × ${b.open}`), ''])].join('\n').trim();
+const keptCsv = l => ['Customer ID,Customer,Rep,Back order,Item code,Description,Qty', ...l.flatMap(x => x.kept.map(b => [x.c, byId[x.c] ? byId[x.c].name : '', x.rep, x.nbr, b.sku, b.desc, b.open].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')))].join('\r\n');
+const keptBtns = (k, pri) => `<button class="btn sm ${pri ? 'pri' : ''}" type="button" data-keptcopy="${esc(k)}">Copy kept items</button><button class="btn sm" type="button" data-keptdl="${esc(k)}">Download kept items (CSV)</button>`;
 // search box on Back orders (Scott, 12 Nov): customer, order, item or rep
 const bqHit = (...vs) => { const q = BQ.trim().toLowerCase(); return !q || vs.some(v => v && String(v).toLowerCase().includes(q)); };
 const boOrders = rep => { const m = {}; BO.filter(b => byId[b.c] && byId[b.c].rep === rep).forEach(b => { const x = m[b.nbr] = m[b.nbr] || {nbr:b.nbr, c:b.c, date:b.date, ls:[], val:0}; x.ls.push(b); x.val += b.open * b.price; });
@@ -1799,18 +1809,18 @@ const boMsg = (rep, os) => [`Hi ${firstName(rep)}, your back orders are cleared 
 function boReview() {
   const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF);
   return lead1('b-week', 'This week’s back orders, one row per order. Ask each rep which items the customer still wants before Monday’s clear-out.', 'Copy a rep’s list into WhatsApp. When they answer, open the back order, tick the items still wanted and mark it “Rep replied”. On Monday at 12 noon the back orders are cleared in Acumatica, and the items still wanted go on a new order, so nothing is entered twice. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
-    reps.map(rep => { const os = boOrders(rep).filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku))); if (!os.length) return '';
+    reps.map(rep => { const osAll = boOrders(rep), os = osAll.filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku))); if (!os.length) return '';
       const sk = 'bosent:' + rep + ':' + MONDAY, sent = tick(sk), replied = os.filter(x => repliedOf(x.nbr)).length;
       const sh = SHOWALL['bw:' + rep] ? os : os.slice(0, 10);
       return `<section class="grp gen" style="--gc:#7B4FD0;--cols:minmax(0,1.6fr) 96px 70px 90px 84px 110px 40px"><div class="gh"><h3>${av(rep)} ${esc(rep)}</h3><span class="gn">${os.length} back orders · ${replied} replied · ${sent && sent.v ? 'list sent ' + esc(fds(sent.at.slice(0, 10))) : 'list not sent yet'}</span>
-        <span class="ghb"><button class="btn sm pri" type="button" data-bocopy="${esc(rep)}">Copy list for WhatsApp</button></span></div>
+        <span class="ghb"><button class="btn sm pri" type="button" data-bocopy="${esc(rep)}">Copy list for WhatsApp</button>${osAll.some(x => x.ls.some(wantedOf)) ? keptBtns('r:' + rep) : ''}</span></div>
         <div class="bhead"><div>Customer</div><div class="hm">Back order</div><div style="text-align:center">Items</div><div class="hm" style="text-align:right">Value</div><div class="hm" style="text-align:center">Since</div><div style="text-align:center">Rep</div><div></div></div>
         ${sh.map(x => { const rp = repliedOf(x.nbr), wanted = x.ls.filter(wantedOf).length;
-          return grow('bw:' + x.nbr, [cell(esc(byId[x.c].name), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(`${x.ls.length}${rp ? `<span class="mlab"> · ${wanted} wanted</span>` : ''}`, 'c-age', 'center'), cell(J(x.val), 'c-age hm', 'right'), cell(esc(fds(x.date)), 'c-age hm', 'center'),
+          return grow('bw:' + x.nbr, [cell(esc(byId[x.c].name), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(`${x.ls.length}${wanted ? `<span class="mlab"> · ${wanted} kept</span>` : ''}`, 'c-age', 'center'), cell(J(x.val), 'c-age hm', 'right'), cell(esc(fds(x.date)), 'c-age hm', 'center'),
             `<button type="button" class="stcell ${rp ? 'st-sorted' : 'st-todo'}" data-bow="${esc(x.nbr)}" aria-label="${rp ? 'Rep replied. Tap to undo' : 'Ask rep. Tap when the rep has replied'}">${rp ? 'Replied' : 'Ask rep'}</button>`],
             `<div class="bochk">${x.ls.map(b => `<label class="bol"><input type="checkbox" data-bok="${esc(b.nbr + ':' + b.sku)}"${wantedOf(b) ? ' checked' : ''}><span class="bol-n">${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></label>`).join('')}</div>
             <p class="note" style="margin:6px 0 8px">Tick the items the rep says the customer still wants: the tick is saved here for the team and the WhatsApp list; it does not change Acumatica. ${wanted ? `<b>${wanted} of ${x.ls.length}</b> still wanted.` : ''}</p>
-            <div class="acts"><button class="btn sm ${rp ? '' : 'pri'}" type="button" data-bow="${esc(x.nbr)}">${rp ? 'Undo “Rep replied”' : 'Mark “Rep replied”'}</button><button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button>${btnNote('note|bw:' + x.nbr, '✎ Note')}</div>${formFor('note|bw:' + x.nbr)}`); }).join('')}
+            <div class="acts"><button class="btn sm ${rp ? '' : 'pri'}" type="button" data-bow="${esc(x.nbr)}">${rp ? 'Undo “Rep replied”' : 'Mark “Rep replied”'}</button>${wanted ? keptBtns('o:' + x.nbr, rp) : ''}<button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button>${btnNote('note|bw:' + x.nbr, '✎ Note')}</div>${formFor('note|bw:' + x.nbr)}`); }).join('')}
         ${os.length > 10 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="bw:${esc(rep)}">${SHOWALL['bw:' + rep] ? 'Show fewer' : 'Show the other ' + (os.length - 10)}</button></div>` : ''}</section>`; }).join('');
 }
 // ---------- Deals: what Shallet sent to the team, and whether it reached an order ----------
@@ -1860,7 +1870,8 @@ function oosList() { const m = {};
 const oosWhen = x => x.r ? `${x.r.label}${x.r.eta ? ', due ' + fds(x.r.eta) : ''}` : x.st === 'gone' ? 'No longer carried' : x.st === 'xfer' ? 'In Ashenheim, coming across on a transfer' : 'No update yet';
 const oosMsg = list => [`*Stock update, ${fd(ASOF)}*`, ...list.map(x => `• ${x.desc}: ${OOS_ST[x.st][1].toLowerCase()}${x.r ? ' – ' + x.r.label.toLowerCase() + (x.r.eta ? ', due ' + fds(x.r.eta) : '') + (x.r.text ? ' (' + x.r.text + ')' : '') : x.st === 'gone' ? ' – offer an alternative' : x.st === 'xfer' ? ' – coming from Ashenheim' : ''}`), 'Please tell your customers before they ask. Questions to sales support.'].join('\n');
 function vBackorders() {
-  if (!['week', 'bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'week';
+  if (!['week', 'keep', 'bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'week';
+  const kept = keptSel('all').filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, x.rep, ...x.kept.map(b => b.desc + ' ' + b.sku))), keptN = keptSel('all').reduce((a, x) => a + x.kept.length, 0);
   const oos = oosList(), oosNo = oos.filter(x => !x.r && x.st !== 'xfer' && x.st !== 'gone').length;
   const bo = BO.filter(b => inChain(b.c));
   const bySku = {}; bo.forEach(b => { const x = bySku[b.sku] = bySku[b.sku] || {sku:b.sku, desc:b.desc, rows:[], qty:0, onhand:b.onhand, val:0, oldest:b.date}; x.rows.push(b); x.qty += b.open; x.val += b.open * b.price; if (b.date < x.oldest) x.oldest = b.date; });
@@ -1880,6 +1891,11 @@ function vBackorders() {
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
         `${rows(g.rows.map(b => row(storeLink(b.c), (b.rep ? 'Back order ' : 'Order ') + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="Check it, then close back order ${esc(b.nbr)} in Acumatica.">${repText(b.rep)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
   if (SUB.backorders === 'week') body = boReview();
+  if (SUB.backorders === 'keep') body = lead1('b-keep', 'Every item you have ticked as still wanted, ready for the new orders. Copy or download it, then enter the lines on a new order in Acumatica.', 'Ticked in the weekly review. One row per back order, with the items to put on the new order. The list stays here after you close the customer, until you untick the items. It does not change Acumatica: add the lines to a new order yourself, then close the old back order.') +
+    (kept.length ? `<div class="acts" style="margin:0 0 10px">${keptBtns('all', true)}</div>` : '') +
+    gboard('#7B4FD0', 'Still wanted, to re-enter', kept.length + ' back orders · ' + kept.reduce((a, x) => a + x.kept.length, 0) + ' items', 'minmax(0,1.6fr) 96px 70px minmax(0,.8fr) 40px', [['Customer'], ['Back order', '', 'hm'], ['Items', 'center'], ['Rep', '', 'hm'], ['']],
+      kept.map(x => grow('kp:' + x.nbr, [cell(esc(byId[x.c] ? byId[x.c].name : x.c), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(x.kept.length, 'c-age', 'center'), cell(esc(firstName(x.rep)), 'one hm')],
+        plCards(x.kept.map(b => ({name:b.desc, title:b.sku, sub:`${esc(b.sku)}${b.rep ? ' · may already be on order' : ''}`, tag:`× ${b.open}`}))) + `<div class="acts">${keptBtns('o:' + x.nbr)}<button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button></div>`)), 'kept');
   if (SUB.backorders === 'oos') body = lead1('b-oos', 'What open orders and back orders are waiting on that we can’t send. Note when it’s due and tell the team.', 'One row per item: how many customers are waiting, how much is owed, and the status (out of stock, short, only in Ashenheim, or no longer carried). Tap an item to see who is waiting and to note the reason and due date after checking with purchasing or operations. Everyone sees the update. “Copy for WhatsApp” sends the team the list with the dates.') +
     `<div class="acts" style="margin:0 0 10px"><button class="btn sm pri" type="button" data-oosmsg="1">Copy stock update for WhatsApp</button></div>` +
     gboard('#E2445C', 'Can’t send', oos.length + ' items · ' + oosNo + ' with no update', 'minmax(0,2.2fr) 80px 76px 110px minmax(0,1.6fr) 40px', [['Item'], ['Waiting', 'center', 'hm'], ['Owed', 'center'], ['Status', 'center'], ['Update', '', 'rsn'], ['']],
@@ -1892,7 +1908,7 @@ function vBackorders() {
     ${ctile('borep', 'note', repN, 'Likely replaced', 'Newer order for the same item: close the old one', '#326BD3')}
     ${ctile('oos', 'alert', oos.filter(x => x.st !== 'xfer').length, 'Can’t send', oosNo + ' with no update yet', '#E2445C')}
   </div>
-  ${segs([['week', 'Weekly review', bo.length], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
+  ${segs([['week', 'Weekly review', bo.length], ['keep', 'Kept items', keptN], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
   <div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number, item or rep" value="${esc(BQ)}" autocomplete="off"></div>
   ${dbMsg()}${body}`;
 }
@@ -2404,7 +2420,9 @@ __on(document, 'click', e => {
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bow) { setTick('bow:' + d.bow, repliedOf(d.bow) ? null : 1); return; }
   if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }
-  if (d.xferdl) { try { const b = new Blob(['﻿' + xferCsv(xferList())], {type:'text/csv;charset=utf-8'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'transfer-list-' + ASOF + '.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast('Transfer list downloaded.'); } catch (x) { toast('Download did not work here. Use Copy transfer list instead.'); } return; }
+  if (d.xferdl) { dlCsv('transfer-list-' + ASOF + '.csv', xferCsv(xferList()), 'Transfer list downloaded.'); return; }
+  if (d.keptcopy) { const l = keptSel(d.keptcopy); if (l.length) copyText(keptMsg(l), 'Kept items copied. Paste them into WhatsApp or use them for the new order.'); else toast('No items ticked yet.'); return; }
+  if (d.keptdl) { const l = keptSel(d.keptdl); if (l.length) dlCsv('back-order-items-to-reenter-' + ASOF + '.csv', keptCsv(l), 'Downloaded. Open it in Excel.'); else toast('No items ticked yet.'); return; }
   if (d.oosmsg) { copyText(oosMsg(oosList()), 'Stock update copied. Paste it into WhatsApp.'); return; }
   if (d.bocopy) { const rep = d.bocopy; copyText(boMsg(rep, boOrders(rep)), 'List copied. Paste it into WhatsApp.'); setTick('bosent:' + rep + ':' + MONDAY, 1); return; }
   if (d.tick) { const k = d.tick, t = tick(k), was = t && t.v ? t.v : null; setTick(k, was ? null : 1);
