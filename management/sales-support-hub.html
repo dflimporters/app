@@ -679,6 +679,12 @@ tr[data-chain]{cursor:pointer}
 .achc{display:flex;align-items:center;gap:10px}.achc>b{font-family:var(--head);min-width:44px}.achc .rbar{flex:1;min-width:50px}
 .gen .gh+.bhead+.repr,.gen .repr{grid-template-columns:var(--cols)}
 @media (max-width:640px){.gbehind{--gc:minmax(0,1fr) 92px !important}.gbehind>li>span:nth-child(2),.gbehind>li>span:nth-child(3),.gbehind>li>span:nth-child(4),.gbehind>li>span:nth-child(6){display:none}}
+/* rep row: customers furthest behind, as a white card with clear row dividers (Scott, 11 Nov) */
+.l1.gl.gbehind{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(26,35,64,.04)}
+.l1.gl.gbehind>li{padding:10px 16px;border-bottom:1px solid #E3E8F0;min-height:48px}
+.l1.gl.gbehind>li:last-child{border-bottom:0}
+.l1.gl.gbehind>li.lhd{background:#F6F8FB;padding:9px 16px;min-height:0}
+.gbp{display:flex;align-items:center;gap:8px}.gbp .rbar{flex:1;background:#DCE3EE;height:8px}.gbp .rbar b{background:#1A2340}.gbp em{font-style:normal;font-family:var(--head);font-weight:700;font-size:12px;color:var(--ink2);min-width:32px;text-align:right}
 /* header toolbar (Scott, 11 Nov: "looks very ugly"): one row of equal-height controls; on phones a neat 2-row grid, Refresh beside the title */
 .content.portal .topbar{align-items:center}
 #tctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -1648,7 +1654,7 @@ function vReps() {
     if (!l.length) return '<p class="note" style="margin:0 0 8px">No customers behind where they should be today.</p>';
     return `<ul class="l1 gl gbehind" style="--gc:minmax(0,1.6fr) 84px 84px minmax(0,1fr) 92px minmax(0,1.3fr)"><li class="lhd"><span>Customers furthest behind</span><span class="r">Target</span><span class="r">Sold</span><span>Progress</span><span class="r">Short by</span><span>Orders</span></li>
       ${shown.map(s => { const p = s.mtd / s.budM, op = openOf(s.id);
-        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span><span class="rbar sm"><i style="width:${Math.min(100, p * 100)}%;background:${p >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>
+        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span class="gbp"><span class="rbar sm"><i style="width:${Math.max(p > 0 ? 3 : 0, Math.min(100, p * 100))}%;background:${p >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span><em>${Math.round(p * 100)}%</em></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>
       ${l.length > 5 ? `<div class="acts" style="margin-top:6px"><button class="btn sm" type="button" data-more="rg:${esc(rep)}">${all ? 'Show the top 5' : 'Show all ' + l.length}</button></div>` : ''}`; };
   const repRows = rows.slice().sort((a, b) => (a.t ? a.ach : 9) - (b.t ? b.ach : 9)).map(r => { const ov = r.open.reduce((a, o) => a + o.total, 0), nb = behindOf(r.rep).length;
     return grow('rep:' + r.rep, [
