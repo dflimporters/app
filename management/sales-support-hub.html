@@ -820,6 +820,8 @@ const LINES = (O.lines || []).filter(l => ordBy[l[0]]).map(l => ({nbr:l[0], sku:
 const RC = (O.orders || []).filter(o => o[1] === 'RC').map(o => ({nbr:o[0], status:o[2], date:o[3], c:o[5], total:Math.abs(+o[6] || 0), by:o[8] || '', reason:o[11] || 'No reason given'}));
 const rcLines = {}; (O.lines || []).forEach(l => { if (RC.some(r => r.nbr === l[0])) (rcLines[l[0]] = rcLines[l[0]] || []).push({sku:l[1], desc:l[2], q:Math.abs(+l[3] || 0), price:+l[6] || 0}); });
 const INACT = O.inact || {};
+// lowest price each customer has been invoiced each item in the last 6 months (only items on their open orders): [customer, sku, price, last date]
+const LOWP = {}; (O.lowp || []).forEach(r => LOWP[r[0] + '|' + r[1]] = {p:+r[2] || 0, d:r[3]});
 LINES.forEach(l => { (ordBy[l.nbr].lines = ordBy[l.nbr].lines || []).push(l); });
 const SHIPS = (O.ships || []).map(s => ({nbr:s[0], c:s[1], order:s[2], status:s[3], date:s[4], value:+s[5] || 0, via:s[6] || '', created:s[7]}));
 const shipsOfOrder = {}; SHIPS.forEach(s => (shipsOfOrder[s.order] = shipsOfOrder[s.order] || []).push(s));
@@ -914,9 +916,9 @@ ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.l
     return {p:sheet * t.buy / (t.buy + t.free), why:`buy ${t.buy} get ${t.free} free, taken as a price: ${JP(sheet)} × ${t.buy} ÷ ${t.buy + t.free}`, t}; };
   const fl = l.price > 0 && sheet && l.price < sheet * 0.98 ? floorOf() : null;
   if (l.price > 0 && l.cost > 0 && l.price < l.cost) CHECKS.push({kind:'gp', o, l, gp:Math.round((l.price - l.cost) / l.price * 100), key:'gp:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 3.5e6});
-  // customers with their own price level (Scott, 11 Nov): if this customer has been invoiced this item at this price or lower before
-  // (O.inv: invoices of the last 45 days; p = the highest price on that day), it is their usual price and is not flagged
-  else if (fl && l.price < fl.p * 0.98 && !(O.inv || []).some(r => r[0] === o.c && r[2] === l.sku && (+r[3] || 0) > 0 && +r[5] > 0 && +r[5] <= l.price * 1.02)) CHECKS.push({kind:'price', o, l, sheet, floor:fl.p, floorWhy:fl.why, key:'price:' + o.nbr + ':' + l.sku, value:(fl.p - l.price) * l.oq + 3e6});
+  // customers with their own price level (Scott, 11 Nov): if this customer has been invoiced this item at this price or lower in the
+  // last 6 months (O.lowp: lowest invoiced price per customer and item, from ss_hub_data ops), it is their usual price and is not flagged
+  else if (fl && l.price < fl.p * 0.98 && !(LOWP[o.c + '|' + l.sku] && LOWP[o.c + '|' + l.sku].p <= l.price * 1.02)) CHECKS.push({kind:'price', o, l, sheet, floor:fl.p, floorWhy:fl.why, low:LOWP[o.c + '|' + l.sku] || null, key:'price:' + o.nbr + ':' + l.sku, value:(fl.p - l.price) * l.oq + 3e6});
   if (l.price <= 0 && l.oq > 0 && !hasTier) CHECKS.push({kind:'noprice', o, l, key:'noprice:' + o.nbr + ':' + l.sku, value:3.2e6});
   // items we no longer carry (Althia: chain POs keep listing discontinued lines)
   if (INACT[l.sku]) CHECKS.push({kind:'inact', o, l, st:INACT[l.sku], key:'inact:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 1e6});
@@ -951,7 +953,7 @@ const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought, the deal (${x.f.
   x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more (${x.h.buy} in all) for ${x.h.free} more free (${x.h.deal}, per multiple).` :
   x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
   x.kind === 'stock' ? `Only ${Math.max(0, x.l.onhand)} in stock for ${x.l.open}. Ask the rep about a substitute (same colour and size) or cut the quantity.` :
-  x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy}), and the customer hasn’t been invoiced this item this low in the last 45 days. Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
+  x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy})${x.low ? `. In the last 6 months this customer has paid no less than ${JP(x.low.p)} for it` : `, and the customer hasn’t been invoiced this item in the last 6 months`}. Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
   x.kind === 'noprice' ? `This line is J$0 but the item has no deal on the sheet. Add the price, or untick Free Item if it was ticked by mistake.` :
   x.kind === 'freeover' ? `${x.f.have} free on the order, but ${x.f.oq} bought only earns ${x.f.free} free (${x.f.deal}, per multiple). Reduce the free quantity, or check the deal with the rep.` :
   x.kind === 'gp' ? `Priced at ${JP(x.l.price)} but the cost is ${JP(x.l.cost)}: a ${Math.abs(x.gp)}% loss. Check the price and the item cost${/25PAPC/.test(x.l.desc) ? ' (Covebay 25PAPC has a known cost/UOM error)' : ''}, then ask ${repTxt(x)} about the price.` :
@@ -1572,7 +1574,7 @@ function vOrders() {
   const shipped = SHIPS.filter(s => SHIPPED(s.status) && inChain(s.c) && inFocus(s.c) && s.date >= addDays(ASOF, -7));
   const missed = watch.filter(s => s.cad.state === 'missed').length, due = watch.filter(s => s.cad.state === 'due').length;
   let body = '';
-  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders to check before they ship. Fix them in Acumatica, then mark them sorted.', 'Every order that comes in is checked, whoever keyed it. Price: below cost; below the lowest deal price and below anything the customer has paid for the item in the last 45 days (the deal floor is the sheet price, or the prorated price when the deal is taken as a price instead of free items: sheet × buy ÷ (buy + free) at the level the quantity reaches); or J$0 on an item with no deal (no price). List price on orders too small for a deal is fine. Free items: missing (the order reaches a deal level but Free Item is not ticked) or more than the deal gives. Range: an item we no longer carry. Stock: short at 71 but in Ashenheim (transfer), or not enough anywhere (substitute or cut). Specials: just short of the next free-goods level. Low margin above cost is for the KAMs and category managers. The hub does not change orders: each line says what to do in Acumatica.') +
+  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders to check before they ship. Fix them in Acumatica, then mark them sorted.', 'Every order that comes in is checked, whoever keyed it. Price: below cost; below the lowest deal price and below anything the customer has paid for the item in the last 6 months (the deal floor is the sheet price, or the prorated price when the deal is taken as a price instead of free items: sheet × buy ÷ (buy + free) at the level the quantity reaches); or J$0 on an item with no deal (no price). List price on orders too small for a deal is fine. Free items: missing (the order reaches a deal level but Free Item is not ticked) or more than the deal gives. Range: an item we no longer carry. Stock: short at 71 but in Ashenheim (transfer), or not enough anywhere (substitute or cut). Specials: just short of the next free-goods level. Low margin above cost is for the KAMs and category managers. The hub does not change orders: each line says what to do in Acumatica.') +
     (chkSorted.length ? `<div class="acts" style="margin:0 0 8px"><button class="btn sm" type="button" data-more="chksorted">${SHOWALL.chksorted ? 'Hide sorted' : 'Show sorted (' + chkSorted.length + ')'}</button></div>` : '') +
     gboard('#E2445C', 'Check before it ships', chkOpen.length + ' lines to check', 'minmax(0,1.4fr) 88px minmax(0,1.3fr) minmax(0,1.8fr) minmax(0,.9fr) 104px 40px', [['Customer'], ['Order'], ['Problem'], ['Product'], ['Rep', '', 'hm'], ['Status', 'center'], ['']],
       chkShown.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);

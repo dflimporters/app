@@ -1,0 +1,11 @@
+-- Sales Support Hub: approved by Scott ("Yes, 6 months") and APPLIED 2026-11-11 as migration ss_hub_lowp.
+-- Adds 'lowp' to the ops part of ss_hub_data: for every customer + item on their open orders, the lowest price they were invoiced
+-- in the last 6 months (and the last invoice date). A price below the deal floor is not flagged when the customer has paid it before.
+-- Shape: [customer, sku, lowest price, last invoice date]. Read-only. The function was re-created from its live definition with this
+-- key added before 'sync':
+--   'lowp', (select json_agg(json_build_array(customer_id, inventory_id, p, d)) from (select ii.customer_id, ii.inventory_id, round(min(ii.unit_price)) p,
+--     to_char(max(ii.invoice_date),'YYYY-MM-DD') d from invoiced_items ii join (select distinct oo.customer, i.inventory_id from so_ordered_items i
+--     join oo on oo.order_nbr = i.order_nbr and oo.order_type = i.order_type where oo.order_type = 'SO' and i.unit_price > 0) ol
+--     on ol.customer = ii.customer_id and ol.inventory_id = ii.inventory_id where ii.invoice_date >= current_date - 183 and ii.tran_type = 'INV'
+--     and ii.unit_price > 0 and (ii.invoice_status not in ('Voided','Rejected') or ii.invoice_status is null) group by 1,2) lp),
+-- Timing, ops part signed in as Scott: Alecia 0.69s, Jenelle 0.78s, Althia 1.36s.
