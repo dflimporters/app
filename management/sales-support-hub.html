@@ -678,6 +678,7 @@ tr[data-chain]{cursor:pointer}
 .repr.sel{background:#EEF4FF;box-shadow:inset 3px 0 0 #326BD3}
 .achc{display:flex;align-items:center;gap:10px}.achc>b{font-family:var(--head);min-width:44px}.achc .rbar{flex:1;min-width:50px}
 .gen .gh+.bhead+.repr,.gen .repr{grid-template-columns:var(--cols)}
+@media (max-width:640px){.gbehind{--gc:minmax(0,1fr) 92px !important}.gbehind>li>span:nth-child(2),.gbehind>li>span:nth-child(3),.gbehind>li>span:nth-child(4),.gbehind>li>span:nth-child(6){display:none}}
 /* header toolbar (Scott, 11 Nov: "looks very ugly"): one row of equal-height controls; on phones a neat 2-row grid, Refresh beside the title */
 .content.portal .topbar{align-items:center}
 #tctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -1640,27 +1641,30 @@ function vReps() {
   const banner = `<section class="teamban"><div class="tb-l"><span class="tb-k">${esc(SUPPORT)}’s reps · ${esc(monName)}</span><b class="tb-big tb-${tcol}">${T.t ? Math.round(tAch * 100) + '%' : '–'}</b><span class="tb-s">${J(T.sold)} sold of ${J(T.t)}</span></div>
     <div class="tb-r"><div class="tb-bar"><i style="width:${Math.min(100, tAch * 100)}%"></i><b style="left:${PACE * 100}%"><em>Today ${Math.round(PACE * 100)}%</em></b></div>
     <div class="tb-lines"><span>Should be at <b>${Math.round(PACE * 100)}%</b> today (${J(should)}) · ${WD_DONE} of ${WD_ALL} working days</span><span class="tb-${diff >= 0 ? 'ok' : 'bad'}">${diff >= 0 ? 'Ahead by ' + J(diff) : 'Behind by ' + J(-diff)}</span><span>Needs ${J(perDay)} a working day</span></div></div></section>`;
-  // reps as rows in the same board style as the customer list below, sized to fit without side-scrolling (Scott, 11 Nov)
-  const repRows = rows.slice().sort((a, b) => (a.t ? a.ach : 9) - (b.t ? b.ach : 9)).map(r => { const sel = CHAINF === r.rep, ov = r.open.reduce((a, o) => a + o.total, 0);
-    return `<div class="brow repr${sel ? ' sel' : ''}" data-chain="${esc(sel ? 'All' : r.rep)}" role="button" tabindex="0" aria-pressed="${sel}" title="${sel ? 'Show all reps' : 'Show only ' + esc(r.rep) + '’s customers'}">
-      <div class="c-store one c1"><div class="who">${av(r.rep)}<span>${esc(r.rep)}</span></div></div>
-      <div class="one hm" style="text-align:right">${r.t ? J(r.t) : '–'}</div>
-      <div class="one" style="text-align:right">${J(r.sold)}</div>
-      <div class="one c2 achc">${r.t ? `<b style="color:${achCol[r.col]}">${Math.round(r.ach * 100)}%</b>${bar(r.ach, r.col, 'sm')}` : '–'}</div>
-      <div class="one hm" style="text-align:right">${r.t && r.sold < r.t ? J(r.perDay) : r.t ? '<span class="up">Reached</span>' : '–'}</div>
-      <div class="one hm" style="text-align:right">${r.open.length ? `${r.open.length} · ${J(ov)}` : '–'}</div>
-      <div class="one" style="text-align:center">${r.checks ? `<b class="dn">${r.checks}</b>` : '–'}</div>
-      <div class="one hm" style="text-align:center">${r.stuck ? `<b class="dn">${r.stuck}</b>` : '–'}</div></div>`; });
-  const repBoard = `<section class="grp gen" style="--gc:#326BD3;--cols:minmax(0,1.7fr) 88px 88px minmax(0,1.3fr) 96px minmax(0,1fr) 72px 60px"><div class="gh"><h3>Reps</h3><span class="gn">${CHAINF === 'All' ? 'Tap a rep to see only their customers on every tab' : 'Showing ' + esc(CHAINF) + ' · tap again for all reps'}</span></div>
-    <div class="bhead"><div>Rep</div><div class="hm" style="text-align:right">Target</div><div style="text-align:right">Sold</div><div>Achieved</div><div class="hm" style="text-align:right">Needs / day</div><div class="hm" style="text-align:right">Open orders</div><div style="text-align:center">To check</div><div class="hm" style="text-align:center">Stuck</div></div>
+  // each rep is one row; tapping it opens that rep's customers furthest behind this month (Scott, 11 Nov: the separate list
+  // didn't say whose customers they were). "Show only <rep>'s customers" filters every tab.
+  const behindOf = rep => STORES.filter(s => s.rep === rep && inFocus(s.id) && s.budM > 0 && s.gapPace < 0).sort((a, b) => a.gapPace - b.gapPace);
+  const custList = rep => { const l = behindOf(rep), all = SHOWALL['rg:' + rep], shown = all ? l : l.slice(0, 5);
+    if (!l.length) return '<p class="note" style="margin:0 0 8px">No customers behind where they should be today.</p>';
+    return `<ul class="l1 gl gbehind" style="--gc:minmax(0,1.6fr) 84px 84px minmax(0,1fr) 92px minmax(0,1.3fr)"><li class="lhd"><span>Customers furthest behind</span><span class="r">Target</span><span class="r">Sold</span><span>Progress</span><span class="r">Short by</span><span>Orders</span></li>
+      ${shown.map(s => { const p = s.mtd / s.budM, op = openOf(s.id);
+        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span><span class="rbar sm"><i style="width:${Math.min(100, p * 100)}%;background:${p >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>
+      ${l.length > 5 ? `<div class="acts" style="margin-top:6px"><button class="btn sm" type="button" data-more="rg:${esc(rep)}">${all ? 'Show the top 5' : 'Show all ' + l.length}</button></div>` : ''}`; };
+  const repRows = rows.slice().sort((a, b) => (a.t ? a.ach : 9) - (b.t ? b.ach : 9)).map(r => { const ov = r.open.reduce((a, o) => a + o.total, 0), nb = behindOf(r.rep).length;
+    return grow('rep:' + r.rep, [
+      `<div class="c-store one c1"><div class="who">${av(r.rep)}<span>${esc(r.rep)}</span></div></div>`,
+      `<div class="one hm" style="text-align:right">${r.t ? J(r.t) : '–'}</div>`,
+      `<div class="one" style="text-align:right">${J(r.sold)}</div>`,
+      `<div class="one c2 achc">${r.t ? `<b style="color:${achCol[r.col]}">${Math.round(r.ach * 100)}%</b>${bar(r.ach, r.col, 'sm')}` : '–'}</div>`,
+      `<div class="one hm" style="text-align:right">${r.t && r.sold < r.t ? J(r.perDay) : r.t ? '<span class="up">Reached</span>' : '–'}</div>`,
+      `<div class="one hm" style="text-align:right">${r.open.length ? `${r.open.length} · ${J(ov)}` : '–'}</div>`,
+      `<div class="one" style="text-align:center">${r.checks ? `<b class="dn">${r.checks}</b>` : '–'}</div>`,
+      `<div class="one hm" style="text-align:center">${nb ? `<b class="dn">${nb}</b>` : '–'}</div>`],
+      `${custList(r.rep)}<div class="acts" style="margin-top:10px"><button class="btn sm pri" type="button" data-chain="${esc(CHAINF === r.rep ? 'All' : r.rep)}">${CHAINF === r.rep ? 'Show all reps again' : 'Show only ' + esc(firstName(r.rep)) + '’s customers'}</button></div>`); });
+  const repBoard = `<section class="grp gen" style="--gc:#326BD3;--cols:minmax(0,1.6fr) 84px 84px minmax(0,1.3fr) 92px minmax(0,1fr) 68px 68px 40px"><div class="gh"><h3>Reps</h3><span class="gn">Tap a rep to see their customers furthest behind this month</span></div>
+    <div class="bhead"><div>Rep</div><div class="hm" style="text-align:right">Target</div><div style="text-align:right">Sold</div><div>Achieved</div><div class="hm" style="text-align:right">Needs / day</div><div class="hm" style="text-align:right">Open orders</div><div style="text-align:center">To check</div><div class="hm" style="text-align:center">Behind</div><div></div></div>
     ${repRows.join('')}</section>`;
-  const gaps = STORES.filter(s => inChain(s.id) && inFocus(s.id) && s.budM > 0 && s.gapPace < 0).sort((a, b) => a.gapPace - b.gapPace);
-  return banner + lead1('r-rows', 'Each rep’s sales this month against their target.', 'Sales are invoices so far this month credited to the rep (Sales Explorer, refreshed at 7am and 1pm). The % is coloured against where they should be today: green on track, amber within 10% of it, red further behind. The line on each bar is where they should be today. “Needs / day” is what is left of the target divided by the working days left.') +
-    repBoard +
-    gboard('#E2445C', 'Customers furthest behind this month', gaps.length + ' behind where they should be today', 'minmax(0,1.6fr) minmax(0,.9fr) 90px 90px 120px 96px 40px', [['Customer'], ['Rep', '', 'hm'], ['Target', 'right', 'hm'], ['Sold', 'right'], ['Progress', 'center', 'hm'], ['Short by', 'right'], ['']],
-      gaps.map(s => { const p = s.mtd / s.budM, op = openOf(s.id); return grow('gap:' + s.id, [cell(esc(s.name), 'c-store one c1'), cell(esc(firstName(s.rep)), 'one hm'), cell(J(s.budM), 'one hm', 'right'), cell(J(s.mtd), 'one', 'right'), cell(`<span class="rbar sm"><i style="width:${Math.min(100, p * 100)}%;background:${p >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span>`, 'one hm', 'center'), cell(`<b class="dn">${J(-s.gapPace)}</b>`, 'one c2', 'right')],
-        // ordering: what is actually open and the last delivery. No "usually every N days": balance shipments of part orders skew it (Scott, 11 Nov)
-        `<div class="bfacts"><div><span>Orders</span>${op.length ? op.map(o => `${acuOrder(o.nbr)} ${esc(o.stage.s || o.stage.t)} · ${J(o.total)}`).join('<br>') : 'No open order'}</div><div><span>Last delivery</span>${s.cad.last ? esc(fd(s.cad.last)) : 'None in 5 months'}</div><div><span>This month</span>${Math.round(p * 100)}% of ${J(s.budM)} · should be ${Math.round(PACE * 100)}% today</div></div><div class="acts"><button class="btn sm pri" type="button" data-store="${esc(s.id)}">Open customer</button></div>`); }), 'repgaps');
+  return banner + lead1('r-rows', 'Each rep’s sales this month against their target.', 'Sales are invoices so far this month credited to the rep (Sales Explorer, refreshed at 7am and 1pm). The % is coloured against where they should be today: green on track, amber within 10% of it, red further behind. The line on each bar is where they should be today. “Needs / day” is what is left of the target divided by the working days left. “Behind” counts the rep’s customers behind where they should be today; tap the rep to see them.') + repBoard;
 }
 
 // ---------- Deliveries: "where is my order?" ----------
