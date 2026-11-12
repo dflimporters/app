@@ -2255,7 +2255,6 @@ function vStoreDrawer(c) {
     ['This month', s.budM ? prog + '% of target' : 'No target', J(s.mtd) + ' · pace ' + Math.round(PACE * 100) + '%', s.gapPace >= 0 ? '#1A8F4C' : '#E2445C'],
     (() => { const rc = RC.filter(r => r.c === c); return ['Returns, 60 days', rc.length, rc.length ? J(rc.reduce((a, r) => a + r.total, 0)) + ' · last ' + esc(fds(rc[0].date)) : 'None', rc.length ? '#E8862A' : '#127F8C']; })()])}
   <div class="briefbar">${window.DFL_PORTAL ? `<button class="btn sm pri" type="button" data-brief="${esc(c)}">Store brief (PDF)</button>` : ''}<button class="btn sm" type="button" data-briefcopy="${esc(c)}">Copy brief for WhatsApp</button></div>
-  ${(() => { const dl = DELIV.filter(x => x.c === c).slice(0, 4); if (!dl.length) return ''; return sec('Latest deliveries', null, gl('minmax(0,1fr) 70px 130px minmax(0,1fr)', [['Shipment'], ['Date'], ['Where it is', 'c'], ['Driver']], dl.map(x => [[`<b>${acuShip(x.nbr)}</b>`, ''], [esc(fds(x.date)), 'rt'], [solid(x.st.c, x.st.t), 'c'], [esc(x.driver || x.via || '–'), 'rt']]))); })()}
   ${sec('People', null, `<ul class="l1">
     ${person(s.merch, 'Merchandiser' + (s.sday ? ' · ' + esc(s.sday) : ''), null, '')}
     ${person(s.rep, 'Rep', null, '')}
@@ -2264,6 +2263,7 @@ function vStoreDrawer(c) {
     ${s.phone ? l1(nm('Store phone'), rt(esc(s.phone))) : ''}</ul>`)}
   ${open.length ? sec('Open orders', String(open.length), gl('minmax(0,1fr) 104px minmax(0,1fr) 78px 40px', [['Order'], ['Stage', 'c'], ['Truck'], ['Value', 'r'], ['Age', 'r']],
       open.map(o => [[`<span class="ocell"><span class="oic" aria-hidden="true">${icon('orders', 2)}</span><b>${acuOrder(o.nbr)}</b></span>`, ''], [stg(o), 'c'], [truckCell(truckOf(o)), ''], [J(o.total), 'r val'], [o.age + 'd', 'r rt']]), 'gopen')) : ''}
+  ${(() => { const dl = DELIV.filter(x => x.c === c).slice(0, 4); if (!dl.length) return ''; return sec('Latest deliveries', null, gl('minmax(0,1fr) 70px 130px minmax(0,1fr)', [['Shipment'], ['Date'], ['Where it is', 'c'], ['Driver']], dl.map(x => [[`<b>${acuShip(x.nbr)}</b>`, ''], [esc(fds(x.date)), 'rt'], [solid(x.st.c, x.st.t), 'c'], [esc(x.driver || x.via || '–'), 'rt']]))); })()}
   ${(() => { const del = SHIPS.filter(x => x.c === c && SHIPPED(x.status)).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 5); if (!del.length) return '';
     return sec('Delivered lately', null, gl('minmax(0,1fr) 70px minmax(0,1fr) 78px', [['Shipment'], ['Date'], ['Delivered by'], ['Value', 'r']],
       del.map(x => [[`<b>${acuShip(x.nbr)}</b>`, ''], [esc(fds(x.date)), 'rt'], [truckCell(realVia(x.via)), ''], [J(x.value), 'r val']]), 'gdel')); })()}
