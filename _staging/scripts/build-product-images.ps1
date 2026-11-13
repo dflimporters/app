@@ -1,6 +1,12 @@
 # Builds /product-images/ for the Stock & Prices photos (shared/stock-prices.js).
 #
-#   powershell -File _staging\scripts\build-product-images.ps1 [-Source <folder>] [-Codes <file>]
+#   powershell -File _staging\scripts\build-product-images.ps1 [-Source <folder>[,<folder>...]] [-Codes <file>]
+#
+# With the Photoroom-cleaned photos (clean-product-images.ps1), list the clean
+# folder first and the originals second: an item uses its cleaned photo when
+# there is one, otherwise its original, so nothing drops off while cleaning is
+# part-done:
+#   -Source "...\Going Online\PRODUCT IMAGES CLEAN","...\Going Online\PRODUCT IMAGES"
 #
 # Source: Marketing's PRODUCT IMAGES folder. Any image whose file name STARTS
 #   with an 8-digit item code (10000123.jpg, "10000037 D750800-Contenedor.jpg")
@@ -17,7 +23,7 @@
 # dropped from index.json. .webp is skipped: System.Drawing can't read it, so
 # convert those to .jpg first. Run from the repo root, then commit product-images/.
 param(
-  [string]$Source = "$env:USERPROFILE\OneDrive - DFL Importers & Distributors\09 Marketing & Design\Going Online\PRODUCT IMAGES",
+  [string[]]$Source = @("$env:USERPROFILE\OneDrive - DFL Importers & Distributors\09 Marketing & Design\Going Online\PRODUCT IMAGES"),
   [string]$Codes = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -42,14 +48,18 @@ function Save-Resized($img, [int]$max, [long]$q, [string]$path) {
   $bmp.Save($path, $jpg, $ep); $g.Dispose(); $bmp.Dispose()
 }
 
-$files = Get-ChildItem -LiteralPath $Source -Recurse -File | Where-Object { $_.Name -match '^(1000\d{4}).*\.(jpe?g|png|jfif|gif|bmp)$' } |
-  ForEach-Object { $code = $_.Name.Substring(0, 8); if (-not $want -or $want.ContainsKey($code)) {
-    [pscustomobject]@{ Code = $code; Path = $_.FullName; Top = ($_.DirectoryName -eq (Get-Item -LiteralPath $Source).FullName); Exact = ($_.BaseName -eq $code); Size = $_.Length } } }
+$files = for ($si = 0; $si -lt $Source.Count; $si++) {
+  if (-not (Test-Path -LiteralPath $Source[$si])) { Write-Warning "Skipping missing folder: $($Source[$si])"; continue }
+  $root = (Get-Item -LiteralPath $Source[$si]).FullName
+  Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.Name -match '^(1000\d{4}).*\.(jpe?g|png|jfif|gif|bmp)$' } |
+    ForEach-Object { $code = $_.Name.Substring(0, 8); if (-not $want -or $want.ContainsKey($code)) {
+      [pscustomobject]@{ Code = $code; Path = $_.FullName; Rank = $si; Top = ($_.DirectoryName -eq $root); Exact = ($_.BaseName -eq $code); Size = $_.Length } } }
+}
 
 $done = @(); $failed = @()
 foreach ($grp in ($files | Group-Object Code)) {
   $ok = $false
-  foreach ($c in ($grp.Group | Sort-Object @{e='Top';Descending=$true}, @{e='Exact';Descending=$true}, @{e='Size';Descending=$true})) {
+  foreach ($c in ($grp.Group | Sort-Object @{e='Rank';Descending=$false}, @{e='Top';Descending=$true}, @{e='Exact';Descending=$true}, @{e='Size';Descending=$true})) {
     $img = $null
     try {
       $img = [System.Drawing.Image]::FromFile($c.Path)
