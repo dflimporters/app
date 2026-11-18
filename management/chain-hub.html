@@ -779,7 +779,8 @@ const dealTxt = tiers => tiers.map(t => `buy ${t.buy}, get ${t.free} free`).join
 // deal families (Scott, 18 Nov): a volume deal can be met by mixing sizes of one product line, e.g. every Rhino Ezee-Pull size, or every
 // Clean & White bleach size, added together. A family = deal-sheet items with the same name once sizes and pack counts are removed AND the
 // same free-goods levels. Free-goods, too-many-free, special and deal-price checks all count the family together, not one size at a time.
-const famBase = d => String(d || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/\b(small|medium|large|jumbo|mini|regular|xl|xxl)\b/g, ' ').replace(/\S*\d\S*/g, ' ').replace(/[^a-z& -]+/g, ' ').replace(/\s+/g, ' ').trim();
+// all Rhino bag lines (Ezee-Pull, Ezee Tie, Frosted, Green) can be mixed for one deal (Scott, 18 Nov)
+const famBase = d => /^rhino /i.test(String(d || '').trim()) ? 'rhino' : String(d || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/\b(small|medium|large|jumbo|mini|regular|xl|xxl)\b/g, ' ').replace(/\S*\d\S*/g, ' ').replace(/[^a-z& -]+/g, ' ').replace(/\s+/g, ' ').trim();
 const DFAM = {}; (() => { const m = {}; (O.dsheet || []).forEach(r => { const tr = Array.isArray(r[3]) ? r[3].filter(t => +t.buy && +t.free) : []; if (!tr.length) return;
   const k = famBase(r[1]) + '|' + tr.map(t => t.buy + ':' + t.free).join(','); (m[k] = m[k] || []).push(r[0]); });
   Object.entries(m).forEach(([k, s]) => s.forEach(sku => { DFAM[sku] = {k, n:s.length, name:k.split('|')[0]}; })); })();
