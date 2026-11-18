@@ -665,6 +665,17 @@ th.on{color:var(--ink)}
 .fagh .chev svg{width:18px;height:18px;transition:transform .15s}
 .fag.open .chev svg{transform:rotate(180deg)}
 .fagb{padding:2px 16px 14px;border-top:1px solid var(--line2)}
+.fagrow{display:flex;align-items:stretch}
+.fagrow .fagh{flex:1;min-width:0;width:auto}
+.fagtk{flex:none;display:flex;gap:6px;align-items:center;padding:0 16px;border-left:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.fagtk input{margin:0}
+.fpick{display:grid;gap:6px}
+.fform .fpk{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;font-family:var(--body);font-weight:600;font-size:13.5px;color:var(--ink);margin:0}
+.fform .fpk:has(input:checked){border-color:#326BD3;background:#F2F6FD}
+.fform .fpk input{margin-top:3px;flex:none}
+.fform .fpk > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fform .fpk em{font-style:normal;font-weight:400;font-size:12.5px;color:var(--ink2)}
+@media (max-width:640px){.fagrow{flex-wrap:wrap}.fagtk{flex:1 0 100%;border-left:0;border-top:1px solid var(--line2);padding:8px 16px}}
 @media (max-width:640px){.fvrow{grid-template-columns:1fr}.fgrid2{grid-template-columns:1fr}}
 .dsearch{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
 .dsearch label{font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink2)}
@@ -1873,9 +1884,10 @@ function boReview(cap) {
         ${os.length > (cap || 10) ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="bw:${esc(rep)}">${SHOWALL['bw:' + rep] ? 'Show fewer' : 'Show the other ' + (os.length - (cap || 10))}</button></div>` : ''}</section>`; }).join('');
 }
 // ---------- Friday meeting (Scott, 18 Nov): each support person goes through one rep's week with them, then records next week's plan ----------
-// Built for 15 minutes a rep (30 to 45 minutes for the whole team): a scorecard, six one-line agenda rows that open to the top 3 only, then a short plan.
+// Built to be quick (15 minutes a rep, 30 to 45 for the team) and mostly ticking: four coloured boxes, three groups (money, orders, customers)
+// that open to the top 3 with a "talked about it" tick, then a plan that is a tick-list of customers, one goal number and an optional help box.
 // The team page lists the reps by who needs the most attention. Scott's "Plans report" (every support person's reps) is a separate view.
-// The plan is saved per rep and week (ss_hub_plans). AR comes from ss_hub_data part 'ar' (latest daily snapshot).
+// The plan is saved per rep and week (ss_hub_plans.data: goal, visits, collect, help, talked). AR comes from ss_hub_data part 'ar' (latest daily snapshot).
 const FRI = window.__friState = window.__friState || {week:null, edit:false, draft:null, draftKey:'', report:null, loading:false};
 FRI.ag = FRI.ag || {}; if (FRI.showReport == null) FRI.showReport = false;
 const wkMonday = ds => { let d = ds; while (d8(d).getDay() !== 1) d = addDays(d, -1); return d; };
@@ -1894,15 +1906,16 @@ const arOf = c => ARC[c] || {c, owed:0, over:0, over30:0, oldest:0, credit:0, ol
 // plans
 const planOf = (rep, wk) => (HUBD.plans || []).find(p => p.rep === rep && p.week_start === wk) || null;
 const custByName = (name, rep) => { const q = String(name || '').trim().toLowerCase(); if (!q) return null; return STORES.find(s => s.rep === rep && s.name.toLowerCase() === q) || STORES.find(s => s.name.toLowerCase() === q) || null; };
-// a new plan starts with the rep's top 3 overdue customers ticked as "collect payment" (dc); an old plan keeps what was saved
-const draftFrom = (p, dc) => { const d = (p && p.data) || {};
-  return {goal:d.goal ? String(d.goal) : '', push:d.push || '', help:d.help || '', block:d.blockers || '', met:!!(p && p.met),
-    visits:Array.from({length:Math.max(3, (d.visits || []).length)}, (_, i) => { const v = (d.visits || [])[i] || {}; return {c:v.name || '', w:v.what || '', a:v.amt ? String(v.amt) : ''}; }),
-    collect:Object.fromEntries(((p ? d.collect : dc) || []).map(c => [c, true]))}; };
+// the draft of a plan: sel = customers ticked to visit or call, extra = customers added by name, keep = the saved visits (so older detail is never lost), talked = the three groups ticked.
+// A new plan starts with the rep's top 3 overdue customers ticked (dc); an old plan keeps what was saved.
+const draftFrom = (p, dc) => { const d = (p && p.data) || {}, vis = (p ? d.visits : null) || [];
+  const sel = {}; (p ? vis.filter(v => v.c).map(v => v.c) : dc).forEach(c => sel[c] = true);
+  return {goal:d.goal ? String(d.goal) : '', help:d.help || '', push:d.push || '', block:d.blockers || '', met:!!(p && p.met), sel, extra:[], keep:vis.slice(), talked:Object.assign({}, d.talked || {})}; };
+const noOver = (d, list) => (list || []).filter(c => byId[c] && !(d.visits || []).some(v => v.c === c));
 const planMsg = (rep, p) => { const d = p.data || {}, L = [`*Plan for ${firstName(rep)}, week of ${fd(p.week_start)}*`];
   if (d.goal) L.push(`Sales goal: ${J(d.goal)}`);
   if ((d.visits || []).length) { L.push('', 'Visits and calls:'); d.visits.forEach(v => { const a = v.c ? arOf(v.c) : null; L.push(`• ${v.name}${v.what ? ' – ' + v.what : ''}${v.amt ? ' (' + J(v.amt) + ')' : ''}${a && a.over ? ' – owes ' + J(a.over) + ' overdue: collect payment' : ''}`); }); }
-  const col = (d.collect || []).filter(c => byId[c]).map(c => byId[c].name + ' (' + J(arOf(c).over) + ')');
+  const col = noOver(d, d.collect).map(c => byId[c].name + ' (' + J(arOf(c).over) + ')');
   if (col.length) L.push('', 'Collect payment from: ' + col.join(', '));
   if (d.push) L.push('', 'Products to push: ' + d.push);
   if (d.help) L.push('', 'Help needed from sales support: ' + d.help);
@@ -1911,8 +1924,11 @@ const planMsg = (rep, p) => { const d = p.data || {}, L = [`*Plan for ${firstNam
 async function savePlan() {
   const rep = CHAINF, wk = FRI.week, d = FRI.draft; if (!d || !rep || rep === 'All') return;
   const old = planOf(rep, wk), num = v => +String(v == null ? '' : v).replace(/[^0-9.]/g, '') || 0;
-  const visits = d.visits.filter(v => String(v.c).trim() || String(v.w).trim()).map(v => { const s = custByName(v.c, rep); return {c:s ? s.id : null, name:String(v.c).trim(), what:String(v.w).trim().slice(0, 300), amt:num(v.a)}; });
-  const data = {goal:num(d.goal), visits, collect:Object.keys(d.collect).filter(k => d.collect[k]), push:String(d.push).trim().slice(0, 1000), help:String(d.help).trim().slice(0, 1000), blockers:String(d.block).trim().slice(0, 1000)};
+  const keepBy = {}; d.keep.forEach(v => { if (v.c) keepBy[v.c] = v; });
+  const visits = [...Object.keys(d.sel).filter(k => d.sel[k] && byId[k]).map(k => { const o = keepBy[k] || {}; return {c:k, name:byId[k].name, what:o.what || '', amt:o.amt || 0}; }), ...d.keep.filter(v => !v.c)];
+  const collect = AR_READY ? visits.filter(v => v.c && arOf(v.c).over > 0).map(v => v.c) : ((old && old.data && old.data.collect) || []);
+  const data = {goal:num(d.goal), visits, collect, help:String(d.help).trim().slice(0, 1000), talked:d.talked};
+  if (String(d.push).trim()) data.push = String(d.push).trim().slice(0, 1000); if (String(d.block).trim()) data.blockers = String(d.block).trim().slice(0, 1000);
   const row = {rep, week_start:wk, support:SUPPORT, data, met:!!d.met, met_on:d.met ? ((old && old.met && old.met_on) || ASOF) : null, by:MYID, by_name:MYNAME, updated_at:new Date().toISOString()};
   const { error } = await sb.from('ss_hub_plans').upsert(row, {onConflict:'rep,week_start'});
   if (error) { toast('The plan did not save. Check your connection and try again.'); return; }
@@ -1927,12 +1943,15 @@ async function loadPlanReport(wk) {
   catch (e) { console.warn('plan report failed', e); FRI.report = {week:wk, rows:[], err:true}; }
   FRI.loading = false; render();
 }
-const frDraftSet = (id, t) => { const d = FRI.draft, m = /^pl-v([cwa])-(\d)$/.exec(id);
-  if (m) { if (d.visits[+m[2]]) d.visits[+m[2]][m[1]] = t.value; return; }
-  if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-push') d.push = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-block') d.block = t.value;
-  else if (id === 'pl-met') d.met = t.checked; else if (/^pl-col-/.test(id)) d.collect[t.dataset.c] = t.checked; };
+const frDraftSet = (id, t) => { const d = FRI.draft; if (!d) return; let m;
+  if ((m = /^pl-tk-(\d)$/.exec(id))) { d.talked[m[1]] = t.checked; return; }
+  if (/^pl-sel-/.test(id)) { d.sel[t.dataset.c] = t.checked; return; }
+  if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-met') d.met = t.checked; };
+// "someone else": a customer added by name joins the tick-list, already ticked
+const frAddCust = v => { const d = FRI.draft; if (!d || !String(v).trim()) return; const s = custByName(v, CHAINF);
+  if (!s) { toast('Pick the customer from the list that appears as you type.'); return; }
+  d.sel[s.id] = true; if (!d.extra.includes(s.id)) d.extra.push(s.id); render(); };
 const fsec = (n, title, sub, body) => `<section class="fsec"><div class="fsh"><span class="fsn">${n}</span><div><h3>${esc(title)}</h3><p>${sub}</p></div></div>${body}</section>`;
-const arHint = c => { if (!AR_READY || !c) return ''; const a = arOf(c); return a.over > 0 ? `<span class="fwarn">Owes ${J(a.over)} overdue (oldest ${a.oldest} days). Collect payment on the visit.</span>` : '<span class="note" style="margin:0">Nothing overdue.</span>'; };
 
 function vFriday() {
   const rep = CHAINF !== 'All' && REPS.includes(CHAINF) ? CHAINF : null, wk = FRI.week, isScott = !!HUBD.approver;
@@ -1964,7 +1983,7 @@ function vFriday() {
     const rowFor = r => { const t = REPBUD[r] || 0, sold = (REPM[r] || {}).mtd || 0, cs = STORES.filter(s => s.rep === r);
       return {r, ach:t ? sold / t : null, short:Math.max(0, t * PACE - sold), behind:cs.filter(s => s.budM > 0 && s.gapPace < 0).length, over:AR_READY ? cs.reduce((a, s) => a + arOf(s.id).over, 0) : null, oos:(oosBy[r] || new Set()).size, bo:boOrders(r).length, p:planOf(r, wk)}; };
     const rws = REPS.map(rowFor).sort((a, b) => b.short - a.short), done = rws.filter(x => x.p).length, held = rws.filter(x => x.p && x.p.met).length;
-    return head + lead1('f-pick', 'Team meeting: the rep who needs the most attention is first. Tap Start on a rep who needs a closer look.', 'One row per rep. “This month” is sales against target (green on track, amber within 10%, red behind). “Behind” counts customers behind where they should be today. “Overdue” is what their customers owe past the due date. “Stock” is items their customers are waiting on that we can’t send. “Back orders” are orders to close or re-enter. For a one-to-one meeting, Start opens that rep’s page: a scorecard, six short agenda lines, then the plan.') +
+    return head + lead1('f-pick', 'Team meeting: the rep who needs the most attention is first. Tap Start on a rep who needs a closer look.', 'One row per rep. “This month” is sales against target (green on track, amber within 10%, red behind). “Behind” counts customers behind where they should be today. “Overdue” is what their customers owe past the due date. “Stock” is items their customers are waiting on that we can’t send. “Back orders” are orders to close or re-enter. For a one-to-one meeting, Start opens that rep’s page: four boxes, three short groups (money, orders, customers), then the plan.') +
       gboard('#326BD3', 'Your reps', `${REPS.length} reps · ${held} meetings held · ${done} plans saved for the week of ${fds(wk)}`, 'minmax(0,1.5fr) 84px 64px 100px 64px 72px 112px 72px', [['Rep'], ['This month', 'center'], ['Behind', 'center', 'hm'], ['Overdue AR', 'right', 'hm'], ['Stock', 'center', 'hm'], ['Back orders', 'center', 'hm'], ['Plan', 'center'], ['']],
         rws.map(x => `<div class="brow"><div class="c-store one c1"><div class="who">${av(x.r)}<span>${esc(x.r)}</span></div></div><div class="c-age" style="text-align:center">${x.ach == null ? '–' : `<b style="color:${x.ach >= PACE ? '#1A8F4C' : x.ach >= PACE * 0.9 ? '#C47A1A' : '#E2445C'}">${Math.round(x.ach * 100)}%</b>`}</div><div class="c-age hm" style="text-align:center">${x.behind || '–'}</div><div class="c-age hm" style="text-align:right">${x.over == null ? '…' : x.over ? `<b class="dn">${J(x.over)}</b>` : '–'}</div><div class="c-age hm" style="text-align:center">${x.oos || '–'}</div><div class="c-age hm" style="text-align:center">${x.bo || '–'}</div><div style="text-align:center">${x.p ? (x.p.met ? solid('green', 'Meeting held') : solid('amber', 'Plan saved')) : solid('grey', 'Not started')}</div><div><button type="button" class="btn sm pri" data-chain="${esc(x.r)}">Start</button></div></div>`), 'frireps');
   }
@@ -1977,73 +1996,75 @@ function vFriday() {
   const open = ORD.filter(o => mine(o.c) && o.status !== 'Back Order').sort((a, b) => b.age - a.age), openV = open.reduce((a, o) => a + o.total, 0), credit = open.filter(o => o.stage.k === 'credit');
   const chk = CHECKS.filter(x => mine(x.o.c)).sort((a, b) => b.value - a.value);
   const oosR = oosAll.map(x => ({...x, mine:x.ls.filter(l => mine(ordBy[l.nbr].c))})).filter(x => x.mine.length);
-  const rc = RC.filter(r => mine(r.c)).map(r => ({...r, g:RGRP(r.reason)})).sort((a, b) => ((b.g === 'Order entry') - (a.g === 'Order entry')) || b.date.localeCompare(a.date)), rcWk = rc.filter(r => r.date >= addDays(ASOF, -7));
   const bos = boOrders(rep);
   const arRows = AR_READY ? cs.map(s => ({s, a:arOf(s.id)})).filter(x => x.a.over > 0).sort((a, b) => b.a.over - a.a.over) : [], arTot = arRows.reduce((a, x) => a + x.a.over, 0);
   const showN = (key, list, n) => SHOWALL[key] ? list : list.slice(0, n), moreBtn = (key, list, n) => list.length > n ? `<div class="acts" style="margin-top:6px"><button class="btn sm" type="button" data-more="${esc(key)}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + (list.length - n)}</button></div>` : '';
   if (FRI.draftKey && FRI.draftKey !== rep + '|' + wk) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; }
   const p = planOf(rep, wk), editing = FRI.edit || !p;
   if (editing && (!FRI.draft || FRI.draftKey !== rep + '|' + wk)) { FRI.draft = draftFrom(p, arRows.slice(0, 3).map(x => x.s.id)); FRI.draftKey = rep + '|' + wk; }
+  const TK = editing ? FRI.draft.talked : ((p && p.data) || {}).talked || {};
 
   const tiles = dtiles([
     ['This month', t ? Math.round(ach * 100) + '% of target' : 'No target', `${J(sold)} of ${J(t)} · should be ${Math.round(PACE * 100)}%`, tcol],
     ['Behind today', behind.length + ' customer' + (behind.length === 1 ? '' : 's'), behind.length ? J(behindAmt) + ' short of where they should be' : 'None behind', behind.length ? '#E2445C' : '#1A8F4C'],
-    ['Open orders', open.length ? open.length + ' · ' + J(openV) : 'None open', chk.length ? chk.length + ' line' + (chk.length === 1 ? '' : 's') + ' to check' : 'Nothing to check', '#326BD3'],
     ['Overdue AR', AR_READY ? (arTot ? J(arTot) : 'Nothing overdue') : 'Loading…', AR_READY ? arRows.length + ' customer' + (arRows.length === 1 ? '' : 's') : 'AR is still loading', arTot ? '#E2445C' : '#1A8F4C'],
-    ['Out of stock', oosR.length + ' item' + (oosR.length === 1 ? '' : 's'), 'their customers are waiting on', oosR.length ? '#E8862A' : '#1A8F4C'],
-    ['Back orders', bos.length + ' order' + (bos.length === 1 ? '' : 's'), rcWk.length + ' return' + (rcWk.length === 1 ? '' : 's') + ' this week', '#7B4FD0']]);
+    ['Back orders', bos.length + ' order' + (bos.length === 1 ? '' : 's'), oosR.length + ' item' + (oosR.length === 1 ? '' : 's') + ' out of stock', bos.length || oosR.length ? '#E8862A' : '#1A8F4C']]);
 
-  // agenda: one line each (headline + count), open to see the top 3
+  // agenda: three groups, one line each (headline + count), open to see the top 3, tick when talked about
   const agenda = (k, n, title, headline, tone, count, body) => { const o = !!FRI.ag[k];
-    return `<section class="fag${o ? ' open' : ''}"><button type="button" class="fagh" data-friag="${k}" aria-expanded="${o}"><span class="fsn">${n}</span><span class="fagt"><b>${esc(title)}</b><em>${headline}</em></span><span class="fagc">${solid(tone, count)}</span><span class="chev">${icon('chev')}</span></button>${o ? `<div class="fagb">${body}</div>` : ''}</section>`; };
+    return `<section class="fag${o ? ' open' : ''}"><div class="fagrow"><button type="button" class="fagh" data-friag="${k}" aria-expanded="${o}"><span class="fsn">${n}</span><span class="fagt"><b>${esc(title)}</b><em>${headline}</em></span><span class="fagc">${solid(tone, count)}</span><span class="chev">${icon('chev')}</span></button><label class="fagtk"><input type="checkbox" id="pl-tk-${k}"${TK[k] ? ' checked' : ''}${editing ? '' : ' disabled'}> Talked about it</label></div>${o ? `<div class="fagb">${body}</div>` : ''}</section>`; };
   const N = 3;
-  const a1 = agenda('1', 1, `Where ${first} stands`, `${behind.length} customer${behind.length === 1 ? '' : 's'} behind, ${J(behindAmt)} short${notOrd.length ? ' · ' + notOrd.length + ' not ordering when they usually do' : ''}`, behind.length ? 'red' : 'green', behind.length ? String(behind.length) : 'OK',
-    (behind.length ? `<ul class="l1 gl gbehind" style="--gc:minmax(0,1.6fr) 84px 84px minmax(0,1fr) 92px minmax(0,1.3fr)"><li class="lhd"><span>Customers furthest behind</span><span class="r">Target</span><span class="r">Sold</span><span>Progress</span><span class="r">Short by</span><span>Orders</span></li>
-      ${showN('fb:' + rep, behind, N).map(s => { const pc = s.mtd / s.budM, op = openOf(s.id);
-        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span class="gbp"><span class="rbar sm"><i style="width:${Math.max(pc > 0 ? 3 : 0, Math.min(100, pc * 100))}%;background:${pc >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span><em>${Math.round(pc * 100)}%</em></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>${moreBtn('fb:' + rep, behind, N)}` : '<p class="note" style="margin:8px 0">Nobody is behind where they should be today.</p>') +
-    (notOrd.length ? '<h4 class="fsub">Not ordering when they usually do</h4>' + plCards(showN('fn:' + rep, notOrd, N).map(s => ({name:s.name, sub:`Usually every ${s.cad.med} days · last delivery ${esc(fds(s.cad.last))}`, tag:s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now', tone:s.cad.state === 'missed' ? 'loss' : ''}))) + moreBtn('fn:' + rep, notOrd, N) : ''));
-  const a2 = agenda('2', 2, 'Orders this week', `${open.length} open (${J(openV)})${chk.length ? ' · ' + chk.length + ' line' + (chk.length === 1 ? '' : 's') + ' to fix' : ''}${credit.length ? ' · ' + credit.length + ' on credit hold' : ''}`, credit.length || chk.length ? 'red' : 'green', credit.length + chk.length ? String(credit.length + chk.length) : 'OK',
-    (credit.length ? '<h4 class="fsub">On credit hold: ask AR what is needed to release them</h4>' + plCards(credit.slice(0, N).map(o => ({name:byId[o.c].name, sub:`Order ${esc(o.nbr)} · keyed ${esc(fds(o.date))}`, tag:J(o.total), tone:'loss'}))) : '') +
-    (chk.length ? '<h4 class="fsub">Lines to fix before they ship</h4>' + plCards(showN('fc:' + rep, chk, N).map(x => ({name:`${byId[x.o.c].name} · ${x.l.desc}`, title:x.l.sku, sub:`Order ${esc(x.o.nbr)} · ${esc(chkProblem(x))}`, tag:CHKTXT[x.kind], tone:x.kind === 'gp' ? 'loss' : ''}))) + moreBtn('fc:' + rep, chk, N) : '') +
-    (!credit.length && !chk.length ? `<p class="note" style="margin:8px 0">${open.length ? 'Nothing needs fixing on the ' + open.length + ' open orders.' : 'Nothing open for this rep’s customers.'}</p>` : ''));
-  const a3 = agenda('3', 3, 'Stock their customers are waiting on', oosR.length ? `${oosR.length} item${oosR.length === 1 ? '' : 's'} on ${first}’s orders can’t be sent in full` : 'Nothing on their orders is out of stock', oosR.length ? 'amber' : 'green', oosR.length ? String(oosR.length) : 'OK',
-    oosR.length ? plCards(showN('fs:' + rep, oosR, N).map(x => ({name:x.desc, title:x.sku, sub:`${new Set(x.mine.map(l => ordBy[l.nbr].c)).size} of ${first}’s customers waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71 · ${oosWhen(x)}`, tag:OOS_ST[x.st][1], tone:OOS_ST[x.st][0] === 'red' ? 'loss' : OOS_ST[x.st][0] === 'blue' ? 'blue' : ''}))) + moreBtn('fs:' + rep, oosR, N) : '<p class="note" style="margin:8px 0">Nothing to chase.</p>');
-  const a4 = agenda('4', 4, 'Returns', `${rcWk.length} in the last 7 days (${J(rcWk.reduce((a, r) => a + r.total, 0))}) · ${rc.length} in 60 days`, rcWk.length ? 'amber' : 'green', rcWk.length ? String(rcWk.length) : 'OK',
-    rc.length ? '<p class="note" style="margin:8px 0 0">“Order entry” returns come first: they are the ones that can be stopped.</p>' + plCards(showN('fr:' + rep, rc, N).map(r => ({name:byId[r.c].name, sub:`${esc(rNice(r.reason))} · ${esc(fds(r.date))} · ${esc(r.nbr)}`, tag:J(r.total), tone:r.g === 'Order entry' ? 'loss' : ''}))) + moreBtn('fr:' + rep, rc, N) : '<p class="note" style="margin:8px 0">No returns in the last 60 days.</p>');
-  const sv2 = CHAINF; CHAINF = rep; const boHtml = bos.length ? boReview(N).replace(/^<p class="lead1">[\s\S]*?<\/p>/, '') : ''; CHAINF = sv2;
-  const a5 = agenda('5', 5, 'Back orders: close or re-enter', `${bos.length} back order${bos.length === 1 ? '' : 's'} · ask ${first} what each customer still wants`, bos.length ? 'amber' : 'green', bos.length ? String(bos.length) : 'OK',
-    boHtml || '<p class="note" style="margin:8px 0">No back orders for this rep.</p>');
-  const a6 = agenda('6', 6, 'Overdue balances', !AR_READY ? 'Loading AR…' : arRows.length ? `${J(arTot)} owed past the due date by ${arRows.length} customer${arRows.length === 1 ? '' : 's'} · AR as of ${esc(fds(O.asof || ASOF))}` : 'Nothing overdue for their customers', arRows.length ? 'red' : 'green', arRows.length ? J(arTot) : AR_READY ? 'OK' : '…',
+  // 1. money: the overdue balances
+  const g1 = agenda('1', 1, 'Money: overdue payments', !AR_READY ? 'Loading AR…' : arRows.length ? `${J(arTot)} owed past the due date by ${arRows.length} customer${arRows.length === 1 ? '' : 's'} · AR as of ${esc(fds(O.asof || ASOF))}` : 'Nothing overdue for their customers', arRows.length ? 'red' : 'green', arRows.length ? J(arTot) : AR_READY ? 'OK' : '…',
     arRows.length ? gboard('#127F8C', 'Overdue by customer', arRows.length + ' customers · ' + J(arTot), 'minmax(0,1.6fr) 100px 100px 70px 100px 84px 40px', [['Customer'], ['Overdue', 'right'], ['Over 30 days', 'right', 'hm'], ['Oldest', 'center', 'hm'], ['Owed in all', 'right', 'hm'], ['Last paid', 'center', 'hm'], ['']],
       showN('fa:' + rep, arRows, N).map(x => { const lp = LASTPAY[x.s.id];
         return grow('far:' + x.s.id, [cell(esc(x.s.name), 'c-store one c1'), cell(`<b class="dn">${J(x.a.over)}</b>`, 'c-age', 'right'), cell(x.a.over30 ? J(x.a.over30) : '–', 'c-age hm', 'right'), cell(x.a.oldest + 'd', 'c-age hm', 'center'), cell(J(x.a.owed), 'c-age hm', 'right'), cell(lp ? esc(fds(lp.d)) + '<span class="mlab"> ' + J(lp.amt) + '</span>' : '–', 'c-age hm', 'center')],
           `${gl('minmax(0,1fr) 78px 70px 92px', [['Invoice'], ['Due'], ['Days late', 'r'], ['Balance', 'r']], x.a.inv.slice().sort((a, b) => b.late - a.late).slice(0, 12).map(i => [[acuDoc(i.type, i.ref), ''], [esc(fds(i.due)), 'rt'], [`<span class="${i.late > 30 ? 'dn' : ''}">${i.late}</span>`, 'r val'], [J(i.bal), 'r val']]))}${x.a.credit ? `<p class="note">Payments or credits not yet applied to an invoice: ${J(-x.a.credit)}.</p>` : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.s.id)}">Open customer</button></div>`); }), 'frar') + moreBtn('fa:' + rep, arRows, N) : '<p class="note" style="margin:8px 0">Nothing overdue.</p>');
+  // 2. orders: back orders, stock, and anything to fix before it ships
+  const sv2 = CHAINF; CHAINF = rep; const boHtml = bos.length ? boReview(N).replace(/^<p class="lead1">[\s\S]*?<\/p>/, '') : ''; CHAINF = sv2;
+  const nFix = credit.length + chk.length, nOrd = bos.length + oosR.length + nFix;
+  const g2 = agenda('2', 2, 'Orders: back orders, stock, fixes', nOrd ? `${bos.length} back order${bos.length === 1 ? '' : 's'} · ${oosR.length} item${oosR.length === 1 ? '' : 's'} out of stock · ${nFix} to fix before they ship` : 'Nothing to sort on their orders', nFix ? 'red' : nOrd ? 'amber' : 'green', nOrd ? String(nOrd) : 'OK',
+    (bos.length ? `<h4 class="fsub">Back orders: ask ${esc(first)} what each customer still wants</h4>` + boHtml : '') +
+    (oosR.length ? '<h4 class="fsub">Out of stock: customers waiting</h4>' + plCards(showN('fs:' + rep, oosR, N).map(x => ({name:x.desc, title:x.sku, sub:`${new Set(x.mine.map(l => ordBy[l.nbr].c)).size} of ${esc(first)}’s customers waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71 · ${oosWhen(x)}`, tag:OOS_ST[x.st][1], tone:OOS_ST[x.st][0] === 'red' ? 'loss' : OOS_ST[x.st][0] === 'blue' ? 'blue' : ''}))) + moreBtn('fs:' + rep, oosR, N) : '') +
+    (credit.length ? '<h4 class="fsub">On credit hold: ask AR what is needed to release them</h4>' + plCards(credit.slice(0, N).map(o => ({name:byId[o.c].name, sub:`Order ${esc(o.nbr)} · keyed ${esc(fds(o.date))}`, tag:J(o.total), tone:'loss'}))) : '') +
+    (chk.length ? '<h4 class="fsub">Lines to fix before they ship</h4>' + plCards(showN('fc:' + rep, chk, N).map(x => ({name:`${byId[x.o.c].name} · ${x.l.desc}`, title:x.l.sku, sub:`Order ${esc(x.o.nbr)} · ${esc(chkProblem(x))}`, tag:CHKTXT[x.kind], tone:x.kind === 'gp' ? 'loss' : ''}))) + moreBtn('fc:' + rep, chk, N) : '') +
+    (!nOrd ? '<p class="note" style="margin:8px 0">Nothing to sort.</p>' : ''));
+  // 3. customers: who is behind, who has stopped ordering
+  const g3 = agenda('3', 3, `Customers: where ${first} stands`, `${behind.length} customer${behind.length === 1 ? '' : 's'} behind, ${J(behindAmt)} short${notOrd.length ? ' · ' + notOrd.length + ' not ordering when they usually do' : ''}`, behind.length ? 'red' : 'green', behind.length ? String(behind.length) : 'OK',
+    (behind.length ? `<ul class="l1 gl gbehind" style="--gc:minmax(0,1.6fr) 84px 84px minmax(0,1fr) 92px minmax(0,1.3fr)"><li class="lhd"><span>Customers furthest behind</span><span class="r">Target</span><span class="r">Sold</span><span>Progress</span><span class="r">Short by</span><span>Orders</span></li>
+      ${showN('fb:' + rep, behind, N).map(s => { const pc = s.mtd / s.budM, op = openOf(s.id);
+        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span class="gbp"><span class="rbar sm"><i style="width:${Math.max(pc > 0 ? 3 : 0, Math.min(100, pc * 100))}%;background:${pc >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span><em>${Math.round(pc * 100)}%</em></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>${moreBtn('fb:' + rep, behind, N)}` : '<p class="note" style="margin:8px 0">Nobody is behind where they should be today.</p>') +
+    (notOrd.length ? '<h4 class="fsub">Not ordering when they usually do</h4>' + plCards(showN('fn:' + rep, notOrd, N).map(s => ({name:s.name, sub:`Usually every ${s.cad.med} days · last delivery ${esc(fds(s.cad.last))}`, tag:s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now', tone:s.cad.state === 'missed' ? 'loss' : ''}))) + moreBtn('fn:' + rep, notOrd, N) : ''));
 
-  // the plan: short on purpose (goal, three visits, who to collect from, help needed)
+  // the plan: short on purpose. Tick the customers to visit or call, one goal number, an optional help box.
   const prev = planOf(rep, addDays(wk, -7)), D = FRI.draft;
   const prevLine = prev ? `<p class="note" style="margin:0 0 10px">Last week’s plan${prev.met ? '' : ' (meeting not ticked)'}: ${(prev.data || {}).goal ? 'goal ' + J(prev.data.goal) + ' · ' : ''}${((prev.data || {}).visits || []).length} visit${((prev.data || {}).visits || []).length === 1 ? '' : 's'} planned.</p>` : '';
-  const colIds = editing ? [...new Set([...arRows.slice(0, 8).map(x => x.s.id), ...Object.keys(D.collect).filter(k => D.collect[k])])].filter(c => byId[c]) : [];
-  const planBody = !editing && p ? (() => { const d = p.data || {};
+  // the tick-list: overdue first, then customers behind, then those not ordering, then added by name, then anything saved on an earlier version
+  const cand = []; if (editing) { const add = id => { if (id && byId[id] && mine(id) !== false && !cand.includes(id)) cand.push(id); };
+    arRows.slice(0, 3).forEach(x => add(x.s.id)); behind.slice(0, 6).forEach(s => add(s.id)); notOrd.slice(0, 3).forEach(s => add(s.id)); D.extra.forEach(add); Object.keys(D.sel).forEach(k => { if (D.sel[k]) add(k); }); }
+  const pickRow = id => { const s = byId[id], a = AR_READY ? arOf(id) : null, bh = s.budM > 0 && s.gapPace < 0 ? -s.gapPace : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due');
+    const bits = [a && a.over ? `<span class="fwarn">owes ${J(a.over)} overdue (oldest ${a.oldest} days): collect payment</span>` : '', bh ? `${J(bh)} short this month` : '', no ? 'not ordering when they usually do' : ''].filter(Boolean);
+    return `<label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><span><b>${esc(s.name)}</b><em>${bits.length ? bits.join(' · ') : 'Visit or call'}</em></span></label>`; };
+  const planBody = !editing && p ? (() => { const d = p.data || {}, col = noOver(d, d.collect);
       return `<p class="note" style="margin:0 0 8px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
       <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div>${d.push ? `<div><span>Products to push</span>${esc(d.push)}</div>` : ''}<div><span>Help needed</span>${esc(d.help || '–')}</div>${d.blockers ? `<div><span>In the way</span>${esc(d.blockers)}</div>` : ''}</div>
-      ${(d.visits || []).length ? '<h4 class="fsub">Visits and calls</h4>' + plCards(d.visits.map(v => { const a = v.c ? arOf(v.c) : null; return {name:v.name, sub:`${esc(v.what || '')}${v.amt ? ' · expects ' + J(v.amt) : ''}${a && a.over ? ` · <b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>` : ''}`, tag:a && a.over ? 'Collect ' + J(a.over) : 'Visit', tone:a && a.over ? 'loss' : 'blue'}; })) : ''}
-      ${(d.collect || []).filter(c => byId[c]).length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(d.collect.filter(c => byId[c]).map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
+      ${(d.visits || []).length ? '<h4 class="fsub">Visits and calls</h4>' + plCards(d.visits.map(v => { const a = v.c ? arOf(v.c) : null; return {name:v.name, sub:`${esc(v.what || '')}${v.amt ? ' · expects ' + J(v.amt) : ''}${a && a.over ? `${v.what || v.amt ? ' · ' : ''}<b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>` : (v.what || v.amt ? '' : 'Visit or call')}`, tag:a && a.over ? 'Collect ' + J(a.over) : 'Visit', tone:a && a.over ? 'loss' : 'blue'}; })) : ''}
+      ${col.length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(col.map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
       <div class="acts" style="margin-top:10px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
-      <div><label for="pl-goal">Sales goal for the week (J$)</label><input id="pl-goal" type="text" inputmode="numeric" value="${esc(D.goal)}" placeholder="e.g. 4500000" autocomplete="off"></div>
-      <div><label>Customers to visit or call, and what they will sell</label>
+      <div><label>Which customers will you visit or call this week?</label><p class="fhint note" style="margin:0 0 8px">Tick the ones that matter most. The three who owe the most are already ticked: collect payment when you see them.</p>
+        <div class="fpick">${cand.length ? cand.map(pickRow).join('') : '<p class="note" style="margin:0">No suggestions yet. Add a customer below.</p>'}</div>
         <datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
-        ${D.visits.map((v, i) => { const c = custByName(v.c, rep); return `<div class="fvrow"><input id="pl-vc-${i}" type="text" list="pl-custs" value="${esc(v.c)}" placeholder="Customer" autocomplete="off" aria-label="Customer ${i + 1}"><input id="pl-vw-${i}" type="text" value="${esc(v.w)}" placeholder="What will they sell?" autocomplete="off" aria-label="Plan for customer ${i + 1}"><input id="pl-va-${i}" type="text" inputmode="numeric" value="${esc(v.a)}" placeholder="Order J$" autocomplete="off" aria-label="Expected order ${i + 1}">${c ? `<div class="fhint">${arHint(c.id)}</div>` : ''}</div>`; }).join('')}
-        ${D.visits.length < 8 ? '<button class="btn sm" type="button" data-friaddv="1">+ Add another customer</button>' : ''}</div>
-      ${colIds.length ? `<div><label>Collect payment from (the biggest overdue are ticked)</label><div class="fcol">${colIds.map(c => `<label><input type="checkbox" id="pl-col-${esc(c)}" data-c="${esc(c)}"${D.collect[c] ? ' checked' : ''}>${esc(byId[c].name)} · ${J(arOf(c).over)}</label>`).join('')}</div></div>` : ''}
-      <div><label for="pl-help">Help needed from sales support</label><textarea id="pl-help" rows="2" placeholder="e.g. chase Rhino stock, fix prices on open orders">${esc(D.help)}</textarea></div>
+        <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:8px"></div>
+      <div><label for="pl-goal">Sales goal for the week (J$)</label><input id="pl-goal" type="text" inputmode="numeric" value="${esc(D.goal)}" placeholder="e.g. 4500000" autocomplete="off"></div>
+      <div><label for="pl-help">Anything ${esc(first)} needs from you? (optional)</label><textarea id="pl-help" rows="2" placeholder="e.g. chase Rhino stock, fix prices on open orders">${esc(D.help)}</textarea></div>
       <label class="fmet"><input type="checkbox" id="pl-met"${D.met ? ' checked' : ''}> We have been through this together</label>
       <div class="acts"><button class="btn pri" type="button" data-frisave="1">Save the plan</button>${p ? '<button class="btn" type="button" data-fricancel="1">Cancel</button>' : ''}</div></div>`;
-  const s7 = '<div id="fri-plan"></div>' + fsec(7, `${first}’s plan for the week of ${fds(wk)}`, 'Goal, who they will visit and what they will sell, who they will collect from, and what they need from you. It is saved for the week and goes to Scott. Customers who owe money are flagged so the visit includes collecting payment.', prevLine + planBody);
+  const s4 = '<div id="fri-plan"></div>' + fsec(4, `${first}’s plan for the week of ${fds(wk)}`, 'Three quick things: who they will visit or call, their sales goal, and what they need from you. It is saved for the week and goes to Scott.', prevLine + planBody);
 
-  const allOpen = ['1', '2', '3', '4', '5', '6'].every(k => FRI.ag[k]);
+  const allOpen = ['1', '2', '3'].every(k => FRI.ag[k]);
   return head + `<div class="frep"><div class="who">${av(rep)}<span style="font-size:17px;font-weight:700">${esc(rep)}</span></div><span class="fwk"><button class="btn sm" type="button" data-friag="all">${allOpen ? 'Close all lines' : 'Open all lines'}</button><button class="btn sm" type="button" data-friplan="1">Go to the plan ↓</button></span></div>` + tiles +
-    `<p class="fflow">Meeting order: go down the six lines, tap one to open it, say what needs doing, then agree the plan at the bottom.</p>` + a1 + a2 + a3 + a4 + a5 + a6 + s7;
+    `<p class="fflow">Meeting order: money, then orders, then customers. Tap a line to open it, tick it once you have talked about it, then agree the plan at the bottom.</p>` + g1 + g2 + g3 + s4;
 }
 
 // ---------- Deals: what Shallet sent to the team, and whether it reached an order ----------
@@ -2634,9 +2655,8 @@ __on(document, 'click', e => {
   if (d.fricancel) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
   if (d.frisave) { savePlan(); return; }
   if (d.fricopy) { const pl = planOf(CHAINF, FRI.week); if (pl) copyText(planMsg(CHAINF, pl), 'Plan copied. Paste it into WhatsApp.'); return; }
-  if (d.friag) { const ks = ['1', '2', '3', '4', '5', '6']; if (d.friag === 'all') { const all = ks.every(k => FRI.ag[k]); ks.forEach(k => FRI.ag[k] = !all); } else FRI.ag[d.friag] = !FRI.ag[d.friag]; render(); return; }
+  if (d.friag) { const ks = ['1', '2', '3']; if (d.friag === 'all') { const all = ks.every(k => FRI.ag[k]); ks.forEach(k => FRI.ag[k] = !all); } else FRI.ag[d.friag] = !FRI.ag[d.friag]; render(); return; }
   if (d.frirpt) { FRI.showReport = !FRI.showReport; render(); return; }
-  if (d.friaddv) { if (FRI.draft) { FRI.draft.visits.push({c:'', w:'', a:''}); render(); } return; }
   if (d.friplan) { const e2 = document.getElementById('fri-plan'); if (e2) e2.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (d.sub) { SUB[TAB] = d.sub; EXP = null; OPEN = null; render(); return; }
   if (d.info) { INFO[d.info] = !INFO[d.info]; render(); return; }
@@ -2682,7 +2702,7 @@ let RQT = null; __on(document, 'input', e => { if (e.target.id !== 'rq') return;
 let CQT = null; __on(document, 'input', e => { if (e.target.id !== 'cq') return; CQ = e.target.value; clearTimeout(CQT); CQT = setTimeout(() => { window.__cqFocus = true; render(); }, 220); });
 // Friday plan form: keep what is typed in a draft so a redraw (someone else's tick arriving) never loses it
 __on(document, 'input', e => { const id = e.target.id || ''; if (/^pl-/.test(id) && FRI.draft) frDraftSet(id, e.target); });
-__on(document, 'change', e => { const id = e.target.id || ''; if (!/^pl-/.test(id) || !FRI.draft) return; frDraftSet(id, e.target); if (/^pl-vc-|^pl-col-/.test(id)) render(); });
+__on(document, 'change', e => { const id = e.target.id || ''; if (!/^pl-/.test(id) || !FRI.draft) return; frDraftSet(id, e.target); if (id === 'pl-add') frAddCust(e.target.value); });
 let DQT = null; __on(document, 'input', e => { if (e.target.id !== 'dq') return; DQ = e.target.value; clearTimeout(DQT); DQT = setTimeout(() => { window.__dqFocus = true; EXP = null; render(); }, 220); });
 __on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
   else if (e.target.dataset && e.target.dataset.msort) { const id = e.target.dataset.msort, th = document.querySelector(`[data-sort="${id}|${e.target.value}"]`); SORT[id] = {k:e.target.value, dir:th && th.closest('th').classList.contains('n') ? -1 : 1}; e.target.blur(); render(); } });
