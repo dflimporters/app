@@ -308,6 +308,23 @@ td .who{font-size:12.5px}
 /* sub-tabs, chain dropdown, short leads with an info tip, generic boards */
 .ftiles.four{grid-template-columns:repeat(4,minmax(0,1fr))}
 .ftiles.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ftiles.six{grid-template-columns:repeat(6,minmax(0,1fr))}
+.dsearch{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
+.dsearch label{font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink2)}
+.dsearch input{flex:1 1 280px;max-width:520px;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.dsearch input:focus{outline:2px solid #326BD3;outline-offset:0;border-color:#326BD3}
+.ghb{margin-left:auto}
+.plines{max-width:760px;margin:2px 0 14px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.pl{display:flex;align-items:center;gap:14px;padding:10px 14px}
+.pl+.pl{border-top:1px solid var(--line2)}
+.pl-main{flex:1;min-width:0}
+.pl-main b{display:block;font-weight:600;color:var(--ink);font-size:14px}
+.pl-main span{display:block;font-size:12.5px;color:var(--ink2);margin-top:1px}
+.pl-tag{flex:none;font-family:var(--head);font-weight:800;font-size:12.5px;color:#9A5A00;background:#FFF3E0;border-radius:12px;padding:4px 11px;white-space:nowrap}
+.pl-tag.loss{color:#fff;background:#E2445C}
+.pl-tag.blue{color:#1E4FA8;background:#E8F0FD}
+.pl-tag.green{color:#137A43;background:#E6F7EE}
+@media (max-width:640px){.plines{max-width:none}.pl{flex-direction:column;align-items:flex-start;gap:6px}.pl-main{width:100%}}
 .seg{display:inline-flex;gap:4px;background:#E6EAF2;border-radius:10px;padding:4px;margin:2px 0 14px;max-width:100%;overflow-x:auto;scrollbar-width:none}
 .seg button{all:unset;cursor:pointer;padding:7px 14px;border-radius:7px;font-family:var(--head);font-size:12.5px;font-weight:700;color:var(--ink2);white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
 .seg button span{font-size:11px;color:var(--ink3);font-weight:700}
@@ -357,7 +374,7 @@ td .who{font-size:12.5px}
 .agebar.mini{height:8px;margin:0;border-radius:4px}
 .reason.one{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 .bfacts.one-col{grid-template-columns:minmax(0,1fr)}
-@media (max-width:1100px){.ftiles{grid-template-columns:repeat(3,minmax(0,1fr))}.ftiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1100px){.ftiles.six{grid-template-columns:repeat(3,minmax(0,1fr))}.ftiles{grid-template-columns:repeat(3,minmax(0,1fr))}.ftiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}
   .flat .hide-sm{display:none}.flat .solid{min-width:0;width:100%;max-width:110px;overflow:hidden;text-overflow:ellipsis}.flat th:first-child{width:34%}}
 @media (max-width:860px){
   .app{grid-template-columns:minmax(0,1fr)}
@@ -417,7 +434,7 @@ td .who{font-size:12.5px}
   .gen .brow:not(:has(> .stcell)){grid-template-columns:minmax(0,1fr) auto !important}
   .gen .brow>.c2.rsn{padding-left:4px !important}
   .topbar{flex-wrap:wrap}
-  .ftiles.four,.ftiles.three{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ftiles.four,.ftiles.three,.ftiles.six{grid-template-columns:repeat(2,minmax(0,1fr))}
   .seg{display:flex;flex-wrap:wrap;overflow:visible}
   .seg button{flex:1 1 auto;justify-content:center;padding:7px 10px}
 }
@@ -714,7 +731,10 @@ const PACE = WD_DONE / WD_ALL;
 // ---------- orders, lines, shipments ----------
 const ORD = (O.orders || []).filter(o => o[1] === 'SO').map(o => ({nbr:o[0], status:o[2], date:o[3], sched:o[4], c:o[5], total:+o[6] || 0, qty:+o[7] || 0, by:o[8] || '', via:o[9] || ''}));
 const ordBy = {}; ORD.forEach(o => ordBy[o.nbr] = o);
-const LINES = (O.lines || []).filter(l => ordBy[l[0]]).map(l => ({nbr:l[0], sku:l[1], desc:l[2], oq:+l[3] || 0, open:+l[4] || 0, onhand:+l[5] || 0, price:+l[6] || 0, cls:l[7], status:l[8]}));
+const LINES = (O.lines || []).filter(l => ordBy[l[0]]).map(l => ({nbr:l[0], sku:l[1], desc:l[2], oq:+l[3] || 0, open:+l[4] || 0, onhand:+l[5] || 0, price:+l[6] || 0, cls:l[7], status:l[8], cost:+l[9] || 0, oh71:l[10] == null ? null : +l[10], ash:+l[11] || 0}));
+// items we no longer carry, and the lowest price each store was invoiced each item in the last 6 months (18 Nov: price checks)
+const INACT = O.inact || {};
+const LOWP = {}; (O.lowp || []).forEach(r => LOWP[r[0] + '|' + r[1]] = {p:+r[2] || 0, d:r[3]});
 LINES.forEach(l => { (ordBy[l.nbr].lines = ordBy[l.nbr].lines || []).push(l); });
 const SHIPS = (O.ships || []).map(s => ({nbr:s[0], c:s[1], order:s[2], status:s[3], date:s[4], value:+s[5] || 0, via:s[6] || '', created:s[7]}));
 const shipsOfOrder = {}; SHIPS.forEach(s => (shipsOfOrder[s.order] = shipsOfOrder[s.order] || []).push(s));
@@ -753,22 +773,117 @@ ORD.forEach(o => { const sh = (shipsOfOrder[o.nbr] || []).filter(x => !SHIPPED(x
   o.stuck = o.stage.k === 'truck' && sh.length ? sh.reduce((a, x) => a + x.value, 0) : openV || o.total; });
 const openOf = c => ORD.filter(o => o.c === c && o.status !== 'Back Order');
 
-// deal tier check: is the order just short of the next free-goods tier?
-const tierHint = l => {
-  const d = DEALS[l.sku]; if (!d || !Array.isArray(d[1]) || l.oq < 3) return null;
-  const tiers = d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy);
-  const next = tiers.find(t => t.buy > l.oq); if (!next) return null;
-  const gap = next.buy - l.oq; if (gap > Math.max(3, next.buy * 0.3)) return null;
-  const cur = [...tiers].reverse().find(t => t.buy <= l.oq);
-  return {add:gap, buy:next.buy, free:next.free, cur:cur ? cur.free : 0}; };
+const JP = n => (n < 0 ? "−" : "") + "J$" + Math.round(Math.abs(+n || 0)).toLocaleString("en-US");
+let OQ = '', BQ = '';
+const bqHit = (...vs) => { const q = BQ.trim().toLowerCase(); return !q || vs.some(v => v && String(v).toLowerCase().includes(q)); };
+// deal levels repeat (Scott, 11 Nov: "buy 100 get 3 free" counts for every 100 bought). Free goods for a quantity:
+// the biggest level as many times as it fits, then the next level down on what is left, and so on (500 at buy 100 get 3 = 15).
+const tiersOf = sku => { const d = DEALS[sku]; return d && Array.isArray(d[1]) ? d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy) : []; };
+const freeFor = (tiers, q) => { let left = Math.max(0, q), f = 0; [...tiers].reverse().forEach(t => { const n = Math.floor(left / t.buy); f += n * t.free; left -= n * t.buy; }); return f; };
+const dealTxt = tiers => tiers.map(t => `buy ${t.buy}, get ${t.free} free`).join(' or ');
+// deal families (Scott, 18 Nov): a volume deal can be met by mixing sizes of one product line, e.g. every Rhino Ezee-Pull size, or every
+// Clean & White bleach size, added together. A family = deal-sheet items with the same name once sizes and pack counts are removed AND the
+// same free-goods levels. Free-goods, too-many-free, special and deal-price checks all count the family together, not one size at a time.
+// all Rhino bag lines (Ezee-Pull, Ezee Tie, Frosted, Green) can be mixed for one deal (Scott, 18 Nov)
+const famBase = d => /^rhino /i.test(String(d || '').trim()) ? 'rhino' : String(d || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/\b(small|medium|large|jumbo|mini|regular|xl|xxl)\b/g, ' ').replace(/\S*\d\S*/g, ' ').replace(/[^a-z& -]+/g, ' ').replace(/\s+/g, ' ').trim();
+const DFAM = {}; (() => { const m = {}; (O.dsheet || []).forEach(r => { const tr = Array.isArray(r[3]) ? r[3].filter(t => +t.buy && +t.free) : []; if (!tr.length) return;
+  const k = famBase(r[1]) + '|' + tr.map(t => t.buy + ':' + t.free).join(','); (m[k] = m[k] || []).push(r[0]); });
+  Object.entries(m).forEach(([k, s]) => s.forEach(sku => { DFAM[sku] = {k, n:s.length, name:k.split('|')[0]}; })); })();
+const famOf = sku => DFAM[sku] ? DFAM[sku].k : 'sku:' + sku, famN = sku => DFAM[sku] ? DFAM[sku].n : 1;
+// specials: is the order a few cases short of earning more free goods? q = the paid quantity of the whole family on the order
+const tierHint = (l, q) => { q = q == null ? l.oq : q;
+  const tiers = tiersOf(l.sku); if (!tiers.length || q < 3) return null;
+  const now = freeFor(tiers, q), lim = Math.max(3, Math.ceil(tiers[0].buy * 0.3));
+  for (let add = 1; add <= lim; add++) { const f = freeFor(tiers, q + add); if (f > now) return {add, buy:q + add, free:f - now, cur:now, total:f, deal:dealTxt(tiers), any:famN(l.sku) > 1}; }
+  return null; };
 
 // order checks on orders that can still change (Open / On Hold)
 const CHECKS = [];
 ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.lines || []).forEach(l => {
-  const h = tierHint(l);
+  // one special per product family, on its biggest paid line, counting every size on the order (Scott, 18 Nov)
+  const fk = famOf(l.sku), fam = (o.lines || []).filter(x => x.price > 0 && famOf(x.sku) === fk), main = fam.slice().sort((a, b) => b.oq - a.oq)[0];
+  const h = main === l ? tierHint(l, fam.reduce((a, x) => a + x.oq, 0)) : null;
   if (h) CHECKS.push({kind:'deal', o, l, h, key:'deal:' + o.nbr + ':' + l.sku, value:h.add * l.price});
-  if (l.open > 0 && l.onhand < l.open) CHECKS.push({kind:'stock', o, l, key:'stock:' + o.nbr + ':' + l.sku, value:(l.open - Math.max(0, l.onhand)) * l.price});
+  // stock: short at 71 but Ashenheim has it → transfer; short everywhere → will ship short
+  const at71 = l.oh71 == null ? l.onhand : l.oh71, need = l.open - Math.max(0, at71);
+  if (l.open > 0 && need > 0 && l.ash >= need) CHECKS.push({kind:'xfer', o, l, need, key:'xfer:' + o.nbr + ':' + l.sku, value:need * l.price});
+  else if (l.open > 0 && Math.max(0, at71) + l.ash < l.open) { l.onhand = Math.max(0, at71) + l.ash; CHECKS.push({kind:'stock', o, l, key:'stock:' + o.nbr + ':' + l.sku, value:(l.open - l.onhand) * l.price}); }
+  // price checks for sales support (Scott, 11 Nov): below cost, below the deal price, no price. List price above the sheet is fine
+  // (small orders don't reach a deal). Low margin above cost is for the KAM / category manager. J$0 lines on a deal item are free goods.
+  const sheet = DEALS[l.sku] ? +DEALS[l.sku][0] : 0, hasTier = !!(DEALS[l.sku] && Array.isArray(DEALS[l.sku][1]) && DEALS[l.sku][1].some(t => +t.buy && +t.free));
+  // the lowest price the deal allows (Scott, 11 Nov): with free items on the order, the sheet price; without them, the deal may be given as a
+  // prorated price instead of free goods: sheet × buy ÷ (buy + free) at the level the quantity reaches. Below that is flagged.
+  const floorOf = () => { if (!sheet) return null;
+    const same = (o.lines || []).filter(x => famOf(x.sku) === famOf(l.sku)), paid = same.filter(x => x.price > 0).reduce((a, x) => a + x.oq, 0), free = same.filter(x => x.price <= 0).reduce((a, x) => a + x.oq, 0);
+    const tiers = hasTier ? DEALS[l.sku][1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy) : [];
+    const t = [...tiers].reverse().find(t => t.buy <= paid);
+    if (free > 0 || !t) return {p:sheet, why:free > 0 ? 'free items are on the order, so the price should be the sheet price' : 'the quantity doesn’t reach a deal level'};
+    return {p:sheet * t.buy / (t.buy + t.free), why:`buy ${t.buy} get ${t.free} free, taken as a price: ${JP(sheet)} × ${t.buy} ÷ ${t.buy + t.free}`, t}; };
+  // a line at or above the item's list price is never "below the deal price": some sheet prices sit above list (Scott, 12 Nov: Tryall Club,
+  // White & Bright 20x350g, sheet J$3,038 vs list J$1,914). DEALS[sku][2] = list price (needs migration ss_hub_listprice; ignored until then)
+  const listP = DEALS[l.sku] && +DEALS[l.sku][2] > 0 ? +DEALS[l.sku][2] : 0;
+  const fl = l.price > 0 && sheet && l.price < sheet * 0.98 && !(listP && l.price >= listP * 0.98) ? floorOf() : null;
+  if (l.price > 0 && l.cost > 0 && l.price < l.cost) CHECKS.push({kind:'gp', o, l, gp:Math.round((l.price - l.cost) / l.price * 100), key:'gp:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 3.5e6});
+  // customers with their own price level (Scott, 11 Nov): if this customer has been invoiced this item at this price or lower in the
+  // last 6 months (O.lowp: lowest invoiced price per customer and item, from ss_hub_data ops), it is their usual price and is not flagged
+  else if (Array.isArray(O.lowp) && fl && l.price < fl.p * 0.98 && !(LOWP[o.c + '|' + l.sku] && LOWP[o.c + '|' + l.sku].p <= l.price * 1.02)) CHECKS.push({kind:'price', o, l, sheet, floor:fl.p, floorWhy:fl.why, low:LOWP[o.c + '|' + l.sku] || null, key:'price:' + o.nbr + ':' + l.sku, value:(fl.p - l.price) * l.oq + 3e6});
+  // no "no price" check: a J$0 line means Free Item was ticked (Scott, 11 Nov: Morrison's 210060). The Free Item flag isn't synced, so the hub can't tell a missing price from a free item; J$0 lines are free goods.
+  // items we no longer carry (Althia: chain POs keep listing discontinued lines)
+  if (INACT[l.sku]) CHECKS.push({kind:'inact', o, l, st:INACT[l.sku], key:'inact:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 1e6});
 }));
+// every line short at 71 that Ashenheim covers, combined by item: the transfer list (Scott, 12 Nov)
+const xferList = () => { const m = {};
+  CHECKS.filter(x => x.kind === 'xfer' && inChain(x.o.c)).forEach(x => { const r = m[x.l.sku] = m[x.l.sku] || {sku:x.l.sku, desc:x.l.desc, need:0, at71:Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71), ash:Math.max(0, x.l.ash), ls:[]}; r.need += x.need; r.ls.push({o:x.o, need:x.need}); });
+  return Object.values(m).sort((a, b) => b.need - a.need || a.desc.localeCompare(b.desc)); };
+const xferMsg = l => [`*Transfer list, Ashenheim to 71, ${fd(ASOF)}*`, ...l.map(x => `• ${x.desc} (${x.sku}) × ${x.need}`), 'Needed for open orders.'].join('\n');
+const xferCsv = l => ['Item code,Description,Transfer qty,At 71,At Ashenheim,Orders,Customers', ...l.map(x => [x.sku, x.desc, x.need, x.at71, x.ash, x.ls.map(r => r.o.nbr).join(' '), [...new Set(x.ls.map(r => byId[r.o.c] ? byId[r.o.c].name : r.o.c))].join('; ')].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','))].join('\r\n');
+// what was on a shipment and what was left off (Scott, 12 Nov). Items = invoiced to the customer on the shipment date; left off = ordered but not sent, plus driver-app shorts
+const shipDetail = s => { const d = null, inv = {};
+  INVL.filter(r => r.c === s.c && r.date === s.date).forEach(r => { const x = inv[r.sku] = inv[r.sku] || {q:0, fq:0}; x.q += r.q; x.fq += r.fq; });
+  const items = Object.entries(inv).filter(([, x]) => x.q + x.fq > 0);
+  const left = (typeof sentLater === 'function' ? SHORT : []).filter(x => x.order === s.order).map(x => { const v = sentLater(x); return {name:x.desc, sub:`${x.oq} ordered · ${x.sq} sent on ${esc(fds(x.date))}`, tag:v.t, tone:v.c === 'red' ? 'loss' : v.c === 'green' ? 'green' : ''}; });
+  ((d && d.short) || []).filter(x => !SHORT.some(y => y.order === s.order && y.desc === x.desc)).forEach(x => left.push({name:x.desc, sub:`${x.got} of ${x.exp} delivered${x.note ? ' · “' + esc(x.note) + '”' : ''} (driver app)`, tag:dlvTag(x.why), tone:/not ordered/i.test(x.why) ? 'loss' : ''}));
+  const h = (k, v) => `<div class="bfacts one-col"><div><span>${k}</span>${v}</div></div>`;
+  return h('Left off', left.length ? `${left.length} item${left.length === 1 ? '' : 's'} ordered but not sent` : 'Nothing recorded as left off') + (left.length ? plCards(left) : '') +
+    h('On the shipment', items.length ? `${items.length} item${items.length === 1 ? '' : 's'} invoiced to this customer on ${esc(fd(s.date))}` : 'No invoice lines for this date yet. The invoice may be dated later: open the shipment in Acumatica.') +
+    (items.length ? plCards(items.slice(0, 60).map(([sku, x]) => ({name:descOf(sku), title:sku, sub:x.fq ? `${x.q} sold · ${x.fq} free` : 'Invoiced', tag:'× ' + (x.q + x.fq)}))) : '') +
+    `<div class="bfacts"><div><span>Shipment</span>${acuShip(s.nbr)} · ${esc(s.status)} · ${J(s.value)}${d ? ' · driver app: ' + esc(d.st.t) : ''}</div></div>
+    <div class="acts">${acuBtn(s.order)}${s.order ? `<button class="btn sm" type="button" data-order="${esc(s.order)}">See the order</button>` : ''}<button class="btn sm" type="button" data-store="${esc(s.c)}">Open customer</button></div>`; };
+const CHKTXT = {deal:'Missed special', free:'Free goods missing', freeover:'Too many free', stock:'Not enough stock', xfer:'Needs a transfer', price:'Below the deal price', noprice:'No price', gp:'Below cost', inact:'Item not active'};
+const PRICEK = ['gp', 'price', 'noprice', 'freeover', 'inact'];
+// negative profit = sold below cost (Scott, 9 Nov: "-36%" read as 36%)
+const gpTxt = g => g < 0 ? `Below cost (${Math.abs(g)}% loss)` : `${g}% profit`;
+const chkProblem = x => x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : x.kind === 'xfer' ? `${x.need} from ASH` : x.kind === 'price' ? `${JP(x.l.price)} vs deal ${JP(x.floor)}` : x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'noprice' ? 'J$0, no deal' : x.kind === 'freeover' ? `${x.f.have} free, deal gives ${x.f.free}` : x.kind === 'inact' ? `${x.st} item` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`;
+// what to do in Acumatica (the hub is a guide: no editing here, Scott 26 Oct)
+// the problem lines of an order, in a small table (Scott, 9 Nov: show which items are under 20% without opening the order)
+const lineGp = l => l.price > 0 && l.cost > 0 ? Math.round((l.price - l.cost) / l.price * 100) : null;
+// category managers by item class (Scott, 9 Nov: a product's price goes to its category manager first, Head of Sales only if they can't approve it)
+const CMOF = cls => { const c = String(cls || '').toUpperCase();
+  if (/^(PAPER|PLASTIC|CLEARPACK)/.test(c)) return 'Rejene Henry';
+  if (/^(GARBAGEBAG|HOUSEHOLD|PROCESSING|FOIL|WIPES)/.test(c)) return 'Travis Decasseres';
+  if (/^ECO/.test(c)) return 'Matthew Decasseres';
+  if (/^(FOODSUP|BEVERAGE)/.test(c)) return 'Trebor Sergeant';
+  if (/^MEZ/.test(c)) return 'Richard Gordon';
+  return ''; };
+// price questions go to the rep first: the rep has usually discussed the price with the category manager (Scott, 11 Nov)
+const repTxt = x => { const r = firstName((byId[x.o.c] || {}).rep); return r ? r + ' (rep)' : 'the rep'; };
+const cmTxt = cls => { const n = CMOF(cls); return n ? `${firstName(n)} (category manager, ${String(cls).toUpperCase()})` : `the category manager for ${cls || 'this item'}`; };
+// compact item cards: name on top, the facts under it, the problem as a tag (tone: amber, loss = red, blue, green)
+const plCards = rows => `<div class="plines">${rows.map(r => `<div class="pl"><div class="pl-main"><b${r.title ? ` title="${esc(r.title)}"` : ''}>${esc(r.name)}</b><span>${r.sub}</span></div><span class="pl-tag${r.tone ? ' ' + r.tone : ''}">${esc(r.tag)}</span></div>`).join('')}</div>`;
+// one compact line per problem item: name, then "qty × price · cost", with the problem as a tag on the right (Scott, 9 Nov: neater)
+const chkTable = xs => plCards(xs.map(x => { const g = lineGp(x.l), loss = (x.kind === 'gp' ? x.gp : g) < 0;
+  return {name:x.l.desc, title:x.l.sku, tone:loss || x.kind === 'noprice' ? 'loss' : '', tag:x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'price' ? 'Below deal ' + JP(x.floor) : x.kind === 'freeover' ? `${x.f.have} free on order` : (x.st || CHKTXT[x.kind]),
+    // too many free (Scott, 11 Nov: "130 free, deal 3" was unclear): say what the deal allows for the quantity bought
+    sub:x.kind === 'freeover' ? `${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''} · the deal allows ${x.f.free} free (${esc(x.f.deal)}, per multiple)` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
+const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''}, the deal (${x.f.deal}, per multiple) gives ${x.f.free} free and the order has ${x.f.have || 'none'}: ${x.f.free - x.f.have} more. Check with the rep whether they should be added; if so, add them with the Free Item box ticked.` :
+  x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more${x.h.any ? ' of any size in this range' : ''} (${x.h.buy} in all) for ${x.h.free} more free (${x.h.deal}, per multiple).` :
+  x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
+  x.kind === 'stock' ? `Only ${Math.max(0, x.l.onhand)} in stock for ${x.l.open}. Ask the rep about a substitute (same colour and size) or cut the quantity.` :
+  x.kind === 'price' ? `${JP(x.l.price)} is below the lowest deal price of ${JP(x.floor)} (${x.floorWhy})${x.low ? `. In the last 6 months this customer has paid no less than ${JP(x.low.p)} for it` : `, and the customer hasn’t been invoiced this item in the last 6 months`}. Ask ${repTxt(x)} whether the lower price was agreed; if not, change it.` :
+  x.kind === 'noprice' ? `This line is J$0 but the item has no deal on the sheet. Add the price, or untick Free Item if it was ticked by mistake.` :
+  x.kind === 'freeover' ? `${x.f.have} free on the order, but ${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''} only earns ${x.f.free} free (${x.f.deal}, per multiple). Reduce the free quantity, or check the deal with the rep.` :
+  x.kind === 'gp' ? `Priced at ${JP(x.l.price)} but the cost is ${JP(x.l.cost)}: a ${Math.abs(x.gp)}% loss. Check the price and the item cost${/25PAPC/.test(x.l.desc) ? ' (Covebay 25PAPC has a known cost/UOM error)' : ''}, then ask ${repTxt(x)} about the price.` :
+  `${x.st} in Acumatica: we no longer carry it. Remove the line and ask the rep to offer what we carry now.`;
 
 // back-order lines (still open on Back Order orders)
 const BO = LINES.filter(l => ordBy[l.nbr].status === 'Back Order' && l.open > 0).map(l => ({...l, c:ordBy[l.nbr].c, date:ordBy[l.nbr].date, age:daysBetween(ordBy[l.nbr].date, ASOF), canShip:l.onhand >= l.open}));
@@ -903,12 +1018,17 @@ function ord(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s
 // free goods left off: an open / on-hold order has an item at or past a deal tier, at the deal-sheet price, but no J$0 line for it.
 // A price below the sheet means the deal was given as a lower price instead, so it is not flagged (Shallet, 5 Nov meeting).
 ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => {
-  const by = {}; (o.lines || []).forEach(l => { const x = by[l.sku] = by[l.sku] || {paid:null, oq:0, free:0}; if (l.price > 0) { x.paid = x.paid || l; x.oq += l.oq; } else x.free += l.oq; });
-  Object.entries(by).forEach(([sku, x]) => { const d = DEALS[sku]; if (!x.paid || !d || !Array.isArray(d[1])) return;
-    const tiers = d[1].map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy);
-    const t = [...tiers].reverse().find(t => t.buy <= x.oq); if (!t || x.free >= t.free) return;
-    if (+d[0] && x.paid.price < +d[0] * 0.98) return;
-    CHECKS.push({kind:'free', o, l:x.paid, f:{buy:t.buy, free:t.free, have:x.free, oq:x.oq}, key:'free:' + o.nbr + ':' + sku, value:(t.free - x.free) * x.paid.price + 2e6}); });
+  // counted by product family, not size by size (Scott, 18 Nov): 6 of one size and 12 of another can earn the deal together
+  const by = {}; (o.lines || []).forEach(l => { if (!tiersOf(l.sku).length) return; const k = famOf(l.sku), x = by[k] = by[k] || {k, sku:l.sku, paid:[], oq:0, free:0, lines:[]}; x.lines.push(l); if (l.price > 0) { x.paid.push(l); x.oq += l.oq; } else x.free += l.oq; });
+  Object.values(by).forEach(x => { const tiers = tiersOf(x.sku), main = x.paid.slice().sort((a, b) => b.oq - a.oq)[0];
+    const allowed = freeFor(tiers, x.oq), deal = dealTxt(tiers), n = new Set(x.paid.map(l => l.sku)).size, fam = {free:allowed, have:x.free, oq:x.oq, deal, n};
+    // more free than the deal gives for the quantity bought (levels repeat: Scott, 11 Nov)
+    if (x.free > allowed) { const l0 = main || x.lines[0];
+      CHECKS.push({kind:'freeover', o, l:l0, f:fam, key:'freeover:' + o.nbr + ':' + x.k, value:(x.free - allowed) * ((main || {}).price || 0) + 2.9e6}); return; }
+    if (!main || !allowed || x.free >= allowed) return;
+    // a paid size priced below its sheet price means the deal was given as a lower price: not flagged
+    if (x.paid.some(l => +(DEALS[l.sku] || [])[0] && l.price < +DEALS[l.sku][0] * 0.98)) return;
+    CHECKS.push({kind:'free', o, l:main, f:fam, key:'free:' + o.nbr + ':' + x.k, value:(allowed - x.free) * main.price + 2e6}); });
 });
 // deal sheet (all live deals) and invoiced lines for the last 45 days
 const DSH = {}; (O.dsheet || []).forEach(r => { const tiers = (Array.isArray(r[3]) ? r[3] : []).map(t => ({buy:+t.buy, free:+t.free})).filter(t => t.buy && t.free).sort((a, b) => a.buy - b.buy); DSH[r[0]] = {sku:r[0], desc:r[1], price:+r[2] || 0, tiers, cls:r[4]}; });
@@ -1022,12 +1142,12 @@ function todayItems() {
   const it = [];
   CHECKS.filter(x => x.kind === 'deal').forEach(x => it.push({key:x.key, pri:1, col:'blue', kind:'Special', c:x.o.c, issue:`Add ${x.h.add} to get ${x.h.free} free`, sub:x.l.desc, age:x.o.age,
     t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
-    d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is buy ${x.h.buy}, get ${x.h.free} free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
+    d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is ${x.h.deal}, per multiple${x.h.any ? ' (any size in this range counts)' : ''}. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
     act:'Call Rep or Merch to add it', value:x.value + 1e6}));
   // free goods left off an open order: sales support adds them before it ships
   CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
     t:`${byId[x.o.c].name}: free goods missing on order ${x.o.nbr}`,
-    d:`<b>${x.f.oq}</b> × ${esc(x.l.desc)} at the deal-sheet price. The deal is buy ${x.f.buy}, get ${x.f.free} free, and the order has ${x.f.have || 'no'} free line${x.f.have === 1 ? '' : 's'}.`,
+    d:`<b>${x.f.oq}</b> bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''} (${esc(x.l.desc)}) at the deal-sheet price. The deal is ${esc(x.f.deal)}, per multiple, so ${x.f.free} free; the order has ${x.f.have || 'none'}.`,
     act:'Ask sales support to add the free goods', value:x.value}));
   // deals Shallet logged that the store has since ordered without
   DEALS_LOG().filter(x => !x.closed && x.st.k === 'missed').forEach(x => it.push({key:'dealm:' + x.n.id, pri:1.5, col:'red', kind:'Deal not taken', c:x.n.c, order:x.st.nbr || null, issue:'Ordered without the deal', sub:`${descOf(x.n.sku)}: ${x.n.label || ''}`, age:x.age,
@@ -1059,6 +1179,14 @@ function todayItems() {
     t:`${byId[o.c].name}: order ${o.nbr} will ship short`,
     d:`${ls.slice(0, 3).map(l => `<b>${esc(l.desc)}</b>: ${Math.max(0, l.onhand)} on hand for ${l.open}`).join('; ')}${ls.length > 3 ? '…' : ''}`,
     act:'Tell the store and offer a substitute', value:v}); });
+  // lines short at 71 that Ashenheim can cover: one card per order, the items go on the transfer list
+  const xfOrd = {}; CHECKS.filter(x => x.kind === 'xfer').forEach(x => (xfOrd[x.o.nbr] = xfOrd[x.o.nbr] || {o:x.o, ls:[]}).ls.push(x));
+  Object.values(xfOrd).forEach(({o, ls}) => { const v = ls.reduce((a, x) => a + x.need * x.l.price, 0);
+    it.push({key:'xfer:' + o.nbr, pri:2.6, col:'blue', kind:'Transfer', c:o.c, order:o.nbr,
+    issue:`${ls.length} item${ls.length === 1 ? '' : 's'} to transfer for order ${o.nbr}`, sub:`${J(v)} waiting on Ashenheim stock · ${o.stage.t}`, age:o.age,
+    t:`${byId[o.c].name}: order ${o.nbr} needs a transfer`,
+    d:`${ls.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${x.need} to bring from Ashenheim (${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71, ${x.l.ash} there)`).join('; ')}${ls.length > 3 ? '…' : ''}`,
+    act:'Add to the Ashenheim transfer list', value:v}); });
   // back orders 5+ days old, one card per order
   const boOrd = {}; BO.filter(b => b.age >= 5).forEach(b => (boOrd[b.nbr] = boOrd[b.nbr] || []).push(b));
   Object.entries(boOrd).forEach(([nbr, ls]) => { const c = ls[0].c, can = ls.filter(b => b.canShip), v = ls.reduce((a, b) => a + b.open * b.price, 0), rep = ls.filter(b => b.rep);
@@ -1071,7 +1199,7 @@ function todayItems() {
     t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
     d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
     act:can.length ? 'Find out why it has not shipped' : 'Tell the store when it is due', value:v}); });
-  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
+  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 2 || o.stage.k === 'credit').forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:o.stage.k === 'credit' ? 'red' : 'amber', kind:o.stage.k === 'credit' ? 'Credit hold' : 'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
     d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
     act:o.stage.k === 'credit' ? 'Check the balance with AR' : 'Ask dispatch when it leaves', value:o.stuck}));
@@ -1099,7 +1227,7 @@ function todayItems() {
     it.push({key:'why:' + reasonless.map(x => x.sku).join('-').slice(0, 120), pri:7, col:'amber', kind:'Often short', shortlist:1, issue:`${reasonless.length} items with no reason`, sub:`${times} short shipments in 90 days`, age:null,
     t:`${reasonless.length} item${reasonless.length === 1 ? '' : 's'} shipped short ${times} times in 90 days`,
     d:`No reason noted yet. The most frequent is <b>${esc(reasonless[0].desc)}</b> (${reasonless[0].n} times).`, act:'Check each one and add a reason', value:0}); }
-  const GROUP = {'Free goods':'Free goods', 'Deal not taken':'Deals', 'Collection':'Collections', 'Special':'Specials', 'Missed order':'Missed orders', 'Due today':'Due today', 'Will ship short':'Will ship short', 'Back order':'Back orders', 'Stuck order':'Stuck orders', 'Statement':'AR', 'Promise':'AR', 'Payment late':'AR', 'Often short':'Often short'};
+  const GROUP = {'Free goods':'Free goods missing', 'Deal not taken':'Deals', 'Collection':'Collections', 'Special':'Missed specials', 'Missed order':'Missed orders', 'Due today':'Due today', 'Transfer':'Transfers needed', 'Will ship short':'Will ship short', 'Back order':'Back orders', 'Stuck order':'Delayed orders', 'Credit hold':'Credit hold', 'Statement':'AR', 'Promise':'AR', 'Payment late':'AR', 'Often short':'Often short'};
   it.forEach(x => x.group = GROUP[x.kind] || x.kind);
   return it.sort((a, b) => a.pri - b.pri || b.value - a.value);
 }
@@ -1267,7 +1395,7 @@ const ICO = {
   note:'<path d="M5 4h14v12l-4 4H5z"/><path d="M15 20v-4h4M8 9h8M8 13h5"/>',
   chev:'<path d="M6 9l6 6 6-6"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Free goods':['#D63B3B', 'Deal free goods left off open orders, for sales support to add'], 'Deals':['#326BD3', 'Deals you sent that the store ordered without'], 'Collections':['#127F8C', 'Money with collectors that is late or not handed in'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Stuck orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
+const GRPC = {'Free goods missing':['#D63B3B', 'Deal free goods left off open orders, for sales support to add'], 'Deals':['#326BD3', 'Deals you sent that the store ordered without'], 'Collections':['#127F8C', 'Money with collectors that is late or not handed in'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Transfers needed':['#127F8C', 'Open orders short at 71 but in Ashenheim: add to the transfer list'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Missed specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Credit hold':['#D63B3B', 'Held by AR, not moving until it is released'], 'Delayed orders':['#C47A1A', 'Keyed but not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Often short':['#8A6A1F', 'Items we keep shipping short']};
 let TODAYF = 'All', EXP = null;
 
 function weekStrip() {
@@ -1354,19 +1482,29 @@ const cell = (html, cls, align) => `<div class="${cls || ''}"${align ? ` style="
 const stBtn = key => { const st = stOf(key); return `<button type="button" class="stcell ${ST[st][0]}" data-status="${esc(key)}" aria-label="Status: ${ST[st][1]}. Tap to change">${ST[st][1]}</button>`; };
 
 function vOrders() {
-  if (!['check', 'watch', 'open', 'shipped'].includes(SUB.orders)) SUB.orders = 'check';
+  if (!['check', 'credit', 'xfer', 'watch', 'open', 'shipped'].includes(SUB.orders)) SUB.orders = 'check';
+  // search box (Scott, 12 Nov): customer, order number, product or rep
+  const oq = OQ.trim().toLowerCase(), oqHit = (...vs) => !oq || vs.some(v => v && String(v).toLowerCase().includes(oq));
+  const cnm = c => byId[c] ? byId[c].name : c, crp = c => (byId[c] || {}).rep || '';
   const checks = CHECKS.filter(x => inChain(x.o.c)).sort((a, b) => b.value - a.value);
+  // sorted lines drop off (Scott, 11 Nov: they went round in circles); "Show sorted" brings them back
+  const chkSorted = checks.filter(x => stOf(x.key) === 'sorted'), chkOpen = checks.filter(x => stOf(x.key) !== 'sorted'), chkShown = (SHOWALL.chksorted ? checks : chkOpen).filter(x => oqHit(cnm(x.o.c), x.o.c, x.o.nbr, x.l.desc, x.l.sku, crp(x.o.c), CHKTXT[x.kind]));
+  // credit hold: every order held by AR, oldest first. Not narrowed to top customers: nothing should sit unnoticed (Scott, 12 Nov)
+  const credit = ORD.filter(o => o.stage.k === 'credit' && inChain(o.c));
+  // transfers: every line short at 71 that Ashenheim can cover, combined by item into one list to pull
+  const xfers = xferList().filter(x => oqHit(x.desc, x.sku, ...x.ls.map(r => cnm(r.o.c) + ' ' + r.o.nbr)));
   const ORDER = ['missed', 'due', 'inhand', 'ok', 'irregular'];
   const watch = STORES.filter(s => inChain(s.id) && !isHQ(s));
   const open = ORD.filter(o => inChain(o.c) && o.status !== 'Back Order');
   const shipped = SHIPS.filter(s => SHIPPED(s.status) && inChain(s.c) && s.date >= addDays(ASOF, -7));
   const missed = watch.filter(s => s.cad.state === 'missed').length, due = watch.filter(s => s.cad.state === 'due').length;
   let body = '';
-  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders that can still change before they ship.', 'Three kinds of line show here: free goods left off (the order reaches a deal tier at the sheet price but has no J$0 line; ask sales support to add it), a special the store is just short of (add a few cases to reach the free-goods tier), and stock we do not have enough of. Act while the order is still open.') +
-    gboard('#E2445C', 'Check before it ships', checks.length + ' lines', 'minmax(0,1.5fr) 88px minmax(0,1.5fr) minmax(0,2fr) 104px 40px', [['Store'], ['Order'], ['Problem'], ['Product'], ['Status', 'center'], ['']],
-      checks.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
-        return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}">${x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), stBtn(k)],
-          `<div class="bfacts"><div><span>Product</span>${esc(x.l.desc)}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${truckOf(x.o) ? ' · ' + esc(truckOf(x.o)) : ''}</div><div><span>${x.kind === 'stock' ? 'Ordered' : 'Deal'}</span>${x.kind === 'deal' ? `Buy ${x.h.buy}, get ${x.h.free} free · ${x.l.oq} on the order` : x.kind === 'free' ? `Buy ${x.f.buy}, get ${x.f.free} free · ${x.f.oq} on the order, ${x.f.have || 'no'} free · ask sales support` : `${x.l.oq} ordered, ${Math.max(0, x.l.onhand)} on hand`}</div></div>
+  if (SUB.orders === 'check') body = lead1('o-check', 'Open or on-hold orders to check before they ship. Fix them in Acumatica, then mark them sorted.', 'Every order that comes in is checked, whoever keyed it. Price: below cost; below the lowest deal price and below anything the customer has paid for the item in the last 6 months (the deal floor is the sheet price, or the prorated price when the deal is taken as a price instead of free items: sheet × buy ÷ (buy + free) at the level the quantity reaches). J$0 lines are free items (Free Item ticked) and are not checked for price. List price on orders too small for a deal is fine. Free items: missing (the order reaches a deal level but Free Item is not ticked) or more than the deal gives. Range: an item we no longer carry. Stock: short at 71 but in Ashenheim (transfer), or not enough anywhere (substitute or cut). Specials: just short of the next free-goods level. Low margin above cost is for the KAMs and category managers. The hub does not change orders: each line says what to do in Acumatica.') +
+    (chkSorted.length ? `<div class="acts" style="margin:0 0 8px"><button class="btn sm" type="button" data-more="chksorted">${SHOWALL.chksorted ? 'Hide sorted' : 'Show sorted (' + chkSorted.length + ')'}</button></div>` : '') +
+    gboard('#E2445C', 'Check before it ships', chkOpen.length + ' lines to check', 'minmax(0,1.4fr) 88px minmax(0,1.3fr) minmax(0,1.8fr) minmax(0,.9fr) 104px 40px', [['Customer'], ['Order'], ['Problem'], ['Product'], ['Rep', '', 'hm'], ['Status', 'center'], ['']],
+      chkShown.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
+        return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}" title="${esc(CHKTXT[x.kind])}">${esc(chkProblem(x))}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), cell(esc(firstName(byId[x.o.c].rep)), 'one hm'), stBtn(k)],
+          `<div class="bfacts"><div><span>Check</span><b>${esc(CHKTXT[x.kind])}</b></div><div><span>In Acumatica</span>${esc(chkStep(x))}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${x.o.by ? ' · keyed by ' + esc(x.o.by) : ''}</div><div><span>Line</span>${x.l.oq} × ${esc(x.l.desc)} at ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
   if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
@@ -1385,22 +1523,34 @@ function vOrders() {
       {k:'truck', label:'Truck', cls:'hide-sm', get:o => truckOf(o) || '~', show:o => truckCell(truckOf(o))},
       {k:'by', label:'Keyed by', cls:'hide-sm', get:o => o.by, show:o => esc(o.by || '–')},
       {k:'val', label:'Value', num:1, key:1, get:o => o.total, show:o => J(o.total)},
-      {k:'age', label:'Age', num:1, get:o => o.age, show:o => o.age + 'd'}], open, 'age', -1, true, o => o.c);
-  if (SUB.orders === 'shipped') body = lead1('o-ship', 'Shipments Acumatica has confirmed in the last 7 days.') +
-    stable('shipped', [
-      {k:'store', label:'Store', get:s => byId[s.c] ? byId[s.c].name : s.c, show:s => storeLink(s.c)},
-      {k:'nbr', label:'Shipment', get:s => s.nbr, show:s => acuShip(s.nbr)},
-      {k:'ord', label:'Order', cls:'hide-sm', get:s => s.order, show:s => acuOrder(s.order)},
-      {k:'date', label:'Date', get:s => s.date, show:s => esc(fd(s.date))},
-      {k:'truck', label:'Delivered by', get:s => realVia(s.via) || '~', show:s => truckCell(realVia(s.via))},
-      {k:'val', label:'Value', num:1, get:s => s.value, show:s => J(s.value)}], shipped, 'date', -1, true, s => s.c);
-  return `<div class="ftiles four">
-    ${ctile('check', 'alert', checks.length, 'To check', 'Free goods, specials or stock', '#E2445C')}
+      {k:'age', label:'Age', num:1, get:o => o.age, show:o => o.age + 'd'}], open.filter(o => oqHit(cnm(o.c), o.c, o.nbr, o.by, truckOf(o), crp(o.c), o.stage.t)), 'age', -1, true, o => o.c);
+  if (SUB.orders === 'credit') { const cl = credit.filter(o => oqHit(cnm(o.c), o.c, o.nbr, o.by, crp(o.c)));
+    body = lead1('o-credit', 'Orders held by AR for the account balance. They do not move until AR releases them, so chase the oldest first.', 'Every order Acumatica shows on Credit Hold. “Keyed” is the order date, so it shows how long the customer has been waiting at most. Ask AR what is needed to release it, tell the rep, and note the answer on the order. Credit holds also show on Today.') +
+    gboard('#D63B3B', 'On credit hold', cl.length + ' orders · ' + J(cl.reduce((a, o) => a + o.total, 0)), 'minmax(0,1.5fr) 88px 70px 90px minmax(0,.8fr) 104px 40px', [['Customer'], ['Order', '', 'hm'], ['Keyed', 'center', 'hm'], ['Value', 'right', 'hm'], ['Rep', '', 'hm'], ['Waiting', 'center'], ['']],
+      cl.slice().sort((a, b) => b.age - a.age || b.total - a.total).map(o => { const k = 'credit:' + o.nbr, notes = notesFor(n => n.kind === 'note' && n.ref === k);
+        return grow(k, [cell(esc(cnm(o.c)), 'c-store one c1'), cell(acuOrder(o.nbr), 'one hm'), cell(esc(fds(o.date)), 'c-age hm', 'center'), cell(J(o.total), 'c-age hm', 'right'), cell(esc(firstName(crp(o.c)) || '–'), 'one hm'), cell(solid(o.age >= 4 ? 'red' : o.age >= 2 ? 'amber' : 'blue', o.age + ' day' + (o.age === 1 ? '' : 's')), 'one c2', 'center')],
+          `<div class="bfacts"><div><span>Order</span>${acuOrder(o.nbr)} · keyed ${esc(fd(o.date))}${o.by ? ' by ' + esc(o.by) : ''} · ${J(o.total)} with GCT</div><div><span>Next step</span><b>Ask AR what is needed to release it, then tell ${esc(firstName(crp(o.c)) || 'the rep')} (rep)</b></div></div>
+          ${notes.length ? noteList(notes) : ''}<div class="acts">${acuBtn(o.nbr)}<button class="btn sm" type="button" data-store="${esc(o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'credit'); }
+  if (SUB.orders === 'xfer') body = lead1('o-xfer', 'Everything open orders need moved from Ashenheim to 71, one row per item. Pull this list, then add it to the transfer.', 'One row per item, added up across every open or on-hold order that is short at 71 but covered by Ashenheim. “Transfer” is the quantity to move. Tap an item to see which orders and customers need it. Copy the list for WhatsApp or download it as a file that opens in Excel.') +
+    `<div class="acts" style="margin:0 0 10px"><button class="btn sm pri" type="button" data-xfercopy="1">Copy transfer list</button><button class="btn sm" type="button" data-xferdl="1">Download for Excel (CSV)</button></div>` +
+    gboard('#127F8C', 'To transfer from Ashenheim', xfers.length + ' items · ' + xfers.reduce((a, x) => a + x.need, 0) + ' units', 'minmax(0,2.2fr) 80px 76px 76px 80px 40px', [['Item'], ['Orders', 'center', 'hm'], ['At 71', 'center', 'hm'], ['At Ashenheim', 'center', 'hm'], ['Transfer', 'center'], ['']],
+      xfers.map(x => grow('xf:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(x.ls.length, 'c-age hm', 'center'), cell(x.at71, 'c-age hm', 'center'), cell(`<b class="${x.need > x.ash ? 'dn' : ''}">${x.ash}</b>`, 'c-age hm', 'center'), cell(`<b>${x.need}</b>`, 'c-age', 'center')],
+        plCards(x.ls.map(r => ({name:cnm(r.o.c), sub:`Order ${esc(r.o.nbr)} · keyed ${esc(fds(r.o.date))} · rep ${esc(firstName(crp(r.o.c)) || '–')}`, tag:`${r.need} needed`}))) +
+        `<div class="bfacts"><div><span>Item</span>${esc(x.desc)} <span class="note" style="margin:0">${esc(x.sku)}</span></div><div><span>Stock</span>${x.at71} at 71 · ${x.ash} at Ashenheim${x.need > x.ash ? ` · <b class="dn">orders need ${x.need}, Ashenheim has ${x.ash}: the rest will ship short</b>` : ''}</div></div>`)), 'xfer');
+  if (SUB.orders === 'shipped') { const sl = shipped.filter(s => oqHit(cnm(s.c), s.c, s.nbr, s.order, realVia(s.via), crp(s.c))).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    body = lead1('o-ship', 'Shipments Acumatica has confirmed in the last 7 days. Tap one to see what was on it and what was left off.', 'On the shipment: the items invoiced to this customer on the shipment date (if the customer had two orders that day, both are included). Left off: items on the order that were not sent, and any item the driver app recorded as short, refused or not delivered. Open the shipment in Acumatica for the exact picking list.') +
+    gboard('#1A8F4C', 'Shipped, last 7 days', sl.length + ' shipments · ' + J(sl.reduce((a, s) => a + s.value, 0)), 'minmax(0,1.5fr) 82px 82px 70px minmax(0,1fr) 90px 40px', [['Customer'], ['Shipment', '', 'hm'], ['Order', '', 'hm'], ['Date', 'center', 'hm'], ['Delivered by', '', 'hm'], ['Value', 'right'], ['']],
+      sl.map(s => grow('sh:' + s.nbr, [cell(esc(cnm(s.c)), 'c-store one c1'), cell(acuShip(s.nbr), 'one hm'), cell(acuOrder(s.order), 'one hm'), cell(esc(fds(s.date)), 'c-age hm', 'center'), cell(truckCell(realVia(s.via)), 'one hm'), cell(J(s.value), 'c-age', 'right')], shipDetail(s))), 'shipped'); }
+  return `<div class="ftiles six">
+    ${ctile('check', 'alert', chkOpen.length, 'To check', 'Price, free goods, stock, range', '#E2445C')}
+    ${ctile('credit', 'alert', credit.length, 'Credit hold', J(credit.reduce((a, o) => a + o.total, 0)) + ' held by AR', '#D63B3B')}
+    ${ctile('xfer', 'box', xferList().length, 'Transfers needed', 'Items to move from Ashenheim', '#127F8C')}
     ${ctile('watch', 'clock', missed, 'Missed orders', due + ' more a day or two late', '#1A2E5A')}
     ${ctile('open', 'orders', open.length, 'Open orders', J(open.reduce((a, o) => a + o.total, 0)) + ' not shipped yet', '#326BD3')}
     ${ctile('shipped', 'box', shipped.length, 'Shipped this week', J(shipped.reduce((a, s) => a + s.value, 0)) + ' delivered', '#1A8F4C')}
   </div>
-  ${segs([['check', 'To check', checks.length], ['watch', 'Order watch', watch.length], ['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length]])}
+  ${segs([['check', 'To check', chkOpen.length], ['credit', 'Credit hold', credit.length], ['xfer', 'Transfers', xferList().length], ['watch', 'Order watch', watch.length], ['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length]])}
+  <div class="dsearch"><label for="oq">Search orders</label><input id="oq" type="search" placeholder="Customer, order number, product or rep" value="${esc(OQ)}" autocomplete="off"></div>
   ${body}`;
 }
 
@@ -1437,9 +1587,25 @@ function vDeals() {
   ${dbMsg()}${body}`;
 }
 
+// ---------- out of stock (Scott, 11 Nov: replaces "often short") ----------
+// Every item that open orders and back orders are waiting on but we can't fill: out of stock, short, only in Ashenheim, or no longer carried.
+// The reason and due date someone notes (checked with purchasing / operations) shows for everyone, and the list copies to WhatsApp for the team.
+// "possibly out": 10 or fewer showing at 71 while customers are waiting (Scott, 18 Nov: the system count is often not what is really on the shelf)
+const LOWSTK = 10;
+const OOS_ST = {gone:['red', 'Not carried'], out:['red', 'Out of stock'], short:['amber', 'Short'], low:['amber', 'Possibly out'], xfer:['blue', 'In Ashenheim']};
+function oosList() { const m = {};
+  LINES.filter(l => l.open > 0 && /Open|On Hold|Back Order|Shipping|Credit Hold/.test(ordBy[l.nbr].status) && inChain(ordBy[l.nbr].c)).forEach(l => {
+    const x = m[l.sku] = m[l.sku] || {sku:l.sku, desc:l.desc, cls:l.cls, ls:[], open:0, val:0, at71:Math.max(0, l.oh71 == null ? l.onhand : l.oh71), ash:Math.max(0, l.ash)};
+    x.ls.push(l); x.open += l.open; x.val += l.open * l.price; });
+  return Object.values(m).map(x => { const st = INACT[x.sku] ? 'gone' : x.at71 >= x.open ? (x.at71 <= LOWSTK ? 'low' : null) : x.at71 + x.ash >= x.open ? 'xfer' : x.at71 + x.ash <= 0 ? 'out' : 'short';
+    return st ? {...x, st, custs:new Set(x.ls.map(l => ordBy[l.nbr].c)), reps:new Set(x.ls.map(l => (byId[ordBy[l.nbr].c] || {}).rep).filter(Boolean)), r:reasonOf(x.sku)} : null; })
+    .filter(Boolean).sort((a, b) => ((a.st === 'xfer') - (b.st === 'xfer')) || ((a.st === 'low') - (b.st === 'low')) || b.val - a.val); }
+const oosWhen = x => x.r ? `${x.r.label}${x.r.eta ? ', due ' + fds(x.r.eta) : ''}` : x.st === 'gone' ? 'No longer carried' : x.st === 'low' ? 'Only ' + x.at71 + ' showing at 71: check the shelf' : x.st === 'xfer' ? 'In Ashenheim, coming across on a transfer' : 'No update yet';
+const oosMsg = list => [`*Stock update, ${fd(ASOF)}*`, ...list.map(x => `• ${x.desc}: ${OOS_ST[x.st][1].toLowerCase()}${x.r ? ' – ' + x.r.label.toLowerCase() + (x.r.eta ? ', due ' + fds(x.r.eta) : '') + (x.r.text ? ' (' + x.r.text + ')' : '') : x.st === 'gone' ? ' – offer an alternative' : x.st === 'xfer' ? ' – coming from Ashenheim' : ''}`), 'Please tell your customers before they ask. Questions to sales support.'].join('\n');
 function vBackorders() {
-  if (!['bo', 'bohand', 'borep', 'short'].includes(SUB.backorders)) SUB.backorders = 'bo';
+  if (!['bo', 'bohand', 'borep', 'oos', 'short'].includes(SUB.backorders)) SUB.backorders = 'bo';
   const bo = BO.filter(b => inChain(b.c));
+  const oos = oosList(), oosNo = oos.filter(x => !x.r && x.st !== 'xfer' && x.st !== 'gone').length;
   const bySku = {}; bo.forEach(b => { const x = bySku[b.sku] = bySku[b.sku] || {sku:b.sku, desc:b.desc, rows:[], qty:0, onhand:b.onhand, val:0, oldest:b.date}; x.rows.push(b); x.qty += b.open; x.val += b.open * b.price; if (b.date < x.oldest) x.oldest = b.date; });
   const groups = Object.values(bySku).sort((a, b) => (b.onhand >= b.qty) - (a.onhand >= a.qty) || b.val - a.val);
   const shorts = shortBySku.filter(x => CHAINF === 'All' || [...x.stores].some(c => inChain(c)));
@@ -1448,7 +1614,9 @@ function vBackorders() {
   const rTag = sku => { const r = reasonOf(sku); return r ? `<span class="reason one">${esc(r.label)}${r.eta ? ', ' + esc(fds(r.eta)) : ''}</span>` : '<span class="reason none">No reason yet</span>'; };
   const rExp = sku => { const r = reasonOf(sku); return `<div class="bfacts one-col"><div><span>Reason</span>${reasonTag(r)}</div></div><div class="acts"><button class="btn sm ${r ? '' : 'pri'}" type="button" data-open="reason|${esc(sku)}">${r ? 'Update reason' : 'Add reason'}</button></div>${formFor('reason|' + sku)}`; };
   let body = '';
-  const gShow = SUB.backorders === 'bohand' ? groups.filter(g => g.onhand >= g.qty) : SUB.backorders === 'borep' ? groups.filter(g => g.rows.some(b => b.rep)) : groups;
+  const gShow = (SUB.backorders === 'bohand' ? groups.filter(g => g.onhand >= g.qty) : SUB.backorders === 'borep' ? groups.filter(g => g.rows.some(b => b.rep)) : groups)
+    .filter(g => bqHit(g.desc, g.sku, ...g.rows.map(b => (byId[b.c] ? byId[b.c].name : b.c) + ' ' + b.nbr)));
+  const oosShow = oos.filter(x => bqHit(x.desc, x.sku, ...x.ls.map(l => (byId[ordBy[l.nbr].c] ? byId[ordBy[l.nbr].c].name : '') + ' ' + l.nbr)));
   const repN = groups.filter(g => g.rows.some(b => b.rep)).length;
   if (SUB.backorders === 'bo' || SUB.backorders === 'bohand' || SUB.backorders === 'borep') body = lead1('b-bo', 'Items still owed to your stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : SUB.backorders === 'borep' ? 'Likely replaced by a newer order' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
@@ -1458,13 +1626,20 @@ function vBackorders() {
     gboard('#C47A1A', 'Most often short', shorts.length + ' items · ' + noReason + ' without a reason', 'minmax(0,2.4fr) 70px 70px 90px minmax(0,1.5fr) 40px', [['Item'], ['Times', 'center'], ['Stores', 'center'], ['Last', 'center'], ['Reason', '', 'rsn'], ['']],
       shorts.map(x => grow('sh:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(`<b class="${x.n >= 3 ? 'dn' : ''}">${x.n}</b><span class="mlab"> times</span>`, 'c-age hm mr', 'center'), cell(x.stores.size, 'c-age hm', 'center'), cell(esc(fds(x.last)), 'c-age hm', 'center'), cell(rTag(x.sku), 'one c2 rsn')],
         `${rows(SHORT.filter(e => e.sku === x.sku).sort((a, b) => a.date < b.date ? 1 : -1).map(e => row(storeLink(e.c), `Order ${acuOrder(e.order)} · ${e.oq - e.sq} short on ${esc(fds(e.date))}`, sentCell(e), '')))}<div class="bfacts"><div><span>Short in total</span>${Math.round(x.qty)} units</div><div><span>Last short</span>${esc(fd(x.last))}</div></div>${rExp(x.sku)}`)), 'short');
+  if (SUB.backorders === 'oos') body = lead1('b-oos', 'What open orders and back orders are waiting on that we can’t send. Note when it’s due and tell the team.', 'One row per item: how many customers are waiting, how much is owed, and the status (out of stock, short, possibly out with 10 or fewer showing, only in Ashenheim, or no longer carried). Tap an item to see who is waiting and to note the reason and due date after checking with purchasing or operations. Everyone sees the update. “Copy for WhatsApp” sends the team the list with the dates.') +
+    `<div class="acts" style="margin:0 0 10px"><button class="btn sm pri" type="button" data-oosmsg="1">Copy stock update for WhatsApp</button></div>` +
+    gboard('#E2445C', 'Can’t send', oos.length + ' items · ' + oosNo + ' with no update', 'minmax(0,2.2fr) 80px 76px 110px minmax(0,1.6fr) 40px', [['Item'], ['Waiting', 'center', 'hm'], ['Owed', 'center'], ['Status', 'center'], ['Update', '', 'rsn'], ['']],
+      oosShow.map(x => grow('oos:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(x.custs.size, 'c-age hm', 'center'), cell(`${x.open}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(solid(OOS_ST[x.st][0], OOS_ST[x.st][1]), 'one', 'center'), cell(x.r ? rTag(x.sku) : `<span class="reason none">${esc(oosWhen(x))}</span>`, 'one c2 rsn')],
+        plCards(x.ls.map(l => { const o = ordBy[l.nbr]; return {name:byId[o.c] ? byId[o.c].name : o.c, sub:`Order ${esc(l.nbr)} · ${esc(o.status)} · keyed ${esc(fds(o.date))} · rep ${esc(firstName((byId[o.c] || {}).rep) || '–')}`, tag:l.open + ' owed'}; })) +
+        `<div class="bfacts"><div><span>Stock</span>${x.at71} at 71 · ${x.ash} at Ashenheim · ${x.open} owed (${J(x.val)})</div><div><span>Category</span>${esc(x.cls || '–')}${CMOF(x.cls) ? ' · ' + esc(CMOF(x.cls)) : ''}</div></div>${rExp(x.sku)}`)), 'oos');
   return `<div class="ftiles four">
     ${ctile('bo', 'box', groups.length, 'Items owed', bo.length + ' lines across ' + new Set(bo.map(b => b.c)).size + ' stores', '#7B4FD0')}
     ${ctile('bohand', 'orders', onHand, 'Stock shows on hand', 'Find out why it has not shipped', '#1A8F4C')}
     ${ctile('borep', 'note', repN, 'Likely replaced', 'Newer order for the same item: close the old one', '#326BD3')}
-    ${ctile('short', 'alert', noReason, 'Short, no reason yet', shorts.length + ' items short in 90 days', '#E8862A')}
+    ${ctile('oos', 'alert', oos.filter(x => x.st !== 'xfer').length, 'Can’t send', oosNo + ' with no update yet', '#E2445C')}
   </div>
-  ${segs([['bo', 'Back orders', groups.length], ['short', 'Often short', shorts.length]])}
+  ${segs([['bo', 'Back orders', groups.length], ['oos', 'Out of stock', oos.length], ['short', 'Often short', shorts.length]])}
+  <div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number or item" value="${esc(BQ)}" autocomplete="off"></div>
   ${dbMsg()}${body}`;
 }
 
@@ -1754,6 +1929,7 @@ function briefPrint(c) {
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page to make the PDF.'); return; }
   w.document.open(); w.document.write(html); w.document.close();
 }
+const dlCsv = (name, text, ok) => { try { const b = new Blob(['﻿' + text], {type:'text/csv;charset=utf-8'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast(ok); } catch (x) { toast('Download did not work here. Use the copy button instead.'); } };
 const copyText = (txt, ok) => { if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(ok), () => toast('Copy did not work here. Try again.')); };
 
 // ---------- pop-ups (store, order, often-short list) ----------
@@ -1918,6 +2094,8 @@ function render() {
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   document.getElementById('tctl').innerHTML = TAB === 'today' ? '' : `<label class="chainsel"><span>Area</span><select id="chainsel">${['All', ...AREAS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All areas' : c)}</option>`).join('')}</select></label>`;
   document.getElementById('main').innerHTML = ({today:vToday, orders:vOrders, deals:vDeals, backorders:vBackorders, ar:vAR, stores:vStores, team:vTeam}[TAB] || vToday)();
+  if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
+  if (TAB === 'backorders' && window.__bqFocus) { const q = document.getElementById('bq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__bqFocus = false; }
   // keep the pop-up where it was when it redraws (same pop-up), instead of jumping back to the top
   const dOld = document.querySelector('.drawer'), dKey = JSON.stringify(DRAWER), dTop = dOld && render.__dKey === dKey ? dOld.scrollTop : 0;
   document.getElementById('drawer').innerHTML = DRAWER ? vDrawer(DRAWER) : '';
@@ -1932,6 +2110,8 @@ let tt = null; function toast(m) { const e = document.getElementById('toast'); e
 let UNDO = null;
 function toastUndo(m, fn) { const e = document.getElementById('toast'); UNDO = fn; e.innerHTML = `${esc(m)} <button type="button" class="undo" data-undo="1">Undo</button>`; e.hidden = false; clearTimeout(tt); tt = setTimeout(() => { e.hidden = true; UNDO = null; }, 6000); }
 
+let OQT = null; __on(document, 'input', e => { if (e.target.id !== 'oq') return; OQ = e.target.value; clearTimeout(OQT); OQT = setTimeout(() => { window.__oqFocus = true; EXP = null; render(); }, 220); });
+let BQT = null; __on(document, 'input', e => { if (e.target.id !== 'bq') return; BQ = e.target.value; clearTimeout(BQT); BQT = setTimeout(() => { window.__bqFocus = true; EXP = null; render(); }, 220); });
 __on(document, 'click', e => {
   if (e.target.closest('.bexp') && !e.target.closest('button')) return;   // typing in an open row
   if (e.target.closest('a.acu, a.acubtn')) return;   // Acumatica links open in a new tab, nothing else
@@ -1961,6 +2141,9 @@ __on(document, 'click', e => {
   if (d.open !== undefined) { OPEN = OPEN === d.open ? null : (d.open || null); render(); return; }
   if (d.save) { saveForm(d.save); return; }
   if (d.jump) { const [t, s] = d.jump.split('|'); TAB = t; SUB[t] = s; EXP = null; OPEN = null; try { history.replaceState(null, '', '#' + TAB); } catch (x) {} render(); window.scrollTo(0, 0); return; }
+  if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }
+  if (d.xferdl) { dlCsv('transfer-list-' + ASOF + '.csv', xferCsv(xferList()), 'Transfer list downloaded.'); return; }
+  if (d.oosmsg) { copyText(oosMsg(oosList()), 'Stock update copied. Paste it into WhatsApp.'); return; }
   if (d.dealcopy) { const n = NOTES.find(x => x.id === d.dealcopy); if (n) copyText(dealMsg(n), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.dealclose) { const k = 'dealx:' + d.dealclose, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); toastUndo(was ? 'Deal reopened' : 'Deal closed', () => setTick(k, was ? 1 : null)); return; }
   if (d.colst) { const n = NOTES.find(x => x.id === d.colst); if (n) setTick('col:' + n.id, NEXTCOL[colStatus(n)]); return; }
