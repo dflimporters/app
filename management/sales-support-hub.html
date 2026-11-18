@@ -631,6 +631,28 @@ th.on{color:var(--ink)}
 .rc-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .rc-chips i{font-style:normal;font-size:11px;font-weight:600;border-radius:10px;padding:2px 8px;background:#EEF1F6;color:var(--ink2)}
 .rc-chips i.red{background:#FBE9E9;color:#B4232F}.rc-chips i.blue{background:#E8F0FD;color:#1E4FA8}.rc-chips i.amber{background:#FFF3E0;color:#9A5A00}.rc-chips i.purple{background:#F1ECFB;color:#5B37A8}.rc-chips i.green{background:#E6F7EE;color:#137A43}
+.fhead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin:0 0 12px}
+.fwk{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.frep{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px}
+.frpt{margin:0 0 14px}
+.fsec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px 12px;margin:0 0 14px;box-shadow:var(--shadow)}
+.fsh{display:flex;gap:12px;align-items:flex-start;margin:0 0 10px}
+.fsh h3{margin:0;font-family:var(--head);font-size:15px;color:var(--ink)}
+.fsh p{margin:2px 0 0;font-size:12.5px;color:var(--ink2)}
+.fsn{flex:none;width:26px;height:26px;border-radius:50%;background:#326BD3;color:#fff;font-family:var(--head);font-weight:800;font-size:13px;display:grid;place-items:center}
+.fsub{font-family:var(--head);font-size:12.5px;font-weight:700;color:var(--ink2);margin:14px 0 6px}
+.fform{display:grid;gap:14px}
+.fform label{display:block;font-family:var(--head);font-weight:700;font-size:12.5px;color:var(--ink2);margin:0 0 4px}
+.fform input[type=text],.fform textarea{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;box-sizing:border-box}
+.fform input:focus,.fform textarea:focus{outline:2px solid #326BD3;outline-offset:0;border-color:#326BD3}
+.fvrow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.6fr) 120px;gap:8px;align-items:start;margin:0 0 8px}
+.fvrow .fhint{grid-column:1/-1;font-size:12.5px;margin:-2px 0 2px}
+.fcol{display:flex;flex-wrap:wrap;gap:6px 16px}
+.fform .fcol label{font-family:var(--body);font-weight:600;font-size:13px;display:flex;gap:6px;align-items:center;margin:0;color:var(--ink)}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fform .fmet{display:flex;gap:8px;align-items:center;font-family:var(--body);font-size:14px;color:var(--ink)}
+.fwarn{color:#B4232F;font-weight:700}
+@media (max-width:640px){.fvrow{grid-template-columns:1fr}.fgrid2{grid-template-columns:1fr}}
 .dsearch{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
 .dsearch label{font-family:var(--head);font-weight:700;font-size:13px;color:var(--ink2)}
 .dsearch input{flex:1 1 280px;max-width:520px;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#fff}
@@ -1489,7 +1511,7 @@ const chainChips = () => '';
 const inChain = s => CHAINF === 'All' || ((byId[s] || s).rep || '') === CHAINF;
 
 // ---------- tabs ----------
-const TABS = [['today', 'Today'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['reps', 'Reps'], ['stores', 'Customers']];
+const TABS = [['today', 'Today'], ['friday', 'Friday meeting'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['reps', 'Reps'], ['stores', 'Customers']];
 // ---------- v3: status cells, avatars, icons ----------
 const ST = {todo:['st-todo', 'To call'], waiting:['st-waiting', 'Waiting'], sorted:['st-sorted', 'Sorted']};
 const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; const d = tick('done:' + ASOF + ':' + k); return d && d.v ? 'sorted' : 'todo'; };
@@ -1498,6 +1520,7 @@ const AVC = ['#326BD3', '#7B4FD0', '#127F8C', '#C47A1A', '#D63B3B', '#1A8F4C', '
 const initials = n => (n || '?').split(/[\s,]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 const av = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return `<span class="av" style="background:${AVC[h % AVC.length]}" aria-hidden="true">${esc(initials(n))}</span>`; };
 const ICO = {
+  friday:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 15l2.5 2.5L16 13"/>',
   today:'<path d="M4 12l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
   orders:'<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
   backorders:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
@@ -1836,6 +1859,175 @@ function boReview() {
             <div class="acts"><button class="btn sm ${rp ? '' : 'pri'}" type="button" data-bow="${esc(x.nbr)}">${rp ? 'Undo “Rep replied”' : 'Mark “Rep replied”'}</button>${wanted ? keptBtns('o:' + x.nbr, rp) : ''}<button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button>${btnNote('note|bw:' + x.nbr, '✎ Note')}</div>${formFor('note|bw:' + x.nbr)}`); }).join('')}
         ${os.length > 10 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="bw:${esc(rep)}">${SHOWALL['bw:' + rep] ? 'Show fewer' : 'Show the other ' + (os.length - 10)}</button></div>` : ''}</section>`; }).join('');
 }
+// ---------- Friday meeting (Scott, 18 Nov): each support person goes through one rep's week with them, then records next week's plan ----------
+// Everything the other tabs show, gathered for one rep: where they stand, orders, stock, returns, back orders and AR, then the plan.
+// The plan is saved per rep and week (ss_hub_plans) and rolls up to Scott. AR comes from ss_hub_data part 'ar' (latest daily snapshot).
+const FRI = window.__friState = window.__friState || {week:null, edit:false, draft:null, draftKey:'', report:null, loading:false};
+const wkMonday = ds => { let d = ds; while (d8(d).getDay() !== 1) d = addDays(d, -1); return d; };
+const FRI_THIS = wkMonday(ASOF), FRI_NEXT = addDays(FRI_THIS, 7);
+if (!FRI.week) FRI.week = [5, 6, 0].includes(d8(ASOF).getDay()) ? FRI_NEXT : FRI_THIS;
+// AR per customer: what is owed, what is overdue (past the due date, up to a year: older debt sits with AR), credits not applied, last payment
+const AR_READY = Array.isArray(O.ar);
+const ARC = {}; AR.forEach(r => { const x = ARC[r.c] = ARC[r.c] || {c:r.c, owed:0, over:0, over30:0, oldest:0, credit:0, old:0, inv:[]};
+  if (r.bal < 0) { x.credit += r.bal; return; }
+  const late = r.due ? daysBetween(r.due, ASOF) : 0;
+  if (late > 365) { x.old += r.bal; return; }
+  x.owed += r.bal;
+  if (late > 0) { x.over += r.bal; if (late > 30) x.over30 += r.bal; x.oldest = Math.max(x.oldest, late); x.inv.push({type:r.type, ref:r.ref, due:r.due, late, bal:r.bal}); } });
+const LASTPAY = {}; (O.lastpay || []).forEach(r => LASTPAY[r[0]] = {d:r[1], amt:+r[2] || 0});
+const arOf = c => ARC[c] || {c, owed:0, over:0, over30:0, oldest:0, credit:0, old:0, inv:[]};
+// plans
+const planOf = (rep, wk) => (HUBD.plans || []).find(p => p.rep === rep && p.week_start === wk) || null;
+const custByName = (name, rep) => { const q = String(name || '').trim().toLowerCase(); if (!q) return null; return STORES.find(s => s.rep === rep && s.name.toLowerCase() === q) || STORES.find(s => s.name.toLowerCase() === q) || null; };
+const draftFrom = p => { const d = (p && p.data) || {};
+  return {goal:d.goal ? String(d.goal) : '', push:d.push || '', help:d.help || '', block:d.blockers || '', met:!!(p && p.met),
+    visits:Array.from({length:6}, (_, i) => { const v = (d.visits || [])[i] || {}; return {c:v.name || '', w:v.what || '', a:v.amt ? String(v.amt) : ''}; }),
+    collect:Object.fromEntries((d.collect || []).map(c => [c, true]))}; };
+const planMsg = (rep, p) => { const d = p.data || {}, L = [`*Plan for ${firstName(rep)}, week of ${fd(p.week_start)}*`];
+  if (d.goal) L.push(`Sales goal: ${J(d.goal)}`);
+  if ((d.visits || []).length) { L.push('', 'Visits and calls:'); d.visits.forEach(v => { const a = v.c ? arOf(v.c) : null; L.push(`• ${v.name}${v.what ? ' – ' + v.what : ''}${v.amt ? ' (' + J(v.amt) + ')' : ''}${a && a.over ? ' – owes ' + J(a.over) + ' overdue: collect payment' : ''}`); }); }
+  const col = (d.collect || []).filter(c => byId[c]).map(c => byId[c].name + ' (' + J(arOf(c).over) + ')');
+  if (col.length) L.push('', 'Collect payment from: ' + col.join(', '));
+  if (d.push) L.push('', 'Products to push: ' + d.push);
+  if (d.help) L.push('', 'Help needed from sales support: ' + d.help);
+  if (d.blockers) L.push('', 'Anything in the way: ' + d.blockers);
+  return L.join('\n'); };
+async function savePlan() {
+  const rep = CHAINF, wk = FRI.week, d = FRI.draft; if (!d || !rep || rep === 'All') return;
+  const old = planOf(rep, wk), num = v => +String(v == null ? '' : v).replace(/[^0-9.]/g, '') || 0;
+  const visits = d.visits.filter(v => String(v.c).trim() || String(v.w).trim()).map(v => { const s = custByName(v.c, rep); return {c:s ? s.id : null, name:String(v.c).trim(), what:String(v.w).trim().slice(0, 300), amt:num(v.a)}; });
+  const data = {goal:num(d.goal), visits, collect:Object.keys(d.collect).filter(k => d.collect[k]), push:String(d.push).trim().slice(0, 1000), help:String(d.help).trim().slice(0, 1000), blockers:String(d.block).trim().slice(0, 1000)};
+  const row = {rep, week_start:wk, support:SUPPORT, data, met:!!d.met, met_on:d.met ? ((old && old.met && old.met_on) || ASOF) : null, by:MYID, by_name:MYNAME, updated_at:new Date().toISOString()};
+  const { error } = await sb.from('ss_hub_plans').upsert(row, {onConflict:'rep,week_start'});
+  if (error) { toast('The plan did not save. Check your connection and try again.'); return; }
+  const list = HUBD.plans || (HUBD.plans = []), i = list.findIndex(p => p.rep === rep && p.week_start === wk); if (i >= 0) list[i] = row; else list.push(row);
+  if (MYID) HUBD.names[MYID] = MYNAME;
+  FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; FRI.report = null; toast('Plan saved'); render();
+}
+// Scott's report: every support person's reps with the plan for the week (ss_hub_plan_report, Scott and admins only)
+async function loadPlanReport(wk) {
+  FRI.loading = true;
+  try { const r = await sb.rpc('ss_hub_plan_report', {p_week:wk}); if (r.error) throw r.error; FRI.report = {week:wk, rows:r.data || []}; }
+  catch (e) { console.warn('plan report failed', e); FRI.report = {week:wk, rows:[], err:true}; }
+  FRI.loading = false; render();
+}
+const frDraftSet = (id, t) => { const d = FRI.draft, m = /^pl-v([cwa])-(\d)$/.exec(id);
+  if (m) { d.visits[+m[2]][m[1]] = t.value; return; }
+  if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-push') d.push = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-block') d.block = t.value;
+  else if (id === 'pl-met') d.met = t.checked; else if (/^pl-col-/.test(id)) d.collect[t.dataset.c] = t.checked; };
+const fsec = (n, title, sub, body) => `<section class="fsec"><div class="fsh"><span class="fsn">${n}</span><div><h3>${esc(title)}</h3><p>${sub}</p></div></div>${body}</section>`;
+const arHint = c => { if (!AR_READY || !c) return ''; const a = arOf(c); return a.over > 0 ? `<span class="fwarn">Owes ${J(a.over)} overdue (oldest ${a.oldest} days). Collect payment on the visit.</span>` : '<span class="note" style="margin:0">Nothing overdue.</span>'; };
+
+function vFriday() {
+  const rep = CHAINF !== 'All' && REPS.includes(CHAINF) ? CHAINF : null, wk = FRI.week;
+  if (HUBD.approver && (!FRI.report || FRI.report.week !== wk) && !FRI.loading) loadPlanReport(wk);
+  const wkBtn = (w, t) => `<button type="button" class="btn sm ${FRI.week === w ? 'pri' : ''}" data-friwk="${w}" aria-pressed="${FRI.week === w}">${t}</button>`;
+  const head = `<div class="fhead"><div class="fwk"><span class="note" style="margin:0 8px 0 0">Plan for</span>${wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS)))}${wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT)))}</div>${rep ? '<button class="btn sm" type="button" data-chain="All">← All reps</button>' : ''}</div>`;
+  // the report back to Scott (every support person's reps)
+  const rpt = (() => { if (!HUBD.approver) return ''; const R = FRI.report;
+    if (!R || R.week !== wk) return '<p class="note">Loading the plans report…</p>';
+    if (R.err) return '<p class="note">The plans report could not load. Reload the page to try again.</p>';
+    const rows = R.rows || [], held = rows.filter(x => x.plan && x.plan.met).length, saved = rows.filter(x => x.plan).length;
+    const st = x => x.plan ? (x.plan.met ? solid('green', 'Meeting held') : solid('amber', 'Plan saved')) : solid('red', 'No plan');
+    return gboard('#326BD3', 'Friday plans, week of ' + fds(wk) + ' (for Scott)', `${held} of ${rows.length} meetings held · ${saved} plans saved`, 'minmax(0,.7fr) minmax(0,1.3fr) 120px 100px 60px 60px minmax(0,1fr)', [['Support'], ['Rep'], ['Status', 'center'], ['Sales goal', 'right'], ['Visits', 'center', 'hm'], ['Collect', 'center', 'hm'], ['Saved by', '', 'hm']],
+      rows.map(x => { const d = (x.plan && x.plan.data) || {};
+        return `<div class="brow"><div class="one">${esc(x.support)}</div><div class="c-store one c1">${REPS.includes(x.rep) ? `<button type="button" class="linkish" data-chain="${esc(x.rep)}">${esc(x.rep)}</button>` : esc(x.rep)}</div><div style="text-align:center">${st(x)}</div><div class="c-age" style="text-align:right">${d.goal ? J(d.goal) : '–'}</div><div class="c-age hm" style="text-align:center">${(d.visits || []).length || '–'}</div><div class="c-age hm" style="text-align:center">${(d.collect || []).length || '–'}</div><div class="one hm">${x.plan ? esc(x.plan.by_name || '') + ' · ' + esc(fds(String(x.plan.updated_at).slice(0, 10))) : '–'}</div></div>`; }), 'friweek'); })();
+
+  // ----- no rep picked: the chooser -----
+  if (!rep) {
+    const rowFor = r => { const t = REPBUD[r] || 0, sold = (REPM[r] || {}).mtd || 0, cs = STORES.filter(s => s.rep === r);
+      return {r, ach:t ? sold / t : null, behind:cs.filter(s => s.budM > 0 && s.gapPace < 0).length, over:AR_READY ? cs.reduce((a, s) => a + arOf(s.id).over, 0) : null, p:planOf(r, wk)}; };
+    const rws = REPS.map(rowFor);
+    return head + lead1('f-pick', 'Pick the rep you are meeting. Everything for that rep, and next week’s plan, is on one page.', 'Each Friday the support person and the rep go through the rep’s numbers, orders, stock, returns, back orders and overdue balances, then agree what the rep will sell and collect next week. Pick the rep here or with the Rep box at the top of the page. The plan is saved for the week and goes to Scott.') + rpt +
+      gboard('#326BD3', 'Your reps', REPS.length + ' reps · week of ' + fds(wk), 'minmax(0,1.5fr) 96px 70px 110px 130px 84px', [['Rep'], ['This month', 'center'], ['Behind', 'center', 'hm'], ['Overdue AR', 'right', 'hm'], ['Plan', 'center'], ['']],
+        rws.map(x => `<div class="brow"><div class="c-store one c1"><div class="who">${av(x.r)}<span>${esc(x.r)}</span></div></div><div class="c-age" style="text-align:center">${x.ach == null ? '–' : `<b style="color:${x.ach >= PACE ? '#1A8F4C' : x.ach >= PACE * 0.9 ? '#C47A1A' : '#E2445C'}">${Math.round(x.ach * 100)}%</b>`}</div><div class="c-age hm" style="text-align:center">${x.behind || '–'}</div><div class="c-age hm" style="text-align:right">${x.over == null ? '…' : x.over ? `<b class="dn">${J(x.over)}</b>` : '–'}</div><div style="text-align:center">${x.p ? (x.p.met ? solid('green', 'Meeting held') : solid('amber', 'Plan saved')) : solid('grey', 'Not started')}</div><div><button type="button" class="btn sm pri" data-chain="${esc(x.r)}">Start</button></div></div>`), 'frireps');
+  }
+
+  // ----- one rep -----
+  const first = firstName(rep), cs = STORES.filter(s => s.rep === rep), mine = c => !!(byId[c] && byId[c].rep === rep);
+  const t = REPBUD[rep] || 0, sold = (REPM[rep] || {}).mtd || 0, ach = t ? sold / t : 0, tcol = !t ? '#8A95B0' : ach >= PACE ? '#1A8F4C' : ach >= PACE * 0.9 ? '#C47A1A' : '#E2445C';
+  const behind = cs.filter(s => s.budM > 0 && s.gapPace < 0).sort((a, b) => a.gapPace - b.gapPace), behindAmt = behind.reduce((a, s) => a - s.gapPace, 0);
+  const notOrd = cs.filter(s => !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due')).sort((a, b) => b.cad.late - a.cad.late);
+  const open = ORD.filter(o => mine(o.c) && o.status !== 'Back Order').sort((a, b) => b.age - a.age), openV = open.reduce((a, o) => a + o.total, 0);
+  const chk = CHECKS.filter(x => mine(x.o.c)).sort((a, b) => b.value - a.value);
+  const sv = CHAINF; CHAINF = 'All'; const oosAll = oosList(); CHAINF = sv;
+  const oosR = oosAll.map(x => ({...x, mine:x.ls.filter(l => mine(ordBy[l.nbr].c))})).filter(x => x.mine.length);
+  const rc = RC.filter(r => mine(r.c)).map(r => ({...r, g:RGRP(r.reason)})).sort((a, b) => b.date.localeCompare(a.date)), rcWk = rc.filter(r => r.date >= addDays(ASOF, -7));
+  const bos = boOrders(rep);
+  const arRows = AR_READY ? cs.map(s => ({s, a:arOf(s.id)})).filter(x => x.a.over > 0).sort((a, b) => b.a.over - a.a.over) : [], arTot = arRows.reduce((a, x) => a + x.a.over, 0);
+  const showN = (key, list, n) => SHOWALL[key] ? list : list.slice(0, n), moreBtn = (key, list, n) => list.length > n ? `<div class="acts" style="margin-top:6px"><button class="btn sm" type="button" data-more="${esc(key)}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + (list.length - n)}</button></div>` : '';
+  if (FRI.draftKey && FRI.draftKey !== rep + '|' + wk) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; }
+  const p = planOf(rep, wk), editing = FRI.edit || !p;
+  if (editing && (!FRI.draft || FRI.draftKey !== rep + '|' + wk)) { FRI.draft = draftFrom(p); FRI.draftKey = rep + '|' + wk; }
+
+  const tiles = dtiles([
+    ['This month', t ? Math.round(ach * 100) + '% of target' : 'No target', `${J(sold)} of ${J(t)} · should be ${Math.round(PACE * 100)}%`, tcol],
+    ['Behind today', behind.length + ' customer' + (behind.length === 1 ? '' : 's'), behind.length ? J(behindAmt) + ' short of where they should be' : 'None behind', behind.length ? '#E2445C' : '#1A8F4C'],
+    ['Open orders', open.length ? open.length + ' · ' + J(openV) : 'None open', chk.length ? chk.length + ' line' + (chk.length === 1 ? '' : 's') + ' to check' : 'Nothing to check', '#326BD3'],
+    ['Overdue AR', AR_READY ? (arTot ? J(arTot) : 'Nothing overdue') : 'Loading…', AR_READY ? arRows.length + ' customer' + (arRows.length === 1 ? '' : 's') : 'AR is still loading', arTot ? '#E2445C' : '#1A8F4C'],
+    ['Out of stock', oosR.length + ' item' + (oosR.length === 1 ? '' : 's'), 'their customers are waiting on', oosR.length ? '#E8862A' : '#1A8F4C'],
+    ['Back orders', bos.length + ' order' + (bos.length === 1 ? '' : 's'), rcWk.length + ' return' + (rcWk.length === 1 ? '' : 's') + ' this week', '#7B4FD0']]);
+
+  // 1. where they stand
+  const behindList = behind.length ? `<ul class="l1 gl gbehind" style="--gc:minmax(0,1.6fr) 84px 84px minmax(0,1fr) 92px minmax(0,1.3fr)"><li class="lhd"><span>Customers furthest behind</span><span class="r">Target</span><span class="r">Sold</span><span>Progress</span><span class="r">Short by</span><span>Orders</span></li>
+      ${showN('fb:' + rep, behind, 6).map(s => { const pc = s.mtd / s.budM, op = openOf(s.id);
+        return `<li><span class="nm"><button type="button" class="linkish" data-store="${esc(s.id)}">${esc(s.name)}</button></span><span class="r rt">${J(s.budM)}</span><span class="r rt">${J(s.mtd)}</span><span class="gbp"><span class="rbar sm"><i style="width:${Math.max(pc > 0 ? 3 : 0, Math.min(100, pc * 100))}%;background:${pc >= PACE * 0.9 ? achCol.amber : achCol.red}"></i><b style="left:${PACE * 100}%"></b></span><em>${Math.round(pc * 100)}%</em></span><span class="r val"><b class="dn">${J(-s.gapPace)}</b></span><span class="rt">${op.length ? op.map(o => acuOrder(o.nbr) + ' ' + esc(o.stage.s || '')).join(', ') : 'No open order' + (s.cad.last ? ' · last ' + esc(fds(s.cad.last)) : '')}</span></li>`; }).join('')}</ul>${moreBtn('fb:' + rep, behind, 6)}` : '<p class="note" style="margin:0 0 8px">No customers are behind where they should be today.</p>';
+  const notOrdList = notOrd.length ? plCards(showN('fn:' + rep, notOrd, 5).map(s => ({name:s.name, sub:`Usually every ${s.cad.med} days · last delivery ${esc(fds(s.cad.last))}`, tag:s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now', tone:s.cad.state === 'missed' ? 'loss' : ''}))) + moreBtn('fn:' + rep, notOrd, 5) : '';
+  const s1 = fsec(1, `Where ${first} stands`, `${J(sold)} sold this month against a ${J(t)} target. ${behind.length} customer${behind.length === 1 ? ' is' : 's are'} behind${notOrd.length ? ', and ' + notOrd.length + ' ' + (notOrd.length === 1 ? 'has' : 'have') + ' not ordered when they usually do' : ''}.`,
+    behindList + (notOrd.length ? '<h4 class="fsub">Customers who have not ordered when they usually do</h4>' + notOrdList : ''));
+
+  // 2. orders
+  const openRows = showN('fo:' + rep, open, 8).map(o => [[`<button type="button" class="linkish" data-store="${esc(o.c)}">${esc(byId[o.c].name)}</button>`, 'nm'], [acuOrder(o.nbr), ''], [`<span title="${esc(o.stage.why)}">${solid(o.stage.c, o.stage.s || o.stage.t)}</span>`, 'c'], [J(o.total), 'r val'], [o.age + 'd', 'r rt']]);
+  const s2 = fsec(2, 'This week’s orders', `${open.length} open order${open.length === 1 ? '' : 's'} worth ${J(openV)}. ${open.filter(o => o.stage.k === 'credit').length ? open.filter(o => o.stage.k === 'credit').length + ' on credit hold: ask AR what is needed to release them. ' : ''}${chk.length ? chk.length + ' line' + (chk.length === 1 ? '' : 's') + ' to fix before they ship.' : ''}`,
+    (open.length ? gl('minmax(0,1.4fr) 92px 104px 84px 44px', [['Customer'], ['Order'], ['Stage', 'c'], ['Value', 'r'], ['Age', 'r']], openRows) + moreBtn('fo:' + rep, open, 8) : '<p class="note" style="margin:0">Nothing open for this rep’s customers.</p>') +
+    (chk.length ? '<h4 class="fsub">Lines to check before they ship</h4>' + plCards(showN('fc:' + rep, chk, 6).map(x => ({name:`${byId[x.o.c].name} · ${x.l.desc}`, title:x.l.sku, sub:`Order ${esc(x.o.nbr)} · ${esc(chkProblem(x))}`, tag:CHKTXT[x.kind], tone:x.kind === 'gp' ? 'loss' : ''}))) + moreBtn('fc:' + rep, chk, 6) : ''));
+
+  // 3. stock
+  const s3 = fsec(3, 'Stock their customers are waiting on', oosR.length ? `${oosR.length} item${oosR.length === 1 ? '' : 's'} on ${first}’s open orders and back orders can’t be sent in full. Tell the rep what is coming and when.` : 'Nothing on this rep’s orders is out of stock.',
+    oosR.length ? plCards(showN('fs:' + rep, oosR, 8).map(x => ({name:x.desc, title:x.sku, sub:`${new Set(x.mine.map(l => ordBy[l.nbr].c)).size} of ${first}’s customers waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71 · ${oosWhen(x)}`, tag:OOS_ST[x.st][1], tone:OOS_ST[x.st][0] === 'red' ? 'loss' : OOS_ST[x.st][0] === 'blue' ? 'blue' : ''}))) + moreBtn('fs:' + rep, oosR, 8) : '');
+
+  // 4. returns
+  const s4 = fsec(4, 'Returns', `${rcWk.length} return${rcWk.length === 1 ? '' : 's'} in the last 7 days (${J(rcWk.reduce((a, r) => a + r.total, 0))}) and ${rc.length} in 60 days (${J(rc.reduce((a, r) => a + r.total, 0))}). “Order entry” returns are the ones that can be stopped.`,
+    rc.length ? plCards(showN('fr:' + rep, rc, 6).map(r => ({name:byId[r.c].name, sub:`${esc(rNice(r.reason))} · ${esc(fds(r.date))} · ${esc(r.nbr)}`, tag:J(r.total), tone:r.g === 'Order entry' ? 'loss' : ''}))) + moreBtn('fr:' + rep, rc, 6) : '<p class="note" style="margin:0">No returns in the last 60 days.</p>');
+
+  // 5. back orders (the weekly review, for this rep only)
+  const sv2 = CHAINF; CHAINF = rep; const boHtml = boReview(); CHAINF = sv2;
+  const s5 = fsec(5, 'Back orders: close or re-enter', `${bos.length} back order${bos.length === 1 ? '' : 's'}. Ask ${first} which items the customer still wants, tick them, and mark each “Rep replied”. The rest are closed in Monday’s clear-out.`, boHtml || '<p class="note" style="margin:0">No back orders for this rep.</p>');
+
+  // 6. AR
+  const s6 = fsec(6, 'Overdue balances', !AR_READY ? 'Loading AR…' : arRows.length ? `${arRows.length} customer${arRows.length === 1 ? '' : 's'} owe ${J(arTot)} past the due date. Chase these, and remember them when ${first} plans a visit. AR as of ${esc(fd(O.asof || ASOF))}.` : `Nothing is overdue for ${first}’s customers. AR as of ${esc(fd(O.asof || ASOF))}.`,
+    arRows.length ? gboard('#127F8C', 'Overdue by customer', arRows.length + ' customers · ' + J(arTot), 'minmax(0,1.6fr) 100px 100px 70px 100px 84px 40px', [['Customer'], ['Overdue', 'right'], ['Over 30 days', 'right', 'hm'], ['Oldest', 'center', 'hm'], ['Owed in all', 'right', 'hm'], ['Last paid', 'center', 'hm'], ['']],
+      arRows.map(x => { const lp = LASTPAY[x.s.id];
+        return grow('far:' + x.s.id, [cell(esc(x.s.name), 'c-store one c1'), cell(`<b class="dn">${J(x.a.over)}</b>`, 'c-age', 'right'), cell(x.a.over30 ? J(x.a.over30) : '–', 'c-age hm', 'right'), cell(x.a.oldest + 'd', 'c-age hm', 'center'), cell(J(x.a.owed), 'c-age hm', 'right'), cell(lp ? esc(fds(lp.d)) + '<span class="mlab"> ' + J(lp.amt) + '</span>' : '–', 'c-age hm', 'center')],
+          `${gl('minmax(0,1fr) 78px 70px 92px', [['Invoice'], ['Due'], ['Days late', 'r'], ['Balance', 'r']], x.a.inv.slice().sort((a, b) => b.late - a.late).slice(0, 12).map(i => [[acuDoc(i.type, i.ref), ''], [esc(fds(i.due)), 'rt'], [`<span class="${i.late > 30 ? 'dn' : ''}">${i.late}</span>`, 'r val'], [J(i.bal), 'r val']]))}${x.a.credit ? `<p class="note">Payments or credits not yet applied to an invoice: ${J(-x.a.credit)}.</p>` : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.s.id)}">Open customer</button></div>`); }), 'frar') : '');
+
+  // 7. the plan
+  const prev = planOf(rep, addDays(wk, -7));
+  const prevLine = prev ? `<p class="note" style="margin:0 0 10px">Last week’s plan${prev.met ? '' : ' (meeting not ticked)'}: ${(prev.data || {}).goal ? 'goal ' + J(prev.data.goal) + ' · ' : ''}${((prev.data || {}).visits || []).length} visit${((prev.data || {}).visits || []).length === 1 ? '' : 's'} planned${(prev.data || {}).push ? ' · push: ' + esc(prev.data.push) : ''}.</p>` : '';
+  const D = FRI.draft;
+  const planBody = !editing && p ? (() => { const d = p.data || {};
+      return `<p class="note" style="margin:0 0 8px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
+      <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div><div><span>Products to push</span>${esc(d.push || '–')}</div><div><span>Help needed</span>${esc(d.help || '–')}</div><div><span>In the way</span>${esc(d.blockers || '–')}</div></div>
+      ${(d.visits || []).length ? '<h4 class="fsub">Visits and calls</h4>' + plCards(d.visits.map(v => { const a = v.c ? arOf(v.c) : null; return {name:v.name, sub:`${esc(v.what || '')}${v.amt ? ' · expects ' + J(v.amt) : ''}${a && a.over ? ` · <b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>` : ''}`, tag:a && a.over ? 'Collect ' + J(a.over) : 'Visit', tone:a && a.over ? 'loss' : 'blue'}; })) : ''}
+      ${(d.collect || []).filter(c => byId[c]).length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(d.collect.filter(c => byId[c]).map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
+      <div class="acts" style="margin-top:10px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
+    `<div class="fform">
+      <div class="fgrid2"><div><label for="pl-goal">Sales goal for the week (J$)</label><input id="pl-goal" type="text" inputmode="numeric" value="${esc(D.goal)}" placeholder="e.g. 4500000" autocomplete="off"></div>
+        <div><label for="pl-push">Products to push</label><input id="pl-push" type="text" value="${esc(D.push)}" placeholder="e.g. Rhino bags, Clean &amp; White bleach" autocomplete="off"></div></div>
+      <div><label>Customers to visit or call, and what they will sell</label>
+        <datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
+        ${D.visits.map((v, i) => { const c = custByName(v.c, rep); return `<div class="fvrow"><input id="pl-vc-${i}" type="text" list="pl-custs" value="${esc(v.c)}" placeholder="Customer" autocomplete="off" aria-label="Customer ${i + 1}"><input id="pl-vw-${i}" type="text" value="${esc(v.w)}" placeholder="What will they sell?" autocomplete="off" aria-label="Plan for customer ${i + 1}"><input id="pl-va-${i}" type="text" inputmode="numeric" value="${esc(v.a)}" placeholder="Order J$" autocomplete="off" aria-label="Expected order ${i + 1}">${c ? `<div class="fhint">${arHint(c.id)}</div>` : ''}</div>`; }).join('')}</div>
+      ${arRows.length ? `<div><label>Tick the customers to collect payment from</label><div class="fcol">${arRows.slice(0, 14).map(x => `<label><input type="checkbox" id="pl-col-${esc(x.s.id)}" data-c="${esc(x.s.id)}"${D.collect[x.s.id] ? ' checked' : ''}>${esc(x.s.name)} · ${J(x.a.over)}</label>`).join('')}</div></div>` : ''}
+      <div class="fgrid2"><div><label for="pl-help">Help needed from sales support</label><textarea id="pl-help" rows="2" placeholder="e.g. chase stock for Rhino, fix prices on open orders">${esc(D.help)}</textarea></div>
+        <div><label for="pl-block">Anything in the way</label><textarea id="pl-block" rows="2" placeholder="e.g. customer waiting on credit release">${esc(D.block)}</textarea></div></div>
+      <label class="fmet"><input type="checkbox" id="pl-met"${D.met ? ' checked' : ''}> We have been through this together</label>
+      <div class="acts"><button class="btn pri" type="button" data-frisave="1">Save the plan</button>${p ? '<button class="btn" type="button" data-fricancel="1">Cancel</button>' : ''}</div></div>`;
+  const s7 = `<div id="fri-plan"></div>` + fsec(7, `${first}’s plan for the week of ${fds(wk)}`, 'What the rep will sell, who they will visit, and who they will collect from. It is saved for the week and goes to Scott. Customers with an overdue balance are flagged so the visit includes collecting payment.', prevLine + planBody);
+
+  return head + (rpt ? '<div class="frpt">' + rpt + '</div>' : '') +
+    `<div class="frep"><div class="who">${av(rep)}<span style="font-size:17px;font-weight:700">${esc(rep)}</span></div><button class="btn sm" type="button" data-friplan="1">Go to the plan ↓</button></div>` + tiles + s1 + s2 + s3 + s4 + s5 + s6 + s7;
+}
+
 // ---------- Deals: what Shallet sent to the team, and whether it reached an order ----------
 const DSTC = {won:'green', order:'blue', missed:'red', wait:'amber', stale:'grey', load:'grey'};
 function vDeals() {
@@ -2276,6 +2468,9 @@ function vStoreDrawer(c) {
     ${person(m ? m.name : '', 'Store manager' + (m && m.phone ? ' · ' + esc(m.phone) : ''), 'manager', 'Add manager')}
     ${person(b ? b.name : '', 'Backup orderer', 'backup', 'Set backup orderer')}
     ${s.phone ? l1(nm('Store phone'), rt(esc(s.phone))) : ''}</ul>`)}
+  ${(() => { if (!AR_READY) return ''; const a = arOf(c), lp = LASTPAY[c];
+    if (!a.owed && !a.credit) return sec('Account', null, '<p class="hint" style="margin:6px 0">Nothing owing on this account.</p>');
+    return sec('Account', a.over ? J(a.over) + ' overdue' : null, `${a.over ? `<p class="hint fwarn" style="margin:2px 0 8px">Overdue: remember to collect payment when you visit${s.rep ? ' (' + esc(firstName(s.rep)) + ')' : ''}.</p>` : '<p class="hint" style="margin:2px 0 8px">Nothing overdue.</p>'}<ul class="l1">${l1(nm('Owed in all'), rt(J(a.owed)))}${a.over ? l1(nm('Overdue'), rt(`<b class="dn">${J(a.over)}</b>`)) + l1(nm('Oldest overdue'), rt(a.oldest + ' days')) : ''}${l1(nm('Last payment'), rt(lp ? J(lp.amt) + ' on ' + esc(fds(lp.d)) : 'None in 6 months'))}${a.credit ? l1(nm('Unapplied credits'), rt(J(-a.credit))) : ''}</ul>` + (a.inv.length ? gl('minmax(0,1fr) 78px 70px 92px', [['Overdue invoice'], ['Due'], ['Days late', 'r'], ['Balance', 'r']], a.inv.slice().sort((x, y) => y.late - x.late).slice(0, 6).map(i => [[acuDoc(i.type, i.ref), ''], [esc(fds(i.due)), 'rt'], [`<span class="${i.late > 30 ? 'dn' : ''}">${i.late}</span>`, 'r val'], [J(i.bal), 'r val']])) : '')); })()}
   ${open.length ? sec('Open orders', String(open.length), gl('minmax(0,1fr) 104px minmax(0,1fr) 78px 40px', [['Order'], ['Stage', 'c'], ['Truck'], ['Value', 'r'], ['Age', 'r']],
       open.map(o => [[`<span class="ocell"><span class="oic" aria-hidden="true">${icon('orders', 2)}</span><b>${acuOrder(o.nbr)}</b></span>`, ''], [stg(o), 'c'], [truckCell(truckOf(o)), ''], [J(o.total), 'r val'], [o.age + 'd', 'r rt']]), 'gopen')) : ''}
   ${(() => { const dl = DELIV.filter(x => x.c === c).slice(0, 4); if (!dl.length) return ''; return sec('Latest deliveries', null, gl('minmax(0,1fr) 70px 130px minmax(0,1fr)', [['Shipment'], ['Date'], ['Where it is', 'c'], ['Driver']], dl.map(x => [[`<b>${acuShip(x.nbr)}</b>`, ''], [esc(fds(x.date)), 'rt'], [solid(x.st.c, x.st.t), 'c'], [esc(x.driver || x.via || '–'), 'rt']]))); })()}
@@ -2368,13 +2563,13 @@ function render() {
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
-  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why']};
+  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   // Scott (or anyone with more than one support book) picks whose hub to see; everyone picks a rep
   const SUPS = (window.__ssSupports && window.__ssSupports()) || [];
   document.getElementById('tctl').innerHTML = focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
-  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns}[TAB] || vToday)();
+  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns}[TAB] || vToday)();
   if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
@@ -2416,6 +2611,12 @@ __on(document, 'click', e => {
   if (d.sort) { const [id, k] = d.sort.split('|'); const st = SORT[id]; SORT[id] = {k, dir:st && st.k === k ? -st.dir : (b.closest('th').classList.contains('n') ? -1 : 1)};
     const sc = b.closest('.tbl'), top = sc ? sc.scrollTop : 0; render(); return; }
   if (d.chain) { CHAINF = d.chain; render(); return; }
+  if (d.friwk) { FRI.week = d.friwk; FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
+  if (d.friedit) { FRI.edit = true; FRI.draft = draftFrom(planOf(CHAINF, FRI.week)); FRI.draftKey = CHAINF + '|' + FRI.week; render(); return; }
+  if (d.fricancel) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
+  if (d.frisave) { savePlan(); return; }
+  if (d.fricopy) { const pl = planOf(CHAINF, FRI.week); if (pl) copyText(planMsg(CHAINF, pl), 'Plan copied. Paste it into WhatsApp.'); return; }
+  if (d.friplan) { const e2 = document.getElementById('fri-plan'); if (e2) e2.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (d.sub) { SUB[TAB] = d.sub; EXP = null; OPEN = null; render(); return; }
   if (d.info) { INFO[d.info] = !INFO[d.info]; render(); return; }
   if (d.focus) { SHOWALL.todayall = d.focus === 'all'; EXP = null; render(); return; }
@@ -2458,6 +2659,9 @@ let OQT = null; __on(document, 'input', e => { if (e.target.id !== 'oq') return;
 let BQT = null; __on(document, 'input', e => { if (e.target.id !== 'bq') return; BQ = e.target.value; clearTimeout(BQT); BQT = setTimeout(() => { window.__bqFocus = true; EXP = null; render(); }, 220); });
 let RQT = null; __on(document, 'input', e => { if (e.target.id !== 'rq') return; RQ = e.target.value; clearTimeout(RQT); RQT = setTimeout(() => { window.__rqFocus = true; EXP = null; render(); }, 220); });
 let CQT = null; __on(document, 'input', e => { if (e.target.id !== 'cq') return; CQ = e.target.value; clearTimeout(CQT); CQT = setTimeout(() => { window.__cqFocus = true; render(); }, 220); });
+// Friday plan form: keep what is typed in a draft so a redraw (someone else's tick arriving) never loses it
+__on(document, 'input', e => { const id = e.target.id || ''; if (/^pl-/.test(id) && FRI.draft) frDraftSet(id, e.target); });
+__on(document, 'change', e => { const id = e.target.id || ''; if (!/^pl-/.test(id) || !FRI.draft) return; frDraftSet(id, e.target); if (/^pl-vc-|^pl-col-/.test(id)) render(); });
 let DQT = null; __on(document, 'input', e => { if (e.target.id !== 'dq') return; DQ = e.target.value; clearTimeout(DQT); DQT = setTimeout(() => { window.__dqFocus = true; EXP = null; render(); }, 220); });
 __on(document, 'change', e => { if (e.target.id === 'chainsel') { CHAINF = e.target.value; EXP = null; render(); }
   else if (e.target.dataset && e.target.dataset.msort) { const id = e.target.dataset.msort, th = document.querySelector(`[data-sort="${id}|${e.target.value}"]`); SORT[id] = {k:e.target.value, dir:th && th.closest('th').classList.contains('n') ? -1 : 1}; e.target.blur(); render(); } });
@@ -2504,7 +2708,7 @@ render();
 // Data comes from public.ss_hub_data(part, support): read-only; Scott sees every support book, a support person only their own.
 // Notes and ticks live in public.ss_hub_notes / ss_hub_ticks. The support list comes from public.ss_hub_supports().
 window.DFL_PORTAL = true;
-const HUBD = { notes: [], ticks: {}, names: {} };
+const HUBD = { notes: [], ticks: {}, names: {}, plans: [] };
 const DATA = {};
 let LOADED_AT = { ops: 0, sales: 0, skus: 0, period: 0 }, BOOTING = false, BOOTED = false;
 
@@ -2528,13 +2732,19 @@ async function loadNotes() {
   HUBD.notes.length = 0; (a.data || []).forEach(n => HUBD.notes.push(n));
   Object.keys(HUBD.ticks).forEach(k => delete HUBD.ticks[k]); (b.data || []).forEach(t => HUBD.ticks[t.k] = t);
   [...(a.data || []), ...(b.data || [])].forEach(x => { if (x.by && x.by_name) HUBD.names[x.by] = x.by_name; });
+  // Friday plans, last 6 weeks (ss_hub_plans: each rep's weekly plan). Not fatal: the rest of the hub works without them.
+  try {
+    const since = new Date(Date.now() - 42 * 864e5).toISOString().slice(0, 10);
+    const pl = await sb.from('ss_hub_plans').select('*').gte('week_start', since);
+    if (!pl.error) { HUBD.plans.length = 0; (pl.data || []).forEach(p => { HUBD.plans.push(p); if (p.by && p.by_name) HUBD.names[p.by] = p.by_name; }); }
+  } catch (e) { console.warn('plans failed', e); }
 }
 function boot() {
   if (!DATA.ops || !DATA.sales || !DATA.skus || !DATA.period) return;
   const keep = window.__hubSnap ? window.__hubSnap() : null, y = window.scrollY, dr = document.querySelector('.drawer'), dy = dr ? dr.scrollTop : 0;
   for (const v of __L.values()) v.length = 0;
   window.__hubKeep = keep;
-  window.__hubBoot(Object.assign({support: SUP}, DATA.sales, DATA.skus), Object.assign({}, DATA.ops, DATA.inv || {}),Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
+  window.__hubBoot(Object.assign({support: SUP}, DATA.sales, DATA.skus), Object.assign({}, DATA.ops, DATA.inv || {}, DATA.ar || {}),Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
   window.scrollTo(0, y); const d2 = document.querySelector('.drawer'); if (d2) d2.scrollTop = dy;
 }
 const busy = () => { const a = document.activeElement; return (window.__hubBusy && window.__hubBusy()) || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== 'chainsel'); };
@@ -2559,13 +2769,19 @@ async function loadInv() {
   try { const r = await sb.rpc('ss_hub_data', { p_part: 'inv', p_support: SUP }); if (r.error) throw r.error; DATA.inv = r.data; LOADED_AT.inv = Date.now(); INV_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('invoice lines failed', e); if (++INV_TRY <= 3) setTimeout(loadInv, 20000 * INV_TRY); }
 }
-const afterMain = () => { loadInv(); loadPskus(); };
+// open AR lines and last payments (Friday meeting, customer pop-up): from the daily AR snapshot, loaded after the main parts like the invoices
+let AR_TRY = 0;
+async function loadAr() {
+  try { const r = await sb.rpc('ss_hub_data', { p_part: 'ar', p_support: SUP }); if (r.error) throw r.error; DATA.ar = r.data; LOADED_AT.ar = Date.now(); AR_TRY = 0; if (BOOTED && !busy()) boot(); }
+  catch (e) { console.warn('AR failed', e); if (++AR_TRY <= 3) setTimeout(loadAr, 20000 * AR_TRY); }
+}
+const afterMain = () => { loadInv(); loadPskus(); loadAr(); };
 let STARTED = false;
 // whose book: a support person sees their own; Scott picks one (remembered on this device)
 let SUP = null, SUPS = [];
 window.__ssSupports = () => SUPS.slice();
 window.__ssSwitch = v => { if (!SUPS.includes(v) || v === SUP) return; SUP = v; try { localStorage.setItem('ss-support', v); } catch (e) {}
-  ['ops', 'sales', 'skus', 'period', 'pskus', 'inv'].forEach(k => { delete DATA[k]; LOADED_AT[k] = 0; });
+  ['ops', 'sales', 'skus', 'period', 'pskus', 'inv', 'ar'].forEach(k => { delete DATA[k]; LOADED_AT[k] = 0; });
   window.__hubKeep = null; window.__hubSnap = null; BOOTED = false;
   const m = document.getElementById('main'); if (m) m.innerHTML = `<div class="empty">Loading ${v}’s reps…</div>`;
   refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain); };
@@ -2580,7 +2796,7 @@ async function start() {
   refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain);
   document.getElementById('hubRefresh').addEventListener('click', () => refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain));
   // orders (and invoiced lines) every 10 minutes while open; sales and targets hourly (they only change at 7am and 1pm)
-  setInterval(() => { if (document.hidden) return; const parts = ['ops'], full = Date.now() - LOADED_AT.sales > 55 * 60000; if (full) parts.push('sales', 'skus', 'period'); refresh(parts, false).then(() => { loadInv(); if (full) loadPskus(); }); }, 10 * 60000);
+  setInterval(() => { if (document.hidden) return; const parts = ['ops'], full = Date.now() - LOADED_AT.sales > 55 * 60000; if (full) parts.push('sales', 'skus', 'period'); refresh(parts, false).then(() => { loadInv(); if (full) { loadPskus(); loadAr(); } }); }, 10 * 60000);
   // notes and ticks from others every 2 minutes
   setInterval(async () => { if (document.hidden || busy() || BOOTING) return; try { await loadNotes(); boot(); } catch (e) {} }, 2 * 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - LOADED_AT.ops > 10 * 60000) refresh(['ops'], false); });
