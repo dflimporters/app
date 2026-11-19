@@ -2033,8 +2033,8 @@ const frLeftHtml = () => { const d = FRI.draft; if (!d) return ''; const n = Obj
 const frSum = () => { const e = document.getElementById('fpsum'); if (e) e.textContent = frSumText(); const e2 = document.getElementById('fpleft'); if (e2) e2.innerHTML = frLeftHtml(); };
 const frDraftSet = (id, t) => { const d = FRI.draft; if (!d) return; let m;
   if ((m = /^pl-tk-(\d)$/.exec(id))) { d.talked[m[1]] = t.checked; return; }
-  if (/^pl-sel-/.test(id)) { d.sel[t.dataset.c] = t.checked; frSum(); return; }
-  if (/^pl-cl-/.test(id)) { d.col[t.dataset.c] = t.value; return; }
+  if (/^pl-sel-/.test(id)) { d.sel[t.dataset.c] = t.checked; document.querySelectorAll('input[data-c="' + t.dataset.c + '"][id^="pl-sel-"]').forEach(x => { x.checked = t.checked; }); frSum(); return; }
+  if (/^pl-cl-/.test(id)) { d.col[t.dataset.c] = t.value; document.querySelectorAll('input[data-c="' + t.dataset.c + '"][id^="pl-cl-"]').forEach(x => { if (x !== t) x.value = t.value; }); return; }
   if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-met') d.met = t.checked; frSum(); };
 // "someone else": a customer added by name joins the tick-list, already ticked
 const frAddCust = v => { const d = FRI.draft; if (!d || !String(v).trim()) return; const s = custByName(v, CHAINF);
@@ -2085,8 +2085,6 @@ function vFriday() {
   const gapRank = [...gapRows.filter(x => !x.nd).sort((a, b) => b.need - a.need), ...gapRows.filter(x => x.nd).sort((a, b) => b.need - a.need)];
   const gapTot = gapRows.reduce((a, x) => a + x.need, 0), gapInfo = Object.fromEntries(gapRank.map(x => [x.s.id, x]));
   let gcum = 0, gTop = 0; for (const x of gapRank) { if (x.nd || gTop >= 6 || gcum >= 0.75 * gapTot) break; gcum += x.need; gTop++; }
-  const gapHint = g => { const sh = g[3].filter(id => g[4].has(id)), sum = sh.reduce((a, id) => a + gapInfo[id].need, 0), moved = gTop - sh.length;
-    return sh.length ? `top ${sh.length} here = ${J(sum)}${moved ? ` · ${moved} more of the top ${gTop} owe money, so they are in the first column` : ''} · ${J(gapTot)} still to find in all` : gapNote; };
   const gTopSet = new Set(gapRank.slice(0, gTop).map(x => x.s.id)), gapNote = gTop ? `top ${gTop} = ${J(gcum)} of the ${J(gapTot)} still to find` : 'biggest first';
   const notOrd = cs.filter(s => !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due')).sort((a, b) => b.cad.late - a.cad.late);
   const open = ORD.filter(o => mine(o.c) && o.status !== 'Back Order').sort((a, b) => b.age - a.age), openV = open.reduce((a, o) => a + o.total, 0), credit = open.filter(o => o.stage.k === 'credit');
@@ -2140,18 +2138,22 @@ function vFriday() {
   const prev = planOf(rep, addDays(wk, -7)), D = FRI.draft;
   const prevLine = prev ? `<p class="note" style="margin:0 0 12px">Last week’s plan${prev.met ? '' : ' (meeting not ticked)'}: ${(prev.data || {}).goal ? 'goal ' + J(prev.data.goal) + ' · ' : ''}${((prev.data || {}).visits || []).length} visit${((prev.data || {}).visits || []).length === 1 ? '' : 's'} planned.</p>` : '';
   // the tick-list, grouped by why the customer is on it: owes money, behind target, stopped ordering, added by hand
-  const seen = new Set(), grp = (ids, ok) => ids.filter(id => byId[id] && !seen.has(id) && (seen.add(id), true));
+  const inCols = new Set([...arRows.map(x => x.s.id), ...gapRank.map(x => x.s.id), ...notOrd.map(s => s.id)]), okIds = ids => ids.filter(id => byId[id]);
   const G = editing ? [
-    ['Owes money', 'collect payment on the visit', '#E2445C', grp(arRows.map(x => x.s.id))],
-    ['Biggest gaps to close', gapNote, '#E8862A', grp(gapRank.map(x => x.s.id)), gTopSet],
-    ['Not ordering', 'they usually order, not lately', '#7B4FD0', grp(notOrd.map(s => s.id))],
-    ['Added', 'customers you added', '#8A95B0', grp([...D.extra, ...Object.keys(D.sel).filter(k => D.sel[k])])]].filter(g => g[3].length) : [];
-  const pickRow = (id, rm) => { const s = byId[id], a = AR_READY ? arOf(id) : null, gi = gapInfo[id], bh = gi ? gi.need : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due');
-    const pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0, tag = a && a.over ? `<span class="pill red">${J(a.over)} overdue</span>` : bh ? `<span class="pill amber">needs ${J(bh)}</span>` : no ? `<span class="pill grey">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
-    const bits = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : ''] : bh ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', no ? 'not ordering when they usually do' : ''] : no ? [`usually every ${s.cad.med} days`, `last delivery ${fds(s.cad.last)}`] : ['Visit or call'];
+    ['Owes money', 'collect payment on the visit', '#E2445C', okIds(arRows.map(x => x.s.id)), null, 'o'],
+    ['Biggest gaps to close', gapNote, '#E8862A', okIds(gapRank.map(x => x.s.id)), gTopSet, 'g'],
+    ['Not ordering', 'they usually order, not lately', '#7B4FD0', okIds(notOrd.map(s => s.id)), null, 'n'],
+    ['Added', 'customers you added', '#8A95B0', okIds([...new Set([...D.extra, ...Object.keys(D.sel).filter(k => D.sel[k])])].filter(id => !inCols.has(id))), null, 'a']].filter(g => g[3].length) : [];
+  const pickRow = (id, rm, kind) => { const s = byId[id], a = AR_READY ? arOf(id) : null, gi = gapInfo[id], bh = gi ? gi.need : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due'), pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0;
+    const ovB = a && a.over ? `owes ${J(a.over)} overdue` : '';
+    const tagO = a && a.over ? `<span class="pill red">${J(a.over)} overdue</span>` : '', tagG = bh ? `<span class="pill amber">needs ${J(bh)}</span>` : '', tagN = no ? `<span class="pill grey">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
+    const bO = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'also needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : ''] : [], bG = gi ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', ovB] : [], bN = no ? [`usually every ${s.cad.med} days`, `last delivery ${fds(s.cad.last)}`, ovB] : [];
+    const k = kind || 'a', tag = k === 'o' ? tagO : k === 'g' ? tagG : k === 'n' ? tagN : (tagO || tagG || tagN);
+    const bits = k === 'o' ? bO : k === 'g' ? bG : k === 'n' ? bN : (bO.length ? bO : bG.length ? bG : bN.length ? bN : ['Visit or call']);
     const det = bits.filter(Boolean).join(' · ');
-    const ph = a && a.over ? 'Collect how much? e.g. J$500K by Wed' : bh ? 'Why behind, and the plan? e.g. waiting on stock' : no ? 'Why stopped? e.g. closed for repairs' : 'Add a note, e.g. visit Tuesday';
-    return `<div class="fpkw${rm ? ' rm' : ''}"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><b class="fpn" title="${esc(s.name)}">${esc(s.name)}</b><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label><div class="fcolin"><input type="text" id="pl-cl-${esc(id)}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="${esc(ph)}" aria-label="Note for ${esc(s.name)}" autocomplete="off"></div>${rm ? `<button type="button" class="fpx" data-friremove="${esc(id)}" aria-label="Remove ${esc(s.name)} from the list" title="Remove from the list">×</button>` : ''}</div>`; };
+    const phO = bh ? 'Collect and order plan? e.g. J$500K by Wed, order Tue' : 'Collect how much? e.g. J$500K by Wed', phG = ovB ? 'Order plan and what they will pay? e.g. J$500K by Wed' : 'Why behind, and the plan? e.g. waiting on stock', phN = 'Why stopped? e.g. closed for repairs';
+    const ph = k === 'o' ? phO : k === 'g' ? phG : k === 'n' ? phN : (a && a.over ? phO : bh ? phG : no ? phN : 'Add a note, e.g. visit Tuesday');
+    return `<div class="fpkw${rm ? ' rm' : ''}"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}-${k}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><b class="fpn" title="${esc(s.name)}">${esc(s.name)}</b><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label><div class="fcolin"><input type="text" id="pl-cl-${esc(id)}-${k}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="${esc(ph)}" aria-label="Note for ${esc(s.name)}" autocomplete="off"></div>${rm ? `<button type="button" class="fpx" data-friremove="${esc(id)}" aria-label="Remove ${esc(s.name)} from the list" title="Remove from the list">×</button>` : ''}</div>`; };
   // what the rep needs to stay on track for the month, with a one-tap way to use it as the goal
   const need = monthNeed(rep), pw = Math.round(need.perWeek / 10000) * 10000;
   const goalHint = !need.t ? '' : need.togo > 0 ? `<div class="fneed"><div><b>To stay on track:</b> ${esc(first)} has sold ${J(need.sold)} of the ${J(need.t)} target, so <b>${J(need.togo)}</b> to go in the ${need.left} day${need.left === 1 ? '' : 's'} left this month. That is about <b>${J(pw)} a week</b>.</div><button type="button" class="btn sm" data-frifill="${pw}">Use ${J(pw)}</button></div>` : '<div class="fneed ok">Already at this month’s target. Anything more is a bonus.</div>';
@@ -2168,7 +2170,7 @@ function vFriday() {
     `<div class="fform">
       ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card.`,
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
-          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${(g[4] ? gapHint(g) : g[1]) ? `<em>${esc(g[4] ? gapHint(g) : g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added')).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
+          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added', g[5])).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
         <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:12px">
         <div class="fsum" id="fpsum">${esc(frSumText())}</div>`)}
