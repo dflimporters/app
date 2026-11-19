@@ -723,6 +723,22 @@ th.on{color:var(--ink)}
 .fpkw .fcolin{flex:none;padding:0 12px 11px 38px}
 .fform .fcolin input[type=text]{padding:0 10px;height:32px;font-size:13px}
 @media (max-width:640px){.fpick{grid-template-columns:1fr}}
+.fsi{background:var(--ink)}
+.fsi svg{width:14px;height:14px;stroke:#fff}
+.fboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start}
+.fcol{background:#F3F5FA;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.fch{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;padding:0 2px 2px}
+.fch::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--ac)}
+.fch b{font-family:var(--head);font-size:13.5px;color:var(--ink)}
+.fcnt2{font-family:var(--head);font-size:11.5px;font-weight:800;color:var(--ink2);background:#E2E7F1;border-radius:99px;padding:1px 8px}
+.fch em{flex-basis:100%;font-style:normal;font-size:12px;color:var(--ink2);padding-left:17px}
+.fcol .btn{align-self:flex-start}
+.fform .fpkw{border:1px solid var(--line);box-shadow:0 1px 2px rgba(20,35,70,.06);background:#fff}
+.fform .fpkw:has(.fpk input:checked){border-color:var(--line);background:#fff;box-shadow:inset 4px 0 0 var(--ac),0 4px 12px rgba(20,35,70,.12)}
+.fform .fpk input[type=checkbox]{-webkit-appearance:none;appearance:none;width:19px;height:19px;border:1.5px solid #B4BDD2;border-radius:50%;background:#fff;margin:1px 0 0;cursor:pointer;display:grid;place-items:center}
+.fform .fpk input[type=checkbox]:checked{background:var(--ink);border-color:var(--ink)}
+.fform .fpk input[type=checkbox]:checked::after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.fform .fpk input[type=checkbox]:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 @media (max-width:640px){.fblk{padding:14px 14px 16px}.fsubh{padding:10px 14px}.fagh{padding:14px}.fagtk{padding:8px 14px}.fpkw .fcolin{padding-left:14px}}
 @media (max-width:640px){.fvrow{grid-template-columns:1fr}.fgrid2{grid-template-columns:1fr}}
 .dsearch{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}
@@ -2069,7 +2085,7 @@ function vFriday() {
   // agenda: three groups, one line each (headline + count), open to see the top 3, tick when talked about
   // only one line is open at a time: opening one closes the others
   const agenda = (k, n, title, headline, tone, count, body, noTick) => { const o = !!FRI.ag[k];
-    return `<section class="fag${o ? ' open' : ''}" id="fag-${k}"><div class="fagrow"><button type="button" class="fagh" data-friag="${k}" aria-expanded="${o}"><span class="fsn">${n}</span><span class="fagt"><b>${esc(title)}</b><em>${headline}</em></span><span class="fagc">${solid(tone, count)}</span><span class="chev">${icon('chev')}</span></button>${noTick ? '' : `<label class="fagtk"><input type="checkbox" id="pl-tk-${k}"${TK[k] ? ' checked' : ''}${editing ? '' : ' disabled'}> Talked about it</label>`}</div>${o ? `<div class="fagb">${body}</div>` : ''}</section>`; };
+    return `<section class="fag${o ? ' open' : ''}" id="fag-${k}"><div class="fagrow"><button type="button" class="fagh" data-friag="${k}" aria-expanded="${o}">${/^</.test(String(n)) ? n : `<span class="fsn">${n}</span>`}<span class="fagt"><b>${esc(title)}</b><em>${headline}</em></span><span class="fagc">${solid(tone, count)}</span><span class="chev">${icon('chev')}</span></button>${noTick ? '' : `<label class="fagtk"><input type="checkbox" id="pl-tk-${k}"${TK[k] ? ' checked' : ''}${editing ? '' : ' disabled'}> Talked about it</label>`}</div>${o ? `<div class="fagb">${body}</div>` : ''}</section>`; };
   // a clear band for each part inside an open line, with its count, so the parts do not run together
   const band = (title, hint, count, col) => `<div class="fsubh" style="--ac:${col || '#326BD3'}"><b>${esc(title)}</b>${count != null ? `<span class="fcnt">${count}</span>` : ''}${hint ? `<em>${hint}</em>` : ''}</div>`;
   const blk = h => `<div class="fblk">${h}</div>`;
@@ -2102,12 +2118,12 @@ function vFriday() {
   // the tick-list, grouped by why the customer is on it: owes money, behind target, stopped ordering, added by hand
   const seen = new Set(), grp = (ids, ok) => ids.filter(id => byId[id] && !seen.has(id) && (seen.add(id), true));
   const G = editing ? [
-    ['Owes money', 'collect payment on the visit', '#E2445C', grp(arRows.slice(0, 5).map(x => x.s.id))],
-    ['Behind target', 'furthest behind first', '#E8862A', grp(behind.slice(0, 5).map(s => s.id))],
-    ['Not ordering when they usually do', null, '#7B4FD0', grp(notOrd.slice(0, 3).map(s => s.id))],
-    ['Added', null, '#326BD3', grp([...D.extra, ...Object.keys(D.sel).filter(k => D.sel[k])])]].filter(g => g[3].length) : [];
+    ['Owes money', 'collect payment on the visit', '#E2445C', grp(arRows.map(x => x.s.id))],
+    ['Behind target', 'furthest behind first', '#E8862A', grp(behind.map(s => s.id))],
+    ['Not ordering', 'they usually order, not lately', '#7B4FD0', grp(notOrd.map(s => s.id))],
+    ['Added', 'customers you added', '#8A95B0', grp([...D.extra, ...Object.keys(D.sel).filter(k => D.sel[k])])]].filter(g => g[3].length) : [];
   const pickRow = id => { const s = byId[id], a = AR_READY ? arOf(id) : null, bh = s.budM > 0 && s.gapPace < 0 ? -s.gapPace : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due');
-    const pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0, tag = a && a.over ? `<span class="pill red">${J(a.over)} overdue</span>` : bh ? `<span class="pill amber">${J(bh)} short</span>` : no ? '<span class="pill grey">Not ordering</span>' : '';
+    const pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0, tag = a && a.over ? `<span class="pill red">${J(a.over)}</span>` : bh ? `<span class="pill amber">${J(bh)}</span>` : no ? `<span class="pill grey">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
     const bits = a && a.over ? [`oldest ${a.oldest} days`, bh ? J(bh) + ' short this month' : '', no ? 'not ordering when they usually do' : ''] : bh ? [pc + '% of this month’s target', no ? 'not ordering when they usually do' : ''] : no ? [`usually every ${s.cad.med} days`, `last delivery ${fds(s.cad.last)}`] : ['Visit or call'];
     const det = bits.filter(Boolean).join(' · ');
     return `<div class="fpkw"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><b class="fpn" title="${esc(s.name)}">${esc(s.name)}</b><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label>${a && a.over ? `<div class="fcolin"><input type="text" id="pl-cl-${esc(id)}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="Collect how much? e.g. J$500K by Wed" aria-label="How much will ${esc(s.name)} pay this week" autocomplete="off"></div>` : ''}</div>`; };
@@ -2117,7 +2133,7 @@ function vFriday() {
   const vSub = (v, a) => { const parts = []; if (v.what) parts.push(esc(v.what)); if (v.amt) parts.push('expects ' + J(v.amt));
     if (a && a.over) parts.push(v.col ? `owes ${J(a.over)} overdue · plan to collect <b>${esc(v.col)}</b>` : `<b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>`); else if (v.col) parts.push('plan to collect <b>' + esc(v.col) + '</b>');
     return parts.length ? parts.join(' · ') : 'Visit or call'; };
-  const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><span class="fqn">${n}</span><div><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
+  const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><div><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
   const planBody = !editing && p ? (() => { const d = p.data || {}, col = noOver(d, d.collect);
       return `<p class="note" style="margin:0 0 10px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
       <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div>${d.push ? `<div><span>Products to push</span>${esc(d.push)}</div>` : ''}<div><span>Help needed</span>${esc(d.help || '–')}</div>${d.blockers ? `<div><span>In the way</span>${esc(d.blockers)}</div>` : ''}</div>
@@ -2126,7 +2142,8 @@ function vFriday() {
       <div class="acts" style="margin-top:14px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
       ${q(1, 'Who will you visit or call this week?', 'Tick the customers that matter most. The three who owe the most are already ticked.',
-        (G.length ? G.map(g => `<div class="fgh" style="--ac:${g[2]}"><b>${esc(g[0])}</b>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div><div class="fpick">${g[3].map(pickRow).join('')}</div>`).join('') : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
+        (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
+          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(pickRow).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
         <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:12px">
         <div class="fsum" id="fpsum">${esc(frSumText())}</div>`)}
@@ -2135,7 +2152,7 @@ function vFriday() {
       <div class="ffoot"><label class="fmet"><input type="checkbox" id="pl-met"${D.met ? ' checked' : ''}> We have been through this together</label>
       <div class="acts"><button class="btn pri" type="button" data-frisave="1">Save the plan</button>${p ? '<button class="btn" type="button" data-fricancel="1">Cancel</button>' : ''}</div></div></div>`;
   const pd = (p && p.data) || {};
-  const g4 = agenda('4', 4, `${first}’s plan for the week of ${fds(wk)}`, p ? `Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}${pd.goal ? ' · goal ' + J(pd.goal) : ''}${(pd.visits || []).length ? ' · ' + pd.visits.length + ' visit' + (pd.visits.length === 1 ? '' : 's') : ''}` : 'Not started: who they will visit, their goal, what they need', p ? (p.met ? 'green' : 'amber') : 'amber', p ? (p.met ? 'Held' : 'Saved') : 'To do', blk(prevLine + planBody), true);
+  const g4 = agenda('4', '<span class="fsn fsi">' + icon('friday') + '</span>', `${first}’s plan for the week of ${fds(wk)}`, p ? `Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}${pd.goal ? ' · goal ' + J(pd.goal) : ''}${(pd.visits || []).length ? ' · ' + pd.visits.length + ' visit' + (pd.visits.length === 1 ? '' : 's') : ''}` : 'Not started: who they will visit, their goal, what they need', p ? (p.met ? 'green' : 'amber') : 'amber', p ? (p.met ? 'Held' : 'Saved') : 'To do', blk(prevLine + planBody), true);
 
   return head + `<div class="frep"><div class="who">${av(rep)}<span style="font-size:17px;font-weight:700">${esc(rep)}</span></div><span class="fwk"><button class="btn sm" type="button" data-friplan="1">Go to the plan ↓</button></span></div>` + tiles +
     `<p class="fflow">Meeting order: money, then orders, then customers, then the plan. Tap a line to open it (the others close), and tick it once you have talked about it.</p>` + g1 + g2 + g3 + g4;
