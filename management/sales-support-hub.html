@@ -678,8 +678,8 @@ th.on{color:var(--ink)}
 .fform .fpk em{font-style:normal;font-weight:400;font-size:12.5px;color:var(--ink2)}
 @media (max-width:640px){.fagrow{flex-wrap:wrap}.fagtk{flex:1 0 100%;border-left:0;border-top:1px solid var(--line2);padding:8px 16px}}
 .dtiles.four{grid-template-columns:repeat(4,minmax(0,1fr))}
-.dtiles.light .dt{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 1px 2px rgba(20,35,70,.06);position:relative;overflow:hidden;padding:13px 16px 13px 20px}
-.dtiles.light .dt::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c)}
+.dtiles.light .dt{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:0 1px 2px rgba(20,35,70,.06);position:relative;overflow:hidden;padding:13px 16px 13px 26px}
+.dtiles.light .dt::before{content:'';position:absolute;left:10px;top:12px;bottom:12px;width:6px;border-radius:6px;background:var(--c)}
 .dtiles.light .dt .k{color:var(--ink3);opacity:1}
 .dtiles.light .dt .v{color:var(--c);font-size:22px}
 .dtiles.light .dt .s{color:var(--ink2);opacity:1}
@@ -2142,8 +2142,8 @@ function vFriday() {
     const rowFor = r => { const t = REPBUD[r] || 0, sold = (REPM[r] || {}).mtd || 0, cs = STORES.filter(s => s.rep === r);
       return {r, ach:t ? sold / t : null, short:Math.max(0, t * PACE - sold), behind:cs.filter(s => s.budM > 0 && s.gapPace < 0).length, over:AR_READY ? cs.reduce((a, s) => a + arOf(s.id).over, 0) : null, oos:(oosBy[r] || new Set()).size, bo:boOrders(r).length, p:planOf(r, wk)}; };
     const rws = REPS.map(rowFor).sort((a, b) => b.short - a.short), done = rws.filter(x => x.p).length, held = rws.filter(x => x.p && x.p.met).length;
-    return head + lead1('f-pick', 'Team meeting: the rep who needs the most attention is first. Tap Start on a rep who needs a closer look.', 'One row per rep. “This month” is sales against target (green on track, amber within 10%, red behind). “Behind” counts customers behind where they should be today. “Overdue” is what their customers owe past the due date. “Back orders” are orders to close or re-enter. For a one-to-one meeting, Start opens that rep’s page: four boxes, an orders line, then the plan.') +
-      gboard('#326BD3', 'Your reps', `${REPS.length} reps · ${held} meetings held · ${done} plans saved for the week of ${fds(wk)}`, 'minmax(0,1.5fr) 84px 64px 100px 72px 112px 72px', [['Rep'], ['This month', 'center'], ['Behind', 'center', 'hm'], ['Overdue AR', 'right', 'hm'], ['Back orders', 'center', 'hm'], ['Plan', 'center'], ['']],
+    return head + lead1('f-pick', 'Team meeting: the rep who needs the most attention is first. Tap Start on a rep who needs a closer look.', 'One row per rep. “This month” is sales against target (green on track, amber within 10%, red behind). “Customers behind” counts the customers behind where they should be today. “Overdue” is what their customers owe past the due date. “Back orders” are orders to close or re-enter. For a one-to-one meeting, Start opens that rep’s page: four boxes, an orders line, then the plan.') +
+      gboard('#326BD3', 'Your reps', `${REPS.length} reps · ${held} meetings held · ${done} plans saved for the week of ${fds(wk)}`, 'minmax(0,1.5fr) 84px 120px 100px 72px 112px 72px', [['Rep'], ['This month', 'center'], ['Customers behind', 'center', 'hm'], ['Overdue AR', 'right', 'hm'], ['Back orders', 'center', 'hm'], ['Plan', 'center'], ['']],
         rws.map(x => `<div class="brow"><div class="c-store one c1"><div class="who">${av(x.r)}<span>${esc(x.r)}</span></div></div><div class="c-age" style="text-align:center">${x.ach == null ? '–' : `<b style="color:${x.ach >= PACE ? '#1A8F4C' : x.ach >= PACE * 0.9 ? '#C47A1A' : '#E2445C'}">${Math.round(x.ach * 100)}%</b>`}</div><div class="c-age hm" style="text-align:center">${x.behind || '–'}</div><div class="c-age hm" style="text-align:right">${x.over == null ? '…' : x.over ? `<b class="dn">${J(x.over)}</b>` : '–'}</div><div class="c-age hm" style="text-align:center">${x.bo || '–'}</div><div style="text-align:center">${x.p ? (x.p.met ? solid('green', 'Meeting held') : solid('amber', 'Plan saved')) : solid('grey', 'Not started')}</div><div><button type="button" class="btn sm pri" data-chain="${esc(x.r)}">Start</button></div></div>`), 'frireps');
   }
 
