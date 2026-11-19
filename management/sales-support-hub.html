@@ -1124,8 +1124,8 @@ ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.l
   // items we no longer carry (Althia: chain POs keep listing discontinued lines)
   if (INACT[l.sku]) CHECKS.push({kind:'inact', o, l, st:INACT[l.sku], key:'inact:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 1e6});
 }));
-// Orders to check: only the big ones (Scott, 19 Nov). An order shows when its flagged lines cost it J$20K or more of margin (below cost, below the
-// deal price, too many free, free goods missing, an item that cannot ship) or leave the whole order under 25% GP, or when it will ship short:
+// Orders to check: only the big ones (Scott, 19 Nov). An order shows when its flagged lines cost it J$20K or more of margin on their own (below cost, below the
+// deal price, too many free, free goods missing, an item that cannot ship) or when it will ship short:
 // J$100K or more short after Ashenheim stock (dispatch does the transfers) and 15% or more of the order's open value. Specials ("add 5 to get 1
 // free") and transfers are not checks.
 const leakOf = x => x.kind === 'gp' ? Math.max(0, (x.l.cost - x.l.price) * x.l.oq) : x.kind === 'price' ? Math.max(0, x.value - 3e6) : x.kind === 'freeover' ? Math.max(0, x.value - 2.9e6) : x.kind === 'free' ? Math.max(0, x.value - 2e6) : x.kind === 'inact' ? Math.max(0, x.value - 1e6) : 0;
@@ -1133,8 +1133,8 @@ const orderGp = o => { const ls = (o.lines || []).filter(l => l.cost > 0), rev =
 const bigShort = (o, ls) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0), open = (o.lines || []).filter(l => l.open > 0 && l.price > 0).reduce((a, l) => a + l.open * l.price, 0); return v >= 100000 && open > 0 && v / open >= 0.15; };
 const bigChecks = () => { const m = {};
   CHECKS.forEach(x => { if (['gp', 'price', 'freeover', 'free', 'inact', 'stock'].includes(x.kind)) (m[x.o.nbr] = m[x.o.nbr] || {o:x.o, xs:[]}).xs.push(x); });
-  return Object.values(m).map(({o, xs}) => { const pr = xs.filter(x => x.kind !== 'stock'), sh = xs.filter(x => x.kind === 'stock'), g = orderGp(o);
-    const bigP = pr.length && (pr.reduce((a, x) => a + leakOf(x), 0) >= 20000 || (g != null && g < 0.25)), bigS = sh.length && bigShort(o, sh.map(x => x.l));
+  return Object.values(m).map(({o, xs}) => { const pr = xs.filter(x => x.kind !== 'stock'), sh = xs.filter(x => x.kind === 'stock');
+    const bigP = pr.length && pr.reduce((a, x) => a + leakOf(x), 0) >= 20000, bigS = sh.length && bigShort(o, sh.map(x => x.l));
     const use = [...(bigP ? pr : []), ...(bigS ? sh : [])]; return use.length ? {o, xs:use} : null; }).filter(Boolean); };
 // every line short at 71 that Ashenheim covers, combined by item: the transfer list (Scott, 12 Nov)
 const xferList = () => { const m = {};
@@ -1472,7 +1472,7 @@ function todayItems() {
   bigChecks().forEach(({o, xs}) => { const cnt = k => xs.filter(x => x.kind === k).length, first = ORDERK.find(k => cnt(k)), cm = repTxt({o});
     const ACT = {stock:'Tell the store and offer a substitute', gp:`Check the price and the item cost, then ask ${cm}`, price:`Ask ${cm} if the price was agreed; if not, fix it`, freeover:'Check the free quantity against the deal with the rep', free:'Check whether the free goods need to be added (Free Item box)', inact:'Remove the line and tell the rep'};
     const leak = xs.reduce((a, x) => a + leakOf(x), 0), shortV = xs.filter(x => x.kind === 'stock').reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
-    it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Order check', c:o.c, order:o.nbr, issue:ORDERK.filter(k => cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', '), sub:`Order ${o.nbr}${leak ? ' · ' + J(leak) + ' at stake' : ''}${shortV ? ' · ' + J(shortV) + ' we can’t fill' : ''}`, age:o.age,
+    it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Order check', c:o.c, order:o.nbr, issue:[shortV ? `${J(shortV)} we can’t fill (${cnt('stock')} item${cnt('stock') === 1 ? '' : 's'} short)` : '', leak ? `${J(leak)} lost: ` + ORDERK.filter(k => k !== 'stock' && cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', ') : ''].filter(Boolean).join(' · '), sub:`Order ${o.nbr}`, age:o.age,
     html:chkTable(xs), t:`${byId[o.c].name}: order ${o.nbr} needs a check`,
     d:xs.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${esc(chkProblem(x))}`).join('; ') + (xs.length > 3 ? '…' : ''),
     act:ACT[first], value:leak + shortV}); });
@@ -1670,7 +1670,7 @@ const ICO = {
   deliv:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Orders to check':['#D63B3B', 'Costing the order J$20K or more (below cost, below the deal price, too many free, free goods missing, an item we no longer carry), under 25% GP, or J$100K+ short and 15%+ of the order'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'On credit hold 3+ days, or keyed 4+ days ago and not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
+const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Held by AR or not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
 let TODAYF = 'All', EXP = null;
 
 // Top / All customers (Scott, 9–11 Nov): Today, Reps, Orders and Customers follow the switch in the header;
@@ -1730,8 +1730,8 @@ function brow(x) {
   <div class="ftiles four">
     ${ftile('st:todo', 'phone', open.filter(x => x.st === 'todo').length, 'To do', `${open.length} open · ${all.length - open.length} done`, '#D63B3B', '#FBE9E9')}
     ${ftile('st:waiting', 'clock', open.filter(x => x.st === 'waiting').length, 'Pending', 'Being worked on, answer still to come', '#E8862A', '')}
-    ${ftile('Stuck orders', 'alert', g('Stuck orders').length, 'Stuck orders', 'On credit hold 3+ days, or keyed 4+ days ago and not moving', '#D63B3B', '')}
-    ${ftile('Orders to check', 'money', g('Orders to check').length, 'Orders to check', 'Price, free goods or stock problems that cost the order', '#127F8C', '')}
+    ${ftile('Stuck orders', 'alert', g('Stuck orders').length, 'Stuck orders', 'On credit hold or not moving', '#D63B3B', '')}
+    ${ftile('Orders to check', 'money', g('Orders to check').length, 'Orders to check', 'Big price, free goods or stock problems', '#127F8C', '')}
   </div>
 
 
