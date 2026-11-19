@@ -715,18 +715,18 @@ th.on{color:var(--ink)}
 .ffoot{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;padding-top:20px;border-top:1px solid var(--line2)}
 .fpick{grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px}
 .fpkw{height:122px;display:flex;flex-direction:column}
-.fform .fpkw .fpk,.fform .fpkw .fpk:has(input:checked){display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;gap:3px 10px;align-items:start;align-content:start;padding:11px 12px 0;flex:1 1 auto;min-height:0;font-weight:400}
+.fform .fpkw .fpk,.fform .fpkw .fpk:has(input:checked){display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto;gap:4px 10px;align-items:start;align-content:start;padding:14px 14px 0;flex:1 1 auto;min-height:0;font-weight:400}
 .fform .fpk input{grid-row:1 / span 2;margin-top:2px}
-.fform .fpk .fpn{font-family:var(--head);font-weight:700;font-size:14px;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fform .fpk .fpn{font-family:var(--head);font-weight:700;font-size:14px;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .fform .fpk > .fpt{display:block;grid-column:3;grid-row:1;white-space:nowrap}
-.fform .fpk .fpd{grid-column:2 / 4;font-style:normal;font-weight:400;font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fpkw .fcolin{flex:none;padding:0 12px 11px 38px}
+.fform .fpk .fpd{grid-column:2 / 4;font-style:normal;font-weight:400;font-size:12px;line-height:1.4;color:var(--ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fpkw .fcolin{flex:none;padding:4px 14px 14px 38px}
 .fform .fcolin input[type=text]{padding:0 10px;height:32px;font-size:13px}
 @media (max-width:640px){.fpick{grid-template-columns:1fr}}
 .fsi{background:var(--ink)}
-.focard{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 2px rgba(20,35,70,.06);padding:11px 12px;height:172px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.focard{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 2px rgba(20,35,70,.06);padding:11px 12px;height:140px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;overflow:hidden}
 .fcr{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.fcr .fpn{font-family:var(--head);font-weight:700;font-size:14px;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+.fcr .fpn{font-family:var(--head);font-weight:700;font-size:14px;line-height:1.25;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
 .fcr .pill,.fcr .stcell{flex:none;white-space:nowrap}
 .focard .fpb{appearance:none;-webkit-appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;display:inline}
 .focard .fpb:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
@@ -2211,7 +2211,7 @@ function vFriday() {
   const N = 3;
   // 2. orders: back orders, stock, and anything to fix before it ships
   const fixAll = [...credit.map(o => ({k:'c', o, key:'credit:' + o.nbr})), ...chk.map(x => ({k:'x', x, key:x.key}))].map(f => ({...f, done:isDone(f.key)})).sort((a, b) => a.done - b.done);
-  const nFix = fixAll.filter(f => !f.done).length, nOrd = bos.length + oosR.filter(x => x.st === 'xfer').length + nFix;
+  const nFix = fixAll.filter(f => !f.done).length, nOrd = bos.length + nFix;
   const WHO = {credit:'AR to release', gp:'Head of Sales to approve', price:'Rep to confirm price', noprice:'Rep to confirm price', freeover:'Rep to confirm free goods', free:'Check with the rep', deal:'Check with the rep', stock:'Tell the rep', xfer:'Transfer needed', inact:'Swap the item'};
   // three trays side by side, like the plan board: grey tray, heading with a dot and a count, equal-size white cards inside
   const tray = (title, hint, col, n, body, acts) => `<div class="fcol" style="--ac:${col}"><div class="fch"><b>${esc(title)}</b><span class="fcnt2">${n}</span>${hint ? `<em>${hint}</em>` : ''}</div>${acts || ''}${body}</div>`;
@@ -2224,19 +2224,13 @@ function vFriday() {
       const items = op ? `<div class="fitems"><ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul></div>` : '';
       return `<div class="focard${op ? ' open' : ''}"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill purple">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em>${items}<div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div></div>`; }).join('');
     return tray('Back orders', `ask ${esc(first)} about each one · ${decided} of ${os.length} decided`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N)); })();
-  // out of stock is not part of the Friday meeting (Scott, 19 Nov: the status is judged on every rep's orders, so a rep's card could say short while stock covered their share; the team picture and the Back orders tab carry it).
-  // The one exception is an item sitting in Ashenheim: support asks for the transfer, so it shows as a small tray only when there is one.
-  const xfR = oosR.filter(x => x.st === 'xfer');
-  const oosTray = !xfR.length ? '' : tray('Transfers to ask for', 'in Ashenheim, needs to come across', '#326BD3', xfR.length,
-    showN('fs:' + rep, xfR, N).map(x => { const told = !!(tick('oost:' + rep + ':' + x.sku) || {}).v, nc = new Set(x.mine.map(l => ordBy[l.nbr].c)).size;
-      return ocard(x.desc, `<span class="pill blue">${x.ash} in Ashenheim</span>`, `${nc} customer${nc === 1 ? '' : 's'} waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71`, null, x.sku,
-        `<span class="fwho2">Needs a stock transfer</span><button type="button" class="fst${told ? ' done' : ''}" data-oost="${esc(rep + ':' + x.sku)}">${told ? 'Transfer asked' : 'Ask for transfer'}</button>`); }).join('') + moreOf('fs:' + rep, xfR, N));
+  // out of stock and transfers are not part of the Friday meeting (Scott, 19 Nov): the stock status is judged on every rep's orders, so a rep's card could say short while stock covered their share, and support asks for transfers anyway. The team picture and the Back orders tab carry stock.
   // fix before they ship: who has to act, and a Sorted tick shared with the Orders tab
   const fixTray = !fixAll.length ? '' : tray('Fix before they ship', `credit holds and price, stock or item problems${fixAll.length > nFix ? ' · ' + (fixAll.length - nFix) + ' sorted' : ''}`, '#E2445C', nFix,
     showN('fc:' + rep, fixAll, N).map(f => { const foot = `<span class="fwho2">${esc(WHO[f.k === 'c' ? 'credit' : f.x.kind] || 'Check it')}</span><button type="button" class="fst${f.done ? ' done' : ''}" data-done="${esc(f.key)}">${f.done ? 'Sorted' : 'Mark sorted'}</button>`;
       return f.k === 'c' ? ocard(byId[f.o.c].name, `<span class="pill red">${J(f.o.total)}</span>`, `On credit hold · order ${acuOrder(f.o.nbr)} · keyed ${esc(fds(f.o.date))}`, f.o.c, null, foot) : ocard(byId[f.x.o.c].name, `<span class="pill ${f.x.kind === 'gp' ? 'red' : 'amber'}">${esc(CHKTXT[f.x.kind])}</span>`, `${esc(f.x.l.desc)} · order ${acuOrder(f.x.o.nbr)} · ${esc(chkProblem(f.x))}`, f.x.o.c, f.x.l.sku, foot); }).join('') + moreOf('fc:' + rep, fixAll, N));
-  const nXf = xfR.length, g2 = agenda('2', 1, 'Orders: back orders and fixes', nOrd ? `${bos.length} back order${bos.length === 1 ? '' : 's'} to decide${nXf ? ' · ' + nXf + ' transfer' + (nXf === 1 ? '' : 's') + ' to ask for' : ''} · ${nFix} to fix before they ship` : 'Nothing to sort on their orders', nFix ? 'red' : nOrd ? 'amber' : 'green', nFix ? nFix + ' to fix' : nOrd ? 'To review' : 'OK',
-    nOrd ? blk(`<div class="fboard">${boTray}${oosTray}${fixTray}</div>`) : blk('<p class="note" style="margin:0">Nothing to sort.</p>'), true);
+  const g2 = agenda('2', 1, 'Orders: back orders and fixes', nOrd ? `${bos.length} back order${bos.length === 1 ? '' : 's'} to decide · ${nFix} to fix before they ship` : 'Nothing to sort on their orders', nFix ? 'red' : nOrd ? 'amber' : 'green', nFix ? nFix + ' to fix' : nOrd ? 'To review' : 'OK',
+    nOrd ? blk(`<div class="fboard">${boTray}${fixTray}</div>`) : blk('<p class="note" style="margin:0">Nothing to sort.</p>'), true);
   // 4. the plan: short on purpose. Tick the customers to visit or call, one goal number, an optional help box.
   const prev = planOf(rep, addDays(wk, -7)), D = FRI.draft;
   const prevLine = prev ? `<p class="note" style="margin:0 0 12px">Last week’s plan${prev.met ? '' : ' (meeting not ticked)'}: ${(prev.data || {}).goal ? 'goal ' + J(prev.data.goal) + ' · ' : ''}${((prev.data || {}).visits || []).length} visit${((prev.data || {}).visits || []).length === 1 ? '' : 's'} planned.</p>` : '';
@@ -2254,7 +2248,7 @@ function vFriday() {
     const k = kind || 'a', tag = k === 'o' ? tagO : k === 'g' ? tagG : k === 'n' ? tagN : (tagO || tagG || tagN);
     const bits = k === 'o' ? bO : k === 'g' ? bG : k === 'n' ? bN : (bO.length ? bO : bG.length ? bG : bN.length ? bN : ['Visit or call']);
     const det = bits.filter(Boolean).join(' · ');
-    const phO = bh ? 'Collect and order plan? e.g. J$500K by Wed, order Tue' : 'Collect how much? e.g. J$500K by Wed', phG = ovB ? 'Order plan and what they will pay? e.g. J$500K by Wed' : 'Why behind, and the plan? e.g. waiting on stock', phN = 'Why stopped? e.g. closed for repairs';
+    const phO = bh ? 'Collect and order? e.g. J$500K Wed' : 'Collect how much? e.g. J$500K Wed', phG = ovB ? 'Order and payment plan? e.g. J$500K Wed' : 'Why behind, and the plan?', phN = 'Why stopped? e.g. closed for repairs';
     const ph = k === 'o' ? phO : k === 'g' ? phG : k === 'n' ? phN : (a && a.over ? phO : bh ? phG : no ? phN : 'Add a note, e.g. visit Tuesday');
     return `<div class="fpkw${rm ? ' rm' : ''}"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}-${k}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><span class="fpn"><button type="button" class="fpb" data-store="${esc(id)}" title="Open ${esc(s.name)}">${esc(s.name)}</button></span><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label><div class="fcolin"><input type="text" id="pl-cl-${esc(id)}-${k}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="${esc(ph)}" aria-label="Note for ${esc(s.name)}" autocomplete="off"></div>${rm ? `<button type="button" class="fpx" data-friremove="${esc(id)}" aria-label="Remove ${esc(s.name)} from the list" title="Remove from the list">×</button>` : ''}</div>`; };
   // what the rep needs to stay on track for the month, with a one-tap way to use it as the goal
