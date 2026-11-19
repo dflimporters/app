@@ -1509,7 +1509,7 @@ function todayItems() {
   const GROUP = {'Order check':'Orders to check', 'Delivery problem':'Not delivered', 'Missed order':'Missed orders', 'Due today':'Due today', 'Stuck order':'Stuck orders', 'Credit hold':'Stuck orders'};
   it.forEach(x => x.group = GROUP[x.kind] || x.kind);
   // the rep picker narrows Today too (one support person covers up to 7 reps)
-  return it.filter(x => !x.c || (inChain(x.c) && (TODAYALL() || TOPC.has(x.c) || x.kind === 'Credit hold'))).sort((a, b) => a.pri - b.pri || b.value - a.value);
+  return it.filter(x => !x.c || inChain(x.c)).sort((a, b) => a.pri - b.pri || b.value - a.value);
 }
 
 // ---------- rendering helpers ----------
@@ -1686,10 +1686,10 @@ let TODAYF = 'All', EXP = null;
 
 // Top / All customers (Scott, 9–11 Nov): Today, Reps, Orders and Customers follow the switch in the header;
 // Back orders, Deliveries and Returns always cover every customer
-const FOCUS_TABS = ['today', 'reps', 'orders', 'stores'];
+const FOCUS_TABS = ['reps', 'orders', 'stores'];   // Today and Tell the reps always cover every customer (Scott, 19 Nov)
 const inFocus = c => TODAYALL() || TOPC.has(c);
 function focusLine() { const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF), n = reps.reduce((a, r) => a + ((TOPN[r] || {}).n || 0), 0), of = reps.reduce((a, r) => a + ((TOPN[r] || {}).of || 0), 0);
-  if (TAB === 'friday' || TAB === 'lead' || TAB === 'tell') return '';
+  if (TAB === 'friday' || TAB === 'lead' || TAB === 'tell' || TAB === 'today') return '';
   if (!FOCUS_TABS.includes(TAB)) return `<div class="focusline"><span>This tab always covers <b>all ${of} customers</b>${TAB === 'backorders' ? ', so the weekly clean-up catches every line' : TAB === 'deliv' ? ', so you can find any order' : ''}.</span></div>`;
   return `<div class="focusline"><span>${TODAYALL() ? `Showing <b>all ${of} customers</b>.` : `Showing the <b>${n} customers</b> that make up 80% of ${CHAINF === 'All' ? 'the reps’' : esc(firstName(CHAINF)) + '’s'} sales (last 3 months), out of ${of}.`} Switch with Top / All at the top of the page.</span></div>`; }
 const focusSwitch = () => FOCUS_TABS.includes(TAB) ? `<div class="focussw" role="group" aria-label="Which customers"><button type="button" data-focus="top" aria-pressed="${!TODAYALL()}">Top customers</button><button type="button" data-focus="all" aria-pressed="${TODAYALL()}">All customers</button></div>` : '';
@@ -2879,7 +2879,7 @@ function vToday() {
   const eodText = eodTextSup(SUPPORT);
   return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
   ${tiles}
-  <div class="legend" style="margin-top:2px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
+  <div class="legend" style="margin-top:18px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
     <button class="btn sm pri" type="button" data-fincopy="1" ${paidL.length ? '' : 'disabled'}>Copy the list for finance</button>
     <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
   ${dbMsg()}
@@ -2915,7 +2915,7 @@ function vTell() {
   const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Held orders', `${cnt('Held')}`, 'Tell the rep why and what releases it', '#C47A1A'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'four light');
   return `${lead1('tell-top', 'Everything to pass on to the reps, one list per rep. Tell them, then move it to Pending or Done.', 'Held orders, orders we cannot fill (big ones only, the rest are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Back orders are decided in the Back orders tab.')}
   ${tiles}
-  <div class="legend" style="margin-top:2px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
+  <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
   ${dbMsg()}
   ${reps.length ? reps.map(r => { const list = by[r]; return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(list.reduce((s, x) => s + (x.value || 0), 0))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
     <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}`;
