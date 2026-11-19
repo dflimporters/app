@@ -746,6 +746,9 @@ th.on{color:var(--ink)}
 .fwho2{font-size:11.5px;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fdecs{display:flex;gap:6px}
 .fdc{justify-content:center}
+.udots{display:inline-flex;gap:3px;align-items:flex-end}
+.udots i{display:block;width:7px;height:16px;border-radius:2px;background:#E2E7F1}
+.udots i.on{background:#1A8F4C}
 .fdb{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:99px;padding:3px 11px;font-family:var(--head);font-weight:700;font-size:11.5px;line-height:1.4;cursor:pointer;white-space:nowrap}
 .fdb:hover{background:#F3F5FA}
 .fdb.on{background:var(--ink);border-color:var(--ink);color:#fff}
@@ -2081,11 +2084,32 @@ const frAddCust = v => { const d = FRI.draft; if (!d || !String(v).trim()) retur
   d.sel[s.id] = true; if (!d.extra.includes(s.id)) d.extra.push(s.id); render(); };
 const fsec = (n, title, sub, body) => `<section class="fsec"><div class="fsh"><span class="fsn">${n}</span><div><h3>${esc(title)}</h3><p>${sub}</p></div></div>${body}</section>`;
 
+// Usage (Scott only, no new table): who has saved what in the hub in the last 14 days, from plans, notes and ticks that are already stored
+const usageEvents = () => { const ev = [];
+  (HUBD.plans || []).forEach(p => { if (p.by && p.updated_at) ev.push({by:p.by, n:p.by_name, at:p.updated_at, t:'plan'}); });
+  (HUBD.notes || []).forEach(x => { if (x.by && x.at) ev.push({by:x.by, n:x.by_name, at:x.at, t:'note'}); });
+  Object.values(HUBD.ticks || {}).forEach(x => { if (!x.by || !x.at || x.v == null || x.v === '') return; const k = String(x.k || '');
+    ev.push({by:x.by, n:x.by_name, at:x.at, t:/^bod:/.test(k) ? 'dec' : /^oost:/.test(k) ? 'told' : /^st:/.test(k) && x.v === 'sorted' ? 'sorted' : 'tick'}); });
+  return ev; };
+function usageView() {
+  const ev = usageEvents(), days = Array.from({length:14}, (_, i) => addDays(ASOF, i - 13)), since = days[0];
+  const dk = at => new Date(at).toLocaleDateString('en-CA'), hm = at => new Date(at).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+  const P = {}; ev.forEach(e => { const d = dk(e.at), p = P[e.by] = P[e.by] || {name:(HUBD.names && HUBD.names[e.by]) || e.n || 'Someone', last:'', days:new Set(), plan:0, dec:0, told:0, sorted:0, note:0};
+    if (e.n) p.name = e.n; if (!p.last || e.at > p.last) p.last = e.at; if (d >= since) { p.days.add(d); if (p[e.t] != null) p[e.t]++; } });
+  const people = Object.values(P).sort((a, b) => b.last.localeCompare(a.last));
+  const known = people.map(r => r.name.toLowerCase()), missing = (window.__ssSupports ? window.__ssSupports() : []).filter(s => !known.some(n => n.includes(String(s).toLowerCase())));
+  const lastTxt = at => { const d = dk(at); return (d === ASOF ? 'Today' : esc(fds(d))) + ' ' + hm(at); };
+  const num = n => n ? String(n) : '–';
+  return lead1('f-use', 'What each person has saved in the hub over the last 14 days.', 'Counts plans saved, back order decisions (Close it / Re-enter it), “Rep told” on stock, “Mark sorted” on fix lines, and notes. Only changes are counted: opening or reading the hub does not show here, and a tick that was later undone is not counted. Time spent needs a separate usage table, which is not set up.') +
+    gboard('#326BD3', 'Who is using the hub', `${people.length} ${people.length === 1 ? 'person' : 'people'} with activity · last 14 days to ${fds(ASOF)}`, 'minmax(0,1.3fr) 130px 150px 64px 60px 78px 60px 60px 60px', [['Person'], ['Last activity'], ['Last 14 days', '', 'hm'], ['Days', 'center'], ['Plans', 'center', 'hm'], ['Decisions', 'center', 'hm'], ['Told', 'center', 'hm'], ['Sorted', 'center', 'hm'], ['Notes', 'center', 'hm']],
+      [...people.map(p => `<div class="brow"><div class="one">${esc(p.name)}${p.name && HUBD.names && MYID && HUBD.names[MYID] === p.name ? ' <span class="note" style="margin:0">(you)</span>' : ''}</div><div class="c-age">${lastTxt(p.last)}</div><div class="hm"><span class="udots">${days.map(d => `<i class="${p.days.has(d) ? 'on' : ''}" title="${esc(fds(d))}"></i>`).join('')}</span></div><div class="c-age" style="text-align:center"><b>${p.days.size}</b></div><div class="c-age hm" style="text-align:center">${num(p.plan)}</div><div class="c-age hm" style="text-align:center">${num(p.dec)}</div><div class="c-age hm" style="text-align:center">${num(p.told)}</div><div class="c-age hm" style="text-align:center">${num(p.sorted)}</div><div class="c-age hm" style="text-align:center">${num(p.note)}</div></div>`),
+        ...missing.map(s => `<div class="brow"><div class="one">${esc(s)}</div><div class="c-age" style="grid-column:2 / -1">No activity recorded yet</div></div>`)], 'usage');
+}
 function vFriday() {
   const rep = CHAINF !== 'All' && REPS.includes(CHAINF) ? CHAINF : null, wk = FRI.week, isScott = !!HUBD.approver;
   const wkBtn = (w, t) => `<button type="button" class="btn sm ${FRI.week === w ? 'pri' : ''}" data-friwk="${w}" aria-pressed="${FRI.week === w}">${t}</button>`;
-  const head = `<div class="fhead"><div class="fwk">${rep && !FRI.showReport ? `<span class="fwho">${av(rep)}<b>${esc(rep)}</b></span>` : ''}<span class="note" style="margin:0 4px 0 0">Planning the week of <b>${esc(fds(wk))}</b></span>${FRI.wkOpen ? wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS))) + wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT))) : ''}<button class="btn sm" type="button" data-friwkopen="1">${FRI.wkOpen ? 'Done' : 'Change week'}</button></div>
-    <div class="fwk">${isScott ? `<button class="btn sm" type="button" data-frirpt="1">${FRI.showReport ? '← Back to the meeting' : 'Plans report (all reps)'}</button>` : ''}${rep && !FRI.showReport ? '<button class="btn sm" type="button" data-chain="All">← All reps</button>' : ''}</div></div>`;
+  const head = `<div class="fhead"><div class="fwk">${rep && !FRI.showReport && !FRI.showUse ? `<span class="fwho">${av(rep)}<b>${esc(rep)}</b></span>` : ''}<span class="note" style="margin:0 4px 0 0">Planning the week of <b>${esc(fds(wk))}</b></span>${FRI.wkOpen ? wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS))) + wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT))) : ''}<button class="btn sm" type="button" data-friwkopen="1">${FRI.wkOpen ? 'Done' : 'Change week'}</button></div>
+    <div class="fwk">${isScott ? `<button class="btn sm" type="button" data-frirpt="1">${FRI.showReport ? '← Back to the meeting' : 'Plans report (all reps)'}</button><button class="btn sm" type="button" data-friuse="1">${FRI.showUse ? '← Back to the meeting' : 'Usage'}</button>` : ''}${rep && !FRI.showReport && !FRI.showUse ? '<button class="btn sm" type="button" data-chain="All">← All reps</button>' : ''}</div></div>`;
 
   // ----- Scott's report: every support person's reps (his view only) -----
   if (isScott && FRI.showReport) {
@@ -2100,6 +2124,8 @@ function vFriday() {
         rows.map(x => { const d = (x.plan && x.plan.data) || {};
           return `<div class="brow"><div class="one">${esc(x.support)}</div><div class="c-store one c1">${REPS.includes(x.rep) ? `<button type="button" class="linkish" data-chain="${esc(x.rep)}" data-frirpt0="1">${esc(x.rep)}</button>` : esc(x.rep)}</div><div style="text-align:center">${st(x)}</div><div class="c-age" style="text-align:right">${d.goal ? J(d.goal) : '–'}</div><div class="c-age hm" style="text-align:center">${(d.visits || []).length || '–'}</div><div class="c-age hm" style="text-align:center">${(d.collect || []).length || '–'}</div><div class="one hm">${x.plan ? esc(x.plan.by_name || '') + ' · ' + esc(fds(String(x.plan.updated_at).slice(0, 10))) : '–'}</div></div>`; }), 'friweek');
   }
+
+  if (isScott && FRI.showUse) return head + usageView();
 
   // data used by both views
   const sv = CHAINF; CHAINF = 'All'; const oosAll = oosList(); CHAINF = sv;
@@ -2810,7 +2836,7 @@ __on(document, 'click', e => {
   if (d.msortdir) { const [id, k, dir] = d.msortdir.split('|'); SORT[id] = {k, dir:-(+dir || 1)}; render(); return; }
   if (d.sort) { const [id, k] = d.sort.split('|'); const st = SORT[id]; SORT[id] = {k, dir:st && st.k === k ? -st.dir : (b.closest('th').classList.contains('n') ? -1 : 1)};
     const sc = b.closest('.tbl'), top = sc ? sc.scrollTop : 0; render(); return; }
-  if (d.chain) { CHAINF = d.chain; FRI.showReport = false; render(); return; }
+  if (d.chain) { CHAINF = d.chain; FRI.showReport = false; FRI.showUse = false; render(); return; }
   if (d.friwkopen) { FRI.wkOpen = !FRI.wkOpen; render(); return; }
   if (d.friwk) { FRI.wkOpen = false; FRI.week = d.friwk; FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
   if (d.friedit) { FRI.edit = true; FRI.draft = draftFrom(planOf(CHAINF, FRI.week)); FRI.draftKey = CHAINF + '|' + FRI.week; render(); return; }
@@ -2821,7 +2847,8 @@ __on(document, 'click', e => {
   if (d.frifill) { if (FRI.draft) { FRI.draft.goal = String(d.frifill); render(); } return; }
   if (d.frib) { FRI.bo = FRI.bo || {}; FRI.bo[d.frib] = !FRI.bo[d.frib]; render(); return; }
   if (d.friremove) { const dr = FRI.draft; if (dr) { const id = d.friremove; dr.extra = dr.extra.filter(x => x !== id); delete dr.sel[id]; delete dr.col[id]; dr.keep = dr.keep.filter(v => v.c !== id); render(); } return; }
-  if (d.frirpt) { FRI.showReport = !FRI.showReport; render(); return; }
+  if (d.frirpt) { FRI.showReport = !FRI.showReport; FRI.showUse = false; render(); return; }
+  if (d.friuse) { FRI.showUse = !FRI.showUse; FRI.showReport = false; render(); return; }
   if (d.friplan) { FRI.ag = {'4': true}; render(); const e2 = document.getElementById('fag-4'); if (e2) e2.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (d.sub) { SUB[TAB] = d.sub; EXP = null; OPEN = null; render(); return; }
   if (d.info) { INFO[d.info] = !INFO[d.info]; render(); return; }
