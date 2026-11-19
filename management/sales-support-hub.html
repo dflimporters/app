@@ -682,6 +682,11 @@ th.on{color:var(--ink)}
 .dtiles.light .dt .k{color:var(--ink3);opacity:1}
 .dtiles.light .dt .v{color:var(--c);font-size:22px}
 .dtiles.light .dt .s{color:var(--ink2);opacity:1}
+/* tinted cards for the routine tabs; solid only when something needs acting on now (Scott, 19 Nov) */
+.dtiles.light.tint .dt{background:color-mix(in srgb,var(--c) 9%,#fff);border-color:color-mix(in srgb,var(--c) 26%,#fff)}
+.dtiles.light.tint .dt .k{color:color-mix(in srgb,var(--c) 55%,#3A4766)}
+.dtiles.light .dt.urgent{background:var(--c);border-color:var(--c);box-shadow:inset 5px 0 0 rgba(0,0,0,.22),0 2px 6px rgba(20,35,70,.18)}
+.dtiles.light .dt.urgent .k,.dtiles.light .dt.urgent .v,.dtiles.light .dt.urgent .s{color:#fff}
 @media (max-width:900px){.dtiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}.dtiles.four .dt:first-child{grid-column:auto}}
 .frep{margin:4px 0 16px}
 .fflow{margin:16px 2px 18px}
@@ -2673,7 +2678,7 @@ const reasonRow = (sku, desc, m2, r1, r2) => { const r = reasonOf(sku);
   <div class="rrsub">${reasonTag(r)} <button class="btn sm ${r ? '' : 'pri'}" type="button" data-open="reason|${esc(sku)}">${r ? 'Update reason' : 'Add reason'}</button></div>
   ${formFor('reason|' + sku)}</li>`; };
 // solid tiles at the top of a pop-up: [label, value, sub, colour]
-const dtiles = (list, cls) => `<div class="dtiles${cls ? ' ' + cls : ''}">${list.map(([k, v, s, c]) => `<div class="dt" style="--c:${c}"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
+const dtiles = (list, cls) => `<div class="dtiles${cls ? ' ' + cls : ''}">${list.map(([k, v, s, c, u]) => `<div class="dt${u ? ' urgent' : ''}" style="--c:${c}"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>`;
 // one-line list row: left (avatar/name), then right-hand bits
 const l1 = (left, ...right) => `<li>${left}${right.filter(x => x != null && x !== '').map(x => x).join('')}</li>`;
 const nm = t => `<span class="nm">${t}</span>`, rt = (t, cls) => `<span class="rt ${cls || ''}">${t}</span>`, vl = t => `<span class="val">${t}</span>`;
@@ -2868,9 +2873,9 @@ function vToday() {
   const nTell = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
   const tiles = dtiles([
     [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${paidL.length} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', fin ? '#1A8F4C' : '#127F8C'],
-    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A'],
-    [`${t12(LEADT.end)}: end of day report`, eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3']], 'four light');
+    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${paidL.length} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
+    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A', pastCut && H.length > 0],
+    [`${t12(LEADT.end)}: end of day report`, eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3', cl.phase === 4 && !eod]], 'four light tint');
   const grp = k => { const list = shown.filter(x => x.group === k); return list.length ? `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
     <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
     ${(SHOWALL['g:' + k] ? list : list.slice(0, 8)).map(brow).join('')}
@@ -2912,7 +2917,7 @@ function vTell() {
   shown.forEach(x => (by[x.rep || 'No rep on file'] = by[x.rep || 'No rep on file'] || []).push(x));
   const reps = Object.keys(by).sort((a, b) => by[b].reduce((s, x) => s + (x.value || 0), 0) - by[a].reduce((s, x) => s + (x.value || 0), 0) || a.localeCompare(b));
   const cnt = k => open.filter(x => x.kind === k).length;
-  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Held orders', `${cnt('Held')}`, 'Tell the rep why and what releases it', '#C47A1A'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'four light');
+  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Held orders', `${cnt('Held')}`, 'Tell the rep why and what releases it', '#C47A1A'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'four light tint');
   return `${lead1('tell-top', 'Everything to pass on to the reps, one list per rep. Tell them, then move it to Pending or Done.', 'Held orders, orders we cannot fill (big ones only, the rest are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Back orders are decided in the Back orders tab.')}
   ${tiles}
   <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
@@ -2929,9 +2934,9 @@ function vLead() {
   const nChased = all.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, heldVal = all.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
   const tiles = dtiles([
     [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${all.length} <small>held</small>`, `${nChased} followed up · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: finance lists`, `${fins.filter(x => x.t).length} of ${sups.length}`, 'support people have sent their payment list', fins.every(x => x.t) ? '#1A8F4C' : '#127F8C'],
-    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A'],
-    ['Escalated to you', `${es.length}`, `${eods.filter(x => x.n).length} of ${sups.length} end of day reports in`, es.length ? '#D63B3B' : '#326BD3']], 'four light');
+    [`By ${t12(LEADT.fin)}: finance lists`, `${fins.filter(x => x.t).length} of ${sups.length}`, 'support people have sent their payment list', fins.every(x => x.t) ? '#1A8F4C' : '#127F8C', !fins.every(x => x.t) && cl.n >= cl.f && all.length > 0],
+    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A', pastCut && all.length > 0],
+    ['Escalated to you', `${es.length}`, `${eods.filter(x => x.n).length} of ${sups.length} end of day reports in`, es.length ? '#D63B3B' : '#326BD3', es.length > 0]], 'four light tint');
   const teamRows = sups.map(s => { const mine = all.filter(x => x.sup === s), f = finSent(s), e = latestEod(s, ds), told = mine.filter(x => stOf('told:hold:' + x.nbr) !== 'todo').length;
     return `<div class="brow"><div class="c-store one">${esc(s)}</div><div class="c-age" style="text-align:center"><b>${mine.length}</b> · ${J(mine.reduce((a, x) => a + x.val, 0))}</div><div class="c-age" style="text-align:center">${mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length} of ${mine.length}</div><div class="c-age hm" style="text-align:center">${told} of ${mine.length}</div><div class="c-age" style="text-align:center">${f ? '✓ ' + jaHm(f.at) : '–'}</div><div class="c-age" style="text-align:center">${e ? '✓ ' + jaHm(e.at) : '–'}</div></div>`; });
   const escRows = es.map(t => { const key = escId(t).slice(4), nt = notesFor(n => n.kind === 'note' && keyOk(n.ref || '') === key)[0];
