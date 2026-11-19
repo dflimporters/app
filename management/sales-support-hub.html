@@ -2333,7 +2333,7 @@ async function oosPicture(list) {
   const detail = x => x.r ? x.r.label + (x.r.eta ? ', due ' + fds(x.r.eta) : '') + (x.r.text ? ' · ' + x.r.text : '') : x.st === 'gone' ? 'Offer the customer an alternative' : x.st === 'xfer' ? 'Coming from Ashenheim' : x.st === 'low' ? 'Very few left: check before promising' : 'No date yet';
   const secs = GS.map(g => ({g, items:list.filter(x => x.st === g[0]).map(x => ({n:wrap(x.desc, `700 26px ${FH}`, CW - 60, 2), d:wrap(detail(x), `400 22px ${FB}`, CW - 60, 2)}))})).filter(s => s.items.length);
   const HEAD = 170, SEC = 70, GAP = 14, cardH = it => 26 + it.n.length * 33 + 8 + it.d.length * 29 + 22;
-  const foot = wrap('Please tell your customers before they ask. Questions to sales support.', `600 24px ${FH}`, CW, 3), FOOT = 40 + foot.length * 34 + 30;
+  const foot = [], FOOT = 30;
   const H = HEAD + 28 + secs.reduce((a, s) => a + SEC + s.items.reduce((b, it) => b + cardH(it) + GAP, 0) + 10, 0) + FOOT;
   cv.width = W; cv.height = H;
   cx.fillStyle = '#F3F5FA'; cx.fillRect(0, 0, W, H);
