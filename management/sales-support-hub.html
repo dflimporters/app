@@ -1650,7 +1650,7 @@ const chainChips = () => '';
 const inChain = s => CHAINF === 'All' || ((byId[s] || s).rep || '') === CHAINF;
 
 // ---------- tabs ----------
-const TABS = [['today', 'Today'], ['friday', 'Friday meeting'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['reps', 'Reps'], ['stores', 'Customers']];
+const TABS = [['today', 'Today'], ['friday', 'Friday meeting'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['reps', 'Reps'], ['stores', 'Customers'], ['lead', 'Lead view']];
 // ---------- v3: status cells, avatars, icons ----------
 const ST = {todo:['st-todo', 'To do'], waiting:['st-waiting', 'Pending'], sorted:['st-sorted', 'Done']};
 const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; const d = tick('done:' + ASOF + ':' + k); return d && d.v ? 'sorted' : 'todo'; };
@@ -1676,7 +1676,8 @@ const ICO = {
   chev:'<path d="M6 9l6 6 6-6"/>',
   reps:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
   deliv:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
-  returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'};
+  returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  lead:'<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.3 6.7 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Held by AR or not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
 let TODAYF = 'All', EXP = null;
@@ -1686,7 +1687,7 @@ let TODAYF = 'All', EXP = null;
 const FOCUS_TABS = ['today', 'reps', 'orders', 'stores'];
 const inFocus = c => TODAYALL() || TOPC.has(c);
 function focusLine() { const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF), n = reps.reduce((a, r) => a + ((TOPN[r] || {}).n || 0), 0), of = reps.reduce((a, r) => a + ((TOPN[r] || {}).of || 0), 0);
-  if (TAB === 'friday') return '';
+  if (TAB === 'friday' || TAB === 'lead') return '';
   if (!FOCUS_TABS.includes(TAB)) return `<div class="focusline"><span>This tab always covers <b>all ${of} customers</b>${TAB === 'backorders' ? ', so the weekly clean-up catches every line' : TAB === 'deliv' ? ', so you can find any order' : ''}.</span></div>`;
   return `<div class="focusline"><span>${TODAYALL() ? `Showing <b>all ${of} customers</b>.` : `Showing the <b>${n} customers</b> that make up 80% of ${CHAINF === 'All' ? 'the reps’' : esc(firstName(CHAINF)) + '’s'} sales (last 3 months), out of ${of}.`} Switch with Top / All at the top of the page.</span></div>`; }
 const focusSwitch = () => FOCUS_TABS.includes(TAB) ? `<div class="focussw" role="group" aria-label="Which customers"><button type="button" data-focus="top" aria-pressed="${!TODAYALL()}">Top customers</button><button type="button" data-focus="all" aria-pressed="${TODAYALL()}">All customers</button></div>` : '';
@@ -2818,19 +2819,91 @@ function strip() {
   <div><div class="k">Missed orders</div><div class="v">${STORES.filter(s => s.cad.state === 'missed').length} <small>customers</small></div></div>
   <div><div class="k">Back orders</div><div class="v">${BO.length} <small>lines</small></div></div>`;
 }
+// ---------- Lead view (customer service lead, Scott 19 Nov) ----------
+// The morning routine: clear holds, send the payment list to finance, everything off hold before the 2 pm transfer cutoff, end of day report.
+// Set times in one place (24-hour, Jamaica time):
+const LEADT = {start:'08:00', fin:'10:30', cut:'14:00', end:'17:00'};
+const hmin = s => { const [h, m] = s.split(':'); return +h * 60 + +m; };
+const t12 = s => { const [h, m] = s.split(':'); const n = +h; return (n % 12 || 12) + (m === '00' ? '' : ':' + m) + (n < 12 ? ' am' : ' pm'); };
+const jaNow = () => { const p = {}; new Intl.DateTimeFormat('en-CA', {timeZone:'America/Jamaica', hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}).formatToParts(new Date()).forEach(x => { p[x.type] = x.value; });
+  return {date:`${p.year}-${p.month}-${p.day}`, min:(+p.hour % 24) * 60 + +p.minute}; };
+const jaHm = at => new Date(at).toLocaleTimeString('en-GB', {timeZone:'America/Jamaica', hour:'2-digit', minute:'2-digit'});
+const jaDay = at => new Date(at).toLocaleDateString('en-CA', {timeZone:'America/Jamaica'});
+let LEADF = 'All';
+const leadHolds = () => (O.lholds || []).map(r => ({nbr:r[0], status:r[1], date:r[2], sched:r[3], c:r[4], cname:r[5] || r[4], rep:r[6] || '', sup:r[7] || '', val:+r[8] || 0, by:r[9] || '', past:+r[10] || 0, lastpay:r[11] || '', age:Math.max(0, Math.round((d8(jaNow().date) - d8(r[2])) / 864e5))}));
+const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
+const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin(LEADT.fin), c = hmin(LEADT.cut), e = hmin(LEADT.end);
+  const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h ' + (x % 60 ? (x % 60) + 'm' : '').trim() : x + ' min'; };
+  return {n, a, f, c, e, left, phase:n < a ? 0 : n < f ? 1 : n < c ? 2 : n < e ? 3 : 4}; };
+function financeText(list) { const ds = jaNow().date, tot = list.reduce((s, x) => s + x.val, 0);
+  return `Payments received: please release these orders (${fds(ds)})\n` + list.map(x => `• ${x.cname}: order ${x.nbr}, ${J(x.val)}${x.rep ? ', rep ' + x.rep : ''}${x.lastpay ? ', last payment ' + fds(x.lastpay) : ''}`).join('\n') + `\n${list.length} order${list.length === 1 ? '' : 's'} · ${J(tot)}`; }
+function leadActivity() { const today = jaNow().date, ev = usageEvents().filter(e => jaDay(e.at) === today), sups = (O.lsup || []).map(r => r[0]);
+  return sups.map(s => { const mine = ev.filter(e => ((HUBD.names && HUBD.names[e.by]) || e.n || '').toLowerCase().includes(String(s).toLowerCase())); return {s, n:mine.length, last:mine.reduce((a, e) => a && a > e.at ? a : e.at, '')}; }); }
+function eodText(H) { const ds = jaNow().date, cl = leadClock(), fin = tick('fin:' + ds), act = leadActivity();
+  const L = [`End of day report: ${d8(ds).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'})}`, ''];
+  (O.lsup || []).forEach(r => { const mine = H.filter(x => x.sup === r[0]), chased = mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, a = act.find(x => x.s === r[0]) || {n:0, last:''};
+    L.push(`${r[0]}: ${mine.length} order${mine.length === 1 ? '' : 's'} still held (${J(mine.reduce((s, x) => s + x.val, 0))}), ${chased} followed up, ${a.n} action${a.n === 1 ? '' : 's'} saved in the hub${a.last ? ', last at ' + jaHm(a.last) : ''}`); });
+  L.push('', fin ? `Payment list sent to finance by ${who(fin.by)} at ${jaHm(fin.at)}.` : 'Payment list to finance: not marked as sent today.');
+  L.push(cl.n >= cl.c ? `Held at the ${t12(LEADT.cut)} cutoff: ${H.length} order${H.length === 1 ? '' : 's'} (${J(H.reduce((s, x) => s + x.val, 0))}). These are not in the transfer list, so they miss tomorrow’s load.` : `Still held before the ${t12(LEADT.cut)} cutoff: ${H.length} order${H.length === 1 ? '' : 's'} (${J(H.reduce((s, x) => s + x.val, 0))}).`);
+  const nt = (HUBD.notes || []).filter(x => x.at && jaDay(x.at) === ds && x.kind === 'note'), cn = c => byId[c] ? byId[c].name : '';
+  if (nt.length) { L.push('', 'Notes today:'); nt.slice(0, 30).forEach(x => L.push(`• ${who(x.by) === 'Someone' ? (x.by_name || 'Someone') : who(x.by)}${cn(x.c) ? ' (' + cn(x.c) + ')' : ''}: ${String(x.text || '').replace(/\s+/g, ' ').slice(0, 140)}`)); }
+  const still = H.filter(x => stOf('hold:' + x.nbr) === 'todo'); if (still.length) { L.push('', `Not yet followed up (${still.length}):`); still.slice(0, 40).forEach(x => L.push(`• ${x.cname}, order ${x.nbr}, ${J(x.val)}, held ${x.age} day${x.age === 1 ? '' : 's'} (${x.sup})`)); }
+  return L.join('\n'); }
+function vLead() {
+  if (!O.lholds && !O.lsup) return `<div class="empty">Loading every support person’s held orders…</div>`;
+  const all = leadHolds(), H = LEADF === 'All' ? all : all.filter(x => x.sup === LEADF), cl = leadClock(), ds = jaNow().date;
+  const paid = all.filter(x => payOn(x.nbr)), paidList = H.filter(x => payOn(x.nbr)), fin = tick('fin:' + ds), finOk = fin && fin.v;
+  const nDone = all.filter(x => stOf('hold:' + x.nbr) === 'sorted').length, nChased = all.filter(x => stOf('hold:' + x.nbr) !== 'todo').length;
+  const heldVal = all.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
+  const msg = cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders below.`
+    : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
+    : cl.phase === 2 ? `Now: finance releases what you sent. ${cl.left(cl.c)} to the ${t12(LEADT.cut)} cutoff, when dispatch pulls the transfer list.`
+    : cl.phase === 3 ? `The ${t12(LEADT.cut)} cutoff has passed. Orders still held are not in the transfer list, so they miss tomorrow’s load.`
+    : `The day is done. Copy the end of day report.`;
+  const tiles = dtiles([
+    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${all.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
+    [`By ${t12(LEADT.fin)}: list to finance`, finOk ? 'Sent' : `${paid.length} <small>ready</small>`, finOk ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', finOk ? '#1A8F4C' : '#127F8C'],
+    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A'],
+    [`${t12(LEADT.end)}: end of day report`, `${(O.lsup || []).length} <small>people</small>`, 'What each person did today', '#326BD3']], 'four light');
+  const sel = k => `<button type="button" role="tab" data-leadf="${esc(k)}" aria-selected="${LEADF === k}">${esc(k)}<span>${k === 'All' ? all.length : all.filter(x => x.sup === k).length}</span></button>`;
+  const seg = `<div class="seg" role="tablist">${['All', ...(O.lsup || []).map(r => r[0])].map(sel).join('')}</div>`;
+  const row = x => { const p = payOn(x.nbr), key = 'hold:' + x.nbr, open = EXP === key;
+    return grow(key, [cell(esc(x.cname), 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'),
+      cell(`<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, '', 'center'), stBtn(key)],
+      `<div class="bfacts"><div><span>Order</span>${acuOrder(x.nbr)} · ${esc(x.status)} · ${J(x.val)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Rep / support</span>${esc(x.rep)} · ${esc(x.sup)}</div><div><span>Past due on the account</span>${x.past ? J(x.past) : 'Nothing past due'}${x.lastpay ? ` · last payment ${esc(fds(x.lastpay))}` : ' · no payment in the last 200 days'}</div>${p ? `<div><span>Payment in</span>${esc(who(p.by))} at ${jaHm(p.at)}</div>` : ''}</div><div class="acts"><button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>${acuBtn(x.nbr)}</div>`); };
+  const cols = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', heads = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center']];
+  const board = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, cols, [...heads, ['']], list.map(row), id);
+  const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
+  const act = leadActivity(), supRows = (O.lsup || []).map(r => { const mine = all.filter(x => x.sup === r[0]), a = act.find(x => x.s === r[0]) || {n:0, last:''};
+    return `<div class="brow"><div class="c-store one">${esc(r[0])}</div><div class="c-age" style="text-align:center">${r[1]}</div><div class="c-age" style="text-align:center"><b>${mine.length}</b></div><div class="c-age" style="text-align:center">${J(mine.reduce((s, x) => s + x.val, 0))}</div><div class="c-age hm" style="text-align:center">${mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length} of ${mine.length}</div><div class="c-age hm" style="text-align:center">${a.n || '–'}</div><div class="c-age hm" style="text-align:center">${a.last ? jaHm(a.last) : 'Nothing today'}</div></div>`; });
+  const eod = eodText(all);
+  return `${lead1('lead-top', msg, `Times are Jamaica time: holds ${t12(LEADT.start)} to ${t12(LEADT.fin)}, payment list to finance by ${t12(LEADT.fin)}, transfer cutoff ${t12(LEADT.cut)}, end of day report ${t12(LEADT.end)}. Orders on hold or credit hold are not batched into the transfer list, so every hold released before the cutoff is stock that can load the next day. A hold shows Past due when the account has overdue invoices in the latest AR snapshot. Tap Payment in? once the customer’s payment information is received: those orders form the list for finance.`)}
+  ${tiles}
+  ${seg}
+  <div class="legend" style="margin-top:2px"><span>Finance list: ${paidList.length} order${paidList.length === 1 ? '' : 's'}${paidList.length ? ' · ' + J(paidList.reduce((s, x) => s + x.val, 0)) : ''}</span>
+    <button class="btn sm pri" type="button" data-fincopy="1" ${paidList.length ? '' : 'disabled'}>Copy the list for finance</button>
+    <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!finOk}">${finOk ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
+  ${dbMsg()}
+  ${cr.length ? board('lead-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : ''}
+  ${board('lead-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it')}
+  ${gboard('#326BD3', 'Who is doing what', `${(O.lsup || []).length} support people · today so far`, 'minmax(0,1.3fr) 84px 70px 92px 100px 70px 120px', [['Support'], ['Open orders', 'center'], ['Held', 'center'], ['Held value', 'center'], ['Followed up', 'center', 'hm'], ['Saves', 'center', 'hm'], ['Last active', 'center', 'hm']], supRows, 'lead-who')}
+  <details class="fold"><summary>End of day report (${esc(fds(ds))})</summary><div class="sec"><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 10px">${esc(eod)}</pre><button class="btn sm pri" type="button" data-eodcopy="1">Copy the report</button></div></details>
+  <p class="note">Open orders are orders with status Open from the last 14 days. “Saves” counts what each person saved in the hub today (statuses, notes, back order decisions); reading the hub does not count.</p>`;
+}
 function render() {
+  if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
   const n = todayItems().filter(x => !isDone(x.key)).length;
-  document.getElementById('tabs').innerHTML = TABS.map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}</button>`).join('');
+  document.getElementById('tabs').innerHTML = TABS.filter(([k]) => k !== 'lead' || HUBD.lead).map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}</button>`).join('');
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
-  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why']};
+  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why'], lead:['Lead view', 'Every held order across the support team, the finance list and the day’s cutoffs']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   // Scott (or anyone with more than one support book) picks whose hub to see; everyone picks a rep
   const SUPS = (window.__ssSupports && window.__ssSupports()) || [];
-  document.getElementById('tctl').innerHTML = focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
+  document.getElementById('tctl').innerHTML = TAB === 'lead' ? '' : focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
-  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns}[TAB] || vToday)();
+  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead}[TAB] || vToday)();
   if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
@@ -2900,6 +2973,11 @@ __on(document, 'click', e => {
   if (d.clear) { clearContact(d.clear); return; }
   if (d.done) { setTick('st:' + d.done, isDone(d.done) ? 'todo' : 'sorted'); return; }
   if (d.status) { setTick('st:' + d.status, NEXTST[stOf(d.status)]); return; }
+  if (d.paytoggle) { const k = 'pay:' + d.paytoggle, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
+  if (d.leadf) { LEADF = d.leadf; EXP = null; render(); return; }
+  if (d.fincopy) { const l = leadHolds().filter(x => payOn(x.nbr) && (LEADF === 'All' || x.sup === LEADF)); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
+  if (d.finsent) { const k = 'fin:' + jaNow().date, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
+  if (d.eodcopy) { copyText(eodText(leadHolds()), 'End of day report copied.'); return; }
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bof) { BOF = d.bof; render(); return; }
@@ -3016,7 +3094,7 @@ function boot() {
   const keep = window.__hubSnap ? window.__hubSnap() : null, y = window.scrollY, dr = document.querySelector('.drawer'), dy = dr ? dr.scrollTop : 0;
   for (const v of __L.values()) v.length = 0;
   window.__hubKeep = keep;
-  window.__hubBoot(Object.assign({support: SUP}, DATA.sales, DATA.skus), Object.assign({}, DATA.ops, DATA.inv || {}, DATA.ar || {}, DATA.transfers || {}),Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
+  window.__hubBoot(Object.assign({support: SUP}, DATA.sales, DATA.skus), Object.assign({}, DATA.ops, DATA.inv || {}, DATA.ar || {}, DATA.transfers || {}, DATA.lead || {}),Object.assign({}, DATA.period, DATA.pskus || {}), HUBD); BOOTED = true;
   window.scrollTo(0, y); const d2 = document.querySelector('.drawer'); if (d2) d2.scrollTop = dy;
 }
 const busy = () => { const a = document.activeElement; return (window.__hubBusy && window.__hubBusy()) || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== 'chainsel'); };
@@ -3053,7 +3131,14 @@ async function loadTransfers() {
   try { const r = await sb.rpc('ss_hub_data', { p_part: 'transfers', p_support: SUP }); if (r.error) throw r.error; DATA.transfers = r.data; LOADED_AT.transfers = Date.now(); TR_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('transfers failed', e); if (++TR_TRY <= 3) setTimeout(loadTransfers, 20000 * TR_TRY); }
 }
-const afterMain = () => { loadInv(); loadPskus(); loadAr(); loadTransfers(); };
+// Lead view (customer service lead, Scott 19 Nov): every held order across the support people, read-only. Not tied to the support switch.
+let LEAD_TRY = 0;
+async function loadLead() {
+  if (!HUBD.lead) return;
+  try { const r = await sb.rpc('ss_hub_lead_data'); if (r.error) throw r.error; DATA.lead = r.data; LOADED_AT.lead = Date.now(); LEAD_TRY = 0; if (BOOTED && !busy()) boot(); }
+  catch (e) { console.warn('lead data failed', e); if (++LEAD_TRY <= 3) setTimeout(loadLead, 20000 * LEAD_TRY); }
+}
+const afterMain = () => { loadInv(); loadPskus(); loadAr(); loadTransfers(); loadLead(); };
 let STARTED = false;
 // whose book: a support person sees their own; Scott picks one (remembered on this device)
 let SUP = null, SUPS = [];
@@ -3067,6 +3152,7 @@ async function start() {
   if (STARTED) return; STARTED = true;
   document.body.style.visibility = 'visible';
   sb.rpc('is_price_approver').then(r => { HUBD.approver = !!(r && r.data === true); }, () => {});
+  sb.rpc('ss_hub_is_lead').then(r => { HUBD.lead = !!(r && r.data === true); if (HUBD.lead) { loadLead(); if (BOOTED && !busy()) boot(); } }, () => {});
   try { const r = await sb.rpc('ss_hub_supports'); if (r.error) throw r.error; SUPS = (r.data || []).map(x => x.support || x); } catch (e) { SUPS = []; }
   if (!SUPS.length) { const m = document.getElementById('main'); if (m) m.innerHTML = '<div class="empty">This hub is for sales support. Ask Scott to add you.</div>'; return; }
   let saved = null; try { saved = localStorage.getItem('ss-support'); } catch (e) {}
@@ -3075,6 +3161,8 @@ async function start() {
   document.getElementById('hubRefresh').addEventListener('click', () => refresh(['ops', 'sales', 'skus', 'period'], true).then(afterMain));
   // orders (and invoiced lines) every 10 minutes while open; sales and targets hourly (they only change at 7am and 1pm)
   setInterval(() => { if (document.hidden) return; const parts = ['ops'], full = Date.now() - LOADED_AT.sales > 55 * 60000; if (full) parts.push('sales', 'skus', 'period'); refresh(parts, false).then(() => { loadInv(); loadTransfers(); if (full) { loadPskus(); loadAr(); } }); }, 10 * 60000);
+  // held orders every 5 minutes for the lead (they change all morning as finance releases them)
+  setInterval(() => { if (!document.hidden && HUBD.lead && !BOOTING) loadLead(); }, 5 * 60000);
   // notes and ticks from others every 2 minutes
   setInterval(async () => { if (document.hidden || busy() || BOOTING) return; try { await loadNotes(); boot(); } catch (e) {} }, 2 * 60000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - LOADED_AT.ops > 10 * 60000) refresh(['ops'], false); });
