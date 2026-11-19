@@ -2843,7 +2843,7 @@ function holdRow(x) { const p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|
 const HOLDCOLS = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', HOLDHEADS = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']];
 const holdBoard = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS, HOLDHEADS, list.map(holdRow), id, 999);
 const holdBoards = (H, pfx) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
-  return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : '') + holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it'); };
+  return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : '') + (oh.length ? holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it') : ''); };
 // the day's message, the same words for support and the lead
 function dayMsg(cl, who1) { return cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders.`
   : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
@@ -2874,6 +2874,8 @@ function vToday() {
   const H = supHolds(), cl = leadClock(), ds = jaNow().date, paidL = H.filter(x => payOn(x.nbr)), fin = finSent(SUPPORT), eod = latestEod(SUPPORT, ds);
   const nChased = H.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, nDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted').length, heldVal = H.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
   const nTell = tellItems().filter(x => stOf(x.key) !== 'sorted').length + holdsUntold().length;
+  // one status rule for everything on Today: Done items leave the lists and show under Show done
+  const doneMode = TODAYF === 'st:sorted', hDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted'), HS = doneMode ? hDone : H.filter(x => stOf('hold:' + x.nbr) !== 'sorted'), nDoneAll = all.length - open.length + hDone.length;
   const tiles = dtiles([
     [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
     [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${paidL.length} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
@@ -2887,12 +2889,13 @@ function vToday() {
   const eodText = eodTextSup(SUPPORT);
   return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
   ${tiles}
-  <div class="legend" style="margin-top:18px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
+  <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}</div>
+  <div class="legend" style="margin-top:10px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
     <button class="btn sm pri" type="button" data-fincopy="1" ${paidL.length ? '' : 'disabled'}>Copy the list for finance</button>
     <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
   ${dbMsg()}
-  ${H.length ? holdBoards(H, 'th') : '<div class="empty">Nothing on hold for these reps.</div>'}
-  <div class="legend"><span><b>2</b> Check before the ${t12(LEADT.cut)} cutoff. Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TODAYF !== 'All' ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${all.length - open.length})</button>`}</div>
+  ${!H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`}
+  <div class="legend"><span><b>2</b> Check before the ${t12(LEADT.cut)} cutoff.</span></div>
   ${main || `<div class="empty">No orders need checking and nothing is stuck.</div>`}
   <div class="legend"><span><b>3</b> ${nTell} thing${nTell === 1 ? '' : 's'} to tell the reps (holds not yet told, items we can’t fill, deliveries that failed).</span><button class="btn sm pri" type="button" data-jump="tell|">Open Tell the reps</button></div>
   ${other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : ''}
