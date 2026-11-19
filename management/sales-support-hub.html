@@ -724,6 +724,16 @@ th.on{color:var(--ink)}
 .fform .fcolin input[type=text]{padding:0 10px;height:32px;font-size:13px}
 @media (max-width:640px){.fpick{grid-template-columns:1fr}}
 .fsi{background:var(--ink)}
+.fform{background:#F3F5FA;border-radius:14px;padding:14px;display:grid;gap:14px}
+.fq,.fq:first-child{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;box-shadow:0 1px 2px rgba(20,35,70,.06)}
+.fqs{display:block;font-family:var(--head);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:0 0 5px}
+.fsum{color:var(--ink);font-weight:600}
+.fneed{background:#FAF6EC;border-color:#EADFC4;font-size:12.5px;padding:10px 12px}
+.fneed.ok{background:#EEF6F0;border-color:#CFE5D6}
+.ffoot{border-top:0;padding:2px 4px 0}
+.fleft{display:flex;flex-wrap:wrap;gap:4px 16px;flex-basis:100%}
+.fl{font-family:var(--head);font-size:12.5px;font-weight:700;color:var(--ink3)}
+.fl.ok{color:#1A8F4C}
 .fpkw{position:relative}
 .fpkw.rm .fpk{padding-right:36px}
 .fpx{position:absolute;top:7px;right:7px;width:24px;height:24px;border:0;border-radius:50%;background:none;font-size:19px;line-height:1;color:var(--ink3);cursor:pointer;display:grid;place-items:center;padding:0}
@@ -2018,12 +2028,14 @@ async function loadPlanReport(wk) {
 // the running line under the tick-list: how many are ticked and how much of the overdue money they cover (updated without redrawing)
 const frSumText = () => { const d = FRI.draft; if (!d) return ''; const ids = Object.keys(d.sel).filter(k => d.sel[k] && byId[k]), owed = AR_READY ? ids.reduce((a, k) => a + arOf(k).over, 0) : 0;
   return ids.length ? `${ids.length} customer${ids.length === 1 ? '' : 's'} ticked${owed ? ' · ' + J(owed) + ' overdue between them' : ''}` : 'Nobody ticked yet'; };
-const frSum = () => { const e = document.getElementById('fpsum'); if (e) e.textContent = frSumText(); };
+const frLeftHtml = () => { const d = FRI.draft; if (!d) return ''; const n = Object.keys(d.sel).filter(k => d.sel[k] && byId[k]).length, g = +String(d.goal || '').replace(/[^0-9.]/g, '') > 0;
+  return `<span class="fl${n ? ' ok' : ''}">${n ? '✓ Customers ticked' : '○ No customers ticked'}</span><span class="fl${g ? ' ok' : ''}">${g ? '✓ Goal set' : '○ Goal not set'}</span><span class="fl">Help is optional</span>`; };
+const frSum = () => { const e = document.getElementById('fpsum'); if (e) e.textContent = frSumText(); const e2 = document.getElementById('fpleft'); if (e2) e2.innerHTML = frLeftHtml(); };
 const frDraftSet = (id, t) => { const d = FRI.draft; if (!d) return; let m;
   if ((m = /^pl-tk-(\d)$/.exec(id))) { d.talked[m[1]] = t.checked; return; }
   if (/^pl-sel-/.test(id)) { d.sel[t.dataset.c] = t.checked; frSum(); return; }
   if (/^pl-cl-/.test(id)) { d.col[t.dataset.c] = t.value; return; }
-  if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-met') d.met = t.checked; };
+  if (id === 'pl-goal') d.goal = t.value; else if (id === 'pl-help') d.help = t.value; else if (id === 'pl-met') d.met = t.checked; frSum(); };
 // "someone else": a customer added by name joins the tick-list, already ticked
 const frAddCust = v => { const d = FRI.draft; if (!d || !String(v).trim()) return; const s = custByName(v, CHAINF);
   if (!s) { toast('Pick the customer from the list that appears as you type.'); return; }
@@ -2138,7 +2150,7 @@ function vFriday() {
   const vSub = (v, a) => { const parts = []; if (v.what) parts.push(esc(v.what)); if (v.amt) parts.push('expects ' + J(v.amt));
     if (a && a.over) parts.push(v.col ? `owes ${J(a.over)} overdue · plan to collect <b>${esc(v.col)}</b>` : `<b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>`); else if (v.col) parts.push('plan to collect <b>' + esc(v.col) + '</b>');
     return parts.length ? parts.join(' · ') : 'Visit or call'; };
-  const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><div><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
+  const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><div><span class="fqs">Step ${n} of 3</span><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
   const planBody = !editing && p ? (() => { const d = p.data || {}, col = noOver(d, d.collect);
       return `<p class="note" style="margin:0 0 10px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
       <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div>${d.push ? `<div><span>Products to push</span>${esc(d.push)}</div>` : ''}<div><span>Help needed</span>${esc(d.help || '–')}</div>${d.blockers ? `<div><span>In the way</span>${esc(d.blockers)}</div>` : ''}</div>
@@ -2154,7 +2166,7 @@ function vFriday() {
         <div class="fsum" id="fpsum">${esc(frSumText())}</div>`)}
       ${q(2, 'What is the sales goal for the week?', null, `<input id="pl-goal" type="text" inputmode="numeric" value="${esc(D.goal)}" placeholder="e.g. 4500000" autocomplete="off" aria-label="Sales goal for the week in J$">${goalHint}`)}
       ${q(3, `Anything ${esc(first)} needs from you?`, 'Optional.', `<textarea id="pl-help" rows="2" aria-label="What the rep needs from sales support" placeholder="e.g. chase Rhino stock, fix prices on open orders">${esc(D.help)}</textarea>`)}
-      <div class="ffoot"><label class="fmet"><input type="checkbox" id="pl-met"${D.met ? ' checked' : ''}> We have been through this together</label>
+      <div class="ffoot"><div class="fleft" id="fpleft">${frLeftHtml()}</div><label class="fmet"><input type="checkbox" id="pl-met"${D.met ? ' checked' : ''}> We have been through this together</label>
       <div class="acts"><button class="btn pri" type="button" data-frisave="1">Save the plan</button>${p ? '<button class="btn" type="button" data-fricancel="1">Cancel</button>' : ''}</div></div></div>`;
   const pd = (p && p.data) || {};
   const g4 = agenda('4', '<span class="fsn fsi">' + icon('friday') + '</span>', `${first}’s plan for the week of ${fds(wk)}`, p ? `Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}${pd.goal ? ' · goal ' + J(pd.goal) : ''}${(pd.visits || []).length ? ' · ' + pd.visits.length + ' visit' + (pd.visits.length === 1 ? '' : 's') : ''}` : 'Not started: who they will visit, their goal, what they need', p ? (p.met ? 'green' : 'amber') : 'amber', p ? (p.met ? 'Held' : 'Saved') : 'To do', blk(prevLine + planBody), true);
