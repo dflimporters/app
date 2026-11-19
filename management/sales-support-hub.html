@@ -741,6 +741,17 @@ th.on{color:var(--ink)}
 .fst:hover{filter:brightness(.97)}
 .fst.done{background:#E6F5EC;border-color:#BFE3CB;color:#1A8F4C}
 .fst:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.fcb{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fcb .fcl{margin:0;align-self:auto}
+.fwho2{font-size:11.5px;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fdecs{display:flex;gap:6px}
+.fdb{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:99px;padding:3px 11px;font-family:var(--head);font-weight:700;font-size:11.5px;line-height:1.4;cursor:pointer;white-space:nowrap}
+.fdb:hover{background:#F3F5FA}
+.fdb.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.fdb:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.boitems{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.boitems li{display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.4;color:var(--ink)}
+.boitems .bol-q{flex:none;color:var(--ink2);white-space:nowrap}
 .fform .fpk .fpb{appearance:none;-webkit-appearance:none;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;display:inline}
 .fform .fpk .fpb:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
 .fform .fpk .fpb:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
@@ -2138,26 +2149,31 @@ function vFriday() {
   const blk = h => `<div class="fblk">${h}</div>`;
   const N = 3;
   // 2. orders: back orders, stock, and anything to fix before it ships
-  const nFix = credit.length + chk.length, nOrd = bos.length + oosR.length + nFix;
+  const fixAll = [...credit.map(o => ({k:'c', o, key:'credit:' + o.nbr})), ...chk.map(x => ({k:'x', x, key:x.key}))].map(f => ({...f, done:isDone(f.key)})).sort((a, b) => a.done - b.done);
+  const nFix = fixAll.filter(f => !f.done).length, nOrd = bos.length + oosR.length + nFix;
+  const WHO = {credit:'AR to release', gp:'Head of Sales to approve', price:'Rep to confirm price', noprice:'Rep to confirm price', freeover:'Rep to confirm free goods', free:'Check with the rep', deal:'Check with the rep', stock:'Tell the rep', xfer:'Transfer needed', inact:'Swap the item'};
   // three trays side by side, like the plan board: grey tray, heading with a dot and a count, equal-size white cards inside
   const tray = (title, hint, col, n, body, acts) => `<div class="fcol" style="--ac:${col}"><div class="fch"><b>${esc(title)}</b><span class="fcnt2">${n}</span>${hint ? `<em>${hint}</em>` : ''}</div>${acts || ''}${body}</div>`;
-  const ocard = (name, tag, det, store, titleAttr) => `<div class="focard"><div class="fcr"><span class="fpn"${titleAttr ? ` title="${esc(titleAttr)}"` : ''}>${store ? `<button type="button" class="fpb" data-store="${esc(store)}" title="Open ${esc(name)}">${esc(name)}</button>` : esc(name)}</span>${tag}</div><em class="fcd">${det}</em></div>`;
+  const ocard = (name, tag, det, store, titleAttr, foot) => `<div class="focard"><div class="fcr"><span class="fpn"${titleAttr ? ` title="${esc(titleAttr)}"` : ''}>${store ? `<button type="button" class="fpb" data-store="${esc(store)}" title="Open ${esc(name)}">${esc(name)}</button>` : esc(name)}</span>${tag}</div><em class="fcd">${det}</em>${foot ? `<div class="fcb">${foot}</div>` : ''}</div>`;
   const moreOf = (key, list, n) => list.length > n ? `<button class="btn sm" type="button" data-more="${esc(key)}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + (list.length - n)}</button>` : '';
+  // back orders: one decision each. Close it (the customer no longer wants it) or Re-enter it (it still needs to be entered again)
+  const bodOf = nbr => { const t = tick('bod:' + nbr); return t && (t.v === 'close' || t.v === 're') ? t.v : ''; };
   const boTray = (() => { const osAll = boOrders(rep), os = osAll.filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku))); if (!os.length) return '';
-    const sk = 'bosent:' + rep + ':' + MONDAY, sent = tick(sk), replied = os.filter(x => repliedOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, N);
-    const cards = sh.map(x => { const rp = repliedOf(x.nbr), wanted = x.ls.filter(wantedOf).length, op = !!(FRI.bo || {})[x.nbr];
-      const card = `<div class="focard"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><button type="button" class="fst${rp ? ' done' : ''}" data-bow="${esc(x.nbr)}" aria-label="${rp ? 'Rep replied. Tap to undo' : 'Ask rep. Tap when the rep has replied'}">${rp ? 'Replied' : 'Ask rep'}</button></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'}${wanted ? ' · ' + wanted + ' kept' : ''} · ${J(x.val)} · since ${esc(fds(x.date))}</em><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div>`;
-      const det = op ? `<div class="fodet"><div class="bochk">${x.ls.map(b => `<label class="bol"><input type="checkbox" data-bok="${esc(b.nbr + ':' + b.sku)}"${wantedOf(b) ? ' checked' : ''}><span class="bol-n">${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></label>`).join('')}</div>
-        <p class="note" style="margin:6px 0 8px">Tick the items the rep says the customer still wants: the tick is saved here for the team and the WhatsApp list; it does not change Acumatica. ${wanted ? `<b>${wanted} of ${x.ls.length}</b> still wanted.` : ''}</p>
-        <div class="acts"><button class="btn sm ${rp ? '' : 'pri'}" type="button" data-bow="${esc(x.nbr)}">${rp ? 'Undo “Rep replied”' : 'Mark “Rep replied”'}</button>${wanted ? keptBtns('o:' + x.nbr, rp) : ''}${btnNote('note|bw:' + x.nbr, '✎ Note')}</div>${formFor('note|bw:' + x.nbr)}</div>` : '';
+    const decided = os.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, N);
+    const cards = sh.map(x => { const dv = bodOf(x.nbr), op = !!(FRI.bo || {})[x.nbr];
+      const card = `<div class="focard"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill grey">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em><div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div></div>`;
+      const det = op ? `<div class="fodet"><ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul></div>` : '';
       return card + det; }).join('');
-    const acts = '';
-    return tray('Back orders', `ask ${esc(first)} what each customer still wants · ${replied} replied`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N), acts); })();
+    return tray('Back orders', `ask ${esc(first)} about each one · ${decided} of ${os.length} decided`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N)); })();
+  // out of stock: the rep has to tell the customers (a transfer is the exception: support asks for it)
   const oosTray = !oosR.length ? '' : tray('Out of stock', 'items their customers are waiting on', '#E8862A', oosR.length,
-    showN('fs:' + rep, oosR, N).map(x => ocard(x.desc, `<span class="pill ${OOS_ST[x.st][0]}">${esc(OOS_ST[x.st][1])}</span>`, `${new Set(x.mine.map(l => ordBy[l.nbr].c)).size} customer${new Set(x.mine.map(l => ordBy[l.nbr].c)).size === 1 ? '' : 's'} waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71 · ${oosWhen(x)}`, null, x.sku)).join('') + moreOf('fs:' + rep, oosR, N));
-  const fixAll = [...credit.map(o => ({k:'c', o})), ...chk.map(x => ({k:'x', x}))];
-  const fixTray = !fixAll.length ? '' : tray('Fix before they ship', 'credit holds and price, stock or item problems', '#E2445C', fixAll.length,
-    showN('fc:' + rep, fixAll, N).map(f => f.k === 'c' ? ocard(byId[f.o.c].name, `<span class="pill red">${J(f.o.total)}</span>`, `On credit hold · order ${acuOrder(f.o.nbr)} · keyed ${esc(fds(f.o.date))}`, f.o.c) : ocard(byId[f.x.o.c].name, `<span class="pill ${f.x.kind === 'gp' ? 'red' : 'amber'}">${esc(CHKTXT[f.x.kind])}</span>`, `${esc(f.x.l.desc)} · order ${acuOrder(f.x.o.nbr)} · ${esc(chkProblem(f.x))}`, f.x.o.c, f.x.l.sku)).join('') + moreOf('fc:' + rep, fixAll, N));
+    showN('fs:' + rep, oosR, N).map(x => { const told = !!(tick('oost:' + rep + ':' + x.sku) || {}).v, xf = x.st === 'xfer', nc = new Set(x.mine.map(l => ordBy[l.nbr].c)).size;
+      return ocard(x.desc, `<span class="pill ${OOS_ST[x.st][0]}">${esc(OOS_ST[x.st][1])}</span>`, `${nc} customer${nc === 1 ? '' : 's'} waiting · ${x.mine.reduce((a, l) => a + l.open, 0)} owed · ${x.at71} at 71 · ${oosWhen(x)}`, null, x.sku,
+        `<span class="fwho2">${xf ? 'Needs a stock transfer' : 'Rep to tell customers'}</span><button type="button" class="fst${told ? ' done' : ''}" data-oost="${esc(rep + ':' + x.sku)}">${xf ? (told ? 'Transfer asked' : 'Ask for transfer') : (told ? 'Rep told' : 'Tell the rep')}</button>`); }).join('') + moreOf('fs:' + rep, oosR, N));
+  // fix before they ship: who has to act, and a Sorted tick shared with the Orders tab
+  const fixTray = !fixAll.length ? '' : tray('Fix before they ship', `credit holds and price, stock or item problems${fixAll.length > nFix ? ' · ' + (fixAll.length - nFix) + ' sorted' : ''}`, '#E2445C', nFix,
+    showN('fc:' + rep, fixAll, N).map(f => { const foot = `<span class="fwho2">${esc(WHO[f.k === 'c' ? 'credit' : f.x.kind] || 'Check it')}</span><button type="button" class="fst${f.done ? ' done' : ''}" data-done="${esc(f.key)}">${f.done ? 'Sorted' : 'Mark sorted'}</button>`;
+      return f.k === 'c' ? ocard(byId[f.o.c].name, `<span class="pill red">${J(f.o.total)}</span>`, `On credit hold · order ${acuOrder(f.o.nbr)} · keyed ${esc(fds(f.o.date))}`, f.o.c, null, foot) : ocard(byId[f.x.o.c].name, `<span class="pill ${f.x.kind === 'gp' ? 'red' : 'amber'}">${esc(CHKTXT[f.x.kind])}</span>`, `${esc(f.x.l.desc)} · order ${acuOrder(f.x.o.nbr)} · ${esc(chkProblem(f.x))}`, f.x.o.c, f.x.l.sku, foot); }).join('') + moreOf('fc:' + rep, fixAll, N));
   const g2 = agenda('2', 1, 'Orders: back orders, stock, fixes', nOrd ? `${bos.length} back order${bos.length === 1 ? '' : 's'} · ${oosR.length} item${oosR.length === 1 ? '' : 's'} out of stock · ${nFix} to fix before they ship` : 'Nothing to sort on their orders', nFix ? 'red' : nOrd ? 'amber' : 'green', nFix ? nFix + ' to fix' : nOrd ? 'To review' : 'OK',
     nOrd ? blk(`<div class="fboard">${boTray}${oosTray}${fixTray}</div>`) : blk('<p class="note" style="margin:0">Nothing to sort.</p>'));
   // 4. the plan: short on purpose. Tick the customers to visit or call, one goal number, an optional help box.
@@ -2824,6 +2840,8 @@ __on(document, 'click', e => {
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bow) { setTick('bow:' + d.bow, repliedOf(d.bow) ? null : 1); return; }
+  if (d.bod) { const k = 'bod:' + d.bod, cur = tick(k); setTick(k, cur && cur.v === d.bov ? null : d.bov); return; }
+  if (d.oost) { const k = 'oost:' + d.oost, on = tick(k) && tick(k).v; setTick(k, on ? null : 1); return; }
   if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }
   if (d.xferdl) { dlCsv('transfer-list-' + ASOF + '.csv', xferCsv(xferList()), 'Transfer list downloaded.'); return; }
   if (d.keptcopy) { const l = keptSel(d.keptcopy); if (l.length) copyText(keptMsg(l), 'Kept items copied. Paste them into WhatsApp or use them for the new order.'); else toast('No items ticked yet.'); return; }
