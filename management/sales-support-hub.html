@@ -788,6 +788,8 @@ th.on{color:var(--ink)}
 .fpx:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 .fsi svg{width:14px;height:14px;stroke:#fff}
 .fboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start}
+.fboard.cols{grid-template-columns:repeat(var(--n,3),minmax(0,1fr))}
+@media (max-width:1099px){.fboard.cols{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}}
 .fcol{background:#F3F5FA;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .fch{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;padding:0 2px 2px}
 .fch::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--ac)}
@@ -2210,7 +2212,8 @@ function vFriday() {
   const blk = h => `<div class="fblk">${h}</div>`;
   const N = 3;
   // 2. orders: back orders, stock, and anything to fix before it ships
-  const fixAll = [...credit.map(o => ({k:'c', o, key:'credit:' + o.nbr})), ...chk.map(x => ({k:'x', x, key:x.key}))].map(f => ({...f, done:isDone(f.key)})).sort((a, b) => a.done - b.done);
+  // credit holds belong to the money conversation (the Owes money column shows an order on hold), and stock and transfer lines are support's own work (Scott, 19 Nov)
+  const fixAll = chk.filter(x => x.kind !== 'stock' && x.kind !== 'xfer').map(x => ({k:'x', x, key:x.key})).map(f => ({...f, done:isDone(f.key)})).sort((a, b) => a.done - b.done);
   const nFix = fixAll.filter(f => !f.done).length, nOrd = bos.length + nFix;
   const WHO = {credit:'AR to release', gp:'Head of Sales to approve', price:'Rep to confirm price', noprice:'Rep to confirm price', freeover:'Rep to confirm free goods', free:'Check with the rep', deal:'Check with the rep', stock:'Tell the rep', xfer:'Transfer needed', inact:'Swap the item'};
   // three trays side by side, like the plan board: grey tray, heading with a dot and a count, equal-size white cards inside
@@ -2226,11 +2229,11 @@ function vFriday() {
     return tray('Back orders', `ask ${esc(first)} about each one · ${decided} of ${os.length} decided`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N)); })();
   // out of stock and transfers are not part of the Friday meeting (Scott, 19 Nov): the stock status is judged on every rep's orders, so a rep's card could say short while stock covered their share, and support asks for transfers anyway. The team picture and the Back orders tab carry stock.
   // fix before they ship: who has to act, and a Sorted tick shared with the Orders tab
-  const fixTray = !fixAll.length ? '' : tray('Fix before they ship', `credit holds and price, stock or item problems${fixAll.length > nFix ? ' · ' + (fixAll.length - nFix) + ' sorted' : ''}`, '#E2445C', nFix,
+  const fixTray = !fixAll.length ? '' : tray('Fix before they ship', `price, free goods and item problems${fixAll.length > nFix ? ' · ' + (fixAll.length - nFix) + ' sorted' : ''}`, '#E2445C', nFix,
     showN('fc:' + rep, fixAll, N).map(f => { const foot = `<span class="fwho2">${esc(WHO[f.k === 'c' ? 'credit' : f.x.kind] || 'Check it')}</span><button type="button" class="fst${f.done ? ' done' : ''}" data-done="${esc(f.key)}">${f.done ? 'Sorted' : 'Mark sorted'}</button>`;
       return f.k === 'c' ? ocard(byId[f.o.c].name, `<span class="pill red">${J(f.o.total)}</span>`, `On credit hold · order ${acuOrder(f.o.nbr)} · keyed ${esc(fds(f.o.date))}`, f.o.c, null, foot) : ocard(byId[f.x.o.c].name, `<span class="pill ${f.x.kind === 'gp' ? 'red' : 'amber'}">${esc(CHKTXT[f.x.kind])}</span>`, `${esc(f.x.l.desc)} · order ${acuOrder(f.x.o.nbr)} · ${esc(chkProblem(f.x))}`, f.x.o.c, f.x.l.sku, foot); }).join('') + moreOf('fc:' + rep, fixAll, N));
   const g2 = agenda('2', 1, 'Orders: back orders and fixes', nOrd ? `${bos.length} back order${bos.length === 1 ? '' : 's'} to decide · ${nFix} to fix before they ship` : 'Nothing to sort on their orders', nFix ? 'red' : nOrd ? 'amber' : 'green', nFix ? nFix + ' to fix' : nOrd ? 'To review' : 'OK',
-    nOrd ? blk(`<div class="fboard">${boTray}${fixTray}</div>`) : blk('<p class="note" style="margin:0">Nothing to sort.</p>'), true);
+    nOrd ? blk(`<div class="fboard cols" style="--n:${(boTray ? 1 : 0) + (fixTray ? 1 : 0)}">${boTray}${fixTray}</div>`) : blk('<p class="note" style="margin:0">Nothing to sort.</p>'), true);
   // 4. the plan: short on purpose. Tick the customers to visit or call, one goal number, an optional help box.
   const prev = planOf(rep, addDays(wk, -7)), D = FRI.draft;
   const prevLine = prev ? `<p class="note" style="margin:0 0 12px">Last week’s plan${prev.met ? '' : ' (meeting not ticked)'}: ${(prev.data || {}).goal ? 'goal ' + J(prev.data.goal) + ' · ' : ''}${((prev.data || {}).visits || []).length} visit${((prev.data || {}).visits || []).length === 1 ? '' : 's'} planned.</p>` : '';
@@ -2244,7 +2247,7 @@ function vFriday() {
   const pickRow = (id, rm, kind) => { const s = byId[id], a = AR_READY ? arOf(id) : null, gi = gapInfo[id], bh = gi ? gi.need : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due'), pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0;
     const ovB = a && a.over ? `owes ${J(a.over)} overdue` : '';
     const tagO = a && a.over ? `<span class="pill red">${J(a.over)} overdue</span>` : '', tagG = bh ? `<span class="pill amber">needs ${J(bh)}</span>` : '', tagN = no ? `<span class="pill purple">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
-    const bO = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'also needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : ''] : [], bG = gi ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', ovB] : [], bN = no ? [`usually orders every ${s.cad.med} days`, `last full order ${fds(s.cad.lastReal)}`, ovB] : [];
+    const bO = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'also needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : '', credit.some(o => o.c === id) ? 'an order is on credit hold' : ''] : [], bG = gi ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', ovB] : [], bN = no ? [`usually orders every ${s.cad.med} days`, `last full order ${fds(s.cad.lastReal)}`, ovB] : [];
     const k = kind || 'a', tag = k === 'o' ? tagO : k === 'g' ? tagG : k === 'n' ? tagN : (tagO || tagG || tagN);
     const bits = k === 'o' ? bO : k === 'g' ? bG : k === 'n' ? bN : (bO.length ? bO : bG.length ? bG : bN.length ? bN : ['Visit or call']);
     const det = bits.filter(Boolean).join(' · ');
@@ -2266,7 +2269,7 @@ function vFriday() {
       <div class="acts" style="margin-top:14px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
       ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card. Tap a customer’s name to see their invoices and orders.`,
-        (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
+        (G.length ? `<div class="fboard cols" style="--n:${G.length}">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
           return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added', g[5])).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
         <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:12px">
