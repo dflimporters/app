@@ -2095,7 +2095,7 @@ function vFriday() {
   const showN = (key, list, n) => SHOWALL[key] ? list : list.slice(0, n), moreBtn = (key, list, n) => list.length > n ? `<div class="acts" style="margin-top:6px"><button class="btn sm" type="button" data-more="${esc(key)}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + (list.length - n)}</button></div>` : '';
   if (FRI.draftKey && FRI.draftKey !== rep + '|' + wk) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; }
   const p = planOf(rep, wk), editing = FRI.edit || !p;
-  if (editing && (!FRI.draft || FRI.draftKey !== rep + '|' + wk)) { FRI.draft = draftFrom(p, arRows.slice(0, 3).map(x => x.s.id)); FRI.draftKey = rep + '|' + wk; }
+  if (editing && (!FRI.draft || FRI.draftKey !== rep + '|' + wk)) { FRI.draft = draftFrom(p, arRows.filter(x => x.a.over >= 1e6).slice(0, 5).map(x => x.s.id)); FRI.draftKey = rep + '|' + wk; }
   const TK = editing ? FRI.draft.talked : ((p && p.data) || {}).talked || {};
 
   const tiles = dtiles([
@@ -2164,7 +2164,7 @@ function vFriday() {
       ${col.length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(col.map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
       <div class="acts" style="margin-top:14px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
-      ${q(1, 'Who will you visit or call this week?', 'Ticked customers go on this week’s plan. The three who owe the most are already ticked; untick any you won’t see. Add a note on any ticked card.',
+      ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card.`,
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
           return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added')).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
