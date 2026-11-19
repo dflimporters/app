@@ -65,7 +65,7 @@ h2:first-child{margin-top:4px}
 .linkish{border:0;background:none;padding:0;color:var(--blue);font-weight:600;text-align:left}
 .linkish:hover{text-decoration:underline}
 .pill{display:inline-block;font-family:var(--head);font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;letter-spacing:.3px}
-.pill.red{background:var(--red-t);color:var(--red)} .pill.amber{background:var(--amber-t);color:var(--amber)} .pill.green{background:var(--green-t);color:var(--green)} .pill.grey{background:var(--line2);color:var(--ink2)} .pill.blue{background:var(--blue-t);color:var(--blue)}
+.pill.red{background:var(--red-t);color:var(--red)} .pill.amber{background:var(--amber-t);color:var(--amber)} .pill.green{background:var(--green-t);color:var(--green)} .pill.grey{background:var(--line2);color:var(--ink2)} .pill.blue{background:var(--blue-t);color:var(--blue)} .pill.purple{background:#EFE8FB;color:#6A3FC0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
 .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--ink2)}
 .chip[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -733,6 +733,15 @@ th.on{color:var(--ink)}
 .fcd{font-style:normal;font-size:12px;line-height:1.4;color:var(--ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .fcl{margin-top:auto;align-self:flex-start;appearance:none;-webkit-appearance:none;background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer}
 .fcl:hover{text-decoration:underline}
+.focard.open{height:auto;overflow:visible}
+.fitems{border-top:1px solid var(--line);margin:6px 0 4px;padding-top:10px}
+.fcats{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.fcat{appearance:none;-webkit-appearance:none;text-align:left;font:inherit;display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-left:4px solid #E2445C;border-radius:10px;padding:9px 12px;cursor:pointer;box-shadow:0 1px 2px rgba(20,35,70,.06)}
+.fcat:hover{background:#F3F5FA}
+.fcat:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.fcat b{font-family:var(--head);font-size:13.5px;color:var(--ink);line-height:1.25}
+.fcat .fcs{font-family:var(--head);font-weight:800;font-size:13px;color:#C23049}
+.fcat .fcp{font-size:11.5px;color:var(--ink2)}
 .fodet{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:-4px}
 .facts{display:flex;flex-wrap:wrap;gap:6px}
 .fwho{display:flex;align-items:center;gap:10px;margin-right:6px;padding-right:16px;border-right:1px solid var(--line)}
@@ -2189,9 +2198,8 @@ function vFriday() {
   const boTray = (() => { const osAll = boOrders(rep), os = osAll.filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku))); if (!os.length) return '';
     const decided = os.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, N);
     const cards = sh.map(x => { const dv = bodOf(x.nbr), op = !!(FRI.bo || {})[x.nbr];
-      const card = `<div class="focard"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill grey">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em><div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div></div>`;
-      const det = op ? `<div class="fodet"><ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul></div>` : '';
-      return card + det; }).join('');
+      const items = op ? `<div class="fitems"><ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul></div>` : '';
+      return `<div class="focard${op ? ' open' : ''}"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill purple">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em>${items}<div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div></div>`; }).join('');
     return tray('Back orders', `ask ${esc(first)} about each one · ${decided} of ${os.length} decided`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N)); })();
   // out of stock: the rep has to tell the customers (a transfer is the exception: support asks for it)
   const oosTray = !oosR.length ? '' : tray('Out of stock', 'items their customers are waiting on', '#E8862A', oosR.length,
@@ -2231,6 +2239,12 @@ function vFriday() {
     if (a && a.over) parts.push(v.col ? `owes ${J(a.over)} overdue · plan to collect <b>${esc(v.col)}</b>` : `<b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>`); else if (v.col) parts.push('plan to collect <b>' + esc(v.col) + '</b>');
     return parts.length ? parts.join(' · ') : 'Visit or call'; };
   const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><div><span class="fqs">Step ${n} of 3</span><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
+  // categories this month for this rep's customers: sold so far against the category targets, biggest shortfall first
+  const catB = (() => { const m = {}, get = cls => m[cls] = m[cls] || {cls, m:0, t:0};
+    cs.filter(s => inFocus(s.id)).forEach(s => { Object.entries(s.cats || {}).forEach(([cls, x]) => { get(cls).m += x.m; }); Object.entries(CB[s.id] || {}).forEach(([cls, b]) => { get(cls).t += b; }); });
+    return Object.values(m).filter(x => x.cls !== '0' && x.t > 0).map(x => ({...x, gap:x.m - x.t * PACE})); })();
+  const catBeh = catB.filter(x => x.gap < 0).sort((a, b) => a.gap - b.gap);
+  const catCard = !catB.length ? '' : `<div class="fq fcatq"><div class="fqh"><div><span class="fqs">Worth knowing before you pick</span><b>${catBeh.length ? `Categories ${esc(first)} is behind in this month` : `${esc(first)} is on track in every category this month`}</b><em>Sold so far against each category target, compared with where it should be today (${Math.round(PACE * 100)}% of the month gone).${catBeh.length ? ' Tap one to see which customers are behind on it, then ask for it on the visit.' : ''}</em></div></div>${catBeh.length ? `<div class="fcats">${(SHOWALL.fcat ? catBeh : catBeh.slice(0, 6)).map(x => `<button type="button" class="fcat" data-cat="${esc(x.cls)}" title="Which of ${esc(first)}’s customers are behind on ${esc(x.cls)}"><b>${esc(x.cls)}</b><span class="fcs">${J(-x.gap)} short</span><span class="fcp">${Math.round(x.m / x.t * 100)}% of ${J(x.t)}</span></button>`).join('')}</div>${catBeh.length > 6 ? `<button class="btn sm" type="button" data-more="fcat" style="margin-top:10px">${SHOWALL.fcat ? 'Show fewer' : 'Show the other ' + (catBeh.length - 6)}</button>` : ''}` : ''}</div>`;
   const planBody = !editing && p ? (() => { const d = p.data || {}, col = noOver(d, d.collect);
       return `<p class="note" style="margin:0 0 10px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
       <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div>${d.push ? `<div><span>Products to push</span>${esc(d.push)}</div>` : ''}<div><span>Help needed</span>${esc(d.help || '–')}</div>${d.blockers ? `<div><span>In the way</span>${esc(d.blockers)}</div>` : ''}</div>
@@ -2238,6 +2252,7 @@ function vFriday() {
       ${col.length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(col.map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
       <div class="acts" style="margin-top:14px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
+      ${catCard}
       ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card. Tap a customer’s name to see their invoices and orders.`,
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
           return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added', g[5])).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
