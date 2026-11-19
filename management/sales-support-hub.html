@@ -724,6 +724,11 @@ th.on{color:var(--ink)}
 .fform .fcolin input[type=text]{padding:0 10px;height:32px;font-size:13px}
 @media (max-width:640px){.fpick{grid-template-columns:1fr}}
 .fsi{background:var(--ink)}
+.fpkw{position:relative}
+.fpkw.rm .fpk{padding-right:36px}
+.fpx{position:absolute;top:7px;right:7px;width:24px;height:24px;border:0;border-radius:50%;background:none;font-size:19px;line-height:1;color:var(--ink3);cursor:pointer;display:grid;place-items:center;padding:0}
+.fpx:hover{background:#EEF1F7;color:var(--ink)}
+.fpx:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 .fsi svg{width:14px;height:14px;stroke:#fff}
 .fboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start}
 .fcol{background:#F3F5FA;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
@@ -2122,11 +2127,11 @@ function vFriday() {
     ['Behind target', 'furthest behind first', '#E8862A', grp(behind.map(s => s.id))],
     ['Not ordering', 'they usually order, not lately', '#7B4FD0', grp(notOrd.map(s => s.id))],
     ['Added', 'customers you added', '#8A95B0', grp([...D.extra, ...Object.keys(D.sel).filter(k => D.sel[k])])]].filter(g => g[3].length) : [];
-  const pickRow = id => { const s = byId[id], a = AR_READY ? arOf(id) : null, bh = s.budM > 0 && s.gapPace < 0 ? -s.gapPace : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due');
+  const pickRow = (id, rm) => { const s = byId[id], a = AR_READY ? arOf(id) : null, bh = s.budM > 0 && s.gapPace < 0 ? -s.gapPace : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due');
     const pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0, tag = a && a.over ? `<span class="pill red">${J(a.over)}</span>` : bh ? `<span class="pill amber">${J(bh)}</span>` : no ? `<span class="pill grey">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
     const bits = a && a.over ? [`oldest ${a.oldest} days`, bh ? J(bh) + ' short this month' : '', no ? 'not ordering when they usually do' : ''] : bh ? [pc + '% of this month’s target', no ? 'not ordering when they usually do' : ''] : no ? [`usually every ${s.cad.med} days`, `last delivery ${fds(s.cad.last)}`] : ['Visit or call'];
     const det = bits.filter(Boolean).join(' · ');
-    return `<div class="fpkw"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><b class="fpn" title="${esc(s.name)}">${esc(s.name)}</b><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label>${a && a.over ? `<div class="fcolin"><input type="text" id="pl-cl-${esc(id)}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="Collect how much? e.g. J$500K by Wed" aria-label="How much will ${esc(s.name)} pay this week" autocomplete="off"></div>` : ''}</div>`; };
+    return `<div class="fpkw${rm ? ' rm' : ''}"><label class="fpk"><input type="checkbox" id="pl-sel-${esc(id)}" data-c="${esc(id)}"${D.sel[id] ? ' checked' : ''}><b class="fpn" title="${esc(s.name)}">${esc(s.name)}</b><span class="fpt">${tag}</span><em class="fpd" title="${esc(det)}">${esc(det)}</em></label>${a && a.over ? `<div class="fcolin"><input type="text" id="pl-cl-${esc(id)}" data-c="${esc(id)}" value="${esc(D.col[id] || '')}" placeholder="Collect how much? e.g. J$500K by Wed" aria-label="How much will ${esc(s.name)} pay this week" autocomplete="off"></div>` : ''}${rm ? `<button type="button" class="fpx" data-friremove="${esc(id)}" aria-label="Remove ${esc(s.name)} from the list" title="Remove from the list">×</button>` : ''}</div>`; };
   // what the rep needs to stay on track for the month, with a one-tap way to use it as the goal
   const need = monthNeed(rep), pw = Math.round(need.perWeek / 10000) * 10000;
   const goalHint = !need.t ? '' : need.togo > 0 ? `<div class="fneed"><div><b>To stay on track:</b> ${esc(first)} has sold ${J(need.sold)} of the ${J(need.t)} target, so <b>${J(need.togo)}</b> to go in the ${need.left} day${need.left === 1 ? '' : 's'} left this month. That is about <b>${J(pw)} a week</b>.</div><button type="button" class="btn sm" data-frifill="${pw}">Use ${J(pw)}</button></div>` : '<div class="fneed ok">Already at this month’s target. Anything more is a bonus.</div>';
@@ -2143,7 +2148,7 @@ function vFriday() {
     `<div class="fform">
       ${q(1, 'Who will you visit or call this week?', 'Tick the customers that matter most. The three who owe the most are already ticked.',
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
-          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(pickRow).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
+          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added')).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
         <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:12px">
         <div class="fsum" id="fpsum">${esc(frSumText())}</div>`)}
@@ -2748,6 +2753,7 @@ __on(document, 'click', e => {
   if (d.fricopy) { const pl = planOf(CHAINF, FRI.week); if (pl) copyText(planMsg(CHAINF, pl), 'Plan copied. Paste it into WhatsApp.'); return; }
   if (d.friag) { const k = d.friag, was = !!FRI.ag[k]; FRI.ag = {}; if (!was) FRI.ag[k] = true; render(); if (!was) { const e1 = document.getElementById('fag-' + k); if (e1) e1.scrollIntoView({behavior:'smooth', block:'nearest'}); } return; }
   if (d.frifill) { if (FRI.draft) { FRI.draft.goal = String(d.frifill); render(); } return; }
+  if (d.friremove) { const dr = FRI.draft; if (dr) { const id = d.friremove; dr.extra = dr.extra.filter(x => x !== id); delete dr.sel[id]; delete dr.col[id]; dr.keep = dr.keep.filter(v => v.c !== id); render(); } return; }
   if (d.frirpt) { FRI.showReport = !FRI.showReport; render(); return; }
   if (d.friplan) { FRI.ag = {'4': true}; render(); const e2 = document.getElementById('fag-4'); if (e2) e2.scrollIntoView({behavior:'smooth', block:'start'}); return; }
   if (d.sub) { SUB[TAB] = d.sub; EXP = null; OPEN = null; render(); return; }
