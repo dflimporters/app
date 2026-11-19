@@ -1455,11 +1455,6 @@ async function delNote(id) {
 // ---------- the Today list ----------
 function todayItems() {
   const it = [];
-  CHECKS.filter(x => x.kind === 'deal').forEach(x => it.push({key:x.key, pri:1, col:'blue', kind:'Special', c:x.o.c, issue:`Add ${x.h.add} to get ${x.h.free} free`, sub:x.l.desc, age:x.o.age,
-    html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.l.oq} on order ${esc(x.o.nbr)} · deal: ${x.h.deal} · ${x.h.buy} earns ${x.h.total} free`, tag:`Add ${x.h.add}`, tone:'blue'}]),
-    t:`${byId[x.o.c].name}: add ${x.h.add} to get ${x.h.free} free`,
-    d:`Order <b>${esc(x.o.nbr)}</b> has <b>${x.l.oq}</b> × ${esc(x.l.desc)}. The deal is ${x.h.deal}, per multiple: ${x.h.add} more earns ${x.h.free} more free. The order is still ${x.o.status === 'Open' ? 'open' : 'on hold'}, so it can change before it ships.`,
-    act:'Check with Rep or Merch whether to add it', value:x.value + 1e6}));
   // free goods left off an open order: sales support adds them before it ships
   CHECKS.filter(x => x.kind === 'free').forEach(x => it.push({key:x.key, pri:0.5, col:'red', kind:'Free goods', c:x.o.c, order:x.o.nbr, issue:`${x.f.free - x.f.have} free missing`, sub:`${x.l.desc} · order ${x.o.nbr}`, age:x.o.age,
     html:plCards([{name:x.l.desc, title:x.l.sku, sub:`${x.f.oq} × ${JP(x.l.price)} · deal allows ${x.f.free} free (${x.f.deal}) · ${x.f.have ? x.f.have + ' free on the order' : 'no free line on the order'}`, tag:`${x.f.free - x.f.have} free missing`, tone:'loss'}]),
@@ -1469,21 +1464,22 @@ function todayItems() {
   // price checks (Scott, 11 Nov): below cost, below the deal price, no price, too many free, items we no longer carry.
   // Low margin above cost is the KAM / category manager's job, not this hub's. One card per order; the lines open underneath.
 
+  // Today shows only the big ones (Scott, 19 Nov). A price problem must cost the order J$20K or more of margin (below cost, below the deal
+  // price, too many free, an item that cannot ship), or leave the whole order under 25% GP. A short order must be J$100K or more short, after
+  // Ashenheim stock (dispatch does the transfers), and 15% or more of the order's open value.
+  const leakOf = x => x.kind === 'gp' ? Math.max(0, (x.l.cost - x.l.price) * x.l.oq) : x.kind === 'price' ? Math.max(0, x.value - 3e6) : x.kind === 'freeover' ? Math.max(0, x.value - 2.9e6) : x.kind === 'inact' ? Math.max(0, x.value - 1e6) : 0;
+  const orderGp = o => { const ls = (o.lines || []).filter(l => l.cost > 0), rev = ls.reduce((a, l) => a + l.oq * l.price, 0); return rev > 0 ? ls.reduce((a, l) => a + l.oq * (l.price - l.cost), 0) / rev : null; };
+  const bigPrice = (o, xs) => { const g = orderGp(o); return xs.reduce((a, x) => a + leakOf(x), 0) >= 20000 || (g != null && g < 0.25); };
+  const bigShort = (o, ls) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0), open = (o.lines || []).filter(l => l.open > 0 && l.price > 0).reduce((a, l) => a + l.open * l.price, 0); return v >= 100000 && open > 0 && v / open >= 0.15; };
   const pOrd = {}; CHECKS.filter(x => PRICEK.includes(x.kind)).forEach(x => (pOrd[x.o.nbr] = pOrd[x.o.nbr] || {o:x.o, xs:[]}).xs.push(x));
   const ORDERK = ['gp', 'price', 'noprice', 'freeover', 'inact'];
-  Object.values(pOrd).forEach(({o, xs}) => { const cnt = k => xs.filter(x => x.kind === k).length, first = ORDERK.find(k => cnt(k));
+  Object.values(pOrd).filter(({o, xs}) => bigPrice(o, xs)).forEach(({o, xs}) => { const cnt = k => xs.filter(x => x.kind === k).length, first = ORDERK.find(k => cnt(k));
     const cm = repTxt({o});
     const ACT = {gp:`Check the price and the item cost, then ask ${cm}`, price:`Ask ${cm} if the price was agreed; if not, fix it`, noprice:'Add the price, or untick Free Item if it was a mistake', freeover:'Check the free quantity against the deal with the rep', inact:'Remove the line and tell the rep'};
     it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Price check', c:o.c, order:o.nbr, issue:ORDERK.filter(k => cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', '), sub:`Order ${o.nbr}`, age:o.age,
     html:chkTable(xs), t:`${byId[o.c].name}: order ${o.nbr} needs a price check`,
     d:xs.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${esc(chkProblem(x))}`).join('; ') + (xs.length > 3 ? '…' : ''),
     act:ACT[first], value:xs.reduce((a, x) => a + x.value, 0)}); });
-  // short at 71 but in Ashenheim: needs a transfer before it can go
-  const xOrd = {}; CHECKS.filter(x => x.kind === 'xfer').forEach(x => (xOrd[x.o.nbr] = xOrd[x.o.nbr] || {o:x.o, xs:[]}).xs.push(x));
-  Object.values(xOrd).forEach(({o, xs}) => it.push({key:'xfer:' + o.nbr, pri:2.6, col:'amber', kind:'Transfer', c:o.c, order:o.nbr, issue:`${xs.length} item${xs.length === 1 ? '' : 's'} need a transfer`, sub:xs.map(x => x.l.desc).slice(0, 2).join(', '), age:o.age,
-    html:plCards(xs.map(x => ({name:x.l.desc, title:x.l.sku, sub:`${x.l.open} needed · ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71 · ${x.l.ash} at Ashenheim`, tag:`Transfer ${x.need}`}))),
-    t:`${byId[o.c].name}: order ${o.nbr} needs ${xs.length} item${xs.length === 1 ? '' : 's'} from Ashenheim`,
-    d:xs.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${x.need} from ASH`).join('; '), act:'Put them on the transfer list', value:xs.reduce((a, x) => a + x.value, 0)}));
   // deliveries the driver app marked failed or part-delivered, or with items short / refused (last 7 days).
   // One card per customer and day; the cards show what didn't arrive and why, from the driver app's item lines (Scott, 11 Nov)
   const dGrp = {}; DELIV.filter(d => (d.st.k === 'fail' || d.st.k === 'part' || d.short.length) && d.date >= addDays(ASOF, -7)).forEach(d => (dGrp[d.c + '|' + d.date] = dGrp[d.c + '|' + d.date] || []).push(d));
@@ -1498,26 +1494,13 @@ function todayItems() {
   // missed and due orders are the rep's own follow-up in their app, not sales support's (Scott, 11 Nov)
   // will ship short: open / on-hold orders with lines we don't have the stock for — call before the truck leaves
   const shortOrd = {}; CHECKS.filter(x => x.kind === 'stock').forEach(x => (shortOrd[x.o.nbr] = shortOrd[x.o.nbr] || {o:x.o, ls:[]}).ls.push(x.l));
-  Object.values(shortOrd).forEach(({o, ls}) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0);
+  Object.values(shortOrd).filter(({o, ls}) => bigShort(o, ls)).forEach(({o, ls}) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0);
     it.push({key:'short:' + o.nbr, pri:2.7, col:'red', kind:'Will ship short', c:o.c, order:o.nbr,
     issue:`${ls.length} item${ls.length === 1 ? '' : 's'} short on order ${o.nbr}`, sub:`${J(v)} we can't fill · ${o.stage.t}`, age:o.age,
     html:plCards(ls.map(l => ({name:l.desc, title:l.sku, sub:`${l.open} ordered · ${Math.max(0, l.onhand)} in stock · ${J((l.open - Math.max(0, l.onhand)) * l.price)} we can’t fill`, tag:`${l.open - Math.max(0, l.onhand)} short`, tone:'loss'}))),
     t:`${byId[o.c].name}: order ${o.nbr} will ship short`,
     d:`${ls.slice(0, 3).map(l => `<b>${esc(l.desc)}</b>: ${Math.max(0, l.onhand)} on hand for ${l.open}`).join('; ')}${ls.length > 3 ? '…' : ''}`,
     act:'Tell the store and offer a substitute', value:v}); });
-  // back orders 5+ days old, one card per order
-  // Today: only back orders a newer order may duplicate (Alecia: reps re-key instead of reopening); the rest go in the weekly review
-  const boOrd = {}; BO.filter(b => b.age >= 5 && b.rep).forEach(b => (boOrd[b.nbr] = boOrd[b.nbr] || []).push(b));
-  Object.entries(boOrd).forEach(([nbr, ls]) => { const c = ls[0].c, can = ls.filter(b => b.canShip), v = ls.reduce((a, b) => a + b.open * b.price, 0), rep = ls.filter(b => b.rep);
-    if (rep.length) { it.push({key:'bo:' + nbr, pri:3, col:'blue', kind:'Back order', c, order:nbr, issue:rep.length === ls.length ? 'Likely replaced by a newer order' : `${rep.length} of ${ls.length} items likely replaced`, sub:`Back order ${nbr} → ${rep[0].rep.src === 'order' ? 'newer order ' + rep[0].rep.nbr : 'already invoiced ' + fds(rep[0].rep.date)}`, age:ls[0].age,
-      order2:(rep.find(b => b.rep.src === 'order') || {rep:{}}).rep.nbr || null, repHtml:repBlock(nbr, rep.slice(0, 4)) + (rep.length > 4 ? `<p class="note">and ${rep.length - 4} more items: See the items</p>` : ''),
-      t:`${byId[c].name}: back order ${nbr} may have been replaced`,
-      d:repBlock(nbr, rep.slice(0, 3)),
-      act:`Check, then close back order ${nbr} in Acumatica`, value:v}); return; }
-    it.push({key:'bo:' + nbr, pri:3, col:can.length ? 'green' : 'amber', kind:'Back order', c, order:nbr, issue:`Not delivered: ${ls.length} item${ls.length === 1 ? '' : 's'}`, sub:`Order ${nbr} · ${J(v)} to go`, age:ls[0].age,
-    t:`${byId[c].name}: ${ls.length} item${ls.length === 1 ? '' : 's'} not delivered since ${fds(ls[0].date)}`,
-    d:`Order <b>${esc(nbr)}</b> · ${J(v)} of goods still to go. ${can.length ? `Acumatica shows stock on hand for <b>${can.length} of ${ls.length}</b>.` : 'None of them are in stock.'}`,
-    act:can.length ? 'Find out why it has not shipped' : 'Tell the store when it is due', value:v}); });
   // stuck: 4 days or more (Scott, 9 Nov)
   // credit hold gets its own card from day 1 (Scott, 12 Nov: nothing should sit on credit hold unnoticed); the rest are "delayed" at 4+ days
   ORD.filter(o => o.stage.k === 'credit' && o.age >= 1).forEach(o => it.push({key:'credit:' + o.nbr, pri:3.5, col:'red', kind:'Credit hold', c:o.c, order:o.nbr, issue:`On credit hold ${o.age} day${o.age === 1 ? '' : 's'}`, sub:`Order ${o.nbr} · ${J(o.total)} held by AR`, age:o.age,
@@ -1528,13 +1511,7 @@ function todayItems() {
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
     d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
     act:o.stage.k === 'hold' ? 'Ask why it is on hold in Acumatica' : 'Ask dispatch when it leaves', value:o.stuck}));
-  // out of stock with no update yet: one card that opens Back orders → Out of stock (Scott, 11 Nov)
-  { const nu = oosList().filter(x => !x.r && (x.st === 'out' || x.st === 'short'));
-    if (nu.length) { const v = nu.reduce((a, x) => a + x.val, 0);
-      it.push({key:'oos:' + ASOF, pri:2.9, col:'amber', kind:'Out of stock', jump:'backorders|oos', issue:`${nu.length} item${nu.length === 1 ? '' : 's'} with no update`, sub:`${J(v)} owed to ${new Set(nu.flatMap(x => [...x.custs])).size} customers`, age:null,
-        html:plCards(nu.slice(0, 5).map(x => ({name:x.desc, sub:`${x.open} owed to ${x.custs.size} customer${x.custs.size === 1 ? '' : 's'} · ${J(x.val)}`, tag:OOS_ST[x.st][1], tone:x.st === 'out' ? 'loss' : ''}))) + (nu.length > 5 ? `<p class="note">and ${nu.length - 5} more</p>` : ''),
-        t:`${nu.length} out-of-stock item${nu.length === 1 ? '' : 's'} with no update`, d:'Find out when each is due, note it, then send the team the stock update.', act:'Check with purchasing, note the date, tell the team', value:v}); } }
-  const GROUP = {'Price check':'Price checks', 'Not carried':'Price checks', 'Free goods':'Free goods missing', 'Delivery problem':'Not delivered', 'Special':'Missed specials', 'Missed order':'Missed orders', 'Due today':'Due today', 'Transfer':'Transfers needed', 'Will ship short':'Will ship short', 'Back order':'Back orders', 'Stuck order':'Delayed orders', 'Credit hold':'Credit hold', 'Out of stock':'Out of stock'};
+  const GROUP = {'Price check':'Price checks', 'Not carried':'Price checks', 'Free goods':'Free goods missing', 'Delivery problem':'Not delivered', 'Missed order':'Missed orders', 'Due today':'Due today', 'Will ship short':'Will ship short', 'Stuck order':'Stuck orders', 'Credit hold':'Stuck orders'};
   it.forEach(x => x.group = GROUP[x.kind] || x.kind);
   // the rep picker narrows Today too (one support person covers up to 7 reps)
   return it.filter(x => !x.c || (inChain(x.c) && (TODAYALL() || TOPC.has(x.c) || x.kind === 'Credit hold'))).sort((a, b) => a.pri - b.pri || b.value - a.value);
@@ -1706,7 +1683,7 @@ const ICO = {
   deliv:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Price checks':['#D63B3B', 'Below cost, below the deal price, too many free, or an item we no longer carry'], 'Free goods missing':['#D63B3B', 'Deal free goods left off open orders: tick Free Item in Acumatica'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Transfers needed':['#127F8C', 'Short at 71, in stock at Ashenheim'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'Open orders we can’t fill in full, call before they ship'], 'Missed specials':['#326BD3', 'Open orders just short of a deal'], 'Back orders':['#7B4FD0', 'Items owed for 5 days or more'], 'Credit hold':['#D63B3B', 'Held by AR for the account balance: chase it so it does not sit'], 'Delayed orders':['#C47A1A', 'Keyed 4+ days ago and not moving'], 'AR':['#127F8C', 'Statements, promises and late payments'], 'Out of stock':['#8A6A1F', 'Items customers are waiting on that we can’t send']};
+const GRPC = {'Price checks':['#D63B3B', 'Costing the order J$20K or more (below cost, below the deal price, too many free, an item we no longer carry), or the order is under 25% GP'], 'Free goods missing':['#D63B3B', 'Deal free goods left off open orders: tick Free Item in Acumatica'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Will ship short':['#B5487A', 'J$100K or more short and 15% or more of the order: call before it ships'], 'Stuck orders':['#C47A1A', 'On credit hold, or keyed 4+ days ago and not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
 let TODAYF = 'All', EXP = null;
 
 // Top / All customers (Scott, 9–11 Nov): Today, Reps, Orders and Customers follow the switch in the header;
@@ -1763,13 +1740,12 @@ function brow(x) {
   const arPast = AR_CH.reduce((a, ch) => a + ch.past, 0);
   const groups = Object.keys(GRPC).map(k => ({k, list:shown.filter(x => x.group === k)})).filter(x => x.list.length);
   return `
-  <div class="ftiles six">
+  <div class="ftiles">
     ${ftile('st:todo', 'phone', open.filter(x => x.st === 'todo').length, 'To call', `${open.length} open · ${all.length - open.length} sorted`, '#D63B3B', '#FBE9E9')}
     ${ftile('st:waiting', 'clock', open.filter(x => x.st === 'waiting').length, 'Waiting', 'Called, answer still to come', '#E8862A', '')}
-    ${ftile('Credit hold', 'alert', g('Credit hold').length, 'Credit hold', 'Held by AR, kept in view until released', '#D63B3B', '')}
-    ${ftile('Delayed orders', 'alert', g('Delayed orders').length, 'Delayed orders', 'Keyed 4+ days ago, not moving', '#1A2E5A', '')}
-    ${ftile('Back orders', 'box', g('Back orders').length, 'Possible duplicates', `${BO.length} back order lines for the weekly review`, '#7B4FD0', '')}
-    ${ftile('Price checks', 'money', g('Price checks').length, 'Price checks', 'Below cost or deal, too many free', '#127F8C', '')}
+    ${ftile('Stuck orders', 'alert', g('Stuck orders').length, 'Stuck orders', 'On credit hold, or keyed 4+ days ago and not moving', '#D63B3B', '')}
+    ${ftile('Will ship short', 'box', g('Will ship short').length, 'Will ship short', 'J$100K or more short, call before they ship', '#B5487A', '')}
+    ${ftile('Price checks', 'money', g('Price checks').length, 'Price checks', 'Costing the order J$20K+, or under 25% GP', '#127F8C', '')}
   </div>
 
 
@@ -1866,7 +1842,7 @@ function vOrders() {
   return `<div class="ftiles">
     ${ctile('check', 'alert', chkOpen.length, 'To check', 'Price, free goods, stock, range', '#E2445C')}
     ${ctile('credit', 'alert', credit.length, 'Credit hold', J(credit.reduce((a, o) => a + o.total, 0)) + ' held by AR', '#D63B3B')}
-    ${ctile('xfer', 'box', xferList().length, 'Transfers needed', 'Items to move from Ashenheim', '#127F8C')}
+    ${ctile('xfer', 'box', xferList().length, 'Transfers', 'Dispatch moves these from Ashenheim. For information', '#127F8C')}
     ${ctile('open', 'orders', open.length, 'Open orders', J(open.reduce((a, o) => a + o.total, 0)) + ' not shipped yet', '#326BD3')}
     ${ctile('shipped', 'box', shipped.length, 'Shipped this week', J(shipped.reduce((a, s) => a + s.value, 0)) + ' delivered', '#1A8F4C')}
   </div>
