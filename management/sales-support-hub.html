@@ -2045,7 +2045,7 @@ const fsec = (n, title, sub, body) => `<section class="fsec"><div class="fsh"><s
 function vFriday() {
   const rep = CHAINF !== 'All' && REPS.includes(CHAINF) ? CHAINF : null, wk = FRI.week, isScott = !!HUBD.approver;
   const wkBtn = (w, t) => `<button type="button" class="btn sm ${FRI.week === w ? 'pri' : ''}" data-friwk="${w}" aria-pressed="${FRI.week === w}">${t}</button>`;
-  const head = `<div class="fhead"><div class="fwk"><span class="note" style="margin:0 8px 0 0">Plan for</span>${wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS)))}${wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT)))}</div>
+  const head = `<div class="fhead"><div class="fwk"><span class="note" style="margin:0 4px 0 0">Planning the week of <b>${esc(fds(wk))}</b></span>${FRI.wkOpen ? wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS))) + wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT))) : ''}<button class="btn sm" type="button" data-friwkopen="1">${FRI.wkOpen ? 'Done' : 'Change week'}</button></div>
     <div class="fwk">${isScott ? `<button class="btn sm" type="button" data-frirpt="1">${FRI.showReport ? '← Back to the meeting' : 'Plans report (all reps)'}</button>` : ''}${rep && !FRI.showReport ? '<button class="btn sm" type="button" data-chain="All">← All reps</button>' : ''}</div></div>`;
 
   // ----- Scott's report: every support person's reps (his view only) -----
@@ -2759,7 +2759,8 @@ __on(document, 'click', e => {
   if (d.sort) { const [id, k] = d.sort.split('|'); const st = SORT[id]; SORT[id] = {k, dir:st && st.k === k ? -st.dir : (b.closest('th').classList.contains('n') ? -1 : 1)};
     const sc = b.closest('.tbl'), top = sc ? sc.scrollTop : 0; render(); return; }
   if (d.chain) { CHAINF = d.chain; FRI.showReport = false; render(); return; }
-  if (d.friwk) { FRI.week = d.friwk; FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
+  if (d.friwkopen) { FRI.wkOpen = !FRI.wkOpen; render(); return; }
+  if (d.friwk) { FRI.wkOpen = false; FRI.week = d.friwk; FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
   if (d.friedit) { FRI.edit = true; FRI.draft = draftFrom(planOf(CHAINF, FRI.week)); FRI.draftKey = CHAINF + '|' + FRI.week; render(); return; }
   if (d.fricancel) { FRI.edit = false; FRI.draft = null; FRI.draftKey = ''; render(); return; }
   if (d.frisave) { savePlan(); return; }
