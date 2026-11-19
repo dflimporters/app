@@ -735,6 +735,8 @@ th.on{color:var(--ink)}
 .fcl:hover{text-decoration:underline}
 .focard.open{height:auto;overflow:visible}
 .fitems{border-top:1px solid var(--line);margin:6px 0 4px;padding-top:10px}
+.rcl{font-family:var(--head);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin:2px 0 8px}
+.rcgap{height:14px}
 .fcats{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
 .fcat{appearance:none;-webkit-appearance:none;text-align:left;font:inherit;display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-left:4px solid #E2445C;border-radius:10px;padding:9px 12px;cursor:pointer;box-shadow:0 1px 2px rgba(20,35,70,.06)}
 .fcat:hover{background:#F3F5FA}
@@ -1869,6 +1871,13 @@ const REPROW = () => REPS.map(r => { const t = REPBUD[r] || 0, sold = (REPM[r] |
     checks:CHECKS.filter(x => mine(x.o.c)).length, bo:BO.filter(b => mine(b.c)).length,
     stuck:ORD.filter(o => mine(o.c) && (o.stage.k === 'truck' || o.stage.k === 'hold' || o.stage.k === 'credit') && o.age >= 4).length}; });
 const achCol = {green:'#00C875', amber:'#FDAB3D', red:'#E2445C', grey:'#A8B1C6'};
+// categories this month for one rep's customers (same customers as the category view): sold so far against the category targets
+const repCats = rep => { const m = {}, get = cls => m[cls] = m[cls] || {cls, m:0, t:0};
+  STORES.filter(s => s.rep === rep && inFocus(s.id)).forEach(s => { Object.entries(s.cats || {}).forEach(([cls, x]) => { get(cls).m += x.m; }); Object.entries(CB[s.id] || {}).forEach(([cls, b]) => { get(cls).t += b; }); });
+  return Object.values(m).filter(x => x.cls !== '0' && x.t > 0).map(x => ({...x, gap:x.m - x.t * PACE})); };
+const catStrip = rep => { const all = repCats(rep); if (!all.length) return '';
+  const beh = all.filter(x => x.gap < 0).sort((a, b) => a.gap - b.gap), key = 'rc:' + rep, shown = SHOWALL[key] ? beh : beh.slice(0, 6);
+  return `<div class="rcl">Categories behind this month</div>` + (beh.length ? `<div class="fcats">${shown.map(x => `<button type="button" class="fcat" data-cat="${esc(x.cls)}" title="Which of ${esc(firstName(rep))}’s customers are behind on ${esc(x.cls)}"><b>${esc(x.cls)}</b><span class="fcs">${J(-x.gap)} short</span><span class="fcp">${Math.round(x.m / x.t * 100)}% of ${J(x.t)}</span></button>`).join('')}</div>${beh.length > 6 ? `<button class="btn sm" type="button" data-more="${key}" style="margin-top:8px">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + (beh.length - 6)}</button>` : ''}` : '<p class="note" style="margin:0">On track in every category with a target.</p>') + '<div class="rcgap"></div>'; };
 function vReps() {
   const ALLR = REPROW(), rows = ALLR.filter(r => CHAINF === 'All' || r.rep === CHAINF);
   const T = ALLR.reduce((a, r) => ({t:a.t + r.t, sold:a.sold + r.sold}), {t:0, sold:0}), tAch = T.t ? T.sold / T.t : 0;
@@ -1899,7 +1908,7 @@ function vReps() {
       `<div class="one hm" style="text-align:right">${r.open.length ? `${r.open.length} · ${J(ov)}` : '–'}</div>`,
       `<div class="one" style="text-align:center">${r.checks ? `<b class="dn">${r.checks}</b>` : '–'}</div>`,
       `<div class="one hm" style="text-align:center">${nb ? `<b class="dn">${nb}</b>` : '–'}</div>`],
-      `${custList(r.rep)}<div class="acts" style="margin-top:10px"><button class="btn sm pri" type="button" data-chain="${esc(CHAINF === r.rep ? 'All' : r.rep)}">${CHAINF === r.rep ? 'Show all reps again' : 'Show only ' + esc(firstName(r.rep)) + '’s customers'}</button></div>`); });
+      `${catStrip(r.rep)}${custList(r.rep)}<div class="acts" style="margin-top:10px"><button class="btn sm pri" type="button" data-chain="${esc(CHAINF === r.rep ? 'All' : r.rep)}">${CHAINF === r.rep ? 'Show all reps again' : 'Show only ' + esc(firstName(r.rep)) + '’s customers'}</button></div>`); });
   const repBoard = `<section class="grp gen" style="--gc:#326BD3;--cols:minmax(0,1.6fr) 84px 84px minmax(0,1.3fr) 92px minmax(0,1fr) 68px 68px 40px"><div class="gh"><h3>Reps</h3><span class="gn">Tap a rep to see their customers furthest behind this month</span></div>
     <div class="bhead"><div>Rep</div><div class="hm" style="text-align:right">Target</div><div style="text-align:right">Sold</div><div>Achieved</div><div class="hm" style="text-align:right">Needs / day</div><div class="hm" style="text-align:right">Open orders</div><div style="text-align:center">To check</div><div class="hm" style="text-align:center">Behind</div><div></div></div>
     ${repRows.join('')}</section>`;
@@ -2240,12 +2249,6 @@ function vFriday() {
     if (a && a.over) parts.push(v.col ? `owes ${J(a.over)} overdue · plan to collect <b>${esc(v.col)}</b>` : `<b class="fwarn">owes ${J(a.over)} overdue: collect payment</b>`); else if (v.col) parts.push('plan to collect <b>' + esc(v.col) + '</b>');
     return parts.length ? parts.join(' · ') : 'Visit or call'; };
   const q = (n, title, hint, body) => `<div class="fq"><div class="fqh"><div><span class="fqs">Step ${n} of 3</span><b>${title}</b>${hint ? `<em>${hint}</em>` : ''}</div></div>${body}</div>`;
-  // categories this month for this rep's customers: sold so far against the category targets, biggest shortfall first
-  const catB = (() => { const m = {}, get = cls => m[cls] = m[cls] || {cls, m:0, t:0};
-    cs.filter(s => inFocus(s.id)).forEach(s => { Object.entries(s.cats || {}).forEach(([cls, x]) => { get(cls).m += x.m; }); Object.entries(CB[s.id] || {}).forEach(([cls, b]) => { get(cls).t += b; }); });
-    return Object.values(m).filter(x => x.cls !== '0' && x.t > 0).map(x => ({...x, gap:x.m - x.t * PACE})); })();
-  const catBeh = catB.filter(x => x.gap < 0).sort((a, b) => a.gap - b.gap);
-  const catCard = !catB.length ? '' : `<div class="fq fcatq"><div class="fqh"><div><span class="fqs">Worth knowing before you pick</span><b>${catBeh.length ? `Categories ${esc(first)} is behind in this month` : `${esc(first)} is on track in every category this month`}</b><em>Sold so far against each category target, compared with where it should be today (${Math.round(PACE * 100)}% of the month gone).${catBeh.length ? ' Tap one to see which customers are behind on it, then ask for it on the visit.' : ''}</em></div></div>${catBeh.length ? `<div class="fcats">${(SHOWALL.fcat ? catBeh : catBeh.slice(0, 6)).map(x => `<button type="button" class="fcat" data-cat="${esc(x.cls)}" title="Which of ${esc(first)}’s customers are behind on ${esc(x.cls)}"><b>${esc(x.cls)}</b><span class="fcs">${J(-x.gap)} short</span><span class="fcp">${Math.round(x.m / x.t * 100)}% of ${J(x.t)}</span></button>`).join('')}</div>${catBeh.length > 6 ? `<button class="btn sm" type="button" data-more="fcat" style="margin-top:10px">${SHOWALL.fcat ? 'Show fewer' : 'Show the other ' + (catBeh.length - 6)}</button>` : ''}` : ''}</div>`;
   const planBody = !editing && p ? (() => { const d = p.data || {}, col = noOver(d, d.collect);
       return `<p class="note" style="margin:0 0 10px">${p.met ? '<b class="up">Meeting held' + (p.met_on ? ' ' + esc(fds(p.met_on)) : '') + '.</b>' : 'Meeting not ticked yet.'} Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}.</p>
       <div class="bfacts"><div><span>Sales goal</span>${d.goal ? J(d.goal) : '–'}</div>${d.push ? `<div><span>Products to push</span>${esc(d.push)}</div>` : ''}<div><span>Help needed</span>${esc(d.help || '–')}</div>${d.blockers ? `<div><span>In the way</span>${esc(d.blockers)}</div>` : ''}</div>
@@ -2253,7 +2256,6 @@ function vFriday() {
       ${col.length ? '<h4 class="fsub">Collect payment from</h4>' + plCards(col.map(c => ({name:byId[c].name, sub:`Oldest ${arOf(c).oldest} days`, tag:J(arOf(c).over), tone:'loss'}))) : ''}
       <div class="acts" style="margin-top:14px"><button class="btn sm pri" type="button" data-friedit="1">Edit the plan</button><button class="btn sm" type="button" data-fricopy="1">Copy plan for WhatsApp</button></div>`; })() :
     `<div class="fform">
-      ${catCard}
       ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card. Tap a customer’s name to see their invoices and orders.`,
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
           return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added', g[5])).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
