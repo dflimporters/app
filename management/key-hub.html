@@ -715,6 +715,7 @@ const isHQ = s => HQ_IDS.has(s.id) || /HEAD OFFICE|WAREHOUSE/.test(s.raw);
 STORES.forEach(s => {
   s.mon = {}; (S.mon[s.id] || []).forEach(([m, r]) => s.mon[m] = r);
   s.bud = {}; ((S.bud || {})[s.id] || []).forEach(([m, b]) => s.bud[m] = b);
+  s.dv = {}; ((S.days || {})[s.id] || []).forEach((d, i) => { const a = ((S.dayv || {})[s.id] || [])[i]; if (a != null) s.dv[d] = +a; });
   s.days = ((S.days || {})[s.id] || []).filter(d => d <= ASOF);
 });
 const monAdd = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + String(m).padStart(2, '0'); };
@@ -919,25 +920,36 @@ const shortBySku = (() => { const m = {};
 (() => { const add = {};
   (O.inv || []).forEach(r => { if ((+r[3] || 0) > 0) (add[r[0]] = add[r[0]] || new Set()).add(r[1]); });
   SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => (add[x.c] = add[x.c] || new Set()).add(x.date));
+  // a shipment's value stands in for the day's invoice amount until the sales data catches up
+  STORES.forEach(s => { s.dv = s.dv || {}; });
+  const shv = {}; SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => { shv[x.c + '|' + x.date] = (shv[x.c + '|' + x.date] || 0) + x.value; });
+  Object.keys(shv).forEach(k => { const [c, dt] = k.split('|'), s = byId[c]; if (s) s.dv[dt] = Math.max(s.dv[dt] || 0, shv[k]); });
   STORES.forEach(s => { const a = add[s.id]; if (a) s.days = [...new Set([...s.days, ...[...a].filter(d => d <= ASOF)])].sort(); }); })();
 // ---------- order cadence (from invoice days, last 150 days) ----------
 // DFL doesn't deliver at weekends: a due date on Saturday or Sunday moves to the Monday after (Scott, 5 Nov)
 const toWorkday = ds => { const w = d8(ds).getDay(); return w === 6 ? addDays(ds, 2) : w === 0 ? addDays(ds, 1) : ds; };
 STORES.forEach(s => {
+  // Real orders only (Scott, 19 Nov): small top-up deliveries between two real orders (the first order came short) make a store look like it
+  // orders every 2 or 3 days. A day counts as a real order when its invoice is at least half the store's usual bigger day (half of its
+  // 75th percentile over the last 120 days). Days with no amount known, and the last two days (the day is still filling up), count as real.
   const d = s.days.filter(x => x >= addDays(ASOF, -120));
-  const gaps = []; for (let i = 1; i < d.length; i++) gaps.push(daysBetween(d[i-1], d[i]));
+  const amts = d.map(x => s.dv[x]).filter(v => v > 0).sort((a, b) => a - b);
+  const thr = amts.length >= 5 ? 0.5 * amts[Math.floor((amts.length - 1) * 0.75)] : 0;
+  const real = x => !thr || !(s.dv[x] > 0) || s.dv[x] >= thr || x >= addDays(ASOF, -1);
+  const dm = d.filter(real), allReal = s.days.filter(real);
+  const gaps = []; for (let i = 1; i < dm.length; i++) gaps.push(daysBetween(dm[i-1], dm[i]));
   const med = gaps.length >= 3 ? Math.max(2, Math.round(median(gaps.slice(-12)))) : null;
-  const last = s.days[s.days.length - 1] || null;
-  const since = last ? daysBetween(last, ASOF) : null;
+  const last = s.days[s.days.length - 1] || null, lastReal = allReal[allReal.length - 1] || null;
+  const since = lastReal ? daysBetween(lastReal, ASOF) : null;
   const open = openOf(s.id);
-  const next = last && med ? toWorkday(addDays(last, med)) : null;
+  const next = lastReal && med ? toWorkday(addDays(lastReal, med)) : null;
   let state = 'ok', late = 0;
   if (!med || isHQ(s)) state = 'irregular';
   else { late = daysBetween(next, ASOF);   // days past the working-day due date
     if (open.length) state = 'inhand';
     else if (late >= Math.max(4, Math.round(med * 0.6))) state = 'missed';
     else if (late >= 2) state = 'due'; }
-  s.cad = {med, last, since, late, state, next, open, n8:s.days.filter(x => x > addDays(ASOF, -56)).length};
+  s.cad = {med, last, lastReal, since, late, state, next, open, n8:s.days.filter(x => x > addDays(ASOF, -56)).length};
 });
 const CAD = {missed:['red', 'Missed'], due:['amber', 'Due now'], inhand:['blue', 'Order in'], ok:['green', 'On track'], irregular:['grey', 'Irregular']};
 
@@ -1160,16 +1172,16 @@ function todayItems() {
       t:`${byId[x.n.c] ? byId[x.n.c].name : x.n.c}: ${J(x.left)} with ${nm2}, due ${fds(x.n.date)}`, d:`Invoices ${esc(x.open.join(', '))}. Still marked assigned.`, act:`Ask ${firstName(nm2)} when it will be collected`, value:x.left});
     if (x.st === 'collected' && daysBetween(x.stAt, ASOF) >= 2) it.push({key:'colh:' + x.n.id, pri:5.4, col:'red', kind:'Collection', c:x.n.c, issue:'Collected, not handed in', sub:`${J(x.left)} with ${nm2} since ${fds(x.stAt)}`, age:daysBetween(x.stAt, ASOF),
       t:`${byId[x.n.c] ? byId[x.n.c].name : x.n.c}: ${J(x.left)} collected by ${nm2}, not handed in`, d:`Collected ${fd(x.stAt)}. Invoices ${esc(x.open.join(', '))} still open in AR.`, act:`Check where the money is with ${firstName(nm2)}`, value:x.left}); });
-  STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No order in ${s.cad.since} days`, sub:`Usually every ${s.cad.med} days`, age:s.cad.since,
-    t:`${s.name}: no order in ${s.cad.since} days`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
+  STORES.filter(s => s.cad.state === 'missed').forEach(s => it.push({key:'miss:' + s.id + ':' + s.cad.last, pri:2, col:'red', kind:'Missed order', c:s.id, issue:`No full order in ${s.cad.since} days`, sub:`Usually every ${s.cad.med} days`, age:s.cad.since,
+    t:`${s.name}: no full order in ${s.cad.since} days`,
+    d:`Usually every <b>${s.cad.med} days</b>. Last full order ${fd(s.cad.lastReal)}. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
     act:'Call Rep or Merch for the order', value:(s.l3 / 3)}));
   // due today: expected today or a little late, not yet missed, nothing keyed in — follow up before it becomes a missed order
   STORES.filter(s => !isHQ(s) && s.cad.next && s.cad.next <= ASOF && (s.cad.state === 'due' || s.cad.state === 'ok')).forEach(s => { const over = daysBetween(s.cad.next, ASOF);
     it.push({key:'due:' + s.id + ':' + s.cad.next, pri:2.5, col:'amber', kind:'Due today', c:s.id,
-    issue:over > 0 ? `Due ${over} day${over === 1 ? '' : 's'} ago, no order yet` : 'Order due today', sub:`Usually every ${s.cad.med} days · last ${fds(s.cad.last)}`, age:s.cad.since,
+    issue:over > 0 ? `Due ${over} day${over === 1 ? '' : 's'} ago, no order yet` : 'Order due today', sub:`Usually every ${s.cad.med} days · last full order ${fds(s.cad.lastReal)}`, age:s.cad.since,
     t:`${s.name}: order due ${over > 0 ? over + ' days ago' : 'today'}`,
-    d:`Usually every <b>${s.cad.med} days</b>. Last delivery ${fd(s.cad.last)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
+    d:`Usually every <b>${s.cad.med} days</b>. Last full order ${fd(s.cad.lastReal)}. Nothing keyed in yet. Merchandiser: <b>${esc(s.merch || 'none on file')}</b> · Rep: <b>${esc(s.rep || 'none on file')}</b>.`,
     act:'Check with Rep or Merch that the order is coming', value:(s.l3 / 3)}); });
   // will ship short: open / on-hold orders with lines we don't have the stock for — call before the truck leaves
   const shortOrd = {}; CHECKS.filter(x => x.kind === 'stock').forEach(x => (shortOrd[x.o.nbr] = shortOrd[x.o.nbr] || {o:x.o, ls:[]}).ls.push(x.l));
@@ -1506,7 +1518,7 @@ function vOrders() {
         return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}" title="${esc(CHKTXT[x.kind])}">${esc(chkProblem(x))}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), cell(esc(firstName(byId[x.o.c].rep)), 'one hm'), stBtn(k)],
           `<div class="bfacts"><div><span>Check</span><b>${esc(CHKTXT[x.kind])}</b></div><div><span>In Acumatica</span>${esc(chkStep(x))}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${x.o.by ? ' · keyed by ' + esc(x.o.by) : ''}</div><div><span>Line</span>${x.l.oq} × ${esc(x.l.desc)} at ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
-  if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
+  if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from the store’s regular-size orders over the last four months: small top-up deliveries (an order that came short) are left out. “Irregular” means fewer than four regular orders in that time, too few to set a pattern. The due date counts from the last regular order. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
       {k:'merch', label:'Merch', w:'13%', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
