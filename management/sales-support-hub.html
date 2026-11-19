@@ -1747,11 +1747,11 @@ const segs = list => `<div class="seg" role="tablist">${list.map(([k, t, n]) => 
 // one short line, with the longer explanation behind ⓘ
 const lead1 = (id, short, long) => `<p class="lead1">${esc(short)}${long ? ` <button type="button" class="info" data-info="${esc(id)}" aria-expanded="${!!INFO[id]}" aria-label="More about this">i</button>` : ''}</p>${long && INFO[id] ? `<p class="infobox">${esc(long)}</p>` : ''}`;
 // generic one-line board: cols = CSS grid columns, heads = header labels, rows = html
-const gboard = (col, title, sub, cols, heads, rows, moreId) => { const all = SHOWALL[moreId]; const shown = all ? rows : rows.slice(0, 10);
+const gboard = (col, title, sub, cols, heads, rows, moreId, cap) => { const lim = cap || 10, all = SHOWALL[moreId]; const shown = all ? rows : rows.slice(0, lim);
   return `<section class="grp gen" style="--gc:${col};--cols:${cols}"><div class="gh"><h3>${esc(title)}</h3><span class="gn">${esc(sub)}</span></div>
   <div class="bhead">${heads.map(h => `<div${h[2] ? ` class="${h[2]}"` : ''}${h[1] ? ` style="text-align:${h[1]}"` : ''}>${esc(h[0])}</div>`).join('')}</div>
   ${shown.join('') || '<div class="brow"><div class="c-issue">Nothing here.</div></div>'}
-  ${rows.length > 10 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="${esc(moreId)}">${all ? 'Show fewer' : 'Show the other ' + (rows.length - 10)}</button></div>` : ''}</section>`; };
+  ${rows.length > lim ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="${esc(moreId)}">${all ? 'Show fewer' : 'Show the other ' + (rows.length - lim)}</button></div>` : ''}</section>`; };
 const grow = (key, cells, exp) => { const open = EXP === key;
   return `<div class="brow ${open ? 'open' : ''}" data-exp="${esc(key)}" role="button" tabindex="0" aria-expanded="${open}">${cells.join('')}<div class="c-act"><span class="chev">${icon('chev')}</span></div>${open ? `<div class="bexp">${exp}</div>` : ''}</div>`; };
 const cell = (html, cls, align) => `<div class="${cls || ''}"${align ? ` style="text-align:${align}"` : ''}>${html}</div>`;
@@ -2838,7 +2838,7 @@ function holdRow(x) { const p = payOn(x.nbr), key = 'hold:' + x.nbr;
     cell(`<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, '', 'center'), stBtn(key)],
     `<div class="bfacts"><div><span>Order</span>${acuOrder(x.nbr)} · ${esc(x.status)} · ${J(x.val)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Rep / support</span>${esc(x.rep)} · ${esc(x.sup)}</div><div><span>Past due on the account</span>${x.past ? J(x.past) : 'Nothing past due'}${x.lastpay ? ` · last payment ${esc(fds(x.lastpay))}` : ' · no payment in the last 200 days'}</div>${p ? `<div><span>Payment in</span>${esc(who(p.by))} at ${jaHm(p.at)}</div>` : ''}</div><div class="acts"><button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>${escBtn(key)}${acuBtn(x.nbr)}</div>`); }
 const HOLDCOLS = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', HOLDHEADS = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']];
-const holdBoard = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS, HOLDHEADS, list.map(holdRow), id);
+const holdBoard = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS, HOLDHEADS, list.map(holdRow), id, 999);
 const holdBoards = (H, pfx) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
   return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : '') + holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it'); };
 // the day's message, the same words for support and the lead
