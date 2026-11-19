@@ -1507,7 +1507,8 @@ function todayItems() {
     t:`${byId[o.c].name}: order ${o.nbr} on credit hold`,
     d:`Order <b>${esc(o.nbr)}</b> was keyed ${esc(fd(o.date))} (${o.age} day${o.age === 1 ? '' : 's'} ago) and is held by AR for the account balance: <b>${J(o.total)}</b> with GCT. It will not be picked until AR releases it.`,
     act:'Ask AR what is needed to release it, and tell the rep', value:o.total}));
-  ORD.filter(o => (o.stage.k === 'truck' || o.stage.k === 'hold') && o.age >= 4).forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
+  // on-hold orders are the holds board on Today, so only picked/loaded orders that have not left count as stuck (Scott, 19 Nov)
+  ORD.filter(o => o.stage.k === 'truck' && o.age >= 4).forEach(o => it.push({key:'stuck:' + o.nbr, pri:4, col:'amber', kind:'Stuck order', c:o.c, issue:o.stage.t, sub:`Order ${o.nbr} · ${J(o.stuck)} stuck${truckOf(o) ? ' · ' + truckOf(o) : ''}`, age:o.age,
     t:`${byId[o.c].name}: order ${o.nbr} ${o.stage.t.toLowerCase()}`,
     d:`${esc(o.stage.why)}. Keyed ${fd(o.date)} (${o.age} day${o.age === 1 ? '' : 's'} ago). <b>${J(o.stuck)}</b> stuck${o.stuck < o.total * 0.98 ? `, of a ${J(o.total)} order (with GCT)` : ''}.`,
     act:o.stage.k === 'hold' ? 'Ask why it is on hold in Acumatica' : 'Ask dispatch when it leaves', value:o.stuck}));
@@ -1686,7 +1687,7 @@ const ICO = {
   look:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>',
   lead:'<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.3 6.7 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
-const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Held by AR or not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
+const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Picked or loaded, but not out of the warehouse'], 'AR':['#127F8C', 'Statements, promises and late payments']};
 let TODAYF = 'All', EXP = null;
 
 // Top / All customers (Scott, 9–11 Nov): Today, Reps, Orders and Customers follow the switch in the header;
