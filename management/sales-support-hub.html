@@ -980,6 +980,7 @@ const isHQ = s => HQ_IDS.has(s.id) || /HEAD OFFICE|WAREHOUSE/.test(s.raw);
 STORES.forEach(s => {
   s.mon = {}; (S.mon[s.id] || []).forEach(([m, r]) => s.mon[m] = r);
   s.bud = {}; ((S.bud || {})[s.id] || []).forEach(([m, b]) => s.bud[m] = b);
+  s.dv = {}; ((S.days || {})[s.id] || []).forEach((d, i) => { const a = ((S.dayv || {})[s.id] || [])[i]; if (a != null) s.dv[d] = +a; });
   s.days = ((S.days || {})[s.id] || []).filter(d => d <= ASOF);
 });
 const monAdd = (ym, n) => { let [y, m] = ym.split('-').map(Number); m += n; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return y + '-' + String(m).padStart(2, '0'); };
@@ -1207,25 +1208,36 @@ const shortBySku = (() => { const m = {};
 (() => { const add = {};
   (O.inv || []).forEach(r => { if ((+r[3] || 0) > 0) (add[r[0]] = add[r[0]] || new Set()).add(r[1]); });
   SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => (add[x.c] = add[x.c] || new Set()).add(x.date));
+  // a shipment's value stands in for the day's invoice amount until the sales data catches up
+  STORES.forEach(s => { s.dv = s.dv || {}; });
+  const shv = {}; SHIPS.filter(x => SHIPPED(x.status) && x.date).forEach(x => { shv[x.c + '|' + x.date] = (shv[x.c + '|' + x.date] || 0) + x.value; });
+  Object.keys(shv).forEach(k => { const [c, dt] = k.split('|'), s = byId[c]; if (s) s.dv[dt] = Math.max(s.dv[dt] || 0, shv[k]); });
   STORES.forEach(s => { const a = add[s.id]; if (a) s.days = [...new Set([...s.days, ...[...a].filter(d => d <= ASOF)])].sort(); }); })();
 // ---------- order cadence (from invoice days, last 150 days) ----------
 // DFL doesn't deliver at weekends: a due date on Saturday or Sunday moves to the Monday after (Scott, 5 Nov)
 const toWorkday = ds => { const w = d8(ds).getDay(); return w === 6 ? addDays(ds, 2) : w === 0 ? addDays(ds, 1) : ds; };
+// Real orders only (Scott, 19 Nov): small top-up deliveries between two real orders (the first order came short) make a store look like it
+// orders every 2 or 3 days. A day counts as a real order when its invoice is at least half the store's usual bigger day (half of its
+// 75th percentile over the last 120 days). Days with no amount known, and the last two days (the day is still filling up), count as real.
 STORES.forEach(s => {
   const d = s.days.filter(x => x >= addDays(ASOF, -120));
-  const gaps = []; for (let i = 1; i < d.length; i++) gaps.push(daysBetween(d[i-1], d[i]));
+  const amts = d.map(x => s.dv[x]).filter(v => v > 0).sort((a, b) => a - b);
+  const thr = amts.length >= 5 ? 0.5 * amts[Math.floor((amts.length - 1) * 0.75)] : 0;
+  const real = x => !thr || !(s.dv[x] > 0) || s.dv[x] >= thr || x >= addDays(ASOF, -1);
+  const dm = d.filter(real), allReal = s.days.filter(real);
+  const gaps = []; for (let i = 1; i < dm.length; i++) gaps.push(daysBetween(dm[i-1], dm[i]));
   const med = gaps.length >= 3 ? Math.max(2, Math.round(median(gaps.slice(-12)))) : null;
-  const last = s.days[s.days.length - 1] || null;
+  const last = s.days[s.days.length - 1] || null, lastReal = allReal[allReal.length - 1] || null;
   const since = last ? daysBetween(last, ASOF) : null;
   const open = openOf(s.id);
-  const next = last && med ? toWorkday(addDays(last, med)) : null;
+  const next = lastReal && med ? toWorkday(addDays(lastReal, med)) : null;
   let state = 'ok', late = 0;
   if (!med || isHQ(s)) state = 'irregular';
   else { late = daysBetween(next, ASOF);   // days past the working-day due date
     if (open.length) state = 'inhand';
     else if (late >= Math.max(4, Math.round(med * 0.6))) state = 'missed';
     else if (late >= 2) state = 'due'; }
-  s.cad = {med, last, since, late, state, next, open, n8:s.days.filter(x => x > addDays(ASOF, -56)).length};
+  s.cad = {med, last, lastReal, since, late, state, next, open, n8:s.days.filter(x => x > addDays(ASOF, -56)).length};
 });
 // customers that matter for Today and the week strip: the top customers making up 80% of each rep's sales (TOPC, below)
 const BIG = s => TODAYALL() || TOPC.has(s.id);
@@ -1812,7 +1824,7 @@ function vOrders() {
         return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}" title="${esc(CHKTXT[x.kind])}">${esc(chkProblem(x))}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), cell(esc(firstName(byId[x.o.c].rep)), 'one hm'), stBtn(k)],
           `<div class="bfacts"><div><span>Check</span><b>${esc(CHKTXT[x.kind])}</b></div><div><span>In Acumatica</span>${esc(chkStep(x))}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${x.o.by ? ' · keyed by ' + esc(x.o.by) : ''}</div><div><span>Line</span>${x.l.oq} × ${esc(x.l.desc)} at ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
-  if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from invoice days over the last four months. “Irregular” means fewer than four deliveries in that time, too few to set a pattern. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
+  if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from the store’s regular-size orders over the last four months: small top-up deliveries (an order that came short) are left out. “Irregular” means fewer than four regular orders in that time, too few to set a pattern. The due date counts from the last regular order. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
       {k:'store', label:'Store', get:s => s.name, show:s => storeLink(s.id)},
       {k:'merch', label:'Merch', w:'13%', get:s => s.merch || '~', show:s => whoCell(s.merch, true)},
@@ -2236,7 +2248,7 @@ function vFriday() {
   const pickRow = (id, rm, kind) => { const s = byId[id], a = AR_READY ? arOf(id) : null, gi = gapInfo[id], bh = gi ? gi.need : 0, no = !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due'), pc = s.budM > 0 ? Math.round(s.mtd / s.budM * 100) : 0;
     const ovB = a && a.over ? `owes ${J(a.over)} overdue` : '';
     const tagO = a && a.over ? `<span class="pill red">${J(a.over)} overdue</span>` : '', tagG = bh ? `<span class="pill amber">needs ${J(bh)}</span>` : '', tagN = no ? `<span class="pill purple">${s.cad.state === 'missed' ? 'Missed ' + s.cad.late + 'd' : 'Due now'}</span>` : '';
-    const bO = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'also needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : ''] : [], bG = gi ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', ovB] : [], bN = no ? [`usually every ${s.cad.med} days`, `last delivery ${fds(s.cad.last)}`, ovB] : [];
+    const bO = a && a.over ? [`oldest ${a.oldest} days`, bh ? 'also needs ' + J(bh) + ' more this month' : '', no ? 'not ordering when they usually do' : ''] : [], bG = gi ? [pc + '% of target (should be ' + Math.round(PACE * 100) + '%)', gi.ov ? J(gi.ov) + ' open order already' : '', gi.nd ? 'next order due ' + fds(s.cad.next) : '', ovB] : [], bN = no ? [`usually orders every ${s.cad.med} days`, `last full order ${fds(s.cad.lastReal)}`, ovB] : [];
     const k = kind || 'a', tag = k === 'o' ? tagO : k === 'g' ? tagG : k === 'n' ? tagN : (tagO || tagG || tagN);
     const bits = k === 'o' ? bO : k === 'g' ? bG : k === 'n' ? bN : (bO.length ? bO : bG.length ? bG : bN.length ? bN : ['Visit or call']);
     const det = bits.filter(Boolean).join(' · ');
