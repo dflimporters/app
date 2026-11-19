@@ -626,8 +626,10 @@ body{background:#F3F5F9}
 #hubRefresh{white-space:nowrap}
 .ptabs{display:flex;gap:4px;background:#E6EAF2;border-radius:12px;padding:4px;margin:4px 0 6px;overflow-x:auto;scrollbar-width:none}
 .ptabs::-webkit-scrollbar{display:none}
-.ptabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:9px;font-family:var(--head);font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap;position:relative}
+.ptabs{container:ptabs / inline-size}
+.ptabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:1 1 auto;gap:6px;padding:9px 10px;border-radius:9px;font-family:var(--head);font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap;position:relative}
 .ptabs button svg{width:17px;height:17px;flex:none}
+@container ptabs (max-width:700px){.ptabs button svg{display:none}.ptabs button{padding:9px 8px}}
 .ptabs button:hover{color:var(--ink)}
 .ptabs button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(13,27,62,.12)}
 .ptabs button[aria-selected="true"] svg{color:var(--blue)}
