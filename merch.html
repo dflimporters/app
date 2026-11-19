@@ -1539,6 +1539,35 @@ function isRelief(){
 const MERCH_FIELD_ROLES = ['merchandiser', 'relief_merchandiser', 'tl_merch'];
 const TEAM_LEAD_ROLES   = ['team_leader', 'tl_merch'];
 
+// A TL's team = active reps whose team_lead_id is one of tlLedIds(): the TL
+// themself plus any TL they co-lead (tl_co_leads, e.g. Jomo co-leads
+// Coliesha's team). A co-lead is 'view' or 'full': _tlWriteIds holds only the
+// teams this TL may act on, so a view-only co-TL sees the team but gets no
+// approve/assign/submit buttons (the server refuses those too). Resolved by
+// get_tl_scope; admin "view as" passes the TL's id. Falls back to just the TL.
+let _tlLedIds=[], _tlWriteIds=[];
+async function tlLedIds(u){
+  let sc=null;
+  try{ sc=await restRpc('get_tl_scope', cu&&cu.viewingAs?{p_rep:u.id}:{}); }
+  catch(e){ console.warn('TL scope lookup failed:',e); }
+  _tlLedIds=sc&&Array.isArray(sc.led)&&sc.led.length?sc.led:[u.id];
+  _tlWriteIds=sc&&Array.isArray(sc.write)&&sc.write.length?sc.write:[u.id];
+  return _tlLedIds;
+}
+// False only for someone on a team this TL can view but not act on.
+function tlCanActOnLead(leadId){
+  return !leadId || !_tlLedIds.includes(leadId) || _tlWriteIds.includes(leadId);
+}
+function tlCanActOn(repId){
+  const m=(tlMyMerch||[]).find(x=>x.id===repId);
+  return !m || tlCanActOnLead(m.team_lead_id);
+}
+// Every team member is view-only (e.g. a TL-designate before handover).
+function tlTeamViewOnly(){
+  return !!(tlMyMerch&&tlMyMerch.length) && tlMyMerch.every(m=>!tlCanActOnLead(m.team_lead_id));
+}
+const TL_VIEW_ONLY_MSG='👁️ View only — your access to this team is view-only, so their own team leader acts on this.';
+
 // PostgREST `in` filter: roleIn(['a','b']) -> "role=in.(a,b)"
 function roleIn(roles){ return 'role=in.(' + roles.join(',') + ')'; }
 
@@ -2037,13 +2066,14 @@ async function loadStoreCorrections(wrapId,listId){
     const rows=await rest('visit_store_corrections?status=eq.pending&order=requested_at.desc&select=*');
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
-    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(function(r){
+      const viewOnly=!cu.viewingAs && !tlCanActOn(r.requester_rep_id);
+      const readonly=!!cu.viewingAs||viewOnly;
       return '<div class="merch-card"><div style="font-weight:700;font-size:13px;color:var(--navy)">'+escapeHtmlM(r.requester_name)+' · '+escapeHtmlM(r.visit_date||'')+'</div>'+
         '<div style="font-size:12px;margin:4px 0"><span style="color:var(--muted)">Logged:</span> '+escapeHtmlM(r.old_store_name||r.old_customer_id||'')+'</div>'+
         '<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--muted)">Should be:</span> <b>'+escapeHtmlM(r.new_store_name)+'</b></div>'+
         (r.reason?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px">“'+escapeHtmlM(r.reason)+'”</div>':'<div style="margin-bottom:8px"></div>')+
-        (readonly?'<div style="font-size:11px;color:var(--muted)">👁️ Read-only while viewing as someone else.</div>'
+        (readonly?'<div style="font-size:11px;color:var(--muted)">'+(viewOnly?TL_VIEW_ONLY_MSG:'👁️ Read-only while viewing as someone else.')+'</div>'
         :'<div style="display:flex;gap:8px"><button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideStoreCorrection(this,\''+r.id+'\',true,\''+wrapId+'\',\''+listId+'\')">Approve</button>'+
          '<button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideStoreCorrection(this,\''+r.id+'\',false,\''+wrapId+'\',\''+listId+'\')">Decline</button></div>')+
         '</div>';
@@ -2749,6 +2779,7 @@ async function loadTLKpi(){
         '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+escapeHtmlM(b.name)+'</div>'+
         (b.evaluated_at
           ? '<div style="font-size:11px;font-weight:700;color:var(--green)">✓ '+new Date(b.evaluated_at).toLocaleDateString('en-JM',{day:'numeric',month:'short'})+'</div>'
+          : !tlCanActOn(b.rep_id) ? '<div style="font-size:11px;color:var(--muted)">👁️ View only</div>'
           : '<button class="hide-when-readonly" data-id="'+escapeHtmlM(b.rep_id)+'" data-name="'+escapeHtmlM(b.name)+'" onclick="openEvaluationTool(this.dataset.id,this.dataset.name)" style="padding:5px 10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer">Evaluate</button>')+
       '</div>').join('')
       : '<div style="font-size:12px;color:var(--muted)">No brand ambassadors on your team.</div>';
@@ -2780,7 +2811,7 @@ function renderAnyBA(q){
   drop.innerHTML=hits.length
     ? hits.map(b=>`<div class="store-opt" data-id="${escapeHtmlM(b.id)}" data-name="${escapeHtmlM(b.name)}" onclick="pickAnyBA(this)">
         <div class="so-name">${escapeHtmlM(b.name)}</div>
-        <div class="so-city">${escapeHtmlM(b.area||'')}${b.team_lead_id===cu.id?' · your team':''}</div></div>`).join('')
+        <div class="so-city">${escapeHtmlM(b.area||'')}${(b.team_lead_id===cu.id||_tlLedIds.includes(b.team_lead_id))?' · your team':''}</div></div>`).join('')
     : '<div class="store-none">No Brand Ambassador matches</div>';
   drop.classList.add('open');
 }
@@ -2824,15 +2855,17 @@ async function loadTLData(u){
     // up front rather than after the early-return for an empty team.
     loadTLIncentive(u, period);
     loadTLOwnCommission(u, period);
-    loadTLKpi();
     loadMyEvents(u);
 
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role&order=name`);
+    //    Includes any team this TL co-leads (tlLedIds), never the TL themself.
+    const leadIds=await tlLedIds(u);
+    const myMerch=await rest(`reps?team_lead_id=${pgIn(leadIds)}&id=neq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role,team_lead_id&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
+    loadTLKpi();   // after tlMyMerch: its Evaluate buttons check tlCanActOn()
     loadTeamRouteRequests();
     loadTLLeaveApprovals();
     loadTLUpcomingLeave();
@@ -2958,10 +2991,10 @@ async function loadTeamRouteRequests(){
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.customer_name)}</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${escapeHtmlM(r.requester_name)} wants to take this over from ${escapeHtmlM(r.current_holder_name||'—')}</div>
-      <div style="display:flex;gap:8px">
+      ${!tlCanActOnLead(r.team_lead_rep_id) ? `<div style="font-size:11px;color:var(--muted)">${TL_VIEW_ONLY_MSG}</div>` : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" data-id="${r.id}" onclick="tlDecideRequest(this,true)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" data-id="${r.id}" onclick="tlDecideRequest(this,false)">Deny</button>
-      </div>
+      </div>`}
     </div>`).join('');
   }catch(e){ console.warn('team route requests load failed',e); }
 }
@@ -3252,13 +3285,13 @@ async function loadTLLeaveApprovals(){
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
-    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
       ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-bottom:8px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
-      ${readonly
+      ${cu.viewingAs
         ? `<div style="font-size:11px;color:var(--muted)">👁️ Read-only — open this TL's real login, or approve it from your own admin screen, to act on this.</div>`
+        : !tlCanActOn(r.requester_id) ? `<div style="font-size:11px;color:var(--muted)">${TL_VIEW_ONLY_MSG}</div>`
         : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,reloadTLLeaveViews)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,reloadTLLeaveViews)">Deny</button>
@@ -3283,13 +3316,12 @@ async function loadTLUpcomingLeave(){
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
-    const readonly=!!cu.viewingAs;
-    list.innerHTML=rows.map(r=>`<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
+    list.innerHTML=rows.map(r=>{ const readonly=!!cu.viewingAs||!tlCanActOn(r.requester_id); return `<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
       <div style="font-size:13px;font-weight:700">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date} (${r.days_requested}d)</div>
       ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
       ${readonly?'':`<button class="submit-btn" style="margin-top:8px;padding:6px 10px;font-size:12px;background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="openLeaveCoveringModal('${r.id}',loadTLUpcomingLeave)">🔄 ${r.covering_name?'Edit':'Set'} covering</button>`}
-    </div>`).join('');
+    </div>`; }).join('');
   }catch(e){ console.warn('upcoming leave load failed:',e); }
 }
 
@@ -3570,8 +3602,9 @@ function daysWorked(){
     _daysWorkedFor=who;
     _daysWorked=DFL_DAYS.mount(document.getElementById('dw-body'),{
       call:(fn,args)=>restRpc(fn,(fn==='get_days_worked'&&who!=='self')?Object.assign({},args,{p_as_rep:who}):args), mode:'tl',
-      readOnly:()=>document.body.classList.contains('dfl-readonly'),
-      readOnlyNote:()=>cu&&cu.viewingAs?'Viewing as '+cu.full_name+' — this is exactly what they see. Submitting is turned off.':'',
+      readOnly:()=>document.body.classList.contains('dfl-readonly')||tlTeamViewOnly(),
+      readOnlyNote:()=>cu&&cu.viewingAs?'Viewing as '+cu.full_name+' — this is exactly what they see. Submitting is turned off.'
+        :tlTeamViewOnly()?'View only — you can see this team’s days worked, but their own team leader submits payroll.':'',
       theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',warn:'var(--amber)',bad:'var(--red)',accent:'var(--navy2)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
     });
   }
@@ -3684,12 +3717,13 @@ function tlPickReassignStore(el){
   const drop=document.getElementById('tl-reassign-drop');
   drop.innerHTML=''; drop.classList.remove('open');
 
-  if(!tlMyMerch.length){
+  const assignable=tlMyMerch.filter(m=>tlCanActOn(m.id));
+  if(!assignable.length){
     document.getElementById('tl-reassign-panel').style.display='block';
-    document.getElementById('tl-reassign-panel').innerHTML='<div style="font-size:12px;color:var(--muted)">No brand ambassadors on your team yet.</div>';
+    document.getElementById('tl-reassign-panel').innerHTML='<div style="font-size:12px;color:var(--muted)">'+(tlMyMerch.length?TL_VIEW_ONLY_MSG:'No brand ambassadors on your team yet.')+'</div>';
     return;
   }
-  const opts=tlMyMerch.map(m=>`<option value="${m.id}">${escapeHtmlM(m.name)}</option>`).join('');
+  const opts=assignable.map(m=>`<option value="${m.id}">${escapeHtmlM(m.name)}</option>`).join('');
   const panel=document.getElementById('tl-reassign-panel');
   panel.style.display='block';
   panel.innerHTML=`
@@ -4427,7 +4461,8 @@ async function loadAuditStores(){
     }
     listEl.innerHTML='<div class="spinner" style="margin:8px auto"></div>';
     // This TL's merchandisers via the reps.team_lead_id FK — same join as loadTLData.
-    const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
+    const leadIds=await tlLedIds(cu);
+    const myMerch=await rest(`reps?team_lead_id=${pgIn(leadIds)}&id=neq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     if(!myNames.length){
       auditAllStores=[];
