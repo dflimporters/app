@@ -1650,7 +1650,7 @@ const chainChips = () => '';
 const inChain = s => CHAINF === 'All' || ((byId[s] || s).rep || '') === CHAINF;
 
 // ---------- tabs ----------
-const TABS = [['today', 'Today'], ['friday', 'Friday meeting'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['reps', 'Reps'], ['stores', 'Customers'], ['lead', 'Lead view']];
+const TABS = [['today', 'Today'], ['tell', 'Tell the reps'], ['friday', 'Friday meeting'], ['reps', 'Reps'], ['stores', 'Customers'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['lead', 'Lead view']];
 // ---------- v3: status cells, avatars, icons ----------
 const ST = {todo:['st-todo', 'To do'], waiting:['st-waiting', 'Pending'], sorted:['st-sorted', 'Done']};
 const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; const d = tick('done:' + ASOF + ':' + k); return d && d.v ? 'sorted' : 'todo'; };
@@ -1677,6 +1677,7 @@ const ICO = {
   reps:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
   deliv:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  tell:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
   lead:'<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.3 6.7 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Held by AR or not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
@@ -1687,7 +1688,7 @@ let TODAYF = 'All', EXP = null;
 const FOCUS_TABS = ['today', 'reps', 'orders', 'stores'];
 const inFocus = c => TODAYALL() || TOPC.has(c);
 function focusLine() { const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF), n = reps.reduce((a, r) => a + ((TOPN[r] || {}).n || 0), 0), of = reps.reduce((a, r) => a + ((TOPN[r] || {}).of || 0), 0);
-  if (TAB === 'friday' || TAB === 'lead') return '';
+  if (TAB === 'friday' || TAB === 'lead' || TAB === 'tell') return '';
   if (!FOCUS_TABS.includes(TAB)) return `<div class="focusline"><span>This tab always covers <b>all ${of} customers</b>${TAB === 'backorders' ? ', so the weekly clean-up catches every line' : TAB === 'deliv' ? ', so you can find any order' : ''}.</span></div>`;
   return `<div class="focusline"><span>${TODAYALL() ? `Showing <b>all ${of} customers</b>.` : `Showing the <b>${n} customers</b> that make up 80% of ${CHAINF === 'All' ? 'the reps’' : esc(firstName(CHAINF)) + '’s'} sales (last 3 months), out of ${of}.`} Switch with Top / All at the top of the page.</span></div>`; }
 const focusSwitch = () => FOCUS_TABS.includes(TAB) ? `<div class="focussw" role="group" aria-label="Which customers"><button type="button" data-focus="top" aria-pressed="${!TODAYALL()}">Top customers</button><button type="button" data-focus="all" aria-pressed="${TODAYALL()}">All customers</button></div>` : '';
@@ -1710,6 +1711,7 @@ function brow(x) {
   const st = x.st, s = x.c ? byId[x.c] : null, exp = EXP === x.key;
   const notes = notesFor(n => n.kind === 'note' && n.ref === x.key); const nk = 'note|' + x.key;
   const whoName = s ? (s.merch || 'No merchandiser') : 'Shallet (AR)';
+  ESCL[x.key] = (s ? s.name + ': ' : '') + x.issue;
   const extra = x.jump ? `<button class="btn sm pri" type="button" data-jump="${esc(x.jump)}">See the list</button>` : x.tickKey ? `<button class="btn sm pri" type="button" data-tick="${esc(x.tickKey)}">✓ Statement sent</button>` :
     x.shortlist ? `<button class="btn sm pri" type="button" data-shortlist="1">Review the items</button>` :
     x.order ? `<button class="btn sm pri" type="button" data-order="${esc(x.order)}">See the items</button>` : '';
@@ -1725,35 +1727,10 @@ function brow(x) {
     ${exp ? `<div class="bexp">
       ${x.repHtml || ''}${x.html || ''}<div class="bfacts">${x.repHtml || x.html ? '' : `<div><span>Detail</span>${esc(x.sub || '–')}</div>`}<div><span>Next step</span><b>${esc(x.act)}</b></div>${s && !x.html ? `<div><span>Store</span>${s.chain !== s.name ? esc(s.chain) + ' · ' : ''}${esc(s.area)}</div>` : ''}</div>
       ${notes.length ? noteList(notes) : ''}
-      <div class="acts">${extra}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor(nk)}</div>` : ''}
+      <div class="acts">${extra}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(x.key)}</div>${formFor(nk)}</div>` : ''}
   </div>`;
-}function vToday() {
-  const all = todayItems(); all.forEach(x => x.st = stOf(x.key));
-  const open = all.filter(x => x.st !== 'sorted');
-  const match = x => TODAYF === 'All' ? x.st !== 'sorted' : TODAYF === 'st:todo' ? x.st === 'todo' : TODAYF === 'st:waiting' ? x.st === 'waiting' : TODAYF === 'st:sorted' ? x.st === 'sorted' : TODAYF === 'Missed orders' ? (x.group === 'Missed orders' || x.group === 'Due today') && x.st !== 'sorted' : x.group === TODAYF;
-  const shown = all.filter(match);
-  const g = k => open.filter(x => x.group === k);
-  const arPast = AR_CH.reduce((a, ch) => a + ch.past, 0);
-  const groups = Object.keys(GRPC).map(k => ({k, list:shown.filter(x => x.group === k)})).filter(x => x.list.length);
-  return `
-  <div class="ftiles four">
-    ${ftile('st:todo', 'phone', open.filter(x => x.st === 'todo').length, 'To do', `${open.length} open · ${all.length - open.length} done`, '#D63B3B', '#FBE9E9')}
-    ${ftile('st:waiting', 'clock', open.filter(x => x.st === 'waiting').length, 'Pending', 'Being worked on, answer still to come', '#E8862A', '')}
-    ${ftile('Stuck orders', 'alert', g('Stuck orders').length, 'Stuck orders', 'On credit hold or not moving', '#D63B3B', '')}
-    ${ftile('Orders to check', 'money', g('Orders to check').length, 'Orders to check', 'Big price, free goods or stock problems', '#127F8C', '')}
-  </div>
-
-
-  <div class="legend"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TODAYF !== 'All' ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${all.length - open.length})</button>`}</div>
-  ${dbMsg()}
-  ${groups.length ? groups.map(({k, list}) => `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
-    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
-    ${(SHOWALL['g:' + k] ? list : list.slice(0, 8)).map(brow).join('')}
-    ${list.length > 8 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="g:${esc(k)}">${SHOWALL['g:' + k] ? 'Show fewer' : 'Show the other ' + (list.length - 8)}</button></div>` : ''}</section>`).join('')
-  : `<div class="empty">Nothing here. ${TODAYF === 'All' ? 'No orders need checking and nothing is stuck.' : ''}</div>`}
-  ${recentNotes()}`;
 }
-function recentNotes() { const l = NOTES.slice(0, 8); if (!l.length) return '';
+function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod').slice(0, 8); if (!l.length) return '';
   return `<details class="fold"><summary>Latest notes from the team (${NOTES.length})</summary><div class="sec"><ul class="nlog">${l.map(n => `<li><span class="m">${esc(fds(n.at.slice(0,10)))} · ${esc(who(n.by))} · ${esc(n.kind === 'reason' ? 'Reason: ' + (SKUD[n.sku] ? SKUD[n.sku][0] : n.sku) : n.kind === 'promise' ? 'Promise: ' + n.chain : n.c && byId[n.c] ? byId[n.c].name : n.kind)}</span><br>${esc(n.label ? n.label + '. ' : '')}${esc(n.text || n.name || '')}</li>`).join('')}</ul></div></details>`; }
 
 // ---------- shared pieces for Orders, Back orders and AR ----------
@@ -2819,8 +2796,8 @@ function strip() {
   <div><div class="k">Missed orders</div><div class="v">${STORES.filter(s => s.cad.state === 'missed').length} <small>customers</small></div></div>
   <div><div class="k">Back orders</div><div class="v">${BO.length} <small>lines</small></div></div>`;
 }
-// ---------- Lead view (customer service lead, Scott 19 Nov) ----------
-// The morning routine: clear holds, send the payment list to finance, everything off hold before the 2 pm transfer cutoff, end of day report.
+// ---------- the daily routine for sales support, and the lead's overview (Scott, 19 Nov) ----------
+// Morning: clear holds, send the payment list to finance by 10:30, everything off hold before the 2 pm transfer cutoff, tell the reps, end of day report.
 // Set times in one place (24-hour, Jamaica time):
 const LEADT = {start:'08:00', fin:'10:30', cut:'14:00', end:'17:00'};
 const hmin = s => { const [h, m] = s.split(':'); return +h * 60 + +m; };
@@ -2829,81 +2806,160 @@ const jaNow = () => { const p = {}; new Intl.DateTimeFormat('en-CA', {timeZone:'
   return {date:`${p.year}-${p.month}-${p.day}`, min:(+p.hour % 24) * 60 + +p.minute}; };
 const jaHm = at => new Date(at).toLocaleTimeString('en-GB', {timeZone:'America/Jamaica', hour:'2-digit', minute:'2-digit'});
 const jaDay = at => new Date(at).toLocaleDateString('en-CA', {timeZone:'America/Jamaica'});
-let LEADF = 'All';
-const leadHolds = () => (O.lholds || []).map(r => ({nbr:r[0], status:r[1], date:r[2], sched:r[3], c:r[4], cname:r[5] || r[4], rep:r[6] || '', sup:r[7] || '', val:+r[8] || 0, by:r[9] || '', past:+r[10] || 0, lastpay:r[11] || '', age:Math.max(0, Math.round((d8(jaNow().date) - d8(r[2])) / 864e5))}));
-const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
 const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin(LEADT.fin), c = hmin(LEADT.cut), e = hmin(LEADT.end);
   const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h ' + (x % 60 ? (x % 60) + 'm' : '').trim() : x + ' min'; };
   return {n, a, f, c, e, left, phase:n < a ? 0 : n < f ? 1 : n < c ? 2 : n < e ? 3 : 4}; };
+let LEADF = 'All', TELLF = 'open';
+const ESCL = {};   // label for each escalated item, filled as the rows are drawn
+const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
+const finSent = sup => { const t = tick('fin:' + jaNow().date + ':' + sup); return t && t.v ? t : null; };
+const latestEod = (sup, ds) => NOTES.find(n => n.kind === 'eod' && n.date === ds && n.name === sup) || null;
+const escId = t => keyOk(t.k || '');
+const escOpen = () => Object.values(TICKS).filter(t => t && /^esc_/.test(escId(t)) && t.v && !(tick('escdone_' + escId(t).slice(4)) || {}).v).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+const escBtn = key => { const t = tick('esc:' + key), on = t && t.v; return `<button type="button" class="btn sm ${on ? 'pri' : ''}" data-esc="${esc(key)}" title="Send this to the lead">${on ? '⚑ Escalated' : '⚑ Escalate'}</button>`; };
+const pastDue = c => AR.filter(r => r.c === c && !r.credit && r.bal > 0 && r.due && r.due < ASOF).reduce((a, r) => a + r.bal, 0);
+// this support person's held orders (from the same order list as the rest of the hub)
+function supHolds() { return ORD.filter(o => (o.stage.k === 'credit' || o.stage.k === 'hold') && inChain(o.c)).map(o => { const s = byId[o.c] || {}, lp = LASTPAY[o.c];
+  return {nbr:o.nbr, status:o.stage.k === 'credit' ? 'Credit Hold' : 'On Hold', date:o.date, c:o.c, cname:s.name || o.c, rep:s.rep || '', sup:SUPPORT, val:o.total, by:o.by, past:pastDue(o.c), lastpay:lp ? lp.d : '', age:o.age}; }).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.nbr < b.nbr ? -1 : 1); }
+// every support person's held orders (lead only; from ss_hub_lead_data)
+const leadHolds = () => (O.lholds || []).map(r => ({nbr:r[0], status:r[1], date:r[2], sched:r[3], c:r[4], cname:r[5] || r[4], rep:r[6] || '', sup:r[7] || '', val:+r[8] || 0, by:r[9] || '', past:+r[10] || 0, lastpay:r[11] || '', age:Math.max(0, Math.round((d8(jaNow().date) - d8(r[2])) / 864e5))}));
 function financeText(list) { const ds = jaNow().date, tot = list.reduce((s, x) => s + x.val, 0);
   return `Payments received: please release these orders (${fds(ds)})\n` + list.map(x => `• ${x.cname}: order ${x.nbr}, ${J(x.val)}${x.rep ? ', rep ' + x.rep : ''}${x.lastpay ? ', last payment ' + fds(x.lastpay) : ''}`).join('\n') + `\n${list.length} order${list.length === 1 ? '' : 's'} · ${J(tot)}`; }
-function leadActivity() { const today = jaNow().date, ev = usageEvents().filter(e => jaDay(e.at) === today), sups = (O.lsup || []).map(r => r[0]);
-  return sups.map(s => { const mine = ev.filter(e => ((HUBD.names && HUBD.names[e.by]) || e.n || '').toLowerCase().includes(String(s).toLowerCase())); return {s, n:mine.length, last:mine.reduce((a, e) => a && a > e.at ? a : e.at, '')}; }); }
-function eodText(H) { const ds = jaNow().date, cl = leadClock(), fin = tick('fin:' + ds), act = leadActivity();
-  const L = [`End of day report: ${d8(ds).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'})}`, ''];
-  (O.lsup || []).forEach(r => { const mine = H.filter(x => x.sup === r[0]), chased = mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, a = act.find(x => x.s === r[0]) || {n:0, last:''};
-    L.push(`${r[0]}: ${mine.length} order${mine.length === 1 ? '' : 's'} still held (${J(mine.reduce((s, x) => s + x.val, 0))}), ${chased} followed up, ${a.n} action${a.n === 1 ? '' : 's'} saved in the hub${a.last ? ', last at ' + jaHm(a.last) : ''}`); });
-  L.push('', fin ? `Payment list sent to finance by ${who(fin.by)} at ${jaHm(fin.at)}.` : 'Payment list to finance: not marked as sent today.');
-  L.push(cl.n >= cl.c ? `Held at the ${t12(LEADT.cut)} cutoff: ${H.length} order${H.length === 1 ? '' : 's'} (${J(H.reduce((s, x) => s + x.val, 0))}). These are not in the transfer list, so they miss tomorrow’s load.` : `Still held before the ${t12(LEADT.cut)} cutoff: ${H.length} order${H.length === 1 ? '' : 's'} (${J(H.reduce((s, x) => s + x.val, 0))}).`);
-  const nt = (HUBD.notes || []).filter(x => x.at && jaDay(x.at) === ds && x.kind === 'note'), cn = c => byId[c] ? byId[c].name : '';
-  if (nt.length) { L.push('', 'Notes today:'); nt.slice(0, 30).forEach(x => L.push(`• ${who(x.by) === 'Someone' ? (x.by_name || 'Someone') : who(x.by)}${cn(x.c) ? ' (' + cn(x.c) + ')' : ''}: ${String(x.text || '').replace(/\s+/g, ' ').slice(0, 140)}`)); }
-  const still = H.filter(x => stOf('hold:' + x.nbr) === 'todo'); if (still.length) { L.push('', `Not yet followed up (${still.length}):`); still.slice(0, 40).forEach(x => L.push(`• ${x.cname}, order ${x.nbr}, ${J(x.val)}, held ${x.age} day${x.age === 1 ? '' : 's'} (${x.sup})`)); }
-  return L.join('\n'); }
+// one held-order row, used on Today and in the Lead view
+function holdRow(x) { const p = payOn(x.nbr), key = 'hold:' + x.nbr;
+  ESCL[key] = `${x.cname}: order ${x.nbr} on ${x.status === 'Credit Hold' ? 'credit hold' : 'hold'} ${x.age} day${x.age === 1 ? '' : 's'} (${J(x.val)}${x.past ? ', ' + J(x.past) + ' past due' : ''})`;
+  return grow(key, [cell(esc(x.cname), 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'),
+    cell(`<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, '', 'center'), stBtn(key)],
+    `<div class="bfacts"><div><span>Order</span>${acuOrder(x.nbr)} · ${esc(x.status)} · ${J(x.val)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Rep / support</span>${esc(x.rep)} · ${esc(x.sup)}</div><div><span>Past due on the account</span>${x.past ? J(x.past) : 'Nothing past due'}${x.lastpay ? ` · last payment ${esc(fds(x.lastpay))}` : ' · no payment in the last 200 days'}</div>${p ? `<div><span>Payment in</span>${esc(who(p.by))} at ${jaHm(p.at)}</div>` : ''}</div><div class="acts"><button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>${escBtn(key)}${acuBtn(x.nbr)}</div>`); }
+const HOLDCOLS = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', HOLDHEADS = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']];
+const holdBoard = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS, HOLDHEADS, list.map(holdRow), id);
+const holdBoards = (H, pfx) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
+  return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : '') + holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it'); };
+// the day's message, the same words for support and the lead
+function dayMsg(cl, who1) { return cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders.`
+  : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
+  : cl.phase === 2 ? `Now: finance releases what was sent. ${cl.left(cl.c)} to the ${t12(LEADT.cut)} cutoff, when dispatch pulls the transfer list.`
+  : cl.phase === 3 ? `The ${t12(LEADT.cut)} cutoff has passed. Orders still held are not in the transfer list, so they miss tomorrow’s load.`
+  : who1 ? 'The day is done. Send your end of day report.' : 'The day is done. Check the end of day reports.'; }
+const LEADINFO = () => `Times are Jamaica time: holds ${t12(LEADT.start)} to ${t12(LEADT.fin)}, payment list to finance by ${t12(LEADT.fin)}, transfer cutoff ${t12(LEADT.cut)}, end of day report ${t12(LEADT.end)}. Orders on hold or credit hold are not batched into the transfer list, so every hold released before the cutoff is stock that can load the next day. A hold shows Past due when the account has overdue invoices in the latest AR snapshot. Tap Payment in? once the customer’s payment information is received: those orders form the list for finance.`;
+
+// ----- Today: the support person's routine -----
+const todayShown = () => todayItems().filter(x => x.kind !== 'Credit hold' && x.kind !== 'Delivery problem');
+const todayCount = () => supHolds().filter(x => stOf('hold:' + x.nbr) !== 'sorted').length + todayShown().filter(x => !isDone(x.key)).length;
+function eodTextSup(sup) { const ds = jaNow().date, H = supHolds(), cl = leadClock(), fin = finSent(sup), val = H.reduce((s, x) => s + x.val, 0);
+  const chased = H.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, told = H.filter(x => stOf('told:hold:' + x.nbr) !== 'todo').length;
+  const chk = todayShown().filter(x => !isDone(x.key)), tl = tellItems().filter(x => stOf(x.key) !== 'sorted'), es = escOpen().filter(t => t.at && jaDay(t.at) === ds);
+  const mine = (HUBD.notes || []).filter(x => x.at && jaDay(x.at) === ds && x.kind === 'note' && MYID && x.by === MYID), cn = c => byId[c] ? byId[c].name : '';
+  const L = [`End of day report: ${sup}, ${d8(ds).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'})}`, '',
+    `Held orders: ${H.length} still held (${J(val)}); ${chased} followed up; reps told on ${told}.`,
+    fin ? `Payment list to finance: sent at ${jaHm(fin.at)}.` : 'Payment list to finance: not sent today.',
+    cl.n >= cl.c ? `Held after the ${t12(LEADT.cut)} cutoff: ${H.length} (not in the transfer list, so they miss tomorrow’s load).` : `Still held before the ${t12(LEADT.cut)} cutoff: ${H.length}.`,
+    `Orders to check still open: ${chk.length}. Still to tell the reps: ${tl.length}.`];
+  if (es.length) { L.push('', 'Escalated today:'); es.slice(0, 8).forEach(t => L.push('• ' + String(t.v).slice(0, 140))); }
+  if (mine.length) { L.push('', 'My notes:'); mine.slice(0, 8).forEach(x => L.push(`• ${cn(x.c) ? cn(x.c) + ': ' : ''}${String(x.text || '').replace(/\s+/g, ' ').slice(0, 110)}`)); }
+  const still = H.filter(x => stOf('hold:' + x.nbr) === 'todo'); if (still.length) { L.push('', `Not yet followed up (${still.length}):`); still.slice(0, 10).forEach(x => L.push(`• ${x.cname}, order ${x.nbr}, ${J(x.val)}, held ${x.age}d`)); if (still.length > 10) L.push(`• and ${still.length - 10} more`); }
+  return L.join('\n').slice(0, 1900); }
+function vToday() {
+  const all = todayShown(); all.forEach(x => x.st = stOf(x.key));
+  const open = all.filter(x => x.st !== 'sorted'), shown = TODAYF === 'st:sorted' ? all.filter(x => x.st === 'sorted') : open;
+  const H = supHolds(), cl = leadClock(), ds = jaNow().date, paidL = H.filter(x => payOn(x.nbr)), fin = finSent(SUPPORT), eod = latestEod(SUPPORT, ds);
+  const nChased = H.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, nDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted').length, heldVal = H.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
+  const nTell = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
+  const tiles = dtiles([
+    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
+    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${paidL.length} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', fin ? '#1A8F4C' : '#127F8C'],
+    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A'],
+    [`${t12(LEADT.end)}: end of day report`, eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3']], 'four light');
+  const grp = k => { const list = shown.filter(x => x.group === k); return list.length ? `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
+    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
+    ${(SHOWALL['g:' + k] ? list : list.slice(0, 8)).map(brow).join('')}
+    ${list.length > 8 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="g:${esc(k)}">${SHOWALL['g:' + k] ? 'Show fewer' : 'Show the other ' + (list.length - 8)}</button></div>` : ''}</section>` : ''; };
+  const main = ['Orders to check', 'Stuck orders'].map(grp).join(''), other = Object.keys(GRPC).filter(k => !['Orders to check', 'Stuck orders', 'Not delivered'].includes(k)).map(grp).join('');
+  const eodText = eodTextSup(SUPPORT);
+  return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
+  ${tiles}
+  <div class="legend" style="margin-top:2px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
+    <button class="btn sm pri" type="button" data-fincopy="1" ${paidL.length ? '' : 'disabled'}>Copy the list for finance</button>
+    <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
+  ${dbMsg()}
+  ${H.length ? holdBoards(H, 'th') : '<div class="empty">Nothing on hold for these reps.</div>'}
+  <div class="legend"><span><b>2</b> Check before the ${t12(LEADT.cut)} cutoff. Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TODAYF !== 'All' ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${all.length - open.length})</button>`}</div>
+  ${main || `<div class="empty">No orders need checking and nothing is stuck.</div>`}
+  <div class="legend"><span><b>3</b> ${nTell} thing${nTell === 1 ? '' : 's'} to tell the reps (holds, items we can’t fill, deliveries that failed).</span><button class="btn sm pri" type="button" data-jump="tell|">Open Tell the reps</button></div>
+  ${other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : ''}
+  <div class="legend" style="margin-top:14px"><span><b>4</b> End of day</span><button class="btn sm pri" type="button" data-eodsend="1">${eod ? 'Send the report again' : 'Send the end of day report'}</button><button class="btn sm" type="button" data-eodcopy="1">Copy it</button></div>
+  <details class="fold"><summary>My end of day report (${esc(fds(ds))})${eod ? ' · sent ' + jaHm(eod.at) : ''}</summary><div class="sec"><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(eodText)}</pre><p class="note">Sending saves it for the lead. Escalated items show in the lead’s view straight away.</p></div></details>
+  ${recentNotes()}`;
+}
+
+// ----- Tell the reps: everything support has to pass on, one list per rep -----
+function tellItems() { const it = [];
+  supHolds().forEach(x => { const credit = x.status === 'Credit Hold';
+    it.push({key:'told:hold:' + x.nbr, kind:'Held', col:'amber', c:x.c, order:x.nbr, rep:x.rep, issue:`${credit ? 'Credit hold' : 'On hold'} ${x.age}d · ${J(x.val)}${x.past ? ' · ' + J(x.past) + ' past due' : ''}`, sub:`Order ${x.nbr}`, age:x.age, value:x.val,
+      t:`${x.cname}: order ${x.nbr} is held`, d:'', act:'Tell the rep why it is held and what releases it',
+      line:`${x.cname}: order ${x.nbr} (${J(x.val)}) is on ${credit ? 'credit hold' : 'hold'}, ${x.age} day${x.age === 1 ? '' : 's'}. ${x.past ? 'The account has ' + J(x.past) + ' past due. ' : ''}Payment information is needed before it can be released.`}); });
+  bigChecks().forEach(({o, xs}) => { const st = xs.filter(x => x.kind === 'stock'); if (!st.length) return; const s0 = byId[o.c] || {}, sv = st.reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
+    it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', issue:`Can’t fill: ${st.length} item${st.length === 1 ? '' : 's'} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:chkTable(st),
+      t:`${s0.name}: order ${o.nbr} will ship short`, d:'', act:'Tell the rep and offer a substitute',
+      line:`${s0.name || o.c}: order ${o.nbr} will ship short: ` + st.slice(0, 4).map(x => `${x.l.desc} (need ${x.l.open}, have ${Math.max(0, x.l.onhand)})`).join('; ') + (st.length > 4 ? '…' : '') + '. Please check with the store about a substitute.'}); });
+  todayItems().filter(x => x.kind === 'Delivery problem').forEach(x => it.push({...x, key:'told:' + x.key, kind:'Delivery', rep:(byId[x.c] || {}).rep || '', line:`${x.t} (${x.issue}).`}));
+  return it.filter(x => !x.c || inChain(x.c)).sort((a, b) => (b.value || 0) - (a.value || 0)); }
+function tellMsg(rep, list) { return `Hi ${firstName(rep) || 'team'}, update from sales support (${fds(jaNow().date)}):\n` + list.map(x => '• ' + x.line).join('\n'); }
+function vTell() {
+  const all = tellItems(); all.forEach(x => { x.st = stOf(x.key); });
+  const open = all.filter(x => x.st !== 'sorted'), shown = TELLF === 'done' ? all.filter(x => x.st === 'sorted') : open, by = {};
+  shown.forEach(x => (by[x.rep || 'No rep on file'] = by[x.rep || 'No rep on file'] || []).push(x));
+  const reps = Object.keys(by).sort((a, b) => by[b].reduce((s, x) => s + (x.value || 0), 0) - by[a].reduce((s, x) => s + (x.value || 0), 0) || a.localeCompare(b));
+  const cnt = k => open.filter(x => x.kind === k).length;
+  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Held orders', `${cnt('Held')}`, 'Tell the rep why and what releases it', '#C47A1A'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'four light');
+  return `${lead1('tell-top', 'Everything to pass on to the reps, one list per rep. Tell them, then move it to Pending or Done.', 'Held orders, orders we cannot fill (big ones only, the rest are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Back orders are decided in the Back orders tab.')}
+  ${tiles}
+  <div class="legend" style="margin-top:2px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
+  ${dbMsg()}
+  ${reps.length ? reps.map(r => { const list = by[r]; return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(list.reduce((s, x) => s + (x.value || 0), 0))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
+    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}`;
+}
+
+// ----- Lead view: the team at a glance, escalations, reports and every hold -----
 function vLead() {
   if (!O.lholds && !O.lsup) return `<div class="empty">Loading every support person’s held orders…</div>`;
-  const all = leadHolds(), H = LEADF === 'All' ? all : all.filter(x => x.sup === LEADF), cl = leadClock(), ds = jaNow().date;
-  const paid = all.filter(x => payOn(x.nbr)), paidList = H.filter(x => payOn(x.nbr)), fin = tick('fin:' + ds), finOk = fin && fin.v;
-  const nDone = all.filter(x => stOf('hold:' + x.nbr) === 'sorted').length, nChased = all.filter(x => stOf('hold:' + x.nbr) !== 'todo').length;
-  const heldVal = all.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
-  const msg = cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders below.`
-    : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
-    : cl.phase === 2 ? `Now: finance releases what you sent. ${cl.left(cl.c)} to the ${t12(LEADT.cut)} cutoff, when dispatch pulls the transfer list.`
-    : cl.phase === 3 ? `The ${t12(LEADT.cut)} cutoff has passed. Orders still held are not in the transfer list, so they miss tomorrow’s load.`
-    : `The day is done. Copy the end of day report.`;
+  const all = leadHolds(), H = LEADF === 'All' ? all : all.filter(x => x.sup === LEADF), cl = leadClock(), ds = jaNow().date, sups = (O.lsup || []).map(r => r[0]);
+  const eods = sups.map(s => ({s, n:latestEod(s, ds)})), fins = sups.map(s => ({s, t:finSent(s)})), es = escOpen();
+  const nChased = all.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, heldVal = all.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
   const tiles = dtiles([
-    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${all.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: list to finance`, finOk ? 'Sent' : `${paid.length} <small>ready</small>`, finOk ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', finOk ? '#1A8F4C' : '#127F8C'],
+    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${all.length} <small>held</small>`, `${nChased} followed up · ${J(heldVal)} held`, '#D63B3B'],
+    [`By ${t12(LEADT.fin)}: finance lists`, `${fins.filter(x => x.t).length} of ${sups.length}`, 'support people have sent their payment list', fins.every(x => x.t) ? '#1A8F4C' : '#127F8C'],
     [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A'],
-    [`${t12(LEADT.end)}: end of day report`, `${(O.lsup || []).length} <small>people</small>`, 'What each person did today', '#326BD3']], 'four light');
+    ['Escalated to you', `${es.length}`, `${eods.filter(x => x.n).length} of ${sups.length} end of day reports in`, es.length ? '#D63B3B' : '#326BD3']], 'four light');
+  const teamRows = sups.map(s => { const mine = all.filter(x => x.sup === s), f = finSent(s), e = latestEod(s, ds), told = mine.filter(x => stOf('told:hold:' + x.nbr) !== 'todo').length;
+    return `<div class="brow"><div class="c-store one">${esc(s)}</div><div class="c-age" style="text-align:center"><b>${mine.length}</b> · ${J(mine.reduce((a, x) => a + x.val, 0))}</div><div class="c-age" style="text-align:center">${mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length} of ${mine.length}</div><div class="c-age hm" style="text-align:center">${told} of ${mine.length}</div><div class="c-age" style="text-align:center">${f ? '✓ ' + jaHm(f.at) : '–'}</div><div class="c-age" style="text-align:center">${e ? '✓ ' + jaHm(e.at) : '–'}</div></div>`; });
+  const escRows = es.map(t => { const key = escId(t).slice(4), nt = notesFor(n => n.kind === 'note' && keyOk(n.ref || '') === key)[0];
+    return `<div class="brow"><div class="c-store one">${esc(who(t.by) === 'Someone' ? (HUBD.names && HUBD.names[t.by]) || 'Someone' : who(t.by))}</div><div class="c-issue">${esc(String(t.v))}${nt ? `<div class="note" style="margin:2px 0 0">“${esc(String(nt.text || '').slice(0, 160))}”</div>` : ''}</div><div class="c-age" style="text-align:center">${esc(fds(jaDay(t.at)))} ${jaHm(t.at)}</div><div style="text-align:center"><button type="button" class="btn sm" data-escdone="${esc(key)}">✓ Handled</button></div></div>`; });
   const sel = k => `<button type="button" role="tab" data-leadf="${esc(k)}" aria-selected="${LEADF === k}">${esc(k)}<span>${k === 'All' ? all.length : all.filter(x => x.sup === k).length}</span></button>`;
-  const seg = `<div class="seg" role="tablist">${['All', ...(O.lsup || []).map(r => r[0])].map(sel).join('')}</div>`;
-  const row = x => { const p = payOn(x.nbr), key = 'hold:' + x.nbr, open = EXP === key;
-    return grow(key, [cell(esc(x.cname), 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'),
-      cell(`<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, '', 'center'), stBtn(key)],
-      `<div class="bfacts"><div><span>Order</span>${acuOrder(x.nbr)} · ${esc(x.status)} · ${J(x.val)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Rep / support</span>${esc(x.rep)} · ${esc(x.sup)}</div><div><span>Past due on the account</span>${x.past ? J(x.past) : 'Nothing past due'}${x.lastpay ? ` · last payment ${esc(fds(x.lastpay))}` : ' · no payment in the last 200 days'}</div>${p ? `<div><span>Payment in</span>${esc(who(p.by))} at ${jaHm(p.at)}</div>` : ''}</div><div class="acts"><button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>${acuBtn(x.nbr)}</div>`); };
-  const cols = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', heads = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center']];
-  const board = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, cols, [...heads, ['']], list.map(row), id);
-  const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
-  const act = leadActivity(), supRows = (O.lsup || []).map(r => { const mine = all.filter(x => x.sup === r[0]), a = act.find(x => x.s === r[0]) || {n:0, last:''};
-    return `<div class="brow"><div class="c-store one">${esc(r[0])}</div><div class="c-age" style="text-align:center">${r[1]}</div><div class="c-age" style="text-align:center"><b>${mine.length}</b></div><div class="c-age" style="text-align:center">${J(mine.reduce((s, x) => s + x.val, 0))}</div><div class="c-age hm" style="text-align:center">${mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length} of ${mine.length}</div><div class="c-age hm" style="text-align:center">${a.n || '–'}</div><div class="c-age hm" style="text-align:center">${a.last ? jaHm(a.last) : 'Nothing today'}</div></div>`; });
-  const eod = eodText(all);
-  return `${lead1('lead-top', msg, `Times are Jamaica time: holds ${t12(LEADT.start)} to ${t12(LEADT.fin)}, payment list to finance by ${t12(LEADT.fin)}, transfer cutoff ${t12(LEADT.cut)}, end of day report ${t12(LEADT.end)}. Orders on hold or credit hold are not batched into the transfer list, so every hold released before the cutoff is stock that can load the next day. A hold shows Past due when the account has overdue invoices in the latest AR snapshot. Tap Payment in? once the customer’s payment information is received: those orders form the list for finance.`)}
+  return `${lead1('lead-top', dayMsg(cl, false), LEADINFO())}
   ${tiles}
-  ${seg}
-  <div class="legend" style="margin-top:2px"><span>Finance list: ${paidList.length} order${paidList.length === 1 ? '' : 's'}${paidList.length ? ' · ' + J(paidList.reduce((s, x) => s + x.val, 0)) : ''}</span>
-    <button class="btn sm pri" type="button" data-fincopy="1" ${paidList.length ? '' : 'disabled'}>Copy the list for finance</button>
-    <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!finOk}">${finOk ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
+  ${gboard('#326BD3', 'Support team today', `${sups.length} people · held orders, follow-up, finance list and report`, 'minmax(0,1.2fr) 130px 90px 90px 100px 100px', [['Support'], ['Held', 'center'], ['Followed up', 'center'], ['Reps told', 'center', 'hm'], ['Finance list', 'center'], ['Report', 'center']], teamRows, 'lead-team')}
+  ${gboard('#D63B3B', 'Escalated to you', es.length ? `${es.length} waiting` : 'Nothing escalated', 'minmax(0,.7fr) minmax(0,2.6fr) 110px 100px', [['From'], ['What'], ['When', 'center'], ['']], escRows, 'lead-esc')}
+  <section class="grp" style="--gc:#326BD3"><div class="gh"><h3>End of day reports</h3><span class="gn">${eods.filter(x => x.n).length} of ${sups.length} in today</span></div><div class="sec">${eods.map(({s, n}) => n ? `<details class="fold"><summary>${esc(s)}: sent ${jaHm(n.at)}</summary><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(n.text || '')}</pre></details>` : `<p class="note" style="margin:6px 0">${esc(s)}: not sent yet</p>`).join('')}</div></section>
+  <div class="seg" role="tablist" style="margin-top:14px">${['All', ...sups].map(sel).join('')}</div>
   ${dbMsg()}
-  ${cr.length ? board('lead-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : ''}
-  ${board('lead-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it')}
-  ${gboard('#326BD3', 'Who is doing what', `${(O.lsup || []).length} support people · today so far`, 'minmax(0,1.3fr) 84px 70px 92px 100px 70px 120px', [['Support'], ['Open orders', 'center'], ['Held', 'center'], ['Held value', 'center'], ['Followed up', 'center', 'hm'], ['Saves', 'center', 'hm'], ['Last active', 'center', 'hm']], supRows, 'lead-who')}
-  <details class="fold"><summary>End of day report (${esc(fds(ds))})</summary><div class="sec"><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 10px">${esc(eod)}</pre><button class="btn sm pri" type="button" data-eodcopy="1">Copy the report</button></div></details>
-  <p class="note">Open orders are orders with status Open from the last 14 days. “Saves” counts what each person saved in the hub today (statuses, notes, back order decisions); reading the hub does not count.</p>`;
+  ${H.length ? holdBoards(H, 'lh') : '<div class="empty">Nothing on hold.</div>'}
+  <p class="note">Held orders are On Hold and Credit Hold orders from the last 90 days. Acumatica does not record when an order went on hold, so Held counts from the day it was keyed.</p>`;
 }
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
-  const n = todayItems().filter(x => !isDone(x.key)).length;
-  document.getElementById('tabs').innerHTML = TABS.filter(([k]) => k !== 'lead' || HUBD.lead).map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}</button>`).join('');
+  const n = todayCount(), nTellOpen = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
+  document.getElementById('tabs').innerHTML = TABS.filter(([k]) => k !== 'lead' || HUBD.lead).map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('');
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
-  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why'], lead:['Lead view', 'Every held order across the support team, the finance list and the day’s cutoffs']};
+  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why'], lead:['Lead view', 'The support team today: holds, finance lists, escalations and end of day reports'], tell:['Tell the reps', 'Everything to pass on to each rep, ticked off as you tell them']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   // Scott (or anyone with more than one support book) picks whose hub to see; everyone picks a rep
   const SUPS = (window.__ssSupports && window.__ssSupports()) || [];
   document.getElementById('tctl').innerHTML = TAB === 'lead' ? '' : focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
-  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead}[TAB] || vToday)();
+  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead, tell:vTell}[TAB] || vToday)();
   if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
@@ -2975,9 +3031,14 @@ __on(document, 'click', e => {
   if (d.status) { setTick('st:' + d.status, NEXTST[stOf(d.status)]); return; }
   if (d.paytoggle) { const k = 'pay:' + d.paytoggle, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
   if (d.leadf) { LEADF = d.leadf; EXP = null; render(); return; }
-  if (d.fincopy) { const l = leadHolds().filter(x => payOn(x.nbr) && (LEADF === 'All' || x.sup === LEADF)); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
-  if (d.finsent) { const k = 'fin:' + jaNow().date, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
-  if (d.eodcopy) { copyText(eodText(leadHolds()), 'End of day report copied.'); return; }
+  if (d.fincopy) { const l = supHolds().filter(x => payOn(x.nbr)); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
+  if (d.finsent) { const k = 'fin:' + jaNow().date + ':' + SUPPORT, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
+  if (d.eodcopy) { copyText(eodTextSup(SUPPORT), 'End of day report copied.'); return; }
+  if (d.eodsend) { (async () => { if (await addNote({kind:'eod', name:SUPPORT, date:jaNow().date, text:eodTextSup(SUPPORT)})) { toast('Report sent. The lead can see it.'); render(); } })(); return; }
+  if (d.esc) { const k = 'esc:' + d.esc, was = tick(k) && tick(k).v; setTick(k, was ? null : String(ESCL[d.esc] || d.esc).slice(0, 300)); toast(was ? 'Escalation withdrawn.' : 'Escalated. The lead can see it in the Lead view.'); return; }
+  if (d.escdone) { setTick('escdone:' + d.escdone, 1); return; }
+  if (d.tellf) { TELLF = d.tellf; render(); return; }
+  if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted'); if (l.length) copyText(tellMsg(d.tellcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bof) { BOF = d.bof; render(); return; }
