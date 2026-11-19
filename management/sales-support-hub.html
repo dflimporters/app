@@ -735,6 +735,8 @@ th.on{color:var(--ink)}
 .fcl:hover{text-decoration:underline}
 .fodet{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:-4px}
 .facts{display:flex;flex-wrap:wrap;gap:6px}
+.fwho{display:flex;align-items:center;gap:10px;margin-right:6px;padding-right:16px;border-right:1px solid var(--line)}
+.fwho b{font-family:var(--head);font-size:16px;color:var(--ink)}
 .fst{appearance:none;-webkit-appearance:none;flex:none;border:1px solid #E8C48A;background:#FFF4DE;color:#9A6200;border-radius:99px;padding:3px 11px;font-family:var(--head);font-weight:700;font-size:11.5px;line-height:1.4;cursor:pointer;white-space:nowrap}
 .fst:hover{filter:brightness(.97)}
 .fst.done{background:#E6F5EC;border-color:#BFE3CB;color:#1A8F4C}
@@ -1668,6 +1670,7 @@ let TODAYF = 'All', EXP = null;
 const FOCUS_TABS = ['today', 'reps', 'orders', 'stores'];
 const inFocus = c => TODAYALL() || TOPC.has(c);
 function focusLine() { const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF), n = reps.reduce((a, r) => a + ((TOPN[r] || {}).n || 0), 0), of = reps.reduce((a, r) => a + ((TOPN[r] || {}).of || 0), 0);
+  if (TAB === 'friday') return '';
   if (!FOCUS_TABS.includes(TAB)) return `<div class="focusline"><span>This tab always covers <b>all ${of} customers</b>${TAB === 'backorders' ? ', so the weekly clean-up catches every line' : TAB === 'deliv' ? ', so you can find any order' : ''}.</span></div>`;
   return `<div class="focusline"><span>${TODAYALL() ? `Showing <b>all ${of} customers</b>.` : `Showing the <b>${n} customers</b> that make up 80% of ${CHAINF === 'All' ? 'the reps’' : esc(firstName(CHAINF)) + '’s'} sales (last 3 months), out of ${of}.`} Switch with Top / All at the top of the page.</span></div>`; }
 const focusSwitch = () => FOCUS_TABS.includes(TAB) ? `<div class="focussw" role="group" aria-label="Which customers"><button type="button" data-focus="top" aria-pressed="${!TODAYALL()}">Top customers</button><button type="button" data-focus="all" aria-pressed="${TODAYALL()}">All customers</button></div>` : '';
@@ -2067,7 +2070,7 @@ const fsec = (n, title, sub, body) => `<section class="fsec"><div class="fsh"><s
 function vFriday() {
   const rep = CHAINF !== 'All' && REPS.includes(CHAINF) ? CHAINF : null, wk = FRI.week, isScott = !!HUBD.approver;
   const wkBtn = (w, t) => `<button type="button" class="btn sm ${FRI.week === w ? 'pri' : ''}" data-friwk="${w}" aria-pressed="${FRI.week === w}">${t}</button>`;
-  const head = `<div class="fhead"><div class="fwk"><span class="note" style="margin:0 4px 0 0">Planning the week of <b>${esc(fds(wk))}</b></span>${FRI.wkOpen ? wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS))) + wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT))) : ''}<button class="btn sm" type="button" data-friwkopen="1">${FRI.wkOpen ? 'Done' : 'Change week'}</button></div>
+  const head = `<div class="fhead"><div class="fwk">${rep && !FRI.showReport ? `<span class="fwho">${av(rep)}<b>${esc(rep)}</b></span>` : ''}<span class="note" style="margin:0 4px 0 0">Planning the week of <b>${esc(fds(wk))}</b></span>${FRI.wkOpen ? wkBtn(FRI_THIS, 'This week · ' + esc(fds(FRI_THIS))) + wkBtn(FRI_NEXT, 'Next week · ' + esc(fds(FRI_NEXT))) : ''}<button class="btn sm" type="button" data-friwkopen="1">${FRI.wkOpen ? 'Done' : 'Change week'}</button></div>
     <div class="fwk">${isScott ? `<button class="btn sm" type="button" data-frirpt="1">${FRI.showReport ? '← Back to the meeting' : 'Plans report (all reps)'}</button>` : ''}${rep && !FRI.showReport ? '<button class="btn sm" type="button" data-chain="All">← All reps</button>' : ''}</div></div>`;
 
   // ----- Scott's report: every support person's reps (his view only) -----
@@ -2204,7 +2207,7 @@ function vFriday() {
   const pd = (p && p.data) || {};
   const g4 = agenda('4', '<span class="fsn fsi">' + icon('friday') + '</span>', `${first}’s plan for the week of ${fds(wk)}`, p ? `Saved by ${esc(p.by_name || 'someone')}, ${esc(fds(String(p.updated_at).slice(0, 10)))}${pd.goal ? ' · goal ' + J(pd.goal) : ''}${(pd.visits || []).length ? ' · ' + pd.visits.length + ' visit' + (pd.visits.length === 1 ? '' : 's') : ''}` : 'Not started: who they will visit, their goal, what they need', p ? (p.met ? 'green' : 'amber') : 'amber', p ? (p.met ? 'Held' : 'Saved') : 'To do', blk(prevLine + planBody), true);
 
-  return head + `<div class="frep"><div class="who">${av(rep)}<span style="font-size:17px;font-weight:700">${esc(rep)}</span></div><span class="fwk"><button class="btn sm" type="button" data-friplan="1">Go to the plan ↓</button></span></div>` + tiles +
+  return head + tiles +
     `<p class="fflow">Meeting order: orders first, then the plan. Tap a line to open it (the other closes), and tick Orders once you have talked about it. The plan board covers the money and the customers.</p>` + g2 + g4;
 }
 
