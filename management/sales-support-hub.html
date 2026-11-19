@@ -295,6 +295,7 @@ td .who{font-size:12.5px}
 .brow.open .nlog li{background:#fff;border-left-color:var(--blue);border-radius:0 6px 6px 0;padding:6px 10px}
 .c-store{font-weight:700;font-size:13.5px;color:var(--ink)}
 .c-issue{font-size:13.5px;color:var(--ink2)}
+.brow.today .c-store,.brow.today .c-issue{white-space:normal;overflow:visible;text-overflow:clip;padding-block:9px;line-height:1.35}
 .brow>.stcell{height:28px;padding:0;margin:0 6px;font-size:11.5px;border-radius:6px;align-self:center}
 .ncount{display:inline-flex;align-items:center;gap:3px;color:var(--blue);font-size:11.5px;font-weight:700}
 .ncount svg{width:15px;height:15px}
@@ -1124,17 +1125,19 @@ ORD.filter(o => o.status === 'Open' || o.status === 'On Hold').forEach(o => (o.l
   // items we no longer carry (Althia: chain POs keep listing discontinued lines)
   if (INACT[l.sku]) CHECKS.push({kind:'inact', o, l, st:INACT[l.sku], key:'inact:' + o.nbr + ':' + l.sku, value:l.price * l.oq + 1e6});
 }));
-// Orders to check: only the big ones (Scott, 19 Nov). An order shows when its flagged lines cost it J$20K or more of margin on their own (below cost, below the
+// Orders to check: only the big ones (Scott, 19 Nov). An order shows when its flagged lines cost it J$100K or more of margin and 15% or more of the order (below cost, below the
 // deal price, too many free, free goods missing, an item that cannot ship) or when it will ship short:
 // J$100K or more short after Ashenheim stock (dispatch does the transfers) and 15% or more of the order's open value. Specials ("add 5 to get 1
 // free") and transfers are not checks.
 const leakOf = x => x.kind === 'gp' ? Math.max(0, (x.l.cost - x.l.price) * x.l.oq) : x.kind === 'price' ? Math.max(0, x.value - 3e6) : x.kind === 'freeover' ? Math.max(0, x.value - 2.9e6) : x.kind === 'free' ? Math.max(0, x.value - 2e6) : x.kind === 'inact' ? Math.max(0, x.value - 1e6) : 0;
 const orderGp = o => { const ls = (o.lines || []).filter(l => l.cost > 0), rev = ls.reduce((a, l) => a + l.oq * l.price, 0); return rev > 0 ? ls.reduce((a, l) => a + l.oq * (l.price - l.cost), 0) / rev : null; };
 const bigShort = (o, ls) => { const v = ls.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0), open = (o.lines || []).filter(l => l.open > 0 && l.price > 0).reduce((a, l) => a + l.open * l.price, 0); return v >= 100000 && open > 0 && v / open >= 0.15; };
+const ordVal = o => (o.lines || []).filter(l => l.price > 0).reduce((a, l) => a + l.oq * l.price, 0);
+const bigLeak = (o, pr) => { const v = pr.reduce((a, x) => a + leakOf(x), 0), ov = ordVal(o); return v >= 100000 && ov > 0 && v / ov >= 0.15; };
 const bigChecks = () => { const m = {};
   CHECKS.forEach(x => { if (['gp', 'price', 'freeover', 'free', 'inact', 'stock'].includes(x.kind)) (m[x.o.nbr] = m[x.o.nbr] || {o:x.o, xs:[]}).xs.push(x); });
   return Object.values(m).map(({o, xs}) => { const pr = xs.filter(x => x.kind !== 'stock'), sh = xs.filter(x => x.kind === 'stock');
-    const bigP = pr.length && pr.reduce((a, x) => a + leakOf(x), 0) >= 20000, bigS = sh.length && bigShort(o, sh.map(x => x.l));
+    const bigP = pr.length && bigLeak(o, pr), bigS = sh.length && bigShort(o, sh.map(x => x.l));
     const use = [...(bigP ? pr : []), ...(bigS ? sh : [])]; return use.length ? {o, xs:use} : null; }).filter(Boolean); };
 // every line short at 71 that Ashenheim covers, combined by item: the transfer list (Scott, 12 Nov)
 const xferList = () => { const m = {};
@@ -1705,7 +1708,7 @@ function brow(x) {
     x.shortlist ? `<button class="btn sm pri" type="button" data-shortlist="1">Review the items</button>` :
     x.order ? `<button class="btn sm pri" type="button" data-order="${esc(x.order)}">See the items</button>` : '';
   const who1 = s ? s.rep : '';
-  return `<div class="brow ${st} ${exp ? 'open' : ''}" data-exp="${esc(x.key)}" role="button" tabindex="0" aria-expanded="${exp}">
+  return `<div class="brow today ${st} ${exp ? 'open' : ''}" data-exp="${esc(x.key)}" role="button" tabindex="0" aria-expanded="${exp}">
     <div class="c-store one">${esc(s ? s.name : x.ch || '')}</div>
     <div class="c-issue one">${esc(x.issue)}</div>
     <div class="c-who">${whoCell(who1, true)}</div>
