@@ -1678,6 +1678,7 @@ const ICO = {
   deliv:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   returns:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
   tell:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>',
+  look:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>',
   lead:'<path d="M12 3l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.3 6.7 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'};
 const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
 const GRPC = {'Orders to check':['#D63B3B', 'Big problems on open orders, look at these before they ship'], 'Not delivered':['#B5487A', 'The driver app says not delivered or part delivered'], 'Missed orders':['#D63B3B', 'Stores past their usual order day'], 'Due today':['#E8862A', 'Expected today, follow up before it is missed'], 'Stuck orders':['#C47A1A', 'Held by AR or not moving'], 'AR':['#127F8C', 'Statements, promises and late payments']};
@@ -2946,10 +2947,16 @@ function vLead() {
   ${H.length ? holdBoards(H, 'lh') : '<div class="empty">Nothing on hold.</div>'}
   <p class="note">Held orders are On Hold and Credit Hold orders from the last 90 days. Acumatica does not record when an order went on hold, so Held counts from the day it was keyed.</p>`;
 }
+// one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
+const LOOK = [['stores', 'Customers'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
+const inLook = k => LOOK.some(x => x[0] === k);
+const tabBar = () => { const out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } out.push([k, t]); }); return out; };
+const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
+  if (inLook(TAB)) LOOKLAST = TAB;
   const n = todayCount(), nTellOpen = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
-  document.getElementById('tabs').innerHTML = TABS.filter(([k]) => k !== 'lead' || HUBD.lead).map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('');
+  document.getElementById('tabs').innerHTML = tabBar().map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k || (k === 'look' && inLook(TAB))}" data-tab="${k === 'look' ? LOOKLAST : k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('');
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
@@ -2959,7 +2966,7 @@ function render() {
   const SUPS = (window.__ssSupports && window.__ssSupports()) || [];
   document.getElementById('tctl').innerHTML = TAB === 'lead' ? '' : focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
-  document.getElementById('main').innerHTML = focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead, tell:vTell}[TAB] || vToday)();
+  document.getElementById('main').innerHTML = lookBar() + focusLine() + ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead, tell:vTell}[TAB] || vToday)();
   if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
