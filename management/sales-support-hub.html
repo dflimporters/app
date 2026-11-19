@@ -2085,6 +2085,8 @@ function vFriday() {
   const gapRank = [...gapRows.filter(x => !x.nd).sort((a, b) => b.need - a.need), ...gapRows.filter(x => x.nd).sort((a, b) => b.need - a.need)];
   const gapTot = gapRows.reduce((a, x) => a + x.need, 0), gapInfo = Object.fromEntries(gapRank.map(x => [x.s.id, x]));
   let gcum = 0, gTop = 0; for (const x of gapRank) { if (x.nd || gTop >= 6 || gcum >= 0.75 * gapTot) break; gcum += x.need; gTop++; }
+  const gapHint = g => { const sh = g[3].filter(id => g[4].has(id)), sum = sh.reduce((a, id) => a + gapInfo[id].need, 0), moved = gTop - sh.length;
+    return sh.length ? `top ${sh.length} here = ${J(sum)}${moved ? ` · ${moved} more of the top ${gTop} owe money, so they are in the first column` : ''} · ${J(gapTot)} still to find in all` : gapNote; };
   const gTopSet = new Set(gapRank.slice(0, gTop).map(x => x.s.id)), gapNote = gTop ? `top ${gTop} = ${J(gcum)} of the ${J(gapTot)} still to find` : 'biggest first';
   const notOrd = cs.filter(s => !isHQ(s) && (s.cad.state === 'missed' || s.cad.state === 'due')).sort((a, b) => b.cad.late - a.cad.late);
   const open = ORD.filter(o => mine(o.c) && o.status !== 'Back Order').sort((a, b) => b.age - a.age), openV = open.reduce((a, o) => a + o.total, 0), credit = open.filter(o => o.stage.k === 'credit');
@@ -2166,7 +2168,7 @@ function vFriday() {
     `<div class="fform">
       ${q(1, 'Who will you visit or call this week?', `Ticked customers go on this week’s plan.${arRows.some(x => x.a.over >= 1e6) ? ' Customers owing J$1M or more overdue are already ticked; untick any you won’t see.' : ''} Add a note on any ticked card.`,
         (G.length ? `<div class="fboard">${G.map((g, gi) => { const key = 'fp:' + gi, vis = SHOWALL[key] ? g[3] : g[4] ? (g[3].some(id => g[4].has(id)) ? g[3].filter(id => g[4].has(id) || D.sel[id]) : g[3].filter((id, i) => i < 3 || D.sel[id])) : g[3].filter((id, i) => i < 4 || D.sel[id]), hid = g[3].length - vis.length;
-          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${g[1] ? `<em>${esc(g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added')).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
+          return `<div class="fcol" style="--ac:${g[2]}"><div class="fch"><b>${esc(g[0])}</b><span class="fcnt2">${g[3].length}</span>${(g[4] ? gapHint(g) : g[1]) ? `<em>${esc(g[4] ? gapHint(g) : g[1])}</em>` : ''}</div>${vis.map(id => pickRow(id, g[0] === 'Added')).join('')}${hid > 0 || SHOWALL[key] ? `<button class="btn sm" type="button" data-more="${key}">${SHOWALL[key] ? 'Show fewer' : 'Show the other ' + hid}</button>` : ''}</div>`; }).join('')}</div>` : '<p class="note" style="margin:0 0 8px">No suggestions yet. Add a customer below.</p>') +
         `<datalist id="pl-custs">${cs.slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.name)}"></option>`).join('')}</datalist>
         <input id="pl-add" type="text" list="pl-custs" placeholder="Someone else? Type a customer name and pick it" autocomplete="off" aria-label="Add another customer" style="margin-top:12px">
         <div class="fsum" id="fpsum">${esc(frSumText())}</div>`)}
