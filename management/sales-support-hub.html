@@ -1169,6 +1169,8 @@ const shipDetail = s => { const d = DELIV.find(x => x.nbr === s.nbr), inv = {};
     <div class="acts">${acuBtn(s.order)}${s.order ? `<button class="btn sm" type="button" data-order="${esc(s.order)}">See the order</button>` : ''}<button class="btn sm" type="button" data-store="${esc(s.c)}">Open customer</button></div>`; };
 const CHKTXT = {deal:'Missed special', free:'Free goods missing', freeover:'Too many free', stock:'Not enough stock', xfer:'Needs a transfer', price:'Below the deal price', noprice:'No price', gp:'Below cost', inact:'Item not active'};
 const PRICEK = ['gp', 'price', 'noprice', 'freeover', 'inact'];
+// an item's cost is only shown where the problem is the price (below cost, below the deal price, no price) (Scott, 20 Nov)
+const COSTK = ['gp', 'price', 'noprice'];
 // negative profit = sold below cost (Scott, 9 Nov: "-36%" read as 36%)
 const gpTxt = g => g < 0 ? `Below cost (${Math.abs(g)}% loss)` : `${g}% profit`;
 const chkProblem = x => x.kind === 'deal' ? `Add ${x.h.add} for ${x.h.free} free` : x.kind === 'free' ? `${x.f.free - x.f.have} free missing` : x.kind === 'xfer' ? `${x.need} from ASH` : x.kind === 'price' ? `${JP(x.l.price)} vs deal ${JP(x.floor)}` : x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'noprice' ? 'J$0, no deal' : x.kind === 'freeover' ? `${x.f.have} free, deal gives ${x.f.free}` : x.kind === 'inact' ? `${x.st} item` : `${Math.max(0, x.l.onhand)} of ${x.l.open} in stock`;
@@ -1192,7 +1194,7 @@ const plCards = rows => `<div class="plines">${rows.map(r => `<div class="pl"><d
 const chkTable = xs => plCards(xs.map(x => { const g = lineGp(x.l), loss = (x.kind === 'gp' ? x.gp : g) < 0;
   return {name:x.l.desc, title:x.l.sku, tone:loss || x.kind === 'noprice' ? 'loss' : '', tag:x.kind === 'gp' ? gpTxt(x.gp) : x.kind === 'price' ? 'Below deal ' + JP(x.floor) : x.kind === 'freeover' ? `${x.f.have} free on order` : (x.st || CHKTXT[x.kind]),
     // too many free (Scott, 11 Nov: "130 free, deal 3" was unclear): say what the deal allows for the quantity bought
-    sub:x.kind === 'freeover' ? `${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''} · the deal allows ${x.f.free} free (${esc(x.f.deal)}, per multiple)` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
+    sub:x.kind === 'freeover' ? `${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''} · the deal allows ${x.f.free} free (${esc(x.f.deal)}, per multiple)` : `${x.l.oq} × ${JP(x.l.price)}${x.l.cost && COSTK.includes(x.kind) ? ` · cost ${JP(x.l.cost)}` : ''}`}; }));
 const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought${x.f.n > 1 ? ' across ' + x.f.n + ' sizes' : ''}, the deal (${x.f.deal}, per multiple) gives ${x.f.free} free and the order has ${x.f.have || 'none'}: ${x.f.free - x.f.have} more. Check with the rep whether they should be added; if so, add them with the Free Item box ticked.` :
   x.kind === 'deal' ? `Check with the rep or merchandiser whether the customer will take ${x.h.add} more${x.h.any ? ' of any size in this range' : ''} (${x.h.buy} in all) for ${x.h.free} more free (${x.h.deal}, per multiple).` :
   x.kind === 'xfer' ? `Only ${Math.max(0, x.l.oh71 == null ? x.l.onhand : x.l.oh71)} at 71; Ashenheim has ${x.l.ash}. Put ${x.need} on today's transfer list before the order is released.` :
@@ -1782,7 +1784,7 @@ function vOrders() {
     gboard('#E2445C', 'Check before it ships', chkOpen.length + ' lines to check', 'minmax(0,1.4fr) 88px minmax(0,1.3fr) minmax(0,1.8fr) minmax(0,.9fr) 104px 40px', [['Customer'], ['Order'], ['Problem'], ['Product'], ['Rep', '', 'hm'], ['Status', 'center'], ['']],
       chkShown.map(x => { const k = x.key, notes = notesFor(n => n.kind === 'note' && n.ref === k);
         return grow(k, [cell(esc(byId[x.o.c].name), 'c-store one c1'), cell(acuOrder(x.o.nbr), 'one hm'), cell(`<b class="${x.kind === 'deal' ? 'up' : 'dn'}" title="${esc(CHKTXT[x.kind])}">${esc(chkProblem(x))}</b>`, 'one c2'), cell(esc(x.l.desc), 'c-issue one hm'), cell(esc(firstName(byId[x.o.c].rep)), 'one hm'), stBtn(k)],
-          `<div class="bfacts"><div><span>Check</span><b>${esc(CHKTXT[x.kind])}</b></div><div><span>In Acumatica</span>${esc(chkStep(x))}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${x.o.by ? ' · keyed by ' + esc(x.o.by) : ''}</div><div><span>Line</span>${x.l.oq} × ${esc(x.l.desc)} at ${JP(x.l.price)}${x.l.cost ? ` · cost ${JP(x.l.cost)}` : ''}</div></div>
+          `<div class="bfacts"><div><span>Check</span><b>${esc(CHKTXT[x.kind])}</b></div><div><span>In Acumatica</span>${esc(chkStep(x))}</div><div><span>Order</span>${acuOrder(x.o.nbr)} · ${esc(x.o.stage.t)}${x.o.by ? ' · keyed by ' + esc(x.o.by) : ''}</div><div><span>Line</span>${x.l.oq} × ${esc(x.l.desc)} at ${JP(x.l.price)}${x.l.cost && COSTK.includes(x.kind) ? ` · cost ${JP(x.l.cost)}` : ''}</div></div>
           ${notes.length ? noteList(notes) : ''}<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.o.c)}">Open store</button>${btnNote('note|' + k, notes.length ? '✎ Add another note' : '✎ Add a note')}</div>${formFor('note|' + k)}`); }), 'checks');
   if (SUB.orders === 'watch') body = lead1('o-watch', 'How often each store usually gets a delivery, and whether it is late.', 'The usual gap comes from the store’s regular-size orders over the last four months: small top-up deliveries (an order that came short) are left out. “Irregular” means fewer than four regular orders in that time, too few to set a pattern. The due date counts from the last regular order. Head-office and warehouse billing accounts are left out. Hover a Last date to see the usual gap.') +
     stable('watch', [
@@ -2754,7 +2756,7 @@ function vOrderDrawer(nbr, ctx) {
   const tr = truckOf(o), oships = (shipsOfOrder[nbr] || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return shell('Order ' + nbr, `${esc(byId[o.c].name)} · keyed ${esc(fd(o.date))}${o.by ? ' by ' + esc(o.by) : ''}${tr ? ' · truck ' + esc(tr) : ''}`, `
   <div class="briefbar">${acuBtn(nbr)}</div>
-  ${(() => { const xs = CHECKS.filter(x => x.o.nbr === nbr && PRICEK.includes(x.kind)); return xs.length ? sec('Price checks', String(xs.length), chkTable(xs)) : ''; })()}
+  ${(() => { const xs = ctx === 'short' ? [] : CHECKS.filter(x => x.o.nbr === nbr && PRICEK.includes(x.kind)); return xs.length ? sec('Price checks', String(xs.length), chkTable(xs)) : ''; })()}
   ${oships.length ? sec('Shipments', String(oships.length), gl('minmax(0,1fr) 92px minmax(0,1.2fr) 70px', [['Shipment'], ['Status', 'c'], ['Truck'], ['Date', 'r']],
       oships.map(s => [[`<b>${acuShip(s.nbr)}</b>`, ''], [SHIPPED(s.status) ? '<span class="pill green">Delivered</span>' : `<span class="pill">${esc(s.status)}</span>`, 'c'], [truckCell(realVia(s.via)), ''], [esc(fds(s.date)), 'r rt']]))) : ''}
   ${dtiles([['Still to deliver', ls.length, 'items', '#7B4FD0'], ['Value', J(v), 'at order price', '#326BD3'], ['Stage', esc(o.stage.k === 'bo' ? 'Back order' : o.stage.t), o.age + ' days old', SOLID[o.stage.c] || '#8A95B0']])}
