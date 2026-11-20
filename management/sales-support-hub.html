@@ -687,6 +687,7 @@ th.on{color:var(--ink)}
 .dtiles.light.tint .dt .k{color:color-mix(in srgb,var(--c) 55%,#3A4766)}
 .dtiles.light .dt.urgent{background:var(--c);border-color:var(--c);box-shadow:inset 5px 0 0 rgba(0,0,0,.22),0 2px 6px rgba(20,35,70,.18)}
 .dtiles.light .dt.urgent .k,.dtiles.light .dt.urgent .v,.dtiles.light .dt.urgent .s{color:#fff}
+.btn:disabled,.btn[disabled]{opacity:.42;cursor:not-allowed;filter:grayscale(.7);box-shadow:none}
 @media (max-width:900px){.dtiles.four{grid-template-columns:repeat(2,minmax(0,1fr))}.dtiles.four .dt:first-child{grid-column:auto}}
 .frep{margin:4px 0 16px}
 .fflow{margin:16px 2px 18px}
@@ -2812,7 +2813,7 @@ const jaNow = () => { const p = {}; new Intl.DateTimeFormat('en-CA', {timeZone:'
 const jaHm = at => new Date(at).toLocaleTimeString('en-GB', {timeZone:'America/Jamaica', hour:'2-digit', minute:'2-digit'});
 const jaDay = at => new Date(at).toLocaleDateString('en-CA', {timeZone:'America/Jamaica'});
 const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin(LEADT.fin), c = hmin(LEADT.cut), e = hmin(LEADT.end);
-  const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h ' + (x % 60 ? (x % 60) + 'm' : '').trim() : x + ' min'; };
+  const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h' + (x % 60 ? ' ' + (x % 60) + 'm' : '') : x + ' min'; };
   return {n, a, f, c, e, left, phase:n < a ? 0 : n < f ? 1 : n < c ? 2 : n < e ? 3 : 4}; };
 let LEADF = 'All', TELLF = 'open';
 const ESCL = {};   // label for each escalated item, filled as the rows are drawn
@@ -2862,6 +2863,8 @@ function dayMsg(cl, who1) { return cl.phase === 0 ? `Before ${t12(LEADT.start)}.
   : cl.phase === 2 ? `Now: finance releases what was sent. ${cl.left(cl.c)} to the ${t12(LEADT.cut)} cutoff, when dispatch pulls the transfer list.`
   : cl.phase === 3 ? `The ${t12(LEADT.cut)} cutoff has passed. Orders still held are not in the transfer list, so they miss tomorrow’s load.`
   : who1 ? 'The day is done. Send your end of day report.' : 'The day is done. Check the end of day reports.'; }
+// a card's title carries its time only while that time still matters
+const tileT = (time, label, over, after) => over ? after : `${time}: ${label}`;
 const LEADINFO = () => `Times are Jamaica time: holds ${t12(LEADT.start)} to ${t12(LEADT.fin)}, payment list to finance by ${t12(LEADT.fin)}, transfer cutoff ${t12(LEADT.cut)}, end of day report ${t12(LEADT.end)}. Orders on hold or credit hold are not batched into the transfer list, so every hold released before the cutoff is stock that can load the next day. A hold shows Past due when the account has overdue invoices in the latest AR snapshot. Tap Payment in? once the customer’s payment information is received: those orders form the list for finance.`;
 
 // ----- Today: the support person's routine -----
@@ -2888,10 +2891,10 @@ function vToday() {
   // one status rule for everything on Today: Done items leave the lists and show under Show done
   const doneMode = TODAYF === 'st:sorted', hDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted'), HS = doneMode ? hDone : H.filter(x => stOf('hold:' + x.nbr) !== 'sorted'), nDoneAll = all.length - open.length + hDone.length;
   const tiles = dtiles([
-    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${nPaid + nProm} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : `${nPaid} payment in · ${nProm} promised`, fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
-    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A', pastCut && H.length > 0],
-    [`${t12(LEADT.end)}: end of day report`, eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3', cl.phase === 4 && !eod]], 'four light tint');
+    [tileT(`${t12(LEADT.start)} to ${t12(LEADT.fin)}`, 'clear holds', cl.phase >= 2, 'Held orders'), `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
+    [tileT(`By ${t12(LEADT.fin)}`, 'list to finance', cl.phase >= 2, 'List to finance'), fin ? 'Sent' : `${nPaid + nProm} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : `${nPaid} payment in · ${nProm} promised`, fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
+    [tileT(t12(LEADT.cut), 'transfer cutoff', pastCut, 'Transfer cutoff'), pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A'],
+    [tileT(t12(LEADT.end), 'end of day report', cl.phase === 4, 'End of day report'), eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3', cl.phase === 4 && !eod]], 'four light tint');
   const grp = k => { const list = shown.filter(x => x.group === k); return list.length ? `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
     <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>
     ${(SHOWALL['g:' + k] ? list : list.slice(0, 8)).map(brow).join('')}
@@ -2945,9 +2948,9 @@ function vLead() {
   const eods = sups.map(s => ({s, n:latestEod(s, ds)})), fins = sups.map(s => ({s, t:finSent(s)})), es = escOpen();
   const nChased = all.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, heldVal = all.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
   const tiles = dtiles([
-    [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${all.length} <small>held</small>`, `${nChased} followed up · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: finance lists`, `${fins.filter(x => x.t).length} of ${sups.length}`, 'support people have sent their payment list', fins.every(x => x.t) ? '#1A8F4C' : '#127F8C', !fins.every(x => x.t) && cl.n >= cl.f && all.length > 0],
-    [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A', pastCut && all.length > 0],
+    [tileT(`${t12(LEADT.start)} to ${t12(LEADT.fin)}`, 'clear holds', cl.phase >= 2, 'Held orders'), `${all.length} <small>held</small>`, `${nChased} followed up · ${J(heldVal)} held`, '#D63B3B'],
+    [tileT(`By ${t12(LEADT.fin)}`, 'finance lists', cl.phase >= 2, 'Finance lists'), `${fins.filter(x => x.t).length} of ${sups.length}`, 'support people have sent their payment list', fins.every(x => x.t) ? '#1A8F4C' : '#127F8C', !fins.every(x => x.t) && cl.n >= cl.f && all.length > 0],
+    [tileT(t12(LEADT.cut), 'transfer cutoff', pastCut, 'Transfer cutoff'), pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${all.length} held, not in the transfer list` : `${all.length} still held, they would miss it`, pastCut && all.length ? '#D63B3B' : '#E8862A'],
     ['Escalated to you', `${es.length}`, `${eods.filter(x => x.n).length} of ${sups.length} end of day reports in`, es.length ? '#D63B3B' : '#326BD3', es.length > 0]], 'four light tint');
   const teamRows = sups.map(s => { const mine = all.filter(x => x.sup === s), f = finSent(s), e = latestEod(s, ds), told = mine.filter(x => stOf('told:hold:' + x.nbr) === 'sorted').length;
     return `<div class="brow"><div class="c-store one">${esc(s)}</div><div class="c-age" style="text-align:center"><b>${mine.length}</b> · ${J(mine.reduce((a, x) => a + x.val, 0))}</div><div class="c-age" style="text-align:center">${mine.filter(x => stOf('hold:' + x.nbr) !== 'todo').length} of ${mine.length}</div><div class="c-age hm" style="text-align:center">${told} of ${mine.length}</div><div class="c-age" style="text-align:center">${f ? '✓ ' + jaHm(f.at) : '–'}</div><div class="c-age" style="text-align:center">${e ? '✓ ' + jaHm(e.at) : '–'}</div></div>`; });
