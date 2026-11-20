@@ -1722,7 +1722,7 @@ function brow(x) {
   ESCL[x.key] = (s ? s.name + ': ' : '') + x.issue;
   const extra = x.jump ? `<button class="btn sm pri" type="button" data-jump="${esc(x.jump)}">See the list</button>` : x.tickKey ? `<button class="btn sm pri" type="button" data-tick="${esc(x.tickKey)}">✓ Statement sent</button>` :
     x.shortlist ? `<button class="btn sm pri" type="button" data-shortlist="1">Review the items</button>` :
-    x.order ? `<button class="btn sm pri" type="button" data-order="${esc(x.order)}">See the items</button>` : '';
+    x.order ? `<button class="btn sm pri" type="button" data-order="${esc(x.order)}"${x.ctx ? ` data-ctx="${esc(x.ctx)}"` : ''}>${x.ctx === 'short' ? 'See the whole order' : 'See the items'}</button>` : '';
   const who1 = s ? s.rep : '';
   return `<div class="brow today ${st} ${exp ? 'open' : ''}" data-exp="${esc(x.key)}" role="button" tabindex="0" aria-expanded="${exp}">
     <div class="c-store one">${esc(s ? s.name : x.ch || '')}</div>
@@ -2744,10 +2744,13 @@ function vDoneOrderDrawer(nbr) {
   ${short.length ? sec('Sent short', String(short.length), plCards(short.map(x => { const v = sentLater(x); return {name:x.desc, sub:`${x.oq} ordered · ${x.sq} sent on ${esc(fds(x.date))}`, tag:v.t, tone:v.c === 'red' ? 'loss' : v.c === 'green' ? 'green' : ''}; }))) : ''}
   ${c && byId[c] ? `<div class="briefbar"><button class="btn sm" type="button" data-store="${esc(c)}">Open ${esc(byId[c].name)}</button></div>` : ''}`);
 }
-function vOrderDrawer(nbr) {
+function vOrderDrawer(nbr, ctx) {
   const o = ordBy[nbr]; if (!o) return vDoneOrderDrawer(nbr);
   const ls = (o.lines || []).filter(l => l.open > 0);
   const v = ls.reduce((a, l) => a + l.open * l.price, 0);
+  const lineRow = l => reasonRow(l.sku, l.desc, ((b => b && b.rep ? `<span class="up">${repText(b.rep)}</span> · ` : '')(BO.find(b => b.nbr === l.nbr && b.sku === l.sku))) + (l.onhand >= l.open ? `<span class="up">${l.onhand} on hand</span>, may be promised to other orders` : `<span class="dn">${Math.max(0, l.onhand)} on hand</span>`), l.open + ' owed', 'of ' + l.oq + ' ordered');
+  const shortSkus = new Set(CHECKS.filter(x => x.kind === 'stock' && x.o.nbr === nbr).map(x => x.l.sku)), shortLs = ls.filter(l => shortSkus.has(l.sku)), okLs = ls.filter(l => !shortSkus.has(l.sku));
+  const shortSecs = (shortLs.length ? sec('Can’t fill', String(shortLs.length), `<ul class="l1 rrlist">${shortLs.map(lineRow).join('')}</ul>`, 'Tell the rep, offer a substitute, and add the reason for each item.') : '') + (okLs.length ? sec('Stock is available', String(okLs.length), rows(okLs.map(l => row(esc(l.desc), `<span class="up">${l.onhand} on hand</span>`, esc(l.open + ' owed'), 'of ' + l.oq + ' ordered'))), 'These lines can ship, so there is nothing to tell the rep about them.') : '');
   const tr = truckOf(o), oships = (shipsOfOrder[nbr] || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return shell('Order ' + nbr, `${esc(byId[o.c].name)} · keyed ${esc(fd(o.date))}${o.by ? ' by ' + esc(o.by) : ''}${tr ? ' · truck ' + esc(tr) : ''}`, `
   <div class="briefbar">${acuBtn(nbr)}</div>
@@ -2755,7 +2758,7 @@ function vOrderDrawer(nbr) {
   ${oships.length ? sec('Shipments', String(oships.length), gl('minmax(0,1fr) 92px minmax(0,1.2fr) 70px', [['Shipment'], ['Status', 'c'], ['Truck'], ['Date', 'r']],
       oships.map(s => [[`<b>${acuShip(s.nbr)}</b>`, ''], [SHIPPED(s.status) ? '<span class="pill green">Delivered</span>' : `<span class="pill">${esc(s.status)}</span>`, 'c'], [truckCell(realVia(s.via)), ''], [esc(fds(s.date)), 'r rt']]))) : ''}
   ${dtiles([['Still to deliver', ls.length, 'items', '#7B4FD0'], ['Value', J(v), 'at order price', '#326BD3'], ['Stage', esc(o.stage.k === 'bo' ? 'Back order' : o.stage.t), o.age + ' days old', SOLID[o.stage.c] || '#8A95B0']])}
-  ${sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(l => reasonRow(l.sku, l.desc, ((b => b && b.rep ? `<span class="up">${repText(b.rep)}</span> · ` : '')(BO.find(b => b.nbr === l.nbr && b.sku === l.sku))) + (l.onhand >= l.open ? `<span class="up">${l.onhand} on hand</span>, may be promised to other orders` : `<span class="dn">${Math.max(0, l.onhand)} on hand</span>`), l.open + ' owed', 'of ' + l.oq + ' ordered')).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
+  ${ctx === 'short' ? shortSecs : sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(lineRow).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
   <div class="briefbar"><button class="btn sm" type="button" data-store="${esc(o.c)}">Open ${esc(byId[o.c].name)}</button></div>`);
 }
 function vShortDrawer() {
@@ -2787,7 +2790,7 @@ function vCatDrawer(cls) {
   ${extra.length ? sec('Buying with no target', String(extra.length), list('ce:', extra, false)) : ''}
   ${!rows.length ? sec('Customers', null, '<p class="hint" style="margin:6px 0">No target or sales for this category this month.</p>') : ''}`);
 }
-function vDrawer(d) { return !d ? '' : d.t === 'order' ? vOrderDrawer(d.id) : d.t === 'short' ? vShortDrawer() : d.t === 'cat' ? vCatDrawer(d.id) : vStoreDrawer(d.id); }
+function vDrawer(d) { return !d ? '' : d.t === 'order' ? vOrderDrawer(d.id, d.ctx) : d.t === 'short' ? vShortDrawer() : d.t === 'cat' ? vCatDrawer(d.id) : vStoreDrawer(d.id); }
 
 // ---------- page ----------
 function strip() {
@@ -2910,7 +2913,7 @@ function vToday() {
 // what has to be passed on to the reps that is not a held order (held orders are worked on Today: calling the rep about the hold is telling them)
 function tellItems() { const it = [];
   bigChecks().forEach(({o, xs}) => { const st = xs.filter(x => x.kind === 'stock'); if (!st.length) return; const s0 = byId[o.c] || {}, sv = st.reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
-    it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', issue:`Can’t fill: ${st.length} item${st.length === 1 ? '' : 's'} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:chkTable(st),
+    it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', ctx:'short', issue:`Can’t fill: ${(nl => nl > st.length ? st.length + ' of ' + nl + ' items' : st.length + ' item' + (st.length === 1 ? '' : 's'))((o.lines || []).filter(l => l.open > 0).length)} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:chkTable(st),
       t:`${s0.name}: order ${o.nbr} will ship short`, d:'', act:'Tell the rep and offer a substitute',
       line:`${s0.name || o.c}: order ${o.nbr} will ship short: ` + st.slice(0, 4).map(x => `${x.l.desc} (need ${x.l.open}, have ${Math.max(0, x.l.onhand)})`).join('; ') + (st.length > 4 ? '…' : '') + '. Please check with the store about a substitute.'}); });
   todayItems().filter(x => x.kind === 'Delivery problem').forEach(x => it.push({...x, key:'told:' + x.key, kind:'Delivery', rep:(byId[x.c] || {}).rep || '', line:`${x.t} (${x.issue}).`}));
@@ -3007,7 +3010,7 @@ __on(document, 'click', e => {
   if (d.tab) { TAB = d.tab; OPEN = null; try { history.replaceState(null, '', '#' + TAB); } catch (x) {} render(); window.scrollTo(0, 0); return; }
   if (d.close) { DRAWER = null; OPEN = null; render(); return; }
   if (d.store) { DRAWER = {t:'store', id:d.store}; OPEN = null; render(); return; }
-  if (d.order) { DRAWER = {t:'order', id:d.order}; OPEN = null; render(); return; }
+  if (d.order) { DRAWER = {t:'order', id:d.order, ctx:d.ctx}; OPEN = null; render(); return; }
   if (d.shortlist) { DRAWER = {t:'short'}; OPEN = null; render(); return; }
   if (d.cat) { DRAWER = {t:'cat', id:d.cat}; OPEN = null; render(); return; }
   if (d.todayf) { TODAYF = d.todayf; render(); return; }
