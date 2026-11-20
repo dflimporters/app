@@ -40,7 +40,7 @@ nav.tabs button{font-family:var(--head);font-size:12px;font-weight:700;text-tran
 nav.tabs button[aria-selected="true"]{background:var(--navy);color:#fff}
 nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:600;font-size:12.5px;color:var(--blue);border:1px solid var(--line);background:#fff}
 .daysteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:8px 0 18px}
-.dstep{all:unset;cursor:pointer;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;min-width:0}
+.dstep{all:unset;cursor:pointer;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 14px 12px;display:flex;gap:10px;align-items:flex-start;min-width:0;--ac:#C5CCDB;box-shadow:inset 0 5px 0 var(--ac),0 1px 2px rgba(20,35,70,.06)}
 .dstep:hover{border-color:#326BD3}
 .dstep:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .dstep .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--head);background:#E6EAF2;color:var(--ink2)}
@@ -48,7 +48,9 @@ nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;fo
 .dstep b{display:block;font:700 13.5px var(--head);color:var(--ink)}
 .dstep .t{display:block;font-size:11.5px;color:var(--ink3)}
 .dstep .s{display:block;font-size:12.5px;color:var(--ink2);margin-top:3px}
-.dstep.cur{border-color:#326BD3;box-shadow:0 0 0 2px rgba(50,107,211,.22)}
+.dstep.cur{--ac:#326BD3;border-color:#326BD3;box-shadow:inset 0 5px 0 var(--ac),0 0 0 2px rgba(50,107,211,.22)}
+.dstep.late{--ac:#D63B3B}
+.dstep.done{--ac:#1A8F4C}
 .dstep.cur .n{background:#326BD3;color:#fff}
 .dstep.late .n{background:#D63B3B;color:#fff}
 .dstep.late .s{color:#D63B3B;font-weight:600}
