@@ -1270,7 +1270,7 @@ STORES.forEach(s => {
 });
 // customers that matter for Today and the week strip: the top customers making up 80% of each rep's sales (TOPC, below)
 const BIG = s => TODAYALL() || TOPC.has(s.id);
-const TODAYALL = () => !!(typeof SHOWALL !== 'undefined' && SHOWALL.todayall);
+const TODAYALL = () => true;   // every tab covers every customer (Scott, 19 Nov)
 const CAD = {missed:['red', 'Missed'], due:['amber', 'Due now'], inhand:['blue', 'Order in'], ok:['green', 'On track'], irregular:['grey', 'Irregular']};
 
 // ---------- sales vs budget ----------
@@ -1583,6 +1583,9 @@ function formFor(k) {
   if (kind === 'promise') return `<div class="nbox"><div class="nrow"><label class="note" for="f-amt">Amount J$</label><input id="f-amt" type="number" min="0" step="1000" inputmode="numeric"><label class="note" for="f-date">By</label><input id="f-date" type="date"></div>
     <label class="sr" for="f-tx">Detail</label><textarea id="f-tx" rows="2" placeholder="Who promised it, e.g. Accounts payable (Tia), cheque ready Friday"></textarea>
     <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Log promise</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
+  if (kind === 'hpromise') return `<div class="nbox"><div class="nrow"><label class="note" for="f-amt">Amount J$</label><input id="f-amt" type="number" min="0" step="1000" inputmode="numeric"><label class="note" for="f-date">Promised by</label><input id="f-date" type="date" value="${toWorkday(addDays(jaNow().date, 1))}"></div>
+    <label class="sr" for="f-tx">Note</label><textarea id="f-tx" rows="2" placeholder="Who promised it and how, e.g. Mr Lee: cheque ready Friday"></textarea>
+    <div class="nrow"><button class="btn sm pri" type="button" data-save="${esc(k)}">Save promise</button><button class="btn sm" type="button" data-open="">Cancel</button></div></div>`;
   const teamList = `<datalist id="dl-team">${TEAM().map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>`;
   if (kind === 'deal') { const s0 = byId[ref];
     return `<div class="nbox"><div class="nrow"><label class="note" for="f-store">Store</label><select id="f-store">${s0 ? '' : '<option value="">Choose a store</option>'}${STORES.filter(s => !isHQ(s)).map(s => `<option value="${esc(s.id)}" ${s.id === ref ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></div>
@@ -1618,6 +1621,7 @@ async function saveForm(k) {
   else if (kind === 'promise') { const a = +val('f-amt'); if (!a || !val('f-date')) { toast('Add the amount and the date.'); return; } n = {kind, chain:ref, amount:a, date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the promise is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'manager') { if (!val('f-nm').trim()) { toast('Add the manager’s name.'); return; } n = {kind, c:ref, name:val('f-nm').trim(), phone:val('f-ph').trim(), text:val('f-tx')}; }
   else if (kind === 'stmtdue') { if (!val('f-date')) { toast('Add the date.'); return; } n = {kind:'note', ref:'stmtdue:' + ref, chain:ref, label:'Statement reminder', date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the reminder is set for Monday ' + fds(n.date) + '.'; }
+  else if (kind === 'hpromise') { if (!val('f-date')) { toast('Add the date.'); return; } n = {kind:'hpromise', ref, c:(ORD.find(o => 'hold:' + o.nbr === ref) || {}).c || '', amount:+val('f-amt') || 0, date:toWorkday(val('f-date')), text:val('f-tx')}; if (n.date !== val('f-date')) moved = 'Saved. That date is a weekend, so the promise is set for Monday ' + fds(n.date) + '.'; }
   else if (kind === 'backup') { if (!val('f-nm').trim()) return; n = {kind, c:ref, name:val('f-nm').trim(), text:''}; }
   else if (kind === 'deal') { const c = val('f-store'), sku = skuFromLabel(val('f-sku'));
     if (!c || !sku) { toast('Choose the store, and a product from the list.'); return; }
@@ -1692,13 +1696,10 @@ let TODAYF = 'All', EXP = null;
 
 // Top / All customers (Scott, 9–11 Nov): Today, Reps, Orders and Customers follow the switch in the header;
 // Back orders, Deliveries and Returns always cover every customer
-const FOCUS_TABS = ['reps', 'orders', 'stores'];   // Today and Tell the reps always cover every customer (Scott, 19 Nov)
+const FOCUS_TABS = [];   // Today and Tell the reps always cover every customer (Scott, 19 Nov)
 const inFocus = c => TODAYALL() || TOPC.has(c);
-function focusLine() { const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF), n = reps.reduce((a, r) => a + ((TOPN[r] || {}).n || 0), 0), of = reps.reduce((a, r) => a + ((TOPN[r] || {}).of || 0), 0);
-  if (TAB === 'friday' || TAB === 'lead' || TAB === 'tell' || TAB === 'today') return '';
-  if (!FOCUS_TABS.includes(TAB)) return `<div class="focusline"><span>This tab always covers <b>all ${of} customers</b>${TAB === 'backorders' ? ', so the weekly clean-up catches every line' : TAB === 'deliv' ? ', so you can find any order' : ''}.</span></div>`;
-  return `<div class="focusline"><span>${TODAYALL() ? `Showing <b>all ${of} customers</b>.` : `Showing the <b>${n} customers</b> that make up 80% of ${CHAINF === 'All' ? 'the reps’' : esc(firstName(CHAINF)) + '’s'} sales (last 3 months), out of ${of}.`} Switch with Top / All at the top of the page.</span></div>`; }
-const focusSwitch = () => FOCUS_TABS.includes(TAB) ? `<div class="focussw" role="group" aria-label="Which customers"><button type="button" data-focus="top" aria-pressed="${!TODAYALL()}">Top customers</button><button type="button" data-focus="all" aria-pressed="${TODAYALL()}">All customers</button></div>` : '';
+function focusLine() { return ''; }   // no Top / All customers switch any more (Scott, 19 Nov)
+const focusSwitch = () => '';
 function weekStrip() {
   // Monday to Friday only (no weekend deliveries)
   const days = []; let d = ASOF; while (days.length < 6) { const w = d8(d).getDay(); if (w >= 1 && w <= 5) days.push(d); d = addDays(d, 1); }
@@ -1737,7 +1738,7 @@ function brow(x) {
       <div class="acts">${extra}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(x.key)}</div>${formFor(nk)}</div>` : ''}
   </div>`;
 }
-function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod').slice(0, 8); if (!l.length) return '';
+function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod' && n.kind !== 'hpromise').slice(0, 8); if (!l.length) return '';
   return `<details class="fold"><summary>Latest notes from the team (${NOTES.length})</summary><div class="sec"><ul class="nlog">${l.map(n => `<li><span class="m">${esc(fds(n.at.slice(0,10)))} · ${esc(who(n.by))} · ${esc(n.kind === 'reason' ? 'Reason: ' + (SKUD[n.sku] ? SKUD[n.sku][0] : n.sku) : n.kind === 'promise' ? 'Promise: ' + n.chain : n.c && byId[n.c] ? byId[n.c].name : n.kind)}</span><br>${esc(n.label ? n.label + '. ' : '')}${esc(n.text || n.name || '')}</li>`).join('')}</ul></div></details>`; }
 
 // ---------- shared pieces for Orders, Back orders and AR ----------
@@ -1819,12 +1820,7 @@ function vOrders() {
     body = lead1('o-ship', 'Shipments Acumatica has confirmed in the last 7 days. Tap one to see what was on it and what was left off.', 'On the shipment: the items invoiced to this customer on the shipment date (if the customer had two orders that day, both are included). Left off: items on the order that were not sent, and any item the driver app recorded as short, refused or not delivered. Open the shipment in Acumatica for the exact picking list.') +
     gboard('#1A8F4C', 'Shipped, last 7 days', sl.length + ' shipments · ' + J(sl.reduce((a, s) => a + s.value, 0)), 'minmax(0,1.5fr) 82px 82px 70px minmax(0,1fr) 90px 40px', [['Customer'], ['Shipment', '', 'hm'], ['Order', '', 'hm'], ['Date', 'center', 'hm'], ['Delivered by', '', 'hm'], ['Value', 'right'], ['']],
       sl.map(s => grow('sh:' + s.nbr, [cell(esc(cnm(s.c)), 'c-store one c1'), cell(acuShip(s.nbr), 'one hm'), cell(acuOrder(s.order), 'one hm'), cell(esc(fds(s.date)), 'c-age hm', 'center'), cell(truckCell(realVia(s.via)), 'one hm'), cell(J(s.value), 'c-age', 'right')], shipDetail(s))), 'shipped'); }
-  return `<div class="ftiles four">
-    ${ctile('credit', 'alert', credit.length, 'Credit hold', J(credit.reduce((a, o) => a + o.total, 0)) + ' held by AR', '#D63B3B')}
-    ${ctile('xfer', 'box', trAll, 'Transfers', TL ? TL[0] + ', ' + (TL[2] === 'received' ? 'received ' : 'sent ') + fds((TL[2] === 'received' ? TL[4] : TL[3]).slice(0, 10)) : 'No list from dispatch yet', '#127F8C')}
-    ${ctile('open', 'orders', open.length, 'Open orders', J(open.reduce((a, o) => a + o.total, 0)) + ' not shipped yet', '#326BD3')}
-    ${ctile('shipped', 'box', shipped.length, 'Shipped this week', J(shipped.reduce((a, s) => a + s.value, 0)) + ' delivered', '#1A8F4C')}
-  </div>
+  return `
   ${segs([['credit', 'Credit hold', credit.length], ['xfer', 'Transfers', trAll], ['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length]])}
   <div class="dsearch"><label for="oq">Search orders</label><input id="oq" type="search" placeholder="Customer, order number, product or rep" value="${esc(OQ)}" autocomplete="off"></div>
   ${body}`;
@@ -1944,11 +1940,8 @@ function vReturns() {
       gboard('#E8862A', 'Repeat returns', cl.length + ' customers', 'minmax(0,1.6fr) minmax(0,.8fr) 70px 90px minmax(0,1.6fr) 40px', [['Customer'], ['Rep', '', 'hm'], ['Returns', 'center'], ['Value', 'right'], ['Main reason', '', 'hm'], ['']],
         cl.map(x => { const top = Object.entries(x.rs).sort((a, b) => b[1] - a[1])[0]; return grow('rcc:' + x.c, [cell(esc(byId[x.c] ? byId[x.c].name : x.c), 'c-store one c1'), cell(esc(firstName((byId[x.c] || {}).rep)), 'one hm'), cell(`<b class="${x.oe ? 'dn' : ''}">${x.n}</b>`, 'one c2', 'center'), cell(J(x.v), 'one', 'right'), cell(esc(rNice(top[0])) + (top[1] > 1 ? ' ×' + top[1] : ''), 'one hm')],
           rows(list.filter(r => r.c === x.c).map(r => row(esc(r.nbr) + ' · ' + esc(fds(r.date)), esc(rNice(r.reason)) + ': ' + lines(r), J(r.total), ''))) + `<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button></div>`); }), 'rcc'); }
-  return `<div class="ftiles three">
-    ${ctile('reason', 'returns', list.length, 'Returns, 60 days', J(tot) + ' · ' + wk.length + ' this week', '#326BD3')}
-    ${ctile('g:Order entry', 'alert', byG('Order entry').length, 'Order entry', J(byG('Order entry').reduce((a, r) => a + r.total, 0)) + ' that could be stopped', '#E2445C')}
-    ${ctile('cust', 'reps', Object.values(list.reduce((m, r) => (m[r.c] = (m[r.c] || 0) + 1, m), {})).filter(n => n >= 2).length, 'Repeat returners', 'Two or more in 60 days', '#E8862A')}
-  </div>${segs([['reason', 'All', list.length], ...Object.keys(RGRPC).filter(g => byG(g).length).map(g => ['g:' + g, g, byG(g).length]), ['cust', 'Repeat returners', null]])}
+  return `
+${segs([['reason', 'All', list.length], ...Object.keys(RGRPC).filter(g => byG(g).length).map(g => ['g:' + g, g, byG(g).length]), ['cust', 'Repeat returners', null]])}
   <div class="dsearch"><label for="rq">Find a return</label><input id="rq" type="search" placeholder="Customer, return number, reason or who keyed it" value="${esc(RQ)}" autocomplete="off"></div>${body}`;
 }
 
@@ -2830,20 +2823,29 @@ function supHolds() { return ORD.filter(o => (o.stage.k === 'credit' || o.stage.
   return {nbr:o.nbr, status:o.stage.k === 'credit' ? 'Credit Hold' : 'On Hold', date:o.date, c:o.c, cname:s.name || o.c, rep:s.rep || '', sup:SUPPORT, val:o.total, by:o.by, past:pastDue(o.c), lastpay:lp ? lp.d : '', age:o.age}; }).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.nbr < b.nbr ? -1 : 1); }
 // every support person's held orders (lead only; from ss_hub_lead_data)
 const leadHolds = () => (O.lholds || []).map(r => ({nbr:r[0], status:r[1], date:r[2], sched:r[3], c:r[4], cname:r[5] || r[4], rep:r[6] || '', sup:r[7] || '', val:+r[8] || 0, by:r[9] || '', past:+r[10] || 0, lastpay:r[11] || '', age:Math.max(0, Math.round((d8(jaNow().date) - d8(r[2])) / 864e5))}));
-function financeText(list) { const ds = jaNow().date, tot = list.reduce((s, x) => s + x.val, 0);
-  return `Payments received: please release these orders (${fds(ds)})\n` + list.map(x => `• ${x.cname}: order ${x.nbr}, ${J(x.val)}${x.rep ? ', rep ' + x.rep : ''}${x.lastpay ? ', last payment ' + fds(x.lastpay) : ''}`).join('\n') + `\n${list.length} order${list.length === 1 ? '' : 's'} · ${J(tot)}`; }
-// one held-order row, used on Today and in the Lead view
-function holdRow(x) { const p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|' + key, told = stOf('told:hold:' + x.nbr) === 'sorted', notes = notesFor(n => n.kind === 'note' && n.ref === key);
+// promise to pay on a held order (a note of kind hpromise on ref hold:<order>): shows on the row and in the finance list
+const promiseOf = nbr => latest(n => n.kind === 'hpromise' && n.ref === 'hold:' + nbr);
+const promTxt = p => `${+p.amount ? J(p.amount) + ' ' : ''}by ${d8(p.date).toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'})}`;
+const financeList = () => supHolds().filter(x => payOn(x.nbr) || promiseOf(x.nbr));
+function financeText(list) { const ds = jaNow().date, paid = list.filter(x => payOn(x.nbr)), prom = list.filter(x => !payOn(x.nbr) && promiseOf(x.nbr)), tot = a => a.reduce((s, x) => s + x.val, 0), L = [];
+  if (paid.length) { L.push(`Payments received: please release these orders (${fds(ds)})`); paid.forEach(x => L.push(`• ${x.cname}: order ${x.nbr}, ${J(x.val)}${x.rep ? ', rep ' + x.rep : ''}${x.lastpay ? ', last payment ' + fds(x.lastpay) : ''}`)); L.push(`${paid.length} order${paid.length === 1 ? '' : 's'} · ${J(tot(paid))}`); }
+  if (prom.length) { if (L.length) L.push(''); L.push(`Promised, payment not received yet (${fds(ds)})`); prom.forEach(x => { const p = promiseOf(x.nbr); L.push(`• ${x.cname}: order ${x.nbr}, ${J(x.val)}${x.rep ? ', rep ' + x.rep : ''}, promised ${promTxt(p)}${p.text ? ': ' + String(p.text).replace(/\s+/g, ' ').slice(0, 160) : ''}`); }); L.push(`${prom.length} order${prom.length === 1 ? '' : 's'} · ${J(tot(prom))}`); }
+  return L.join('\n'); }
+// one held-order row, used on Today (mode 'today': Rep told column, no Support column) and in the Lead view
+function holdRow(x, mode) { const td = mode === 'today', p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|' + key, pk = 'hpromise|' + key, told = stOf('told:hold:' + x.nbr) === 'sorted', notes = notesFor(n => n.kind === 'note' && n.ref === key), pr = promiseOf(x.nbr);
   ESCL[key] = `${x.cname}: order ${x.nbr} on ${x.status === 'Credit Hold' ? 'credit hold' : 'hold'} ${x.age} day${x.age === 1 ? '' : 's'} (${J(x.val)}${x.past ? ', ' + J(x.past) + ' past due' : ''})`;
-  const payBtn = `<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, toldBtn = `<button type="button" class="btn sm ${told ? 'pri' : ''}" data-heldtold="${esc(x.nbr)}" aria-pressed="${told}">${told ? '✓ Rep told' : 'Rep told?'}</button>`;
-  return grow(key, [cell(esc(x.cname) + (told ? ' <span class="pill green">told</span>' : ''), 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'),
-    cell(payBtn, '', 'center'), stBtn(key)],
-    `<div class="bfacts"><div><span>Order</span>${acuOrder(x.nbr)} · ${esc(x.status)} · ${J(x.val)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Rep / support</span>${esc(x.rep)} · ${esc(x.sup)}</div><div><span>Past due on the account</span>${x.past ? J(x.past) : 'Nothing past due'}${x.lastpay ? ` · last payment ${esc(fds(x.lastpay))}` : ' · no payment in the last 200 days'}</div>${p ? `<div><span>Payment in</span>${esc(who(p.by))} at ${jaHm(p.at)}</div>` : ''}<div><span>Next step</span><b>Tell the rep why it is held and what releases it</b></div></div>
-    ${notes.length ? noteList(notes) : ''}<div class="acts">${payBtn}${toldBtn}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(key)}${acuBtn(x.nbr)}</div>${formFor(nk)}`); }
-const HOLDCOLS = 'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px', HOLDHEADS = [['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']];
-const holdBoard = (id, col, title, list, note) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS, HOLDHEADS, list.map(holdRow), id, 999);
-const holdBoards = (H, pfx) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
-  return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms') : '') + (oh.length ? holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it') : ''); };
+  const payBtn = `<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, toldBtn = `<button type="button" class="btn sm ${told ? 'pri' : ''}" data-heldtold="${esc(x.nbr)}" aria-pressed="${told}">${told ? '✓ Told' : 'Rep told?'}</button>`;
+  const tag = (pr && !p ? ` <span class="pill ${pr.date < jaNow().date ? 'red' : 'amber'}" title="${esc(promTxt(pr))}">${pr.date < jaNow().date ? 'Promise missed' : 'Promised ' + esc(fds(pr.date))}</span>` : '') + (!td && told ? ' <span class="pill green">told</span>' : '');
+  const cells = td ? [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'), cell(toldBtn, '', 'center'), cell(payBtn, '', 'center'), stBtn(key)]
+    : [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'), cell(payBtn, '', 'center'), stBtn(key)];
+  return grow(key, cells,
+    `<div class="bfacts"><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Last payment</span>${x.lastpay ? esc(fds(x.lastpay)) : 'None in the last 200 days'}</div>${pr ? `<div><span>Promised</span>${esc(promTxt(pr))}${pr.text ? ' · ' + esc(String(pr.text).slice(0, 160)) : ''}<div class="note" style="margin:2px 0 0">${esc(who(pr.by))}, ${esc(fds(String(pr.at || '').slice(0, 10)))}</div></div>` : ''}<div><span>Next step</span><b>Tell the rep why it is held and what releases it</b></div></div>
+    ${notes.length ? noteList(notes) : ''}<div class="acts">${td ? '' : toldBtn}${btnNote(pk, pr ? '✎ Change the promise' : '✎ Promised to pay?')}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(key)}${acuBtn(x.nbr)}</div>${formFor(pk)}${formFor(nk)}`); }
+const HOLDCOLS = {today:'minmax(0,1.7fr) 70px minmax(0,.9fr) 92px 50px 96px 100px 118px 84px 40px', lead:'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px'};
+const HOLDHEADS = {today:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Rep told', 'center'], ['Payment', 'center'], ['Status', 'center'], ['']], lead:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']]};
+const holdBoard = (id, col, title, list, note, mode) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS[mode], HOLDHEADS[mode], list.map(x => holdRow(x, mode)), id, 999);
+const holdBoards = (H, pfx, mode) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
+  return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms', mode) : '') + (oh.length ? holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it', mode) : ''); };
 // the day's message, the same words for support and the lead
 function dayMsg(cl, who1) { return cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders.`
   : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
@@ -2857,7 +2859,7 @@ const todayShown = () => todayItems().filter(x => x.kind !== 'Credit hold' && x.
 const todayCount = () => supHolds().filter(x => stOf('hold:' + x.nbr) !== 'sorted').length + todayShown().filter(x => !isDone(x.key)).length;
 function eodTextSup(sup) { const ds = jaNow().date, H = supHolds(), cl = leadClock(), fin = finSent(sup), val = H.reduce((s, x) => s + x.val, 0);
   const chased = H.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, told = H.filter(x => stOf('told:hold:' + x.nbr) === 'sorted').length;
-  const chk = todayShown().filter(x => !isDone(x.key)), tl = [...tellItems().filter(x => stOf(x.key) !== 'sorted'), ...holdsUntold()], es = escOpen().filter(t => t.at && jaDay(t.at) === ds);
+  const chk = todayShown().filter(x => !isDone(x.key)), tl = tellItems().filter(x => stOf(x.key) !== 'sorted'), es = escOpen().filter(t => t.at && jaDay(t.at) === ds);
   const mine = (HUBD.notes || []).filter(x => x.at && jaDay(x.at) === ds && x.kind === 'note' && MYID && x.by === MYID), cn = c => byId[c] ? byId[c].name : '';
   const L = [`End of day report: ${sup}, ${d8(ds).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'})}`, '',
     `Held orders: ${H.length} still held (${J(val)}); ${chased} followed up; reps told on ${told}.`,
@@ -2871,14 +2873,13 @@ function eodTextSup(sup) { const ds = jaNow().date, H = supHolds(), cl = leadClo
 function vToday() {
   const all = todayShown(); all.forEach(x => x.st = stOf(x.key));
   const open = all.filter(x => x.st !== 'sorted'), shown = TODAYF === 'st:sorted' ? all.filter(x => x.st === 'sorted') : open;
-  const H = supHolds(), cl = leadClock(), ds = jaNow().date, paidL = H.filter(x => payOn(x.nbr)), fin = finSent(SUPPORT), eod = latestEod(SUPPORT, ds);
+  const H = supHolds(), cl = leadClock(), ds = jaNow().date, FL = financeList(), nPaid = H.filter(x => payOn(x.nbr)).length, nProm = FL.length - nPaid, fin = finSent(SUPPORT), eod = latestEod(SUPPORT, ds);
   const nChased = H.filter(x => stOf('hold:' + x.nbr) !== 'todo').length, nDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted').length, heldVal = H.reduce((s, x) => s + x.val, 0), pastCut = cl.n >= cl.c;
-  const nTell = tellItems().filter(x => stOf(x.key) !== 'sorted').length + holdsUntold().length;
   // one status rule for everything on Today: Done items leave the lists and show under Show done
   const doneMode = TODAYF === 'st:sorted', hDone = H.filter(x => stOf('hold:' + x.nbr) === 'sorted'), HS = doneMode ? hDone : H.filter(x => stOf('hold:' + x.nbr) !== 'sorted'), nDoneAll = all.length - open.length + hDone.length;
   const tiles = dtiles([
     [`${t12(LEADT.start)} to ${t12(LEADT.fin)}: clear holds`, `${H.length} <small>held</small>`, `${nChased} followed up · ${nDone} done · ${J(heldVal)} held`, '#D63B3B'],
-    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${paidL.length} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : 'Orders with payment in, to send to finance', fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
+    [`By ${t12(LEADT.fin)}: list to finance`, fin ? 'Sent' : `${nPaid + nProm} <small>ready</small>`, fin ? `${esc(who(fin.by))} at ${jaHm(fin.at)}` : `${nPaid} payment in · ${nProm} promised`, fin ? '#1A8F4C' : '#127F8C', !fin && cl.n >= cl.f && cl.n < cl.c && H.length > 0],
     [`${t12(LEADT.cut)}: transfer cutoff`, pastCut ? 'Passed' : cl.left(cl.c), pastCut ? `${H.length} held, not in the transfer list` : `${H.length} still held, they would miss it`, pastCut && H.length ? '#D63B3B' : '#E8862A', pastCut && H.length > 0],
     [`${t12(LEADT.end)}: end of day report`, eod ? 'Sent' : 'Not sent', eod ? `${esc(who(eod.by))} at ${jaHm(eod.at)}` : `Due by ${t12(LEADT.end)}`, eod ? '#1A8F4C' : cl.phase === 4 ? '#D63B3B' : '#326BD3', cl.phase === 4 && !eod]], 'four light tint');
   const grp = k => { const list = shown.filter(x => x.group === k); return list.length ? `<section class="grp" style="--gc:${GRPC[k][0]}"><div class="gh"><h3>${esc(k)}</h3><span class="gn">${list.length} · ${esc(GRPC[k][1])}</span></div>
@@ -2889,25 +2890,19 @@ function vToday() {
   const eodText = eodTextSup(SUPPORT);
   return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
   ${tiles}
-  <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}</div>
-  <div class="legend" style="margin-top:10px"><span><b>1</b> Held orders. Finance list: ${paidL.length} order${paidL.length === 1 ? '' : 's'}${paidL.length ? ' · ' + J(paidL.reduce((s, x) => s + x.val, 0)) : ''}</span>
-    <button class="btn sm pri" type="button" data-fincopy="1" ${paidL.length ? '' : 'disabled'}>Copy the list for finance</button>
-    <button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
+  <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}
+    <span style="margin-left:auto">Finance list: ${nPaid} paid · ${nProm} promised</span><button class="btn sm pri" type="button" data-fincopy="1" ${FL.length ? '' : 'disabled'}>Copy the list for finance</button><button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
   ${dbMsg()}
-  ${!H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`}
-  <div class="legend"><span><b>2</b> Check before the ${t12(LEADT.cut)} cutoff.</span></div>
-  ${main || `<div class="empty">No orders need checking and nothing is stuck.</div>`}
-  <div class="legend"><span><b>3</b> ${nTell} thing${nTell === 1 ? '' : 's'} to tell the reps (holds not yet told, items we can’t fill, deliveries that failed).</span><button class="btn sm pri" type="button" data-jump="tell|">Open Tell the reps</button></div>
+  ${!H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th', 'today') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`}
+  ${main ? `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff</span></div>${main}` : doneMode ? '' : `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff: nothing to check and nothing stuck.</span></div>`}
   ${other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : ''}
-  <div class="legend" style="margin-top:14px"><span><b>4</b> End of day</span><button class="btn sm pri" type="button" data-eodsend="1">${eod ? 'Send the report again' : 'Send the end of day report'}</button><button class="btn sm" type="button" data-eodcopy="1">Copy it</button></div>
-  <details class="fold"><summary>My end of day report (${esc(fds(ds))})${eod ? ' · sent ' + jaHm(eod.at) : ''}</summary><div class="sec"><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(eodText)}</pre><p class="note">Sending saves it for the lead. Escalated items show in the lead’s view straight away.</p></div></details>
-  ${recentNotes()}`;
+  <section class="grp" style="--gc:#326BD3;margin-top:14px"><div class="gh"><h3>End of day</h3><span class="gn">${eod ? 'Sent at ' + jaHm(eod.at) : 'Due by ' + t12(LEADT.end)}</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm pri" type="button" data-eodsend="1">${eod ? 'Send the report again' : 'Send the end of day report'}</button><button class="btn sm" type="button" data-eodcopy="1">Copy it</button></span></div>
+    <div class="sec"><details class="fold" style="margin:0"><summary>See my report (${esc(fds(ds))})</summary><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(eodText)}</pre><p class="note">Sending saves it for the lead. Escalated items show in the lead’s view straight away.</p></details></div></section>`;
 }
 
+
 // ----- Tell the reps: everything support has to pass on, one list per rep -----
-// held orders are worked on Today; here they only go into each rep's message
-const holdsUntold = () => supHolds().filter(x => stOf('told:hold:' + x.nbr) !== 'sorted');
-const holdLine = x => `${x.cname}: order ${x.nbr} (${J(x.val)}) is on ${x.status === 'Credit Hold' ? 'credit hold' : 'hold'}, ${x.age} day${x.age === 1 ? '' : 's'}. ${x.past ? 'The account has ' + J(x.past) + ' past due. ' : ''}Payment information is needed before it can be released.`;
+// what has to be passed on to the reps that is not a held order (held orders are worked on Today: calling the rep about the hold is telling them)
 function tellItems() { const it = [];
   bigChecks().forEach(({o, xs}) => { const st = xs.filter(x => x.kind === 'stock'); if (!st.length) return; const s0 = byId[o.c] || {}, sv = st.reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
     it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', issue:`Can’t fill: ${st.length} item${st.length === 1 ? '' : 's'} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:chkTable(st),
@@ -2915,23 +2910,21 @@ function tellItems() { const it = [];
       line:`${s0.name || o.c}: order ${o.nbr} will ship short: ` + st.slice(0, 4).map(x => `${x.l.desc} (need ${x.l.open}, have ${Math.max(0, x.l.onhand)})`).join('; ') + (st.length > 4 ? '…' : '') + '. Please check with the store about a substitute.'}); });
   todayItems().filter(x => x.kind === 'Delivery problem').forEach(x => it.push({...x, key:'told:' + x.key, kind:'Delivery', rep:(byId[x.c] || {}).rep || '', line:`${x.t} (${x.issue}).`}));
   return it.filter(x => !x.c || inChain(x.c)).sort((a, b) => (b.value || 0) - (a.value || 0)); }
-function tellMsg(rep, list, holds) { return `Hi ${firstName(rep) || 'team'}, update from sales support (${fds(jaNow().date)}):\n` + [...(holds || []).map(x => '• ' + holdLine(x)), ...list.map(x => '• ' + x.line)].join('\n'); }
+function tellMsg(rep, list) { return `Hi ${firstName(rep) || 'team'}, update from sales support (${fds(jaNow().date)}):\n` + list.map(x => '• ' + x.line).join('\n'); }
 function vTell() {
   const all = tellItems(); all.forEach(x => { x.st = stOf(x.key); });
-  const RN = r => r || 'No rep on file', open = all.filter(x => x.st !== 'sorted'), shown = TELLF === 'done' ? all.filter(x => x.st === 'sorted') : open, huAll = holdsUntold(), hu = TELLF === 'open' ? huAll : [], by = {}, hb = {};
-  shown.forEach(x => (by[RN(x.rep)] = by[RN(x.rep)] || []).push(x)); hu.forEach(x => (hb[RN(x.rep)] = hb[RN(x.rep)] || []).push(x));
-  const sum = r => (by[r] || []).reduce((s, x) => s + (x.value || 0), 0) + (hb[r] || []).reduce((s, x) => s + x.val, 0);
-  const reps = [...new Set([...Object.keys(by), ...Object.keys(hb)])].sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
+  const RN = r => r || 'No rep on file', open = all.filter(x => x.st !== 'sorted'), shown = TELLF === 'done' ? all.filter(x => x.st === 'sorted') : open, by = {};
+  shown.forEach(x => (by[RN(x.rep)] = by[RN(x.rep)] || []).push(x));
+  const sum = r => (by[r] || []).reduce((s, x) => s + (x.value || 0), 0), reps = Object.keys(by).sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
   const cnt = k => open.filter(x => x.kind === k).length;
-  const tiles = dtiles([['To tell', `${open.length + huAll.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Held orders', `${huAll.length}`, 'Worked on Today, included in each rep’s message', '#C47A1A'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'four light tint');
-  return `${lead1('tell-top', 'Everything to pass on to the reps, one list per rep. Tell them, then move it to Pending or Done.', 'Orders we cannot fill (big ones only, the rest are in Orders) and deliveries the driver app marked failed are listed here. Held orders are worked on Today (why, payment, notes); here they go into each rep’s message so the rep gets one message. “Copy message” builds it with everything still open for that rep, and “Mark them as told” ticks Rep told on that rep’s held orders. Back orders are decided in the Back orders tab.')}
+  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'light tint');
+  return `${lead1('tell-top', 'Orders we can’t fill and deliveries that failed, one list per rep. Tell them, then move it to Pending or Done.', 'Big orders that will ship short (the smaller ones are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Held orders are worked on Today: calling the rep about a hold is telling them, so tick Rep told there. Back orders are decided in the Back orders tab.')}
   ${tiles}
   <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
   ${dbMsg()}
-  ${reps.length ? reps.map(r => { const list = by[r] || [], hl = hb[r] || [], nm = hl.slice(0, 3).map(x => x.cname).join(', ') + (hl.length > 3 ? ' and ' + (hl.length - 3) + ' more' : '');
-    return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length + hl.length} · ${J(sum(r))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
-    ${hl.length ? `<div style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line)"><span class="note" style="margin:0"><b>${hl.length}</b> held order${hl.length === 1 ? '' : 's'} (${J(hl.reduce((s, x) => s + x.val, 0))}): ${esc(nm)}. They are on Today and included in the message.</span><button class="btn sm" type="button" data-tellmark="${esc(r)}">Mark them as told</button></div>` : ''}
-    ${list.length ? `<div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}` : ''}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}`;
+  ${reps.length ? reps.map(r => { const list = by[r];
+    return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(sum(r))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
+    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}`;
 }
 
 
@@ -2958,7 +2951,8 @@ function vLead() {
   <section class="grp" style="--gc:#326BD3"><div class="gh"><h3>End of day reports</h3><span class="gn">${eods.filter(x => x.n).length} of ${sups.length} in today</span></div><div class="sec">${eods.map(({s, n}) => n ? `<details class="fold"><summary>${esc(s)}: sent ${jaHm(n.at)}</summary><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(n.text || '')}</pre></details>` : `<p class="note" style="margin:6px 0">${esc(s)}: not sent yet</p>`).join('')}</div></section>
   <div class="seg" role="tablist" style="margin-top:14px">${['All', ...sups].map(sel).join('')}</div>
   ${dbMsg()}
-  ${H.length ? holdBoards(H, 'lh') : '<div class="empty">Nothing on hold.</div>'}
+  ${H.length ? holdBoards(H, 'lh', 'lead') : '<div class="empty">Nothing on hold.</div>'}
+  ${recentNotes()}
   <p class="note">Held orders are On Hold and Credit Hold orders from the last 90 days. Acumatica does not record when an order went on hold, so Held counts from the day it was keyed.</p>`;
 }
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
@@ -2969,7 +2963,7 @@ const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label=
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
   if (inLook(TAB)) LOOKLAST = TAB;
-  const n = todayCount(), nTellOpen = tellItems().filter(x => stOf(x.key) !== 'sorted').length + holdsUntold().length;
+  const n = todayCount(), nTellOpen = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
   document.getElementById('tabs').innerHTML = tabBar().map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k || (k === 'look' && inLook(TAB))}" data-tab="${k === 'look' ? LOOKLAST : k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('');
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
@@ -3052,16 +3046,15 @@ __on(document, 'click', e => {
   if (d.status) { setTick('st:' + d.status, NEXTST[stOf(d.status)]); return; }
   if (d.paytoggle) { const k = 'pay:' + d.paytoggle, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
   if (d.leadf) { LEADF = d.leadf; EXP = null; render(); return; }
-  if (d.fincopy) { const l = supHolds().filter(x => payOn(x.nbr)); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
+  if (d.fincopy) { const l = financeList(); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
   if (d.finsent) { const k = 'fin:' + jaNow().date + ':' + SUPPORT, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
   if (d.eodcopy) { copyText(eodTextSup(SUPPORT), 'End of day report copied.'); return; }
   if (d.eodsend) { (async () => { if (await addNote({kind:'eod', name:SUPPORT, date:jaNow().date, text:eodTextSup(SUPPORT)})) { toast('Report sent. The lead can see it.'); render(); } })(); return; }
   if (d.esc) { const k = 'esc:' + d.esc, was = tick(k) && tick(k).v; setTick(k, was ? null : String(ESCL[d.esc] || d.esc).slice(0, 300)); toast(was ? 'Escalation withdrawn.' : 'Escalated. The lead can see it in the Lead view.'); return; }
   if (d.escdone) { setTick('escdone:' + d.escdone, 1); return; }
   if (d.tellf) { TELLF = d.tellf; render(); return; }
-  if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted'), hl = holdsUntold().filter(x => (x.rep || 'No rep on file') === d.tellcopy); if (l.length || hl.length) copyText(tellMsg(d.tellcopy, l, hl), 'Message copied. Paste it into WhatsApp.'); return; }
+  if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted'); if (l.length) copyText(tellMsg(d.tellcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.heldtold) { const k = 'st:told:hold:' + d.heldtold, was = tick(k) && tick(k).v === 'sorted'; setTick(k, was ? null : 'sorted'); return; }
-  if (d.tellmark) { holdsUntold().filter(x => (x.rep || 'No rep on file') === d.tellmark).forEach(x => setTick('st:told:hold:' + x.nbr, 'sorted')); toast('Marked as told.'); return; }
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bof) { BOF = d.bof; render(); return; }
