@@ -1518,7 +1518,7 @@ function todayItems() {
   bigChecks().forEach(({o, xs}) => { const cnt = k => xs.filter(x => x.kind === k).length, first = ORDERK.find(k => cnt(k)), cm = repTxt({o});
     const ACT = {stock:'Tell the store and offer a substitute', gp:`Check the price and the item cost, then ask ${cm}`, price:`Ask ${cm} if the price was agreed; if not, fix it`, freeover:'Check the free quantity against the deal with the rep', free:'Check whether the free goods need to be added (Free Item box)', inact:'Remove the line and tell the rep'};
     const leak = xs.reduce((a, x) => a + leakOf(x), 0), shortV = xs.filter(x => x.kind === 'stock').reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
-    it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Order check', c:o.c, order:o.nbr, issue:[shortV ? `${J(shortV)} we can’t fill (${cnt('stock')} item${cnt('stock') === 1 ? '' : 's'} short)` : '', leak ? `${J(leak)} lost: ` + ORDERK.filter(k => k !== 'stock' && cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', ') : ''].filter(Boolean).join(' · '), sub:`Order ${o.nbr}`, age:o.age,
+    it.push({key:'pchk:' + o.nbr, pri:0.7, col:'red', kind:'Order check', c:o.c, order:o.nbr, ctx:'check', issue:[shortV ? `${J(shortV)} we can’t fill (${cnt('stock')} item${cnt('stock') === 1 ? '' : 's'} short)` : '', leak ? `${J(leak)} lost: ` + ORDERK.filter(k => k !== 'stock' && cnt(k)).map(k => `${cnt(k)} ${CHKTXT[k].toLowerCase()}`).join(', ') : ''].filter(Boolean).join(' · '), sub:`Order ${o.nbr}`, age:o.age,
     html:chkTable(xs), t:`${byId[o.c].name}: order ${o.nbr} needs a check`,
     d:xs.slice(0, 3).map(x => `<b>${esc(x.l.desc)}</b>: ${esc(chkProblem(x))}`).join('; ') + (xs.length > 3 ? '…' : ''),
     act:ACT[first], value:leak + shortV}); });
@@ -2739,12 +2739,6 @@ function vStoreDrawer(c) {
     ['This month', s.budM ? prog + '% of target' : 'No target', J(s.mtd) + ' · pace ' + Math.round(PACE * 100) + '%', s.gapPace >= 0 ? '#1A8F4C' : '#E2445C'],
     (() => { const rc = RC.filter(r => r.c === c); return ['Returns, 60 days', rc.length, rc.length ? J(rc.reduce((a, r) => a + r.total, 0)) + ' · last ' + esc(fds(rc[0].date)) : 'None', rc.length ? '#E8862A' : '#127F8C']; })()])}
   <div class="briefbar">${window.DFL_PORTAL ? `<button class="btn sm pri" type="button" data-brief="${esc(c)}">Store brief (PDF)</button>` : ''}<button class="btn sm" type="button" data-briefcopy="${esc(c)}">Copy brief for WhatsApp</button></div>
-  ${sec('People', null, `<ul class="l1">
-    ${person(s.merch, 'Merchandiser' + (s.sday ? ' · ' + esc(s.sday) : ''), null, '')}
-    ${person(s.rep, 'Rep', null, '')}
-    ${person(m ? m.name : '', 'Store manager' + (m && m.phone ? ' · ' + esc(m.phone) : ''), 'manager', 'Add manager')}
-    ${person(b ? b.name : '', 'Backup orderer', 'backup', 'Set backup orderer')}
-    ${s.phone ? l1(nm('Store phone'), rt(esc(s.phone))) : ''}</ul>`)}
   ${(() => { if (!AR_READY) return ''; const a = arOf(c), lp = LASTPAY[c];
     if (!a.owed && !a.credit) return sec('Account', null, '<p class="hint" style="margin:6px 0">Nothing owing on this account.</p>');
     return sec('Account', a.over ? J(a.over) + ' overdue' : null, `${a.over ? `<p class="hint fwarn" style="margin:2px 0 8px">Overdue: remember to collect payment when you visit${s.rep ? ' (' + esc(firstName(s.rep)) + ')' : ''}.</p>` : '<p class="hint" style="margin:2px 0 8px">Nothing overdue.</p>'}<ul class="l1">${l1(nm('Owed in all'), rt(J(a.owed)))}${a.over ? l1(nm('Overdue'), rt(`<b class="dn">${J(a.over)}</b>`)) + l1(nm('Oldest overdue'), rt(a.oldest + ' days')) : ''}${l1(nm('Last payment'), rt(lp ? J(lp.amt) + ' on ' + esc(fds(lp.d)) : 'None in 6 months'))}${a.credit ? l1(nm('Unapplied credits'), rt(J(-a.credit))) : ''}</ul>` + (a.inv.length ? gl('minmax(0,1fr) 78px 70px 92px', [['Overdue invoice'], ['Due'], ['Days late', 'r'], ['Balance', 'r']], a.inv.slice().sort((x, y) => y.late - x.late).slice(0, 6).map(i => [[acuDoc(i.type, i.ref), ''], [esc(fds(i.due)), 'rt'], [`<span class="${i.late > 30 ? 'dn' : ''}">${i.late}</span>`, 'r val'], [J(i.bal), 'r val']])) : '')); })()}
@@ -2770,7 +2764,14 @@ function vStoreDrawer(c) {
       stop.map(x => [[nameOf(x.sku), 'nm'], [J(x.ly), 'r val']]))) : ''}
   ${peer.length ? sec('Sister stores carry, this one doesn’t', null, gl('minmax(0,1fr) 70px 96px', [['Item'], ['Stores', 'r'], ['Avg 90 days', 'r']],
       peer.map(x => [[nameOf(x.sku), 'nm'], [x.n + ' of ' + x.of, 'r rt'], [J(x.avg), 'r val']]))) : ''}
-  ${sec('Notes', notes.length ? String(notes.length) : null, `${noteList(notes)}<div class="acts" style="margin-top:6px">${btnNote(nk, '✎ Add a note')}</div>${formFor(nk)}`)}`);
+  ${sec('Notes', notes.length ? String(notes.length) : null, `${noteList(notes)}<div class="acts" style="margin-top:6px">${btnNote(nk, '✎ Add a note')}</div>${formFor(nk)}`)}
+  ${sec('People', null, `<ul class="l1">
+    ${person(s.merch, 'Merchandiser' + (s.sday ? ' · ' + esc(s.sday) : ''), null, '')}
+    ${person(s.rep, 'Rep', null, '')}
+    ${person(m ? m.name : '', 'Store manager' + (m && m.phone ? ' · ' + esc(m.phone) : ''), 'manager', 'Add manager')}
+    ${person(b ? b.name : '', 'Backup orderer', 'backup', 'Set backup orderer')}
+    ${s.phone ? l1(nm('Store phone'), rt(esc(s.phone))) : ''}</ul>`)}
+`);
 }
 // an order that is no longer open (shipped or invoiced): the hub only holds open orders, so show its shipments and anything sent short
 // (Scott, 11 Nov: "See the items" opened nothing for shipped orders)
@@ -2788,15 +2789,17 @@ function vOrderDrawer(nbr, ctx) {
   const v = ls.reduce((a, l) => a + l.open * l.price, 0);
   const lineRow = l => reasonRow(l.sku, l.desc, ((b => b && b.rep ? `<span class="up">${repText(b.rep)}</span> · ` : '')(BO.find(b => b.nbr === l.nbr && b.sku === l.sku))) + (l.onhand >= l.open ? `<span class="up">${l.onhand} on hand</span>, may be promised to other orders` : `<span class="dn">${Math.max(0, l.onhand)} on hand</span>`), l.open + ' owed', 'of ' + l.oq + ' ordered');
   const shortSkus = new Set(CHECKS.filter(x => x.kind === 'stock' && x.o.nbr === nbr).map(x => x.l.sku)), shortLs = ls.filter(l => shortSkus.has(l.sku)), okLs = ls.filter(l => !shortSkus.has(l.sku));
-  const shortSecs = (shortLs.length ? sec('Can’t fill', String(shortLs.length), `<ul class="l1 rrlist">${shortLs.map(lineRow).join('')}</ul>`, 'Tell the rep, offer a substitute, and add the reason for each item.') : '') + (okLs.length ? sec('Stock is available', String(okLs.length), rows(okLs.map(l => row(esc(l.desc), `<span class="up">${l.onhand} on hand</span>`, esc(l.open + ' owed'), 'of ' + l.oq + ' ordered'))), 'These lines can ship, so there is nothing to tell the rep about them.') : '');
+  const focus = ctx === 'short' || ctx === 'check', shortV = shortLs.reduce((a, l) => a + (l.open - Math.max(0, l.onhand)) * l.price, 0);
+  const cfSec = shortLs.length ? sec('Can’t fill', String(shortLs.length), `<ul class="l1 rrlist">${shortLs.map(lineRow).join('')}</ul>`, 'Tell the rep, offer a substitute, and add the reason for each item.') : '';
   const tr = truckOf(o), oships = (shipsOfOrder[nbr] || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return shell('Order ' + nbr, `${esc(byId[o.c].name)} · keyed ${esc(fd(o.date))}${o.by ? ' by ' + esc(o.by) : ''}${tr ? ' · truck ' + esc(tr) : ''}`, `
   <div class="briefbar">${acuBtn(nbr)}</div>
+  ${focus ? cfSec : ''}
   ${(() => { const xs = ctx === 'short' ? [] : CHECKS.filter(x => x.o.nbr === nbr && PRICEK.includes(x.kind)); return xs.length ? sec('Price checks', String(xs.length), chkTable(xs)) : ''; })()}
   ${oships.length ? sec('Shipments', String(oships.length), gl('minmax(0,1fr) 92px minmax(0,1.2fr) 70px', [['Shipment'], ['Status', 'c'], ['Truck'], ['Date', 'r']],
       oships.map(s => [[`<b>${acuShip(s.nbr)}</b>`, ''], [SHIPPED(s.status) ? '<span class="pill green">Delivered</span>' : `<span class="pill">${esc(s.status)}</span>`, 'c'], [truckCell(realVia(s.via)), ''], [esc(fds(s.date)), 'r rt']]))) : ''}
-  ${dtiles([['Still to deliver', ls.length, 'items', '#7B4FD0'], ['Value', J(v), 'at order price', '#326BD3'], ['Stage', esc(o.stage.k === 'bo' ? 'Back order' : o.stage.t), o.age + ' days old', SOLID[o.stage.c] || '#8A95B0']])}
-  ${ctx === 'short' ? shortSecs : sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(lineRow).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
+  ${dtiles([focus ? ['Can’t fill', shortLs.length, 'items with no or not enough stock', '#E2445C'] : ['Still to deliver', ls.length, 'items', '#7B4FD0'], focus ? ['Short value', J(shortV), 'at order price', '#326BD3'] : ['Value', J(v), 'at order price', '#326BD3'], ['Stage', esc(o.stage.k === 'bo' ? 'Back order' : o.stage.t), o.age + ' days old', SOLID[o.stage.c] || '#8A95B0']])}
+  ${focus ? '' : sec('Items not delivered', String(ls.length), `<ul class="l1 rrlist">${ls.map(lineRow).join('')}</ul>`, 'Check with sales support, operations or purchasing and add the reason for each item.')}
   <div class="briefbar"><button class="btn sm" type="button" data-store="${esc(o.c)}">Open ${esc(byId[o.c].name)}</button></div>`);
 }
 function vShortDrawer() {
