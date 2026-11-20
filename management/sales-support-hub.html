@@ -1763,7 +1763,8 @@ const cell = (html, cls, align) => `<div class="${cls || ''}"${align ? ` style="
 const stBtn = key => { const st = stOf(key); return `<button type="button" class="stcell ${ST[st][0]}" data-status="${esc(key)}" aria-label="Status: ${ST[st][1]}. Tap to change">${ST[st][1]}</button>`; };
 
 function vOrders() {
-  if (!['credit', 'xfer', 'open', 'shipped'].includes(SUB.orders)) SUB.orders = 'open';
+  // Credit hold pill removed (Scott, 20 Nov): the same orders are the Credit holds list on Today
+  if (!['xfer', 'open', 'shipped'].includes(SUB.orders)) SUB.orders = 'open';
   // search box (Scott, 12 Nov): customer, order number, product or rep
   const oq = OQ.trim().toLowerCase(), oqHit = (...vs) => !oq || vs.some(v => v && String(v).toLowerCase().includes(oq));
   const cnm = c => byId[c] ? byId[c].name : c, crp = c => (byId[c] || {}).rep || '';
@@ -1824,7 +1825,7 @@ function vOrders() {
     gboard('#1A8F4C', 'Shipped, last 7 days', sl.length + ' shipments · ' + J(sl.reduce((a, s) => a + s.value, 0)), 'minmax(0,1.5fr) 82px 82px 70px minmax(0,1fr) 90px 40px', [['Customer'], ['Shipment', '', 'hm'], ['Order', '', 'hm'], ['Date', 'center', 'hm'], ['Delivered by', '', 'hm'], ['Value', 'right'], ['']],
       sl.map(s => grow('sh:' + s.nbr, [cell(esc(cnm(s.c)), 'c-store one c1'), cell(acuShip(s.nbr), 'one hm'), cell(acuOrder(s.order), 'one hm'), cell(esc(fds(s.date)), 'c-age hm', 'center'), cell(truckCell(realVia(s.via)), 'one hm'), cell(J(s.value), 'c-age', 'right')], shipDetail(s))), 'shipped'); }
   return `
-  ${segs([['credit', 'Credit hold', credit.length], ['xfer', 'Transfers', trAll], ['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length]])}
+  ${segs([['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length], ['xfer', 'Transfers', trAll]])}
   <div class="dsearch"><label for="oq">Search orders</label><input id="oq" type="search" placeholder="Customer, order number, product or rep" value="${esc(OQ)}" autocomplete="off"></div>
   ${body}`;
 }
@@ -2969,7 +2970,7 @@ function vLead() {
   <p class="note">Held orders are On Hold and Credit Hold orders from the last 90 days. Acumatica does not record when an order went on hold, so Held counts from the day it was keyed.</p>`;
 }
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
-const LOOK = [['stores', 'Customers'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
+const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
 const tabBar = () => { const out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } out.push([k, t]); }); return out; };
 const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
