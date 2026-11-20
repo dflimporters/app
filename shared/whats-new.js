@@ -43,7 +43,7 @@
 // role, and no-ops inside an iframe (same as section-switcher.js).
 // Self-contained styles (prefixed dflwn-), no var() lookups or webfonts, so it
 // looks the same in both apps. window.DFL_WHATS_NEW.open() re-shows recent
-// notes, for a "What's new" link if one is ever wanted.
+// notes; the avatar menu (shared/user-menu.js) calls it from "What's new".
 // ============================================================
 
 window.DFL_UPDATES = [
@@ -156,6 +156,7 @@ window.DFL_UPDATES = [
       '.dflwn-date{font-size:12px;color:#64748b;margin:0 0 8px}' +
       '.dflwn-item ul{margin:0;padding-left:18px}' +
       '.dflwn-item li{font-size:14px;line-height:1.45;margin:0 0 4px}' +
+      '.dflwn-empty{font-size:14px;line-height:1.5;color:#64748b;margin:0;padding:18px 0}' +
       '.dflwn-foot{padding:12px 20px 16px;border-top:1px solid #e2e8f0}' +
       '.dflwn-btn{display:block;width:100%;border:0;border-radius:10px;background:#2563eb;color:#ffffff;font:inherit;font-size:16px;font-weight:700;' +
         'padding:13px 16px;cursor:pointer;min-height:48px}' +
@@ -186,6 +187,7 @@ window.DFL_UPDATES = [
               '<p class="dflwn-date">' + esc(fmtDate(u.date)) + '</p>' +
               '<ul>' + (u.items || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
           }).join('') +
+          (list.length ? '' : '<p class="dflwn-empty">No new updates right now. Check back after the next app update.</p>') +
         '</div>' +
         '<div class="dflwn-foot"><button type="button" class="dflwn-btn">Got it</button></div>' +
       '</div>';
@@ -229,10 +231,17 @@ window.DFL_UPDATES = [
   }
 
   window.DFL_WHATS_NEW = {
-    // Re-show recent notes on demand (ignores "seen").
+    // Re-show recent notes on demand (the "What's new" item in user-menu.js).
+    // Ignores "seen", shows an empty state when there's nothing recent, and
+    // marks what it showed as seen so the automatic popup won't repeat it.
     open: function () {
-      var list = relevant(window.DFL_PROFILE).filter(function (u) { return daysAgo(u.date) <= 60; });
-      if (list.length) render(list.slice(0, 6));
+      var list = relevant(window.DFL_PROFILE).filter(function (u) { return daysAgo(u.date) <= 60; }).slice(0, 6);
+      shown = true;
+      render(list, function () {
+        var ids = readSeen() || [];
+        list.forEach(function (u) { if (ids.indexOf(u.id) === -1) ids.push(u.id); });
+        writeSeen(ids);
+      });
     },
     check: check,
   };

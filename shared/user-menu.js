@@ -6,7 +6,7 @@
 //
 // 1. window.DFLInstall — the whole PWA install story in one place.
 // 2. An avatar dropdown for the two field apps (Sales, Merch): name + role,
-//    "Install app", "Sign out".
+//    "What's new" (reopens shared/whats-new.js), "Install app", "Sign out".
 //
 // ------------------------------------------------------------
 // WHAT THIS REPLACED, AND WHY
@@ -265,6 +265,19 @@
     }
     panel.appendChild(who);
 
+    // --- what's new (shared/whats-new.js; hidden on pages that don't load it) ---
+    const news = document.createElement('button');
+    news.type = 'button';
+    news.className = 'dfl-um__item';
+    news.innerHTML = '<span class="dfl-um__ico">✨</span><span>What’s new</span>';
+    news.addEventListener('click', function () {
+      closeAll();
+      if (window.DFL_WHATS_NEW) window.DFL_WHATS_NEW.open();
+    });
+    panel.appendChild(news);
+    function syncNews() { news.style.display = window.DFL_WHATS_NEW ? '' : 'none'; }
+    syncNews();
+
     // --- install (only when it's actually on offer) ---
     const install = document.createElement('button');
     install.type = 'button';
@@ -310,6 +323,7 @@
       const isOpen = panel.classList.contains('open');
       closeAll();
       if (!isOpen) {
+        syncNews();   // whats-new.js may load after this menu was built
         panel.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
       }
