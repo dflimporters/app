@@ -38,6 +38,22 @@ nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:v
 nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
 nav.tabs button{font-family:var(--head);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border:0;background:transparent;color:var(--ink2);padding:8px 12px;border-radius:999px;white-space:nowrap}
 nav.tabs button[aria-selected="true"]{background:var(--navy);color:#fff}
+nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:600;font-size:12.5px;color:var(--blue);border:1px solid var(--line);background:#fff}
+.daysteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:8px 0 18px}
+.dstep{all:unset;cursor:pointer;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;min-width:0}
+.dstep:hover{border-color:#326BD3}
+.dstep:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.dstep .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--head);background:#E6EAF2;color:var(--ink2)}
+.dstep .tx{min-width:0}
+.dstep b{display:block;font:700 13.5px var(--head);color:var(--ink)}
+.dstep .t{display:block;font-size:11.5px;color:var(--ink3)}
+.dstep .s{display:block;font-size:12.5px;color:var(--ink2);margin-top:3px}
+.dstep.cur{border-color:#326BD3;box-shadow:0 0 0 2px rgba(50,107,211,.22)}
+.dstep.cur .n{background:#326BD3;color:#fff}
+.dstep.late .n{background:#D63B3B;color:#fff}
+.dstep.late .s{color:#D63B3B;font-weight:600}
+.dstep.done .n{background:#1A8F4C;color:#fff}
+@media (max-width:900px){.daysteps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 nav.tabs .ct{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;line-height:16px;text-align:center}
 main{padding-block:16px 60px}
 h2{font-family:var(--head);font-size:15px;font-weight:700;margin:22px 0 4px;text-wrap:balance}
@@ -2816,6 +2832,9 @@ const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin
   const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h' + (x % 60 ? ' ' + (x % 60) + 'm' : '') : x + ' min'; };
   return {n, a, f, c, e, left, phase:n < a ? 0 : n < f ? 1 : n < c ? 2 : n < e ? 3 : 4}; };
 let LEADF = 'All', TELLF = 'open';
+// simple view (Scott, 20 Nov): new support people see Today, Tell the reps and a short Look up; "More tabs" brings back everything. Leads start on the full view.
+let DAYSTEP = -1, SIMPLE_OVR = null; const SIMPLE_TABS = ['today', 'tell'], SIMPLE_LOOK = ['orders', 'stores'];
+const isSimple = () => { if (SIMPLE_OVR != null) return SIMPLE_OVR; let v = null; try { v = localStorage.getItem('ss-simple'); } catch (x) {} return v == null ? !HUBD.lead : v === '1'; };
 const ESCL = {};   // label for each escalated item, filled as the rows are drawn
 const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
 const finSent = sup => { const t = tick('fin:' + jaNow().date + ':' + sup); return t && t.v ? t : null; };
@@ -2901,16 +2920,40 @@ function vToday() {
     ${list.length > 8 ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="g:${esc(k)}">${SHOWALL['g:' + k] ? 'Show fewer' : 'Show the other ' + (list.length - 8)}</button></div>` : ''}</section>` : ''; };
   const main = ['Orders to check', 'Stuck orders'].map(grp).join(''), other = Object.keys(GRPC).filter(k => !['Orders to check', 'Stuck orders', 'Not delivered'].includes(k)).map(grp).join('');
   const eodText = eodTextSup(SUPPORT);
-  return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
-  ${tiles}
-  <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}
-    <span style="margin-left:auto">Finance list: ${nPaid} paid · ${nProm} promised</span><button class="btn sm pri" type="button" data-fincopy="1" ${FL.length ? '' : 'disabled'}>Copy the list for finance</button><button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button></div>
-  ${dbMsg()}
-  ${!H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th', 'today') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`}
-  ${main ? `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff</span></div>${main}` : doneMode ? '' : `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff: nothing to check and nothing stuck.</span></div>`}
-  ${other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : ''}
-  <section class="grp" style="--gc:#326BD3;margin-top:14px"><div class="gh"><h3>End of day</h3><span class="gn">${eod ? 'Sent at ' + jaHm(eod.at) : 'Due by ' + t12(LEADT.end)}</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm pri" type="button" data-eodsend="1">${eod ? 'Send the report again' : 'Send the end of day report'}</button><button class="btn sm" type="button" data-eodcopy="1">Copy it</button></span></div>
+  const legendBase = `<span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}`;
+  const finCopy = `<button class="btn sm pri" type="button" data-fincopy="1" ${FL.length ? '' : 'disabled'}>Copy the list for finance</button><button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button>`;
+  const holdsHtml = !H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th', 'today') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`;
+  const checkHtml = main ? `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff</span></div>${main}` : doneMode ? '' : `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff: nothing to check and nothing stuck.</span></div>`;
+  const otherHtml = other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : '';
+  const eodHtml = `<section class="grp" style="--gc:#326BD3;margin-top:14px"><div class="gh"><h3>End of day</h3><span class="gn">${eod ? 'Sent at ' + jaHm(eod.at) : 'Due by ' + t12(LEADT.end)}</span><span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm pri" type="button" data-eodsend="1">${eod ? 'Send the report again' : 'Send the end of day report'}</button><button class="btn sm" type="button" data-eodcopy="1">Copy it</button></span></div>
     <div class="sec"><details class="fold" style="margin:0"><summary>See my report (${esc(fds(ds))})</summary><pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.5;font-family:inherit;margin:0 0 6px">${esc(eodText)}</pre><p class="note">Sending saves it for the lead. Escalated items show in the lead’s view straight away.</p></details></div></section>`;
+  if (!isSimple()) return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
+  ${tiles}
+  <div class="legend" style="margin-top:18px">${legendBase}<span style="margin-left:auto">Finance list: ${nPaid} paid · ${nProm} promised</span>${finCopy}</div>
+  ${dbMsg()}
+  ${holdsHtml}
+  ${checkHtml}
+  ${otherHtml}
+  ${eodHtml}`;
+  // simple view (Scott, 20 Nov): the day as four steps, one step on screen at a time
+  const nCheck = open.filter(x => x.group === 'Orders to check' || x.group === 'Stuck orders').length;
+  const steps = [
+    {t:'Clear held orders', w:`${t12(LEADT.start)} to ${t12(LEADT.fin)}`, s:!H.length ? 'Nothing on hold' : nChased === H.length ? 'All followed up' : `${H.length - nChased} to follow up`, done:nChased === H.length, late:cl.phase >= 2 && nChased < H.length},
+    {t:'List to finance', w:`By ${t12(LEADT.fin)}`, s:fin ? `Sent ${jaHm(fin.at)}` : `${nPaid + nProm} ready`, done:!!fin, late:!fin && cl.n >= cl.f && H.length > 0},
+    {t:'Check before cutoff', w:t12(LEADT.cut), s:nCheck ? `${nCheck} to check` : 'Nothing to check', done:nCheck === 0, late:pastCut && nCheck > 0},
+    {t:'End of day report', w:`By ${t12(LEADT.end)}`, s:eod ? `Sent ${jaHm(eod.at)}` : 'Not sent', done:!!eod, late:cl.phase === 4 && !eod}];
+  if (DAYSTEP < 0) { const f0 = steps.findIndex(s => !s.done); DAYSTEP = f0 < 0 ? 3 : f0; }
+  const cur = DAYSTEP;
+  const strip = `<div class="daysteps">${steps.map((s, i) => `<button type="button" class="dstep${s.done ? ' done' : ''}${i === cur ? ' cur' : ''}${s.late && !s.done ? ' late' : ''}" data-daystep="${i}"><span class="n">${s.done ? '✓' : i + 1}</span><span class="tx"><b>${esc(s.t)}</b><span class="t">${esc(s.w)}</span><span class="s">${esc(s.s)}</span></span></button>`).join('')}</div>`;
+  const nav = `<div class="acts" style="margin:16px 0 6px">${cur > 0 ? `<button class="btn sm" type="button" data-daystep="${cur - 1}">← ${esc(steps[cur - 1].t)}</button>` : ''}${cur < 3 ? `<button class="btn sm pri" type="button" data-daystep="${cur + 1}">Next: ${esc(steps[cur + 1].t)} →</button>` : ''}</div>`;
+  const body = [
+    `<div class="legend" style="margin-top:6px">${legendBase}</div>${dbMsg()}${holdsHtml}`,
+    `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>List for finance</h3><span class="gn">${nPaid} paid · ${nProm} promised</span></div><div class="sec"><p class="note" style="margin:0 0 10px">Payments that came in and promises to pay are taken from the held orders in step 1. Copy the list, send it to finance, then mark it as sent.</p><div class="acts">${finCopy}</div></div></section>`,
+    `<div class="legend" style="margin-top:6px">${legendBase}</div>${dbMsg()}${checkHtml}${otherHtml}<div class="acts" style="margin-top:12px"><button class="btn sm" type="button" data-tab="tell">Tell the reps about shortages and failed deliveries →</button></div>`,
+    eodHtml][cur];
+  return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
+  ${strip}
+  ${body}${nav}`;
 }
 
 
@@ -2971,13 +3014,13 @@ function vLead() {
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
 const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
-const tabBar = () => { const out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } out.push([k, t]); }); return out; };
-const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
+const tabBar = () => { const simple = isSimple(), out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } if (simple && !SIMPLE_TABS.includes(k) && k !== TAB) return; out.push([k, t]); }); return out; };
+const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.filter(([k]) => !isSimple() || SIMPLE_LOOK.includes(k) || k === TAB).map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
   if (inLook(TAB)) LOOKLAST = TAB;
   const n = todayCount(), nTellOpen = tellItems().filter(x => stOf(x.key) !== 'sorted').length;
-  document.getElementById('tabs').innerHTML = tabBar().map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k || (k === 'look' && inLook(TAB))}" data-tab="${k === 'look' ? LOOKLAST : k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('');
+  document.getElementById('tabs').innerHTML = tabBar().map(([k, t]) => `<button type="button" role="tab" aria-selected="${TAB === k || (k === 'look' && inLook(TAB))}" data-tab="${k === 'look' ? LOOKLAST : k}">${icon(k)}<span>${t}</span>${k === 'today' && n ? `<span class="ct">${n}</span>` : ''}${k === 'tell' && nTellOpen ? `<span class="ct">${nTellOpen}</span>` : ''}</button>`).join('') + `<button type="button" class="tabmore" data-simple="${isSimple() ? 0 : 1}">${isSimple() ? 'More tabs' : 'Simple view'}</button>`;
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
@@ -3012,6 +3055,8 @@ __on(document, 'click', e => {
   if (e.target.closest('a.acu, a.acubtn')) return;   // Acumatica links open in a new tab, nothing else
   const b = e.target.closest('button, [data-close], [data-exp], tr[data-store], tr[data-cat], [data-chain]'); if (!b) return;
   const d = b.dataset;
+  if (d.simple !== undefined) { SIMPLE_OVR = d.simple === '1'; try { localStorage.setItem('ss-simple', SIMPLE_OVR ? '1' : '0'); } catch (x) {} if (SIMPLE_OVR && !SIMPLE_TABS.includes(TAB) && !inLook(TAB)) TAB = 'today'; render(); return; }
+  if (d.daystep !== undefined) { DAYSTEP = +d.daystep; render(); return; }
   if (d.tab) { TAB = d.tab; OPEN = null; try { history.replaceState(null, '', '#' + TAB); } catch (x) {} render(); window.scrollTo(0, 0); return; }
   if (d.close) { DRAWER = null; OPEN = null; render(); return; }
   if (d.store) { DRAWER = {t:'store', id:d.store}; OPEN = null; render(); return; }
