@@ -1975,7 +1975,7 @@ function boReview(cap) {
   const pool = reps.map(rep => ({rep, os:boOrders(rep).filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku)))}));
   const all = pool.flatMap(p => p.os), cnt = {all:all.length, none:all.filter(x => !bodOf(x.nbr)).length, re:all.filter(x => bodOf(x.nbr) === 're').length, close:all.filter(x => bodOf(x.nbr) === 'close').length};
   const fbtn = (k, t) => `<button type="button" class="btn sm${BOF === k ? ' pri' : ''}" data-bof="${k}" aria-pressed="${BOF === k}">${t} (${cnt[k]})</button>`;
-  return lead1('b-week', 'This week’s back orders, one row per order. Decide each one: close it, or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page, and it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again (see the “To re-enter” list). “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
+  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page, and it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again (see the “To re-enter” list). “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
     `<div class="acts" style="margin:0 0 12px"><span class="note" style="margin:0 6px 0 0">Show</span>${fbtn('all', 'All')}${fbtn('none', 'Undecided')}${fbtn('re', 'Re-enter it')}${fbtn('close', 'Close it')}</div>` +
     pool.map(({rep, os:osAll}) => { const os = osAll.filter(x => BOF === 'all' || (BOF === 'none' ? !bodOf(x.nbr) : bodOf(x.nbr) === BOF)); if (!os.length) return '';
       const decided = osAll.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, cap || 10);
@@ -2321,7 +2321,8 @@ async function oosPicture(list) {
   cx.fillStyle = '#1A2E5A'; cx.font = `600 24px ${FH}`; let fy = y + 52; foot.forEach(l => { cx.fillText(l, P, fy); fy += 34; });
   cv.toBlob(b => { if (!b) { toast('The picture did not work here. Try again.'); return; } const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'DFL-stock-update-' + ASOF + '.jpg'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Picture saved to your downloads. Send it to the reps.'); }, 'image/jpeg', 0.92);
 }function vBackorders() {
-  if (!['week', 'keep', 'bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'week';
+  // To re-enter pill removed (Scott, 20 Nov): the weekly review has a Re-enter it filter. Counts are orders, not lines.
+  if (!['week', 'bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'week';
   const reL = REPS.filter(r => CHAINF === 'All' || r === CHAINF).flatMap(r => boOrders(r).filter(x => bodOf(x.nbr) === 're' && bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, r, ...x.ls.map(b => b.desc + ' ' + b.sku))).map(x => ({...x, rep:r})));
   const oos = oosList(), oosNo = oos.filter(x => !x.r && x.st !== 'xfer' && x.st !== 'gone').length;
   const bo = BO.filter(b => inChain(b.c));
@@ -2337,7 +2338,11 @@ async function oosPicture(list) {
     .filter(g => bqHit(g.desc, g.sku, ...g.rows.map(b => (byId[b.c] ? byId[b.c].name : b.c) + ' ' + b.nbr)));
   const oosShow = oos.filter(x => bqHit(x.desc, x.sku, ...x.ls.map(l => (byId[ordBy[l.nbr].c] ? byId[ordBy[l.nbr].c].name : '') + ' ' + l.nbr)));
   const repN = groups.filter(g => g.rows.some(b => b.rep)).length;
-  if (SUB.backorders === 'bo' || SUB.backorders === 'bohand' || SUB.backorders === 'borep') body = lead1('b-bo', 'Items still owed to your stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') +
+  const handSkus = new Set(groups.filter(g => g.onhand >= g.qty).map(g => g.sku));
+  const ordsN = new Set(bo.map(b => b.nbr)).size, handOrds = new Set(bo.filter(b => handSkus.has(b.sku)).map(b => b.nbr)).size, repOrds = new Set(bo.filter(b => b.rep).map(b => b.nbr)).size;
+  const weekAll = REPS.filter(r => CHAINF === 'All' || r === CHAINF).flatMap(r => boOrders(r)), weekN = weekAll.length, undecN = weekAll.filter(x => !bodOf(x.nbr)).length, xferN = oos.filter(x => x.st === 'xfer').length;
+  const boShow = `<div class="acts" style="margin:0 0 12px"><span class="note" style="margin:0 6px 0 0">Show</span>${[['bo', 'All', groups.length], ['bohand', 'Stock shows on hand', onHand], ['borep', 'Likely replaced', repN]].map(([k, l, n]) => `<button type="button" class="btn sm${SUB.backorders === k ? ' pri' : ''}" data-sub="${k}" aria-pressed="${SUB.backorders === k}">${l} (${n})</button>`).join('')}</div>`;
+  if (SUB.backorders === 'bo' || SUB.backorders === 'bohand' || SUB.backorders === 'borep') body = lead1('b-bo', 'Items still owed to your stores, one row per item.', 'Green stock means Acumatica shows enough on hand to cover the item, but some of it may already be promised to other orders. Check with sales support, operations or purchasing, then add the reason so the next person who asks gets the answer straight away.') + boShow +
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : SUB.backorders === 'borep' ? 'Likely replaced by a newer order' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
         `${rows(g.rows.map(b => row(storeLink(b.c), (b.rep ? 'Back order ' : 'Order ') + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="Check it, then close back order ${esc(b.nbr)} in Acumatica.">${repText(b.rep)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
@@ -2352,13 +2357,8 @@ async function oosPicture(list) {
       oosShow.map(x => grow('oos:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(x.custs.size, 'c-age hm', 'center'), cell(`${x.open}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(solid(OOS_ST[x.st][0], OOS_ST[x.st][1]), 'one', 'center'), cell(x.r ? rTag(x.sku) : `<span class="reason none">${esc(oosWhen(x))}</span>`, 'one c2 rsn')],
         plCards(x.ls.map(l => { const o = ordBy[l.nbr]; return {name:byId[o.c] ? byId[o.c].name : o.c, sub:`Order ${esc(l.nbr)} · ${esc(o.status)} · keyed ${esc(fds(o.date))} · rep ${esc(firstName((byId[o.c] || {}).rep) || '–')}`, tag:l.open + ' owed'}; })) +
         `<div class="bfacts"><div><span>Stock</span>${x.at71} at 71 · ${x.ash} at Ashenheim · ${x.open} owed (${J(x.val)})</div><div><span>Category</span>${esc(x.cls || '–')}${CMOF(x.cls) ? ' · ' + esc(CMOF(x.cls)) : ''}</div></div>${rExp(x.sku)}`)), 'oos');
-  return `<div class="ftiles four">
-    ${ctile('bo', 'box', groups.length, 'Items owed', bo.length + ' lines across ' + new Set(bo.map(b => b.c)).size + ' stores', '#7B4FD0')}
-    ${ctile('bohand', 'orders', onHand, 'Stock shows on hand', 'Find out why it has not shipped', '#1A8F4C')}
-    ${ctile('borep', 'note', repN, 'Likely replaced', 'Newer order for the same item: close the old one', '#326BD3')}
-    ${ctile('oos', 'alert', oos.filter(x => x.st !== 'xfer').length, 'Can’t send', oosNo + ' with no update yet', '#E2445C')}
-  </div>
-  ${segs([['week', 'Weekly review', bo.length], ['keep', 'To re-enter', reL.length], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
+  return `${dtiles([['Back orders to decide', undecN, `of ${weekN} orders · ${bo.length} lines across ${new Set(bo.map(b => b.c)).size} stores`, '#7B4FD0'], ['Stock shows on hand', handOrds, 'orders with an item we can ship: find out why it has not gone', '#1A8F4C', handOrds > 0], ['Likely replaced', repOrds, 'orders with a newer order for the same item: close the old one', '#326BD3'], ['Out of stock', oos.length, `${oosNo} with no update yet · ${xferN} can come from Ashenheim`, '#E2445C']], 'four light tint')}
+  ${segs([['week', 'Weekly review', weekN], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
   <div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number, item or rep" value="${esc(BQ)}" autocomplete="off"></div>
   ${dbMsg()}${body}`;
 }
