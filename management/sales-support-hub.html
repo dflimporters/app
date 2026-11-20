@@ -317,7 +317,30 @@ td .who{font-size:12.5px}
 .brow.open,.brow.open:hover{background:#fff;border-bottom-color:#C9D9F5}
 .brow.open .c-store{color:var(--ink)}
 .brow.open .chev{color:var(--blue)}
-.brow.open>.bexp{margin:0 -14px;padding:14px 26px 16px;background:#EAF1FD;border-top:1px solid #DCE6F7;gap:12px}
+.brow.open>.bexp{margin:0 -14px;padding:14px 26px 16px;background:#F6F8FC;border-top:1px solid #E1E7F2;gap:12px}
+.cfcard{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(20,35,70,.06);overflow:hidden}
+.cfcard .ch{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#F3F5FA;border-bottom:1px solid var(--line);font:700 13.5px var(--head);color:var(--ink)}
+.cfcard .ch .n{color:var(--ink3)}
+.cfcard .ch .cs{margin-left:auto;font-family:inherit;font-size:11px;font-weight:600;color:var(--ink3);text-align:right}
+.cfcard .ci{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 16px}
+.cfcard .ci+.ci{border-top:1px solid var(--line)}
+.cfcard .cm{min-width:0}
+.cfcard .cm b{display:block;color:var(--ink);font-size:13.5px}
+.cfcard .oh{display:block;margin-top:2px;font-size:12px;color:var(--ink3)}
+.cfcard .oh .dn{color:var(--red);font-weight:600}
+.cfcard .ow{font:700 13.5px var(--head);color:var(--ink);white-space:nowrap}
+.hwhy{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:2px}
+.hwhy .hs{background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 14px;min-width:108px}
+.hwhy .hs span{display:block;font:600 10px var(--head);text-transform:uppercase;letter-spacing:.6px;color:var(--ink3)}
+.hwhy .hs b{display:block;font:800 16px var(--head);color:var(--ink)}
+.hwhy .hs.bad{background:#FDECEE;border-color:#F5C6CC}
+.hwhy .hs.bad b{color:#C62F3F}
+.hwhy .hs.ok b{color:#1A8F4C}
+.hwhy .hnote{align-self:center;font-size:12.5px;color:var(--ink2)}
+.bfacts>.hwrap{grid-column:1/-1}
+.paybox{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 14px}
+.paybox .pbl{font:700 11px var(--head);text-transform:uppercase;letter-spacing:.6px;color:var(--ink3)}
+.paybox .pbb{display:flex;gap:8px;flex-wrap:wrap}
 .brow.open .bfacts{background:transparent;border:0;box-shadow:none;padding:0;border-radius:0}
 .brow.open .bfacts>div{color:var(--ink);font-size:13.5px}
 .brow.open .bexp .rl li{border-bottom-color:#D5E1F5}
@@ -1573,7 +1596,7 @@ const rows = list => `<ul class="rl">${list.join('')}</ul>`;
 const row = (m1, m2, r1, r2, full) => `<li><div class="m1">${m1}</div><div class="r1">${r1 == null ? '' : r1}</div>${m2 || r2 ? `<div class="m2">${m2 || ''}</div><div class="r2">${r2 || ''}</div>` : ''}${full ? `<div class="full">${full}</div>` : ''}</li>`;
 // the lines we can't fill (no stock at 71 or Ashenheim) as a short list: item, how many on hand, how many ordered. Other checks keep the table. (Scott, 20 Nov)
 const cfHtml = xs => { const st = xs.filter(x => x.kind === 'stock'), ot = xs.filter(x => x.kind !== 'stock');
-  return (st.length ? `<p class="note" style="margin:0 0 4px">Can’t fill: not enough at 71 or Ashenheim</p>` + rows(st.map(x => row(esc(x.l.desc), `<span class="dn">${Math.max(0, x.l.onhand)} on hand</span>`, esc(x.l.open + ' owed'), 'of ' + x.l.oq + ' ordered'))) : '') + (ot.length ? chkTable(ot) : ''); };
+  return (st.length ? `<div class="cfcard"><div class="ch">Can’t fill<span class="n">${st.length}</span><span class="cs">not enough at 71 or Ashenheim</span></div>${st.map(x => `<div class="ci"><div class="cm"><b>${esc(x.l.desc)}</b><span class="oh"><span class="dn">${Math.max(0, x.l.onhand)} on hand</span> · of ${x.l.oq} ordered</span></div><div class="ow">${x.l.open} owed</div></div>`).join('')}</div>` : '') + (ot.length ? chkTable(ot) : ''); };
 // sortable table: cols = [{k, label, num, get(r), show(r)}]
 const SORT = {};
 // short column headings, with the full name on hover (Scott, 6 Nov)
@@ -2888,21 +2911,22 @@ function financeText(list) { const ds = jaNow().date, paid = list.filter(x => pa
   return L.join('\n'); }
 // one held-order row, used on Today (mode 'today': Rep told column, no Support column) and in the Lead view
 // why an order may be held: Acumatica does not record the reason, so this is worked out from the account (what is overdue) and how the order was keyed (Scott, 20 Nov)
-function holdWhy(x) { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past, oldest = a ? a.oldest : 0, owed = a ? a.owed : 0, keyer = (x.by || '').replace(/./g, ' ');
-  const ov = over > 0 ? `${J(over)} overdue${oldest ? ', the oldest ' + oldest + ' days' : ''}` : '';
-  if (x.status === 'Credit Hold') return over > 0 ? `Credit hold: the account has <b class="dn">${ov}</b>${owed ? ' and owes ' + J(owed) + ' in all' : ''}. Acumatica holds orders on accounts that are past their credit terms or over their limit.` : `Credit hold, but <b>nothing is overdue</b>${owed ? ' (the account owes ' + J(owed) + ')' : ''}. It is probably over its credit limit: check the account in Acumatica. The limit is not in the hub yet.`;
-  return over > 0 ? `Put on hold by hand${keyer ? ' (keyed by ' + esc(keyer) + ')' : ''}: someone ticked Hold, or it is waiting for approval. The account is also <b class="dn">${ov}</b>, which may be why.` : `Put on hold by hand${keyer ? ' (keyed by ' + esc(keyer) + ')' : ''}: someone ticked Hold, or it is waiting for approval. <b>Nothing is overdue</b> on the account, so ask ${keyer ? esc(firstName(keyer)) : 'whoever keyed it'}.`; }
-function holdRow(x, mode) { const td = mode === 'today', p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|' + key, pk = 'hpromise|' + key, told = stOf('told:hold:' + x.nbr) === 'sorted', notes = notesFor(n => n.kind === 'note' && n.ref === key), pr = promiseOf(x.nbr);
+function holdWhy(x) { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past, oldest = a ? a.oldest : 0, owed = a ? a.owed : 0;
+  const st = (k, v, cls) => `<div class="hs${cls ? ' ' + cls : ''}"><span>${k}</span><b>${v}</b></div>`;
+  if (over > 0) return `<div class="hwhy">${st('Overdue', J(over), 'bad')}${oldest ? st('Oldest', oldest + ' days') : ''}${owed ? st('Owes in all', J(owed)) : ''}</div>`;
+  return `<div class="hwhy">${st('Overdue', 'Nothing', 'ok')}${owed ? st('Owes in all', J(owed)) : ''}${x.status === 'Credit Hold' ? '<div class="hnote">Probably over its credit limit. Check the account in Acumatica.</div>' : ''}</div>`; }
+const pastTxt = x => { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past; return over > 0 ? J(over) + (a && a.oldest ? ' · ' + a.oldest + 'd' : '') : '–'; };
+function holdRow(x, mode) { const td = mode === 'today', p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|' + key, pk = 'hpromise|' + key, told = stOf('told:hold:' + x.nbr) === 'sorted', notes = notesFor(n => n.kind === 'note' && n.ref === key), pr = promiseOf(x.nbr), nx = x.status === 'Credit Hold' || x.past > 0 ? 'Tell the rep this account needs to pay before the order can be released' : 'Tell the rep the order is on hold and find out what releases it';
   ESCL[key] = `${x.cname}: order ${x.nbr} on ${x.status === 'Credit Hold' ? 'credit hold' : 'hold'} ${x.age} day${x.age === 1 ? '' : 's'} (${J(x.val)}${x.past ? ', ' + J(x.past) + ' past due' : ''})`;
   const payBtn = `<button type="button" class="btn sm ${p ? 'pri' : ''}" data-paytoggle="${esc(x.nbr)}" aria-pressed="${!!p}">${p ? '✓ Payment in' : 'Payment in?'}</button>`, toldBtn = `<button type="button" class="btn sm ${told ? 'pri' : ''}" data-heldtold="${esc(x.nbr)}" aria-pressed="${told}">${told ? '✓ Told' : 'Rep told?'}</button>`;
-  const tag = (pr && !p ? ` <span class="pill ${pr.date < jaNow().date ? 'red' : 'amber'}" title="${esc(promTxt(pr))}">${pr.date < jaNow().date ? 'Promise missed' : 'Promised ' + esc(fds(pr.date))}</span>` : '') + (!td && told ? ' <span class="pill green">told</span>' : '') + (x.repl ? ` <span class="pill purple" title="Order ${esc(x.repl)} has the same customer and total and is ${esc(x.rs)}. This order may have been deleted in Acumatica.">Replaced?</span>` : holdStale(x) ? ` <span class="pill grey" title="Not changed in Acumatica for ${holdStale(x)} days. Check it still exists.">Check it exists</span>` : '');
-  const cells = td ? [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'), cell(toldBtn, '', 'center'), cell(payBtn, '', 'center'), stBtn(key)]
-    : [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(x.past ? J(x.past) : '–', 'c-age hm', 'center'), cell(payBtn, '', 'center'), stBtn(key)];
+  const tag = (p ? ' <span class="pill green">Paid</span>' : '') + (pr && !p ? ` <span class="pill ${pr.date < jaNow().date ? 'red' : 'amber'}" title="${esc(promTxt(pr))}">${pr.date < jaNow().date ? 'Promise missed' : 'Promised ' + esc(fds(pr.date))}</span>` : '') + (!td && told ? ' <span class="pill green">told</span>' : '') + (x.repl ? ` <span class="pill purple" title="Order ${esc(x.repl)} has the same customer and total and is ${esc(x.rs)}. This order may have been deleted in Acumatica.">Replaced?</span>` : holdStale(x) ? ` <span class="pill grey" title="Not changed in Acumatica for ${holdStale(x)} days. Check it still exists.">Check it exists</span>` : '');
+  const cells = td ? [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(pastTxt(x), 'c-age hm', 'center'), cell(toldBtn, '', 'center'), stBtn(key)]
+    : [cell(esc(x.cname) + tag, 'c-store one c1'), cell(esc(x.nbr), 'c-age hm', 'center'), cell(esc(x.rep.split(' ')[0] || ''), 'c-who hm'), cell(esc(x.sup), 'c-who hm'), cell(J(x.val), 'c-age', 'center'), cell(x.age + 'd', 'c-age', 'center'), cell(pastTxt(x), 'c-age hm', 'center'), stBtn(key)];
   return grow(key, cells,
-    `<div class="bfacts"><div><span>Why it may be held</span>${holdWhy(x)}</div><div><span>Keyed</span>${esc(fds(x.date))} by ${esc(x.by.replace(/\./g, ' '))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Last payment</span>${x.lastpay ? esc(fds(x.lastpay)) : 'None in the last 200 days'}</div>${dupFact(x)}${pr ? `<div><span>Promised</span>${esc(promTxt(pr))}${pr.text ? ' · ' + esc(String(pr.text).slice(0, 160)) : ''}<div class="note" style="margin:2px 0 0">${esc(who(pr.by))}, ${esc(fds(String(pr.at || '').slice(0, 10)))}</div></div>` : ''}<div><span>Next step</span><b>Tell the rep why it is held and what releases it</b></div></div>
-    ${notes.length ? noteList(notes) : ''}<div class="acts">${td ? '' : toldBtn}${btnNote(pk, pr ? '✎ Change the promise' : '✎ Promised to pay?')}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(key)}${acuBtn(x.nbr)}</div>${formFor(pk)}${formFor(nk)}`); }
-const HOLDCOLS = {today:'minmax(0,1.7fr) 70px minmax(0,.9fr) 92px 50px 96px 100px 118px 84px 40px', lead:'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 96px 118px 84px 40px'};
-const HOLDHEADS = {today:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Rep told', 'center'], ['Payment', 'center'], ['Status', 'center'], ['']], lead:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Payment', 'center'], ['Status', 'center'], ['']]};
+    `<div class="bfacts"><div class="hwrap"><span>Why it may be held</span>${holdWhy(x)}</div><div><span>Keyed</span>${esc(fds(x.date))}, ${x.age} day${x.age === 1 ? '' : 's'} ago</div><div><span>Last payment</span>${x.lastpay ? esc(fds(x.lastpay)) : 'None in the last 200 days'}</div>${dupFact(x)}${pr ? `<div><span>Promised</span>${esc(promTxt(pr))}${pr.text ? ' · ' + esc(String(pr.text).slice(0, 160)) : ''}<div class="note" style="margin:2px 0 0">${esc(who(pr.by))}, ${esc(fds(String(pr.at || '').slice(0, 10)))}</div></div>` : ''}<div><span>Next step</span><b>${nx}</b></div></div>
+    ${notes.length ? noteList(notes) : ''}<div class="paybox"><span class="pbl">Payment</span><div class="pbb">${payBtn}${btnNote(pk, pr ? '✎ Change the promise' : '✎ Promised to pay?')}</div></div><div class="acts">${td ? '' : toldBtn}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(key)}${acuBtn(x.nbr)}</div>${formFor(pk)}${formFor(nk)}`); }
+const HOLDCOLS = {today:'minmax(0,1.7fr) 70px minmax(0,.9fr) 92px 50px 128px 100px 84px 40px', lead:'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 128px 84px 40px'};
+const HOLDHEADS = {today:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Rep told', 'center'], ['Status', 'center'], ['']], lead:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Status', 'center'], ['']]};
 const holdBoard = (id, col, title, list, note, mode) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS[mode], HOLDHEADS[mode], list.map(x => holdRow(x, mode)), id, 999);
 const holdBoards = (H, pfx, mode) => { const cr = H.filter(x => x.status === 'Credit Hold'), oh = H.filter(x => x.status !== 'Credit Hold');
   return (cr.length ? holdBoard(pfx + '-cr', '#D63B3B', 'Credit holds', cr, 'the account is over its limit or past terms', mode) : '') + (oh.length ? holdBoard(pfx + '-oh', '#C47A1A', 'On hold', oh, 'held in Acumatica, find out why and what releases it', mode) : ''); };
