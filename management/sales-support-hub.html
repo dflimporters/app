@@ -318,8 +318,8 @@ td .who{font-size:12.5px}
 .brow.open .c-store{color:var(--ink)}
 .brow.open .chev{color:var(--blue)}
 .brow.open>.bexp{margin:0 -14px;padding:14px 26px 16px;background:#F6F8FC;border-top:1px solid #E1E7F2;gap:12px}
-.cfcard{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(20,35,70,.06);overflow:hidden}
-.cfcard .ch{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#F3F5FA;border-bottom:1px solid var(--line);font:700 13.5px var(--head);color:var(--ink)}
+.cfcard{background:#fff;border:1px solid #C9D5EA;border-radius:12px;box-shadow:0 1px 2px rgba(20,35,70,.06);overflow:hidden}
+.cfcard .ch{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#DCE5F5;border-bottom:1px solid #C3D0E8;font:700 13.5px var(--head);color:var(--ink)}
 .cfcard .ch .n{color:var(--ink3)}
 .cfcard .ch .cs{margin-left:auto;font-family:inherit;font-size:11px;font-weight:600;color:var(--ink3);text-align:right}
 .cfcard .ci{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:11px 16px}
@@ -328,6 +328,11 @@ td .who{font-size:12.5px}
 .cfcard .cm b{display:block;color:var(--ink);font-size:13.5px}
 .cfcard .oh{display:block;margin-top:2px;font-size:12px;color:var(--ink3)}
 .cfcard .oh .dn{color:var(--red);font-weight:600}
+.tsec{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px;margin:28px 0 12px;padding-left:12px;border-left:4px solid var(--c)}
+.tsec h2{margin:0;font:700 17px var(--head);color:var(--ink)}
+.tsec .n{font:600 12.5px var(--head);color:var(--ink3)}
+.tsec p{flex-basis:100%;margin:0;font-size:13px;color:var(--ink2)}
+.odbtns{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .cfcard .ow{font:700 13.5px var(--head);color:var(--ink);white-space:nowrap}
 .hwhy{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-top:2px}
 .hwhy .hs{background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 14px;min-width:108px}
@@ -1806,7 +1811,7 @@ function brow(x) {
     ${exp ? `<div class="bexp">
       ${x.repHtml || ''}${x.html || ''}<div class="bfacts">${x.repHtml || x.html ? '' : `<div><span>Detail</span>${esc(x.sub || '–')}</div>`}<div><span>Next step</span><b>${esc(x.act)}</b></div>${s && !x.html ? `<div><span>Store</span>${s.chain !== s.name ? esc(s.chain) + ' · ' : ''}${esc(s.area)}</div>` : ''}</div>
       ${notes.length ? noteList(notes) : ''}
-      <div class="acts">${extra}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(x.key)}</div>${formFor(nk)}</div>` : ''}
+      <div class="acts">${extra}${x.cf && x.order ? `<button class="btn sm pri" type="button" data-cfcard="${esc(x.order)}">Copy card</button>` : ''}${x.repHtml ? acuBtn(x.order, 'Open back order ' + x.order) + acuBtn(x.order2, 'Open newer order ' + x.order2) : ''}${x.repHtml ? '' : acuBtn(x.order || (x.key.startsWith('stuck:') ? x.key.slice(6) : x.key.startsWith('deal:') || x.key.startsWith('stock:') ? x.key.split(':')[1] : null))}${s ? `<button class="btn sm" type="button" data-store="${esc(x.c)}">Open store</button>` : ''}${btnNote(nk, notes.length ? '✎ Add another note' : '✎ Add a note')}${escBtn(x.key)}</div>${formFor(nk)}</div>` : ''}
   </div>`;
 }
 function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod' && n.kind !== 'hpromise').slice(0, 8); if (!l.length) return '';
@@ -2725,6 +2730,78 @@ function briefPrint(c) {
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page to make the PDF.'); return; }
   w.document.open(); w.document.write(html); w.document.close();
 }
+// ----- share cards: a picture support pastes into WhatsApp, for the rep or for the customer (Scott, 20 Nov) -----
+const CARDF = '"Open Sans","Segoe UI",Arial,sans-serif', CARDH = 'Montserrat,"Segoe UI",Arial,sans-serif';
+const cardWrap = (c, tx, w) => { const out = []; String(tx == null ? '' : tx).split('\n').forEach(par => { let line = ''; par.split(' ').forEach(wd => { const t = line ? line + ' ' + wd : wd; if (line && c.measureText(t).width > w) { out.push(line); line = wd; } else line = t; }); out.push(line); }); return out; };
+const cardRR = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+// draws the card and returns its height (run once on a scratch canvas to measure, then again for real)
+function cardDraw(c, S, W) {
+  const P = 36, IW = W - P * 2, NAVY = '#0D1B3E', MUT = '#5A6786', LINE = '#E3E8F2', AMB = '#F5A623';
+  const f = (wt, sz, fam) => { c.font = wt + ' ' + sz + 'px ' + (fam || CARDF); }, sp = v => { try { c.letterSpacing = v; } catch (e) {} };
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left'; c.fillStyle = '#fff'; c.fillRect(0, 0, W, c.canvas.height);
+  f(700, 28, CARDH); const tl = cardWrap(c, S.title, IW).slice(0, 3); f(400, 15); const sl = S.sub ? cardWrap(c, S.sub, IW) : [];
+  const tb = 76 + (tl.length - 1) * 36, sb = tb + 28 + (sl.length - 1) * 21, hh = (sl.length ? sb : tb) + 28;
+  c.fillStyle = NAVY; c.fillRect(0, 0, W, hh); c.fillStyle = AMB; c.fillRect(0, hh, W, 7);
+  f(700, 12, CARDH); sp('2px'); c.fillStyle = AMB; c.fillText(String(S.eyebrow).toUpperCase(), P, 40); sp('0px');
+  f(700, 28, CARDH); c.fillStyle = '#fff'; tl.forEach((l, i) => c.fillText(l, P, 76 + i * 36));
+  f(400, 15); c.fillStyle = '#B9C3DD'; sl.forEach((l, i) => c.fillText(l, P, tb + 28 + i * 21));
+  let y = hh + 7 + 28;
+  // tiles
+  if (S.tiles && S.tiles.length) { const n = S.tiles.length, g = 12, tw = (IW - g * (n - 1)) / n; f(400, 12.5); const ln = S.tiles.map(t => cardWrap(c, t.l, tw - 32)), mx = Math.max(...ln.map(a => a.length)), th = 20 + 28 + 8 + mx * 16 + 14;
+    S.tiles.forEach((t, i) => { const x = P + i * (tw + g); c.save(); cardRR(c, x, y, tw, th, 12); c.clip(); c.fillStyle = '#F4F6FB'; c.fillRect(x, y, tw, th); c.fillStyle = t.c; c.fillRect(x, y, 6, th); c.restore();
+      f(700, 28, CARDH); c.fillStyle = NAVY; c.fillText(t.v, x + 22, y + 20 + 24); f(400, 12.5); c.fillStyle = MUT; ln[i].forEach((l, k) => c.fillText(l, x + 22, y + 20 + 28 + 8 + 12 + k * 16)); });
+    y += th + 30; }
+  // heading + table header
+  f(700, 12.5, CARDH); sp('1.5px'); c.fillStyle = NAVY; c.fillText(String(S.head).toUpperCase(), P, y); sp('0px'); y += 16;
+  const cols = S.cols, edge = []; let after = 0; for (let k = cols.length - 1; k >= 1; k--) { edge[k] = P + IW - 12 - after; after += cols[k].w; }
+  const fx = P + (S.num ? 44 : 12), fw = IW - after - 12 - (S.num ? 44 : 12) - 8;
+  f(700, 12, CARDH); c.fillStyle = MUT; c.fillText(cols[0].t, fx, y + 12); c.textAlign = 'right'; for (let k = 1; k < cols.length; k++) c.fillText(cols[k].t, edge[k], y + 12); c.textAlign = 'left';
+  y += 24; c.fillStyle = NAVY; c.fillRect(P, y, IW, 2); y += 2;
+  // rows
+  let num = 0;
+  S.rows.forEach(r => {
+    if (r.group) { c.fillStyle = '#EEF2FA'; c.fillRect(P, y, IW, 32); f(700, 13.5, CARDH); c.fillStyle = NAVY; c.fillText(r.group, P + 12, y + 21); y += 32; return; }
+    if (r.more) { f(400, 13); c.fillStyle = MUT; c.fillText(r.more, P + 12, y + 26); y += 40; return; }
+    f(700, 15); const nl = cardWrap(c, r.cells[0], fw); f(400, 12.5); const sl2 = r.sub ? cardWrap(c, r.sub, fw) : [];
+    const rh = Math.max(50, 30 + (nl.length - 1) * 20 + (sl2.length ? 8 + sl2.length * 16 : 0) + 14);
+    if (S.num) { num++; c.fillStyle = NAVY; c.beginPath(); c.arc(P + 24, y + 25, 14, 0, 7); c.fill(); f(700, 13, CARDH); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(String(num), P + 24, y + 30); c.textAlign = 'left'; }
+    f(700, 15); c.fillStyle = NAVY; nl.forEach((l, i) => c.fillText(l, fx, y + 30 + i * 20));
+    if (sl2.length) { f(600, 12.5); c.fillStyle = r.subc || MUT; sl2.forEach((l, i) => c.fillText(l, fx, y + 30 + (nl.length - 1) * 20 + 19 + i * 16)); }
+    c.textAlign = 'right'; for (let k = 1; k < cols.length; k++) { const v = r.cells[k], o = v && typeof v === 'object' ? v : {t: v}; f(o.b ? 700 : 400, 15); c.fillStyle = o.c || NAVY; c.fillText(String(o.t == null ? '' : o.t), edge[k], y + 30); } c.textAlign = 'left';
+    y += rh; c.fillStyle = LINE; c.fillRect(P, y, IW, 1); y += 1; });
+  // note
+  if (S.note) { y += 26; f(400, 14.5); const nl = cardWrap(c, S.note, IW - 44), bh = 22 + nl.length * 22 + 14; cardRR(c, P, y, IW, bh, 12); c.fillStyle = '#FFF4E0'; c.fill(); c.strokeStyle = AMB; c.lineWidth = 1.5; c.stroke();
+    c.fillStyle = NAVY; nl.forEach((l, i) => c.fillText(l, P + 22, y + 30 + i * 22)); y += bh; }
+  return y + 32;
+}
+function cardBlob(S) {
+  const W = 720, SC = 2, make = h => { const cv = document.createElement('canvas'); cv.width = W * SC; cv.height = Math.max(10, Math.ceil(h * SC)); const c = cv.getContext('2d'); c.scale(SC, SC); return [cv, c]; };
+  return Promise.all(['700 20px Montserrat', '700 15px "Open Sans"', '400 15px "Open Sans"'].map(x => document.fonts ? document.fonts.load(x).catch(() => 0) : 0)).then(() => {
+    const H = cardDraw(make(600)[1], S, W), [cv, c] = make(H); cardDraw(c, S, W);
+    return new Promise((ok, no) => cv.toBlob(b => b ? ok(b) : no(new Error('no image')), 'image/png')); });
+}
+function shareCard(S, name) {
+  const p = cardBlob(S);
+  const save = () => p.then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name + '.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Card saved to your Downloads. Attach it in WhatsApp.'); }).catch(() => toast('Could not make the card. Try again.'));
+  if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) navigator.clipboard.write([new ClipboardItem({'image/png': p})]).then(() => toast('Card copied. Paste it into WhatsApp.'), save); else save();
+}
+// the card for orders we cannot fill: one order is addressed to the customer (the rep can forward it), several are for the rep
+function cfSpec(list, rep) {
+  const one = list.length === 1, nIt = list.reduce((s, x) => s + x.cf.length, 0), val = list.reduce((s, x) => s + (x.value || 0), 0), d = fds(jaNow().date), rows = [], cn = x => (byId[x.c] || {}).name || x.c;
+  list.forEach(x => { if (!one) rows.push({group:`${cn(x)} · order ${x.order}`}); x.cf.forEach(z => { const have = Math.max(0, z.l.onhand); rows.push({cells:[z.l.desc, String(z.l.oq), String(have), {t:String(z.l.open - have), c:'#D63B3B', b:1}]}); }); });
+  return {eyebrow: one ? 'DFL Importers · Order update' : 'DFL Importers · Orders that will ship short', title: one ? cn(list[0]) : `${firstName(rep)}, these orders will ship short`, sub: one ? `Order ${list[0].order} · ${d}` : `Sales support · ${d}`,
+    tiles:[{v:String(nIt), l:nIt === 1 ? 'item we could not supply' : 'items we could not supply', c:'#D63B3B'}, ...(one ? [] : [{v:String(list.length), l:'orders affected', c:'#326BD3'}]), {v:J(val), l:'value that will not ship', c:'#E8862A'}],
+    head:'Items we could not supply', cols:[{t:'Item', w:0}, {t:'Ordered', w:84}, {t:'In stock', w:84}, {t:'Short', w:70}], rows,
+    note: one ? 'We are sorry. We do not have enough of the items above to complete your order right now. Your sales rep will contact you about a substitute.' : 'Please call each customer about a substitute before these orders ship.'};
+}
+function odSpec(rep, l) {
+  const top = l.slice(0, 10), mx = Math.max(...l.map(x => x.oldest || 0));
+  return {eyebrow:'DFL Importers · Overdue accounts', title:`${firstName(rep)}, these accounts are overdue`, sub:`Sales support · ${fds(jaNow().date)} · please remind them to pay when you visit`,
+    tiles:[{v:String(l.length), l:l.length === 1 ? 'account overdue' : 'accounts overdue', c:'#326BD3'}, {v:J(odSum(l)), l:'overdue in total', c:'#E8862A'}, {v:mx + 'd', l:'oldest overdue invoice', c:'#D63B3B'}],
+    head:'Start with these', num:true, cols:[{t:'Customer', w:0}, {t:'Overdue', w:120}, {t:'Oldest', w:84}],
+    rows:top.map(x => ({cells:[x.name, {t:J(x.over), c:'#D63B3B', b:1}, x.oldest ? x.oldest + ' days' : '–'], sub:x.held ? 'Order on hold' : '', subc:'#D63B3B'})).concat(l.length > 10 ? [{more:`+ ${l.length - 10} smaller accounts`}] : []),
+    note:'Please remind them to pay when you visit. Orders on hold are usually released once the account pays.'};
+}
 const copyText = (txt, ok) => { if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(ok), () => toast('Copy did not work here. Try again.')); };
 
 // ---------- pop-ups (store, order, often-short list) ----------
@@ -2940,11 +3017,8 @@ function holdRow(x, mode) { const td = mode === 'today', p = payOn(x.nbr), key =
 const HOLDCOLS = {today:'minmax(0,1.7fr) 70px minmax(0,.9fr) 92px 50px 128px 100px 84px 40px', lead:'minmax(0,1.6fr) 70px minmax(0,.9fr) 70px 92px 50px 128px 84px 40px'};
 const HOLDHEADS = {today:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Rep told', 'center'], ['Status', 'center'], ['']], lead:[['Customer'], ['Order', 'center', 'hm'], ['Rep', '', 'hm'], ['Support', '', 'hm'], ['Value', 'center'], ['Held', 'center'], ['Past due', 'center', 'hm'], ['Status', 'center'], ['']]};
 const holdBoard = (id, col, title, list, note, mode) => gboard(col, title, `${list.length} · ${J(list.reduce((s, x) => s + x.val, 0))} · ${note}`, HOLDCOLS[mode], HOLDHEADS[mode], list.map(x => holdRow(x, mode)), id, 999);
-// one board for every held order (Scott, 20 Nov: they are held for the same reason, an overdue account): oldest first, with a Credit hold / On hold tag and a filter
-const holdBoards = (H, pfx, mode) => { if (!H.length) return ''; const nCr = H.filter(x => x.status === 'Credit Hold').length, nOh = H.length - nCr, fl = nCr && nOh ? HOLDF : 'all';
-  const shown = (fl === 'cr' ? H.filter(x => x.status === 'Credit Hold') : fl === 'oh' ? H.filter(x => x.status !== 'Credit Hold') : H).slice().sort((a, b) => (b.age - a.age) || (b.val - a.val));
-  const fb = (k, tx, n) => `<button type="button" class="btn sm${fl === k ? ' pri' : ''}" data-holdf="${k}" aria-pressed="${fl === k}">${tx} (${n})</button>`;
-  return (nCr && nOh ? `<div class="acts" style="margin:0 0 8px"><span class="note" style="margin:0 6px 0 0">Show</span>${fb('all', 'All held', H.length)}${fb('cr', 'Credit hold', nCr)}${fb('oh', 'On hold', nOh)}</div>` : '') + holdBoard(pfx + '-all', '#D63B3B', 'Held orders', shown, 'held in Acumatica: the account usually has to pay before they are released', mode); };
+// one board for every held order (Scott, 20 Nov: they are held for the same reason, an overdue account): oldest first, with a Credit hold / On hold tag on each row
+const holdBoards = (H, pfx, mode) => H.length ? holdBoard(pfx + '-all', '#D63B3B', 'Held orders', H.slice().sort((a, b) => (b.age - a.age) || (b.val - a.val)), 'held in Acumatica: the account usually has to pay before they are released', mode) : '';
 // the day's message, the same words for support and the lead
 function dayMsg(cl, who1) { return cl.phase === 0 ? `Before ${t12(LEADT.start)}. Start with the held orders.`
   : cl.phase === 1 ? `Now: go through the held orders. The payment list goes to finance by ${t12(LEADT.fin)}.`
@@ -3030,7 +3104,7 @@ function vToday() {
 // what has to be passed on to the reps that is not a held order (held orders are worked on Today: calling the rep about the hold is telling them)
 function tellItems() { const it = [];
   bigChecks().forEach(({o, xs}) => { const st = xs.filter(x => x.kind === 'stock'); if (!st.length) return; const s0 = byId[o.c] || {}, sv = st.reduce((a, x) => a + (x.l.open - Math.max(0, x.l.onhand)) * x.l.price, 0);
-    it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', ctx:'short', issue:`Can’t fill: ${(nl => nl > st.length ? st.length + ' of ' + nl + ' items' : st.length + ' item' + (st.length === 1 ? '' : 's'))((o.lines || []).filter(l => l.open > 0).length)} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:cfHtml(st),
+    it.push({key:'told:short:' + o.nbr, kind:'Can’t fill', col:'red', c:o.c, order:o.nbr, rep:s0.rep || '', ctx:'short', issue:`Can’t fill: ${(nl => nl > st.length ? st.length + ' of ' + nl + ' items' : st.length + ' item' + (st.length === 1 ? '' : 's'))((o.lines || []).filter(l => l.open > 0).length)} short · ${J(sv)}`, sub:`Order ${o.nbr}`, age:o.age, value:sv, html:cfHtml(st), cf:st,
       t:`${s0.name}: order ${o.nbr} will ship short`, d:'', act:'Tell the rep and offer a substitute',
       line:`${s0.name || o.c}: order ${o.nbr} will ship short: ` + st.slice(0, 4).map(x => `${x.l.desc} (need ${x.l.open}, have ${Math.max(0, x.l.onhand)})`).join('; ') + (st.length > 4 ? '…' : '') + '. Please check with the store about a substitute.'}); });
   todayItems().filter(x => x.kind === 'Delivery problem').forEach(x => it.push({...x, key:'told:' + x.key, kind:'Delivery', rep:(byId[x.c] || {}).rep || '', line:`${x.t} (${x.issue}).`}));
@@ -3041,11 +3115,18 @@ const odKey = r => 'od:' + r + ':' + MONDAY, odSum = l => l.reduce((s, x) => s +
 function odMsg(rep, list) { return `Hi ${firstName(rep)}, these accounts are overdue (sales support, ${fds(jaNow().date)}). Please remind them to pay when you visit:\n` + list.slice(0, 12).map(x => `• ${x.name}: ${J(x.over)} overdue${x.oldest ? ', oldest ' + x.oldest + (x.oldest === 1 ? ' day' : ' days') : ''}${x.held ? ' (order on hold)' : ''}`).join('\n') + (list.length > 12 ? `\n…and ${list.length - 12} smaller ones` : ''); }
 function odBoard() { const all = overdueAccts(); if (!all.length) return ''; const by = {}; all.forEach(x => (by[x.rep] = by[x.rep] || []).push(x)); Object.values(by).forEach(l => l.sort((a, b) => b.over - a.over));
   const reps = Object.keys(by).sort((a, b) => odSum(by[b]) - odSum(by[a]));
-  return `<div style="margin-top:22px"></div>` + gboard('#E8862A', 'Overdue accounts: warn the reps before they visit', `${all.length} accounts · ${J(odSum(all))} overdue`, 'minmax(0,1.5fr) 84px 100px 74px 104px 126px 40px', [['Rep'], ['Accounts', 'center'], ['Overdue', 'center'], ['Oldest', 'center', 'hm'], ['Told', 'center'], ['Message', 'center']],
+  return `<div class="tsec" style="--c:#E8862A"><h2>Overdue accounts</h2><span class="n">${all.length} · ${J(odSum(all))} overdue</span><p>Accounts past due. Warn the rep before they visit: send the card or the text.</p></div>` + gboard('#E8862A', 'By rep', `${all.length} accounts · ${J(odSum(all))} overdue`, 'minmax(0,1.5fr) 84px 100px 74px 104px 190px 40px', [['Rep'], ['Accounts', 'center'], ['Overdue', 'center'], ['Oldest', 'center', 'hm'], ['Told', 'center'], ['Message', 'center']],
     reps.map(r => { const l = by[r], more = SHOWALL['od:' + r];
-      return grow('odrep:' + r, [cell(esc(r), 'c-store one c1'), cell(String(l.length), 'c-age', 'center'), cell(J(odSum(l)), 'c-age', 'center'), cell(Math.max(...l.map(x => x.oldest || 0)) + 'd', 'c-age hm', 'center'), stBtn(odKey(r)), cell(`<button class="btn sm pri" type="button" data-odcopy="${esc(r)}">Copy message</button>`, '', 'center')],
+      return grow('odrep:' + r, [cell(esc(r), 'c-store one c1'), cell(String(l.length), 'c-age', 'center'), cell(J(odSum(l)), 'c-age', 'center'), cell(Math.max(...l.map(x => x.oldest || 0)) + 'd', 'c-age hm', 'center'), stBtn(odKey(r)), cell(`<span class="odbtns"><button class="btn sm pri" type="button" data-odcard="${esc(r)}">Copy card</button><button class="btn sm" type="button" data-odcopy="${esc(r)}">Copy text</button></span>`, '', 'center')],
         gl('minmax(0,1.5fr) 92px 66px 92px 92px', [['Customer'], ['Overdue', 'r'], ['Oldest', 'r'], ['Owes in all', 'r'], ['Credit limit', 'r']], (more ? l : l.slice(0, 15)).map(x => [[`<b>${esc(x.name)}</b>${x.held ? ' <span class="pill red">order on hold</span>' : ''}`, ''], [`<span class="dn">${J(x.over)}</span>`, 'r val'], [x.oldest ? x.oldest + 'd' : '–', 'r rt'], [J(x.owed), 'r val'], [x.lim == null ? '–' : x.lim > 0 ? J(x.lim) : 'None', 'r rt']])) + (l.length > 15 ? `<div class="acts" style="margin-top:8px"><button class="btn sm" type="button" data-more="od:${esc(r)}">${more ? 'Show fewer' : 'Show all ' + l.length}</button></div>` : '')); }), 'odboard', 12); }
 function tellMsg(rep, list) { return `Hi ${firstName(rep) || 'team'}, update from sales support (${fds(jaNow().date)}):\n` + list.map(x => '• ' + x.line).join('\n'); }
+// one section per kind of thing to tell (Scott, 20 Nov: it was hard to see at a glance what each list was about), each with its reps underneath
+const TKINDS = [['Can’t fill', '#B5487A', 'Orders that will ship short', 'Big orders with items we cannot supply from 71 or Ashenheim. Tell the rep and offer a substitute, or send the customer the card.'], ['Delivery', '#127F8C', 'Deliveries that failed', 'Not delivered or part delivered. Tell the rep so they can call the customer.']];
+function tellSections(shown, RN) { if (!shown.length) return `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`; const vs = l => l.reduce((s, x) => s + (x.value || 0), 0);
+  return TKINDS.map(([k, col, ttl, ds]) => { const its = shown.filter(x => x.kind === k); if (!its.length) return ''; const by = {}; its.forEach(x => (by[RN(x.rep)] = by[RN(x.rep)] || []).push(x)); const rs = Object.keys(by).sort((a, b) => vs(by[b]) - vs(by[a]) || a.localeCompare(b));
+    return `<div class="tsec" style="--c:${col}"><h2>${ttl}</h2><span class="n">${its.length} · ${J(vs(its))}</span><p>${ds}</p></div>` + rs.map(r => { const list = by[r], cf = k === 'Can’t fill';
+      return `<section class="grp" style="--gc:${col}"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(vs(list))}</span>${TELLF === 'open' ? `<span class="odbtns" style="margin-left:auto">${cf ? `<button class="btn sm pri" type="button" data-cfrep="${esc(r)}">Copy card</button>` : ''}<button class="btn sm${cf ? '' : ' pri'}" type="button" data-tellcopy="${esc(r)}" data-tk="${esc(k)}">Copy message</button></span>` : ''}</div>
+      <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join(''); }).join(''); }
 function vTell() {
   const all = tellItems(); all.forEach(x => { x.st = stOf(x.key); });
   const RN = r => r || 'No rep on file', open = all.filter(x => x.st !== 'sorted'), shown = TELLF === 'done' ? all.filter(x => x.st === 'sorted') : open, by = {};
@@ -3053,13 +3134,11 @@ function vTell() {
   const sum = r => (by[r] || []).reduce((s, x) => s + (x.value || 0), 0), reps = Object.keys(by).sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
   const cnt = k => open.filter(x => x.kind === k).length, odAll = overdueAccts();
   const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C'], ['Overdue accounts', `${odAll.length}`, `${J(odSum(odAll))} · warn the reps`, '#E8862A']], 'four light tint');
-  return `${lead1('tell-top', 'Orders we can’t fill and deliveries that failed, one list per rep. Tell them, then move it to Pending or Done.', 'Big orders that will ship short (the smaller ones are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Held orders are worked on Today: calling the rep about a hold is telling them, so tick Rep told there. Back orders are decided in the Back orders tab.')}
+  return `${lead1('tell-top', 'Orders we can’t fill and deliveries that failed, one list per rep. Tell them, then move it to Pending or Done.', 'Big orders that will ship short (the smaller ones are in Orders) and deliveries the driver app marked failed. “Copy message” builds a WhatsApp text for that rep and section; “Copy card” makes a picture to paste into WhatsApp. Held orders are worked on Today: calling the rep about a hold is telling them, so tick Rep told there. Back orders are decided in the Back orders tab.')}
   ${tiles}
   <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
   ${dbMsg()}
-  ${reps.length ? reps.map(r => { const list = by[r];
-    return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(sum(r))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
-    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}
+  ${tellSections(shown, RN)}
   ${TELLF === 'open' ? odBoard() : ''}`;
 }
 
@@ -3094,7 +3173,7 @@ function vLead() {
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
 const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
-const tabBar = () => { const simple = isSimple(), out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } if (simple && !SIMPLE_TABS.includes(k) && k !== 'lead' && k !== TAB) return; out.push([k, t]); }); return out; };
+const tabBar = () => { const simple = isSimple(), main = [], more = [], lead = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead') { if (HUBD.lead) lead.push([k, t]); return; } if (inLook(k)) { if (!placed) { main.push(['look', 'Look up']); placed = true; } return; } if (SIMPLE_TABS.includes(k)) main.push([k, t]); else if (!simple || k === TAB) more.push([k, t]); }); return main.concat(more, lead); };   // More tabs adds Friday meeting and Reps right after Look up (Scott, 20 Nov)
 // the View dropdown: each Look up view lists its own options while it renders (Scott, 20 Nov: replaces the second row of pills and the cards)
 const LOOKVIEWS = {};
 const lookSel = k => { const s = SUB[k]; return k === 'backorders' && (s === 'bohand' || s === 'borep') ? 'bo' : s; };
@@ -3196,8 +3275,11 @@ __on(document, 'click', e => {
   if (d.escdone) { setTick('escdone:' + d.escdone, 1); return; }
   if (d.tellf) { TELLF = d.tellf; render(); return; }
   if (d.holdf) { HOLDF = d.holdf; render(); return; }
+  if (d.cfcard) { const it = tellItems().find(x => x.cf && x.order === d.cfcard); if (it) shareCard(cfSpec([it]), 'order-' + it.order + '-cant-fill'); return; }
+  if (d.cfrep) { const l = tellItems().filter(x => x.cf && (x.rep || 'No rep on file') === d.cfrep && stOf(x.key) !== 'sorted'); if (l.length) shareCard(cfSpec(l, d.cfrep), 'orders-that-will-ship-short'); return; }
+  if (d.odcard) { const l = overdueAccts().filter(x => x.rep === d.odcard).sort((a, b) => b.over - a.over); if (l.length) shareCard(odSpec(d.odcard, l), 'overdue-accounts-' + d.odcard.split(' ')[0].toLowerCase()); return; }
   if (d.odcopy) { const l = overdueAccts().filter(x => x.rep === d.odcopy).sort((a, b) => b.over - a.over); if (l.length) copyText(odMsg(d.odcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
-  if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted'); if (l.length) copyText(tellMsg(d.tellcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
+  if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted' && (!d.tk || x.kind === d.tk)); if (l.length) copyText(tellMsg(d.tellcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.heldtold) { const k = 'st:told:hold:' + d.heldtold, was = tick(k) && tick(k).v === 'sorted'; setTick(k, was ? null : 'sorted'); return; }
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
