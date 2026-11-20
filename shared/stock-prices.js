@@ -20,6 +20,12 @@
 //   });
 //   stock.load(force)               // first call loads; force re-fetches
 //
+// Product photos are static files in /product-images/ (full size, 800px) and
+// /product-images/t/ (thumbnails, 160px), named <inventory_id>.jpg.
+// /product-images/index.json lists the codes that have one, so rows without a
+// photo show a placeholder instead of requesting a file that isn't there.
+// Photos are a bonus like deals: if the list can't load, rows just have no photo.
+//
 // Every id/class it renders is prefixed `dfls-` and every handler is attached
 // here, so it can't collide with anything on the host page (see commit
 // e6d17be: a copy of this feature once reused merch.html's stock-count ids).
@@ -54,7 +60,15 @@
       '.dfls-p{font-size:12px;font-weight:700;color:var(--s-ink);margin-top:3px}' +
       '.dfls-deals{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}' +
       '.dfls-deal{font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:#fff4e0;color:#a15c00;border:1px solid #f5d39a;white-space:nowrap}' +
-      '.dfls-empty{text-align:center;padding:40px 20px;color:var(--s-muted);font-size:13px}';
+      '.dfls-empty{text-align:center;padding:40px 20px;color:var(--s-muted);font-size:13px}' +
+      '.dfls-ph{width:52px;height:52px;flex-shrink:0;border-radius:8px;background:#f1f4f9;border:1px solid var(--s-line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:#b6bfd0;font-size:20px;padding:0}' +
+      'button.dfls-ph{cursor:zoom-in;background:#fff}' +
+      '.dfls-ph img{width:100%;height:100%;object-fit:contain;display:block}' +
+      '.dfls-zoom{position:fixed;inset:0;z-index:9999;background:rgba(10,18,40,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;cursor:zoom-out}' +
+      '.dfls-zoom img{max-width:100%;max-height:calc(100% - 70px);object-fit:contain;background:#fff;border-radius:10px}' +
+      '.dfls-zoom-cap{color:#fff;font-size:13px;font-weight:700;text-align:center;margin-top:12px;line-height:1.35;max-width:560px}' +
+      '.dfls-zoom-cap small{display:block;font-weight:500;opacity:.7;margin-top:2px}' +
+      '.dfls-zoom-x{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.16);color:#fff;border:none;border-radius:999px;width:38px;height:38px;font-size:20px;cursor:pointer}';
     document.head.appendChild(st);
   }
 
@@ -84,6 +98,39 @@
     clsEl.addEventListener('change', render);
     inEl.addEventListener('change', render);
     dlEl.addEventListener('change', render);
+    listEl.addEventListener('click', e => {
+      const b = e.target.closest('button.dfls-ph');
+      if (b) zoom(b.dataset.code);
+    });
+
+    // Set of inventory_ids that have a photo, or an empty Set if the list can't be read.
+    let photos = new Set();
+    async function loadPhotos() {
+      try {
+        const r = await fetch('/product-images/index.json', { cache: 'no-cache' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const list = await r.json();
+        return new Set((Array.isArray(list) ? list : []).filter(c => /^\d+$/.test(c)));
+      } catch (e) {
+        console.warn('product photo list failed:', e);
+        return new Set();
+      }
+    }
+
+    function zoom(code) {
+      const r = rows && rows.find(x => x.id === code);
+      if (!r || !photos.has(code)) return;
+      const ov = document.createElement('div');
+      ov.className = 'dfls-zoom';
+      ov.innerHTML = '<button type="button" class="dfls-zoom-x" aria-label="Close">×</button>' +
+        '<img src="/product-images/' + code + '.jpg" alt="' + esc(r.name) + '">' +
+        '<div class="dfls-zoom-cap">' + esc(r.name || r.id) + '<small>' + esc(r.id) + '</small></div>';
+      const close = () => { ov.remove(); document.removeEventListener('keydown', onKey); };
+      const onKey = e => { if (e.key === 'Escape') close(); };
+      ov.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(ov);
+    }
 
     // { inventory_id: [{buy, free}, …] } for the current deal sheet, or {} if it
     // can't be read. Same tier rules as shared/deals.js (one tier per order,
@@ -111,7 +158,7 @@
       loading = true;
       listEl.innerHTML = loadingHtml;
       try {
-        const dealsP = loadDeals();
+        const dealsP = loadDeals(), photosP = loadPhotos();
         const all = []; let off = 0;
         for (;;) {
           const page = (await opts.get('stock_items_raw?item_status=eq.Active&select=inventory_id,description,item_class,on_hand,default_price,last_synced_at&order=description.asc,inventory_id.asc&limit=1000&offset=' + off)) || [];
@@ -120,6 +167,7 @@
           off += 1000;
         }
         const deals = await dealsP;
+        photos = await photosP;
         rows = all.map(r => ({
           id: r.inventory_id, name: (r.description || '').trim(), cls: r.item_class || '',
           stock: Math.round(parseFloat(r.on_hand) || 0), price: parseFloat(r.default_price) || 0,
@@ -151,7 +199,11 @@
       if (!shown.length) { listEl.innerHTML = '<div class="dfls-empty">No products match.</div>'; return; }
       listEl.innerHTML = shown.map(r => {
         const out = r.stock <= 0;
-        return '<div class="dfls-item"><div style="flex:1;min-width:0">' +
+        // photos only holds all-digit codes (see loadPhotos), so r.id is safe in the URL.
+        const pic = photos.has(r.id)
+          ? '<button type="button" class="dfls-ph" data-code="' + esc(r.id) + '" aria-label="View photo"><img src="/product-images/t/' + r.id + '.jpg" alt="" loading="lazy"></button>'
+          : '<div class="dfls-ph" aria-hidden="true">📦</div>';
+        return '<div class="dfls-item">' + pic + '<div style="flex:1;min-width:0">' +
           '<div class="dfls-nm">' + esc(r.name || r.id) + '</div>' +
           '<div class="dfls-sub">' + esc(r.id) + (r.cls ? ' · ' + esc(r.cls) : '') + '</div>' +
           (r.deals.length ? '<div class="dfls-deals">' + r.deals.map(t =>
