@@ -48,6 +48,27 @@
 
 window.DFL_UPDATES = [
   {
+    id: '2026-11-20-whats-new-menu',
+    date: '2026-11-20',
+    apps: ['sales', 'merch'],
+    title: 'See these updates again any time',
+    items: [
+      'Tap the circle with your initials at the top of the screen, then tap What’s new.',
+      'It shows the recent app updates, even after you tap Got it.',
+    ],
+  },
+  {
+    id: '2026-11-20-covering-for',
+    date: '2026-11-20',
+    apps: ['merch'],
+    roles: ['tl'],
+    title: 'Days Worked: cover for more than one person',
+    items: [
+      'Team leaders: in Days Worked, "Covering for" now lets you pick more than one person.',
+      'You can also pick Training, or Someone else… to type a name. Tap × on a name to remove it.',
+    ],
+  },
+  {
     id: '2026-11-13-product-photos',
     date: '2026-11-13',
     apps: ['sales', 'merch'],
