@@ -3281,6 +3281,10 @@ render();
 window.DFL_PORTAL = true;
 const HUBD = { notes: [], ticks: {}, names: {}, plans: [] };
 const DATA = {};
+// Sheldon Brown's book is shown as Orian Bernard (Scott, 20 Nov: Sheldon is not here). The hub treats rep names as plain text, so renaming them once in the data keeps every list, target and customer consistent.
+const REPALIAS = {'Sheldon Brown': 'Orian Bernard'};
+const aliasReps = d => { if (d == null) return d; let s = JSON.stringify(d), c = false; for (const k in REPALIAS) if (s.includes(k)) { s = s.split(k).join(REPALIAS[k]); c = true; } return c ? JSON.parse(s) : d; };
+const hubRpc = (fn, args) => sb.rpc(fn, args).then(r => { if (r && r.data != null) r.data = aliasReps(r.data); return r; });
 let LOADED_AT = { ops: 0, sales: 0, skus: 0, period: 0 }, BOOTING = false, BOOTED = false;
 
 // event listeners are registered once; each boot swaps in its own handlers
@@ -3292,7 +3296,7 @@ function __on(target, type, fn) {
 }
 
 async function loadParts(parts) {
-  const res = await Promise.all(parts.map(p => sb.rpc('ss_hub_data', { p_part: p, p_support: SUP })));
+  const res = await Promise.all(parts.map(p => hubRpc('ss_hub_data', { p_part: p, p_support: SUP })));
   res.forEach((r, i) => { if (r.error) throw r.error; DATA[parts[i]] = r.data; LOADED_AT[parts[i]] = Date.now(); });
 }
 async function loadNotes() {
@@ -3330,33 +3334,33 @@ async function refresh(parts, force) {
 // Optional: the hub works without it, and a failed load is retried a few times.
 let PSKUS_TRY = 0;
 async function loadPskus() {
-  try { const r = await sb.rpc('ss_hub_data', { p_part: 'pskus', p_support: SUP }); if (r.error) throw r.error; DATA.pskus = r.data; LOADED_AT.pskus = Date.now(); PSKUS_TRY = 0; if (BOOTED && !busy()) boot(); }
+  try { const r = await hubRpc('ss_hub_data', { p_part: 'pskus', p_support: SUP }); if (r.error) throw r.error; DATA.pskus = r.data; LOADED_AT.pskus = Date.now(); PSKUS_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('product detail failed', e); if (++PSKUS_TRY <= 3) setTimeout(loadPskus, 60000 * PSKUS_TRY); }
 }
 // invoiced lines, last 45 days (deal log: did the product reach an invoice?). From invoiced_items, which syncs through the day.
 // Loaded after the main parts so a slow cold read never holds up the page; until it arrives the deal statuses say "Checking".
 let INV_TRY = 0;
 async function loadInv() {
-  try { const r = await sb.rpc('ss_hub_data', { p_part: 'inv', p_support: SUP }); if (r.error) throw r.error; DATA.inv = r.data; LOADED_AT.inv = Date.now(); INV_TRY = 0; if (BOOTED && !busy()) boot(); }
+  try { const r = await hubRpc('ss_hub_data', { p_part: 'inv', p_support: SUP }); if (r.error) throw r.error; DATA.inv = r.data; LOADED_AT.inv = Date.now(); INV_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('invoice lines failed', e); if (++INV_TRY <= 3) setTimeout(loadInv, 20000 * INV_TRY); }
 }
 // open AR lines and last payments (Friday meeting, customer pop-up): from the daily AR snapshot, loaded after the main parts like the invoices
 let AR_TRY = 0;
 async function loadAr() {
-  try { const r = await sb.rpc('ss_hub_data', { p_part: 'ar', p_support: SUP }); if (r.error) throw r.error; DATA.ar = r.data; LOADED_AT.ar = Date.now(); AR_TRY = 0; if (BOOTED && !busy()) boot(); }
+  try { const r = await hubRpc('ss_hub_data', { p_part: 'ar', p_support: SUP }); if (r.error) throw r.error; DATA.ar = r.data; LOADED_AT.ar = Date.now(); AR_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('AR failed', e); if (++AR_TRY <= 3) setTimeout(loadAr, 20000 * AR_TRY); }
 }
 // dispatch's latest transfer list (read-only), shown on Orders > Transfers
 let TR_TRY = 0;
 async function loadTransfers() {
-  try { const r = await sb.rpc('ss_hub_data', { p_part: 'transfers', p_support: SUP }); if (r.error) throw r.error; DATA.transfers = r.data; LOADED_AT.transfers = Date.now(); TR_TRY = 0; if (BOOTED && !busy()) boot(); }
+  try { const r = await hubRpc('ss_hub_data', { p_part: 'transfers', p_support: SUP }); if (r.error) throw r.error; DATA.transfers = r.data; LOADED_AT.transfers = Date.now(); TR_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('transfers failed', e); if (++TR_TRY <= 3) setTimeout(loadTransfers, 20000 * TR_TRY); }
 }
 // Lead view (customer service lead, Scott 19 Nov): every held order across the support people, read-only. Not tied to the support switch.
 let LEAD_TRY = 0;
 async function loadLead() {
   if (!HUBD.lead) return;
-  try { const r = await sb.rpc('ss_hub_lead_data'); if (r.error) throw r.error; DATA.lead = r.data; LOADED_AT.lead = Date.now(); LEAD_TRY = 0; if (BOOTED && !busy()) boot(); }
+  try { const r = await hubRpc('ss_hub_lead_data'); if (r.error) throw r.error; DATA.lead = r.data; LOADED_AT.lead = Date.now(); LEAD_TRY = 0; if (BOOTED && !busy()) boot(); }
   catch (e) { console.warn('lead data failed', e); if (++LEAD_TRY <= 3) setTimeout(loadLead, 20000 * LEAD_TRY); }
 }
 const afterMain = () => { loadInv(); loadPskus(); loadAr(); loadTransfers(); loadLead(); };
