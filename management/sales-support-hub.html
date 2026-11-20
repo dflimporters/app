@@ -962,7 +962,7 @@ body{background:#F3F5F9}
 .content.portal{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
 .content.portal .topbar{padding-block:20px 8px;gap:14px;flex-wrap:wrap}
 #hubRefresh{white-space:nowrap}
-.ptabs{display:flex;gap:4px;background:#E6EAF2;border-radius:12px;padding:4px;margin:4px 0 6px;overflow-x:auto;scrollbar-width:none}
+.ptabs{display:flex;gap:4px;background:#E6EAF2;border-radius:12px;padding:4px;margin:4px auto 6px;overflow-x:auto;scrollbar-width:none}
 .ptabs::-webkit-scrollbar{display:none}
 .ptabs{container:ptabs / inline-size}
 .ptabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:1 1 auto;gap:6px;padding:9px 10px;border-radius:9px;font-family:var(--head);font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap;position:relative}
@@ -973,7 +973,7 @@ body{background:#F3F5F9}
 .ptabs button[aria-selected="true"] svg{color:var(--blue)}
 .ptabs button:focus-visible{outline:2px solid var(--blue)}
 .ptabs .ct{margin-left:2px;background:var(--red);color:#fff;font-size:10.5px;border-radius:9px;padding:0 6px;line-height:17px}
-.asofline{font-size:11.5px;color:var(--ink3);margin:0 0 12px}
+.asofline{font-size:11.5px;color:var(--ink3);margin:0 auto 12px;max-width:1240px}
 /* pop-ups sit above the portal's own top bar and menu (z-index up to 200) */
 .scrim{z-index:300}.drawer{z-index:301}
 @media (max-width:767px){
@@ -3093,7 +3093,7 @@ function vLead() {
 const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
 const tabBar = () => { const simple = isSimple(), out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } if (simple && !SIMPLE_TABS.includes(k) && k !== 'lead' && k !== TAB) return; out.push([k, t]); }); return out; };
-const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.filter(([k]) => !isSimple() || SIMPLE_LOOK.includes(k) || k === TAB).map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
+const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
   if (inLook(TAB)) LOOKLAST = TAB;
