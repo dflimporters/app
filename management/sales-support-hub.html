@@ -2067,6 +2067,8 @@ const ARC = {}; AR.forEach(r => { const x = ARC[r.c] = ARC[r.c] || {c:r.c, owed:
   x.owed += r.bal;
   if (late > 0) { x.over += r.bal; if (late > 30) x.over30 += r.bal; x.oldest = Math.max(x.oldest, late); x.inv.push({type:r.type, ref:r.ref, due:r.due, late, bal:r.bal}); } });
 const LASTPAY = {}; (O.lastpay || []).forEach(r => LASTPAY[r[0]] = {d:r[1], amt:+r[2] || 0});
+// credit limits from Acumatica (customer_credit, synced daily): the support person's customers (ar part) and the customers with held orders (lead view)
+const CLIM = {}; (O.climit || []).forEach(r => { CLIM[r[0]] = +r[1] || 0; }); (O.lcredit || []).forEach(r => { CLIM[r[0]] = +r[1] || 0; });
 const arOf = c => ARC[c] || {c, owed:0, over:0, over30:0, oldest:0, credit:0, old:0, inv:[]};
 // plans
 const planOf = (rep, wk) => (HUBD.plans || []).find(p => p.rep === rep && p.week_start === wk) || null;
@@ -2911,10 +2913,12 @@ function financeText(list) { const ds = jaNow().date, paid = list.filter(x => pa
   return L.join('\n'); }
 // one held-order row, used on Today (mode 'today': Rep told column, no Support column) and in the Lead view
 // why an order may be held: Acumatica does not record the reason, so this is worked out from the account (what is overdue) and how the order was keyed (Scott, 20 Nov)
-function holdWhy(x) { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past, oldest = a ? a.oldest : 0, owed = a ? a.owed : 0;
+function holdWhy(x) { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past, oldest = a ? a.oldest : 0, owed = a ? a.owed : 0, lim = CLIM[x.c];
   const st = (k, v, cls) => `<div class="hs${cls ? ' ' + cls : ''}"><span>${k}</span><b>${v}</b></div>`;
-  if (over > 0) return `<div class="hwhy">${st('Overdue', J(over), 'bad')}${oldest ? st('Oldest', oldest + ' days') : ''}${owed ? st('Owes in all', J(owed)) : ''}</div>`;
-  return `<div class="hwhy">${st('Overdue', 'Nothing', 'ok')}${owed ? st('Owes in all', J(owed)) : ''}${x.status === 'Credit Hold' ? '<div class="hnote">Probably over its credit limit. Check the account in Acumatica.</div>' : ''}</div>`; }
+  const overLim = lim > 0 && owed > 0 ? owed + x.val - lim : 0;
+  const cards = (over > 0 ? st('Overdue', J(over), 'bad') + (oldest ? st('Oldest', oldest + ' days') : '') : st('Overdue', 'Nothing', 'ok')) + (owed ? st('Owes in all', J(owed)) : '') + (lim == null ? '' : st('Credit limit', lim > 0 ? J(lim) : 'None set')) + (overLim > 0 ? st('Over the limit by', J(overLim), 'bad') : '');
+  const note = x.status !== 'Credit Hold' || over > 0 || overLim > 0 ? '' : lim == null ? 'Probably over its credit limit. Check the account in Acumatica.' : lim > 0 ? (owed > 0 ? `Within its limit on these figures (owes ${J(owed)} plus this order ${J(x.val)}). Other open orders may push it over.` : 'Check its balance against the limit in Acumatica.') : 'No credit limit is set on this account.';
+  return `<div class="hwhy">${cards}${note ? `<div class="hnote">${note}</div>` : ''}</div>`; }
 const pastTxt = x => { const a = AR_READY ? arOf(x.c) : null, over = a ? a.over : x.past; return over > 0 ? J(over) + (a && a.oldest ? ' · ' + a.oldest + 'd' : '') : '–'; };
 function holdRow(x, mode) { const td = mode === 'today', p = payOn(x.nbr), key = 'hold:' + x.nbr, nk = 'note|' + key, pk = 'hpromise|' + key, told = stOf('told:hold:' + x.nbr) === 'sorted', notes = notesFor(n => n.kind === 'note' && n.ref === key), pr = promiseOf(x.nbr), nx = x.status === 'Credit Hold' || x.past > 0 ? 'Tell the rep this account needs to pay before the order can be released' : 'Tell the rep the order is on hold and find out what releases it';
   ESCL[key] = `${x.cname}: order ${x.nbr} on ${x.status === 'Credit Hold' ? 'credit hold' : 'hold'} ${x.age} day${x.age === 1 ? '' : 's'} (${J(x.val)}${x.past ? ', ' + J(x.past) + ' past due' : ''})`;
@@ -3020,21 +3024,32 @@ function tellItems() { const it = [];
       line:`${s0.name || o.c}: order ${o.nbr} will ship short: ` + st.slice(0, 4).map(x => `${x.l.desc} (need ${x.l.open}, have ${Math.max(0, x.l.onhand)})`).join('; ') + (st.length > 4 ? '…' : '') + '. Please check with the store about a substitute.'}); });
   todayItems().filter(x => x.kind === 'Delivery problem').forEach(x => it.push({...x, key:'told:' + x.key, kind:'Delivery', rep:(byId[x.c] || {}).rep || '', line:`${x.t} (${x.issue}).`}));
   return it.filter(x => !x.c || inChain(x.c)).sort((a, b) => (b.value || 0) - (a.value || 0)); }
+// accounts that are overdue, by rep, so support can warn the reps before they visit (Scott, 20 Nov). From the latest AR snapshot; the status resets every Monday.
+function overdueAccts() { if (!AR_READY) return []; return STORES.filter(s => inChain(s.id) && s.rep).map(s => { const a = arOf(s.id); return a.over > 0 ? {c:s.id, name:s.name, rep:s.rep, over:a.over, oldest:a.oldest, owed:a.owed, lim:CLIM[s.id], held:ORD.filter(o => o.c === s.id && (o.stage.k === 'credit' || o.stage.k === 'hold')).length} : null; }).filter(Boolean); }
+const odKey = r => 'od:' + r + ':' + MONDAY, odSum = l => l.reduce((s, x) => s + x.over, 0);
+function odMsg(rep, list) { return `Hi ${firstName(rep)}, these accounts are overdue (sales support, ${fds(jaNow().date)}). Please remind them to pay when you visit:\n` + list.slice(0, 12).map(x => `• ${x.name}: ${J(x.over)} overdue${x.oldest ? ', oldest ' + x.oldest + (x.oldest === 1 ? ' day' : ' days') : ''}${x.held ? ' (order on hold)' : ''}`).join('\n') + (list.length > 12 ? `\n…and ${list.length - 12} smaller ones` : ''); }
+function odBoard() { const all = overdueAccts(); if (!all.length) return ''; const by = {}; all.forEach(x => (by[x.rep] = by[x.rep] || []).push(x)); Object.values(by).forEach(l => l.sort((a, b) => b.over - a.over));
+  const reps = Object.keys(by).sort((a, b) => odSum(by[b]) - odSum(by[a]));
+  return `<div style="margin-top:22px"></div>` + gboard('#E8862A', 'Overdue accounts: warn the reps before they visit', `${all.length} accounts · ${J(odSum(all))} overdue`, 'minmax(0,1.5fr) 84px 100px 74px 104px 126px 40px', [['Rep'], ['Accounts', 'center'], ['Overdue', 'center'], ['Oldest', 'center', 'hm'], ['Told', 'center'], ['Message', 'center']],
+    reps.map(r => { const l = by[r], more = SHOWALL['od:' + r];
+      return grow('odrep:' + r, [cell(esc(r), 'c-store one c1'), cell(String(l.length), 'c-age', 'center'), cell(J(odSum(l)), 'c-age', 'center'), cell(Math.max(...l.map(x => x.oldest || 0)) + 'd', 'c-age hm', 'center'), stBtn(odKey(r)), cell(`<button class="btn sm pri" type="button" data-odcopy="${esc(r)}">Copy message</button>`, '', 'center')],
+        gl('minmax(0,1.5fr) 92px 66px 92px 92px', [['Customer'], ['Overdue', 'r'], ['Oldest', 'r'], ['Owes in all', 'r'], ['Credit limit', 'r']], (more ? l : l.slice(0, 15)).map(x => [[`<b>${esc(x.name)}</b>${x.held ? ' <span class="pill red">order on hold</span>' : ''}`, ''], [`<span class="dn">${J(x.over)}</span>`, 'r val'], [x.oldest ? x.oldest + 'd' : '–', 'r rt'], [J(x.owed), 'r val'], [x.lim == null ? '–' : x.lim > 0 ? J(x.lim) : 'None', 'r rt']])) + (l.length > 15 ? `<div class="acts" style="margin-top:8px"><button class="btn sm" type="button" data-more="od:${esc(r)}">${more ? 'Show fewer' : 'Show all ' + l.length}</button></div>` : '')); }), 'odboard', 12); }
 function tellMsg(rep, list) { return `Hi ${firstName(rep) || 'team'}, update from sales support (${fds(jaNow().date)}):\n` + list.map(x => '• ' + x.line).join('\n'); }
 function vTell() {
   const all = tellItems(); all.forEach(x => { x.st = stOf(x.key); });
   const RN = r => r || 'No rep on file', open = all.filter(x => x.st !== 'sorted'), shown = TELLF === 'done' ? all.filter(x => x.st === 'sorted') : open, by = {};
   shown.forEach(x => (by[RN(x.rep)] = by[RN(x.rep)] || []).push(x));
   const sum = r => (by[r] || []).reduce((s, x) => s + (x.value || 0), 0), reps = Object.keys(by).sort((a, b) => sum(b) - sum(a) || a.localeCompare(b));
-  const cnt = k => open.filter(x => x.kind === k).length;
-  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C']], 'light tint');
+  const cnt = k => open.filter(x => x.kind === k).length, odAll = overdueAccts();
+  const tiles = dtiles([['To tell', `${open.length}`, `${all.length - open.length} done today`, '#D63B3B'], ['Can’t fill', `${cnt('Can’t fill')}`, 'Big orders that will ship short', '#B5487A'], ['Deliveries', `${cnt('Delivery')}`, 'Not delivered or part delivered', '#127F8C'], ['Overdue accounts', `${odAll.length}`, `${J(odSum(odAll))} · warn the reps`, '#E8862A']], 'four light tint');
   return `${lead1('tell-top', 'Orders we can’t fill and deliveries that failed, one list per rep. Tell them, then move it to Pending or Done.', 'Big orders that will ship short (the smaller ones are in Orders) and deliveries the driver app marked failed. “Copy message” builds one WhatsApp message with everything still open for that rep. Held orders are worked on Today: calling the rep about a hold is telling them, so tick Rep told there. Back orders are decided in the Back orders tab.')}
   ${tiles}
   <div class="legend" style="margin-top:18px"><span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${TELLF === 'open' ? `<button class="btn sm" type="button" data-tellf="done">Show done (${all.length - open.length})</button>` : `<button class="btn sm" type="button" data-tellf="open">Show what is still open</button>`}</div>
   ${dbMsg()}
   ${reps.length ? reps.map(r => { const list = by[r];
     return `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>${esc(r)}</h3><span class="gn">${list.length} · ${J(sum(r))}</span>${TELLF === 'open' ? `<button class="btn sm pri" type="button" data-tellcopy="${esc(r)}" style="margin-left:auto">Copy message for ${esc(firstName(r))}</button>` : ''}</div>
-    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}`;
+    <div class="bhead"><div>Customer</div><div>Issue</div><div>Rep</div><div>Merch</div><div style="text-align:center">Status</div><div style="text-align:center">Age</div><div></div></div>${list.map(brow).join('')}</section>`; }).join('') : `<div class="empty">${TELLF === 'done' ? 'Nothing told yet today.' : 'Nothing to tell the reps right now.'}</div>`}
+  ${TELLF === 'open' ? odBoard() : ''}`;
 }
 
 
@@ -3165,6 +3180,7 @@ __on(document, 'click', e => {
   if (d.esc) { const k = 'esc:' + d.esc, was = tick(k) && tick(k).v; setTick(k, was ? null : String(ESCL[d.esc] || d.esc).slice(0, 300)); toast(was ? 'Escalation withdrawn.' : 'Escalated. The lead can see it in the Lead view.'); return; }
   if (d.escdone) { setTick('escdone:' + d.escdone, 1); return; }
   if (d.tellf) { TELLF = d.tellf; render(); return; }
+  if (d.odcopy) { const l = overdueAccts().filter(x => x.rep === d.odcopy).sort((a, b) => b.over - a.over); if (l.length) copyText(odMsg(d.odcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.tellcopy) { const l = tellItems().filter(x => (x.rep || 'No rep on file') === d.tellcopy && stOf(x.key) !== 'sorted'); if (l.length) copyText(tellMsg(d.tellcopy, l), 'Message copied. Paste it into WhatsApp.'); return; }
   if (d.heldtold) { const k = 'st:told:hold:' + d.heldtold, was = tick(k) && tick(k).v === 'sorted'; setTick(k, was ? null : 'sorted'); return; }
   if (d.exp) { EXP = EXP === d.exp ? null : d.exp; OPEN = null; render(); return; }
