@@ -51,6 +51,18 @@ nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;fo
 .dstep.cur{--ac:#326BD3;border-color:#326BD3;box-shadow:inset 0 5px 0 var(--ac),0 0 0 2px rgba(50,107,211,.22)}
 .dstep.late{--ac:#D63B3B}
 .dstep.done{--ac:#1A8F4C}
+.ftiles.calm .ft{background:color-mix(in srgb,var(--ftc) 9%,#fff);color:var(--ink);border:1px solid color-mix(in srgb,var(--ftc) 26%,#fff);box-shadow:inset 0 5px 0 var(--ftc),0 1px 2px rgba(20,35,70,.06);padding:18px 16px 12px}
+.ftiles.calm .ft.stat{cursor:default}
+.ftiles.calm .ft.stat:hover{transform:none;box-shadow:inset 0 5px 0 var(--ftc),0 1px 2px rgba(20,35,70,.06)}
+.ftiles.calm .ft:not(.stat):hover{box-shadow:inset 0 5px 0 var(--ftc),0 6px 16px rgba(13,27,62,.12)}
+.ftiles.calm .ft[aria-pressed="true"]{box-shadow:inset 0 5px 0 var(--ftc),0 0 0 2px color-mix(in srgb,var(--ftc) 45%,#fff)}
+.ftiles.calm .ft .ic{background:color-mix(in srgb,var(--ftc) 15%,#fff);color:var(--ftc)}
+.ftiles.calm .ft .l{color:color-mix(in srgb,var(--ftc) 55%,#3A4766)}
+.ftiles.calm .ft .n{color:var(--ftc)}
+.ftiles.calm .ft .x{color:var(--ink2);border-top-color:color-mix(in srgb,var(--ftc) 22%,#fff)}
+.ftiles.calm .ft .x b{color:var(--ink)}
+.ftiles.calm .ft .tbar{background:color-mix(in srgb,var(--ftc) 18%,#fff)}
+.ftiles.calm .ft .tbar i{background:var(--ftc)}
 .dstep.cur .n{background:#326BD3;color:#fff}
 .dstep.late .n{background:#D63B3B;color:#fff}
 .dstep.late .s{color:#D63B3B;font-weight:600}
@@ -1766,6 +1778,8 @@ function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod' && n.kind 
 const SUB = {orders:'check', deals:'open', backorders:'week', deliv:'prob', returns:'reason', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
 // solid tile that switches a sub-tab
 const ctile = (sub, ic, n, l, x, col) => `<button type="button" class="ft" data-sub="${esc(sub)}" aria-pressed="${SUB[TAB] === sub}" style="--ftc:${col}"><span class="ic">${icon(ic, 2)}</span><span class="l">${esc(l)}</span><span class="n">${n}</span><span class="x">${x}</span></button>`;
+// a plain number card for the Look up tabs: same look as ctile but it does not open anything (Scott, 20 Nov: every Look up tab has the same cards)
+const stile = (ic, n, l, x, col) => `<div class="ft stat" style="--ftc:${col}"><span class="ic">${icon(ic, 2)}</span><span class="l">${esc(l)}</span><span class="n">${n}</span><span class="x">${x}</span></div>`;
 const segs = list => `<div class="seg" role="tablist">${list.map(([k, t, n]) => `<button type="button" role="tab" data-sub="${esc(k)}" aria-selected="${SUB[TAB] === k || (k === 'bo' && (SUB[TAB] === 'bohand' || SUB[TAB] === 'borep')) || (k === 'chains' && SUB[TAB] === 'stmt') || (k === 'month' && SUB[TAB] === 'behind') || (k === 'stores' && (SUB[TAB] === 'nomgr' || SUB[TAB] === 'nobk'))}">${esc(t)}${n != null ? `<span>${n}</span>` : ''}</button>`).join('')}</div>`;
 // one short line, with the longer explanation behind ⓘ
 const lead1 = (id, short, long) => `<p class="lead1">${esc(short)}${long ? ` <button type="button" class="info" data-info="${esc(id)}" aria-expanded="${!!INFO[id]}" aria-label="More about this">i</button>` : ''}</p>${long && INFO[id] ? `<p class="infobox">${esc(long)}</p>` : ''}`;
@@ -1842,7 +1856,8 @@ function vOrders() {
     body = lead1('o-ship', 'Shipments Acumatica has confirmed in the last 7 days. Tap one to see what was on it and what was left off.', 'On the shipment: the items invoiced to this customer on the shipment date (if the customer had two orders that day, both are included). Left off: items on the order that were not sent, and any item the driver app recorded as short, refused or not delivered. Open the shipment in Acumatica for the exact picking list.') +
     gboard('#1A8F4C', 'Shipped, last 7 days', sl.length + ' shipments · ' + J(sl.reduce((a, s) => a + s.value, 0)), 'minmax(0,1.5fr) 82px 82px 70px minmax(0,1fr) 90px 40px', [['Customer'], ['Shipment', '', 'hm'], ['Order', '', 'hm'], ['Date', 'center', 'hm'], ['Delivered by', '', 'hm'], ['Value', 'right'], ['']],
       sl.map(s => grow('sh:' + s.nbr, [cell(esc(cnm(s.c)), 'c-store one c1'), cell(acuShip(s.nbr), 'one hm'), cell(acuOrder(s.order), 'one hm'), cell(esc(fds(s.date)), 'c-age hm', 'center'), cell(truckCell(realVia(s.via)), 'one hm'), cell(J(s.value), 'c-age', 'right')], shipDetail(s))), 'shipped'); }
-  return `
+  const heldO = ORD.filter(o => (o.stage.k === 'credit' || o.stage.k === 'hold') && inChain(o.c)), sumO = l => l.reduce((a, o) => a + (o.total || 0), 0);
+  return `<div class="ftiles three calm">${stile('orders', open.length, 'Open orders', J(sumO(open)) + ' keyed, not delivered yet', '#326BD3')}${stile('alert', heldO.length, 'On hold', J(sumO(heldO)) + ' · worked on Today', '#E2445C')}${stile('deliv', shipped.length, 'Shipped, last 7 days', J(shipped.reduce((a, s) => a + (s.value || 0), 0)), '#1A8F4C')}</div>
   ${segs([['open', 'Open orders', open.length], ['shipped', 'Shipped', shipped.length], ['xfer', 'Transfers', trAll]])}
   <div class="dsearch"><label for="oq">Search orders</label><input id="oq" type="search" placeholder="Customer, order number, product or rep" value="${esc(OQ)}" autocomplete="off"></div>
   ${body}`;
@@ -1924,7 +1939,7 @@ function vDeliv() {
       <div><span>Value</span>${J(d.value)} · shipment dated ${esc(fd(d.date))}</div></div>
       <div class="acts"><button class="btn sm" type="button" data-store="${esc(d.c)}">Open customer</button>${d.order ? `<button class="btn sm" type="button" data-order="${esc(d.order)}">See the order</button>` : ''}${btnNote('note|dlv:' + d.nbr, '✎ Note')}</div>${formFor('note|dlv:' + d.nbr)}`; };
   const prob = base.filter(isProb).length, out = base.filter(d => d.date === ASOF || d.st.k === 'road').length;
-  return `<div class="ftiles three">
+  return `<div class="ftiles three calm">
     ${ctile('prob', 'alert', prob, 'Problems', 'Not delivered, part delivered or not shipped 3+ days', '#E2445C')}
     ${ctile('today', 'deliv', out, 'Out today', 'Dated today or on the road', '#326BD3')}
     ${ctile('all', 'orders', base.length, 'Last 3 weeks', base.filter(d => d.st.k === 'del').length + ' delivered (driver app)', '#1A8F4C')}
@@ -1962,7 +1977,8 @@ function vReturns() {
       gboard('#E8862A', 'Repeat returns', cl.length + ' customers', 'minmax(0,1.6fr) minmax(0,.8fr) 70px 90px minmax(0,1.6fr) 40px', [['Customer'], ['Rep', '', 'hm'], ['Returns', 'center'], ['Value', 'right'], ['Main reason', '', 'hm'], ['']],
         cl.map(x => { const top = Object.entries(x.rs).sort((a, b) => b[1] - a[1])[0]; return grow('rcc:' + x.c, [cell(esc(byId[x.c] ? byId[x.c].name : x.c), 'c-store one c1'), cell(esc(firstName((byId[x.c] || {}).rep)), 'one hm'), cell(`<b class="${x.oe ? 'dn' : ''}">${x.n}</b>`, 'one c2', 'center'), cell(J(x.v), 'one', 'right'), cell(esc(rNice(top[0])) + (top[1] > 1 ? ' ×' + top[1] : ''), 'one hm')],
           rows(list.filter(r => r.c === x.c).map(r => row(esc(r.nbr) + ' · ' + esc(fds(r.date)), esc(rNice(r.reason)) + ': ' + lines(r), J(r.total), ''))) + `<div class="acts"><button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button></div>`); }), 'rcc'); }
-  return `
+  const rAll = RC.filter(r => inChain(r.c)).map(r => ({...r, g:RGRP(r.reason)})), rOE = rAll.filter(r => r.g === 'Order entry'), rWk = rAll.filter(r => r.date >= addDays(ASOF, -7)), rSum = l => l.reduce((a, r) => a + r.total, 0);
+  return `<div class="ftiles three calm">${stile('note', rAll.length, 'Returns, last 60 days', J(rSum(rAll)), '#E8862A')}${stile('alert', rOE.length, 'Order entry', J(rSum(rOE)) + ' · support can stop these', '#E2445C')}${stile('box', rWk.length, 'This week', J(rSum(rWk)), '#326BD3')}</div>
 ${segs([['reason', 'All', list.length], ...Object.keys(RGRPC).filter(g => byG(g).length).map(g => ['g:' + g, g, byG(g).length]), ['cust', 'Repeat returners', null]])}
   <div class="dsearch"><label for="rq">Find a return</label><input id="rq" type="search" placeholder="Customer, return number, reason or who keyed it" value="${esc(RQ)}" autocomplete="off"></div>${body}`;
 }
@@ -2375,7 +2391,8 @@ async function oosPicture(list) {
       oosShow.map(x => grow('oos:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(x.custs.size, 'c-age hm', 'center'), cell(`${x.open}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(solid(OOS_ST[x.st][0], OOS_ST[x.st][1]), 'one', 'center'), cell(x.r ? rTag(x.sku) : `<span class="reason none">${esc(oosWhen(x))}</span>`, 'one c2 rsn')],
         plCards(x.ls.map(l => { const o = ordBy[l.nbr]; return {name:byId[o.c] ? byId[o.c].name : o.c, sub:`Order ${esc(l.nbr)} · ${esc(o.status)} · keyed ${esc(fds(o.date))} · rep ${esc(firstName((byId[o.c] || {}).rep) || '–')}`, tag:l.open + ' owed'}; })) +
         `<div class="bfacts"><div><span>Stock</span>${x.at71} at 71 · ${x.ash} at Ashenheim · ${x.open} owed (${J(x.val)})</div><div><span>Category</span>${esc(x.cls || '–')}${CMOF(x.cls) ? ' · ' + esc(CMOF(x.cls)) : ''}</div></div>${rExp(x.sku)}`)), 'oos');
-  return `${segs([['week', 'Weekly review', weekN], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
+  return `<div class="ftiles three calm">${stile('box', undecN, 'Back orders to decide', `of ${weekN} orders · ${bo.length} lines`, '#7B4FD0')}${stile('orders', handOrds, 'Stock shows on hand', 'orders with an item we can ship', '#1A8F4C')}${stile('alert', oos.length, 'Out of stock', `${oosNo} with no update yet`, '#E2445C')}</div>
+  ${segs([['week', 'Weekly review', weekN], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]])}
   <div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number, item or rep" value="${esc(BQ)}" autocomplete="off"></div>
   ${dbMsg()}${body}`;
 }
@@ -2524,7 +2541,7 @@ function vStores() {
       {k:'bar', label:'', cls:'hide-sm', w:'18%', get:x => x.t ? x.m / x.t : 0, show:x => { const p = x.t ? x.m / x.t * 100 : 0; return x.t ? `<div class="pace" style="justify-content:center"><div class="pbar wide"><i style="width:${Math.min(100, p)}%;background:${x.gap >= 0 ? '#00C875' : '#E2445C'}"></i><b style="left:${PACE * 100}%"></b></div></div>` : ''; }},
       {k:'pct', label:'Prog', num:1, cls:'ctr', get:x => x.t ? x.m / x.t : -1, show:x => x.t ? `<b class="${x.gap >= 0 ? 'up' : 'dn'}">${Math.round(x.m / x.t * 100)}%</b>` : '<span class="note" style="margin:0">–</span>'},
       {k:'gap', label:'Short by', num:1, key:1, get:x => x.t ? x.gap : null, show:x => !x.t ? '<span class="note" style="margin:0">no target</span>' : x.gap >= 0 ? '<span class="up">on track</span>' : `<b class="dn">${J(-x.gap)}</b>`}], cats, 'gap', 1, true, x => x.cls, 'cat');
-  return `<div class="ftiles three">
+  return `<div class="ftiles three calm">
     ${ctile('month', 'stores', J(sub.mtd), monName + ' so far', `<span class="tbar"><i style="width:${Math.min(100, sub.mtd / (sub.bud || 1) * 100)}%"></i><b style="left:${PACE * 100}%"></b></span><b>${Math.round(sub.mtd / (sub.bud || 1) * 100)}% of ${J(sub.bud)}</b> · pace ${Math.round(PACE * 100)}%`, sub.mtd >= sub.bud * PACE ? '#1A8F4C' : '#326BD3')}
     ${ctile('behind', 'alert', behind.length, 'Behind pace', J(behind.reduce((a, s) => a + s.gapPace, 0)) + ' short of pace', '#E2445C')}
     ${ctile('cats', 'box', catsDown, 'Categories behind', 'of ' + cats.filter(x => x.t > 0).length + ' with a target this month', '#7B4FD0')}
