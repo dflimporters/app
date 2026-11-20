@@ -3014,7 +3014,7 @@ function vLead() {
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
 const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
-const tabBar = () => { const simple = isSimple(), out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } if (simple && !SIMPLE_TABS.includes(k) && k !== TAB) return; out.push([k, t]); }); return out; };
+const tabBar = () => { const simple = isSimple(), out = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead' && !HUBD.lead) return; if (inLook(k)) { if (!placed) { out.push(['look', 'Look up']); placed = true; } return; } if (simple && !SIMPLE_TABS.includes(k) && k !== 'lead' && k !== TAB) return; out.push([k, t]); }); return out; };
 const lookBar = () => inLook(TAB) ? `<div class="seg" role="tablist" aria-label="Look up">${LOOK.filter(([k]) => !isSimple() || SIMPLE_LOOK.includes(k) || k === TAB).map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${TAB === k}">${esc(t)}</button>`).join('')}</div>` : '';
 function render() {
   if (TAB === 'lead' && !HUBD.lead) TAB = 'today';
@@ -3055,7 +3055,7 @@ __on(document, 'click', e => {
   if (e.target.closest('a.acu, a.acubtn')) return;   // Acumatica links open in a new tab, nothing else
   const b = e.target.closest('button, [data-close], [data-exp], tr[data-store], tr[data-cat], [data-chain]'); if (!b) return;
   const d = b.dataset;
-  if (d.simple !== undefined) { SIMPLE_OVR = d.simple === '1'; try { localStorage.setItem('ss-simple', SIMPLE_OVR ? '1' : '0'); } catch (x) {} if (SIMPLE_OVR && !SIMPLE_TABS.includes(TAB) && !inLook(TAB)) TAB = 'today'; render(); return; }
+  if (d.simple !== undefined) { SIMPLE_OVR = d.simple === '1'; try { localStorage.setItem('ss-simple', SIMPLE_OVR ? '1' : '0'); } catch (x) {} if (SIMPLE_OVR && !SIMPLE_TABS.includes(TAB) && TAB !== 'lead' && !inLook(TAB)) TAB = 'today'; render(); return; }
   if (d.daystep !== undefined) { DAYSTEP = +d.daystep; render(); return; }
   if (d.tab) { TAB = d.tab; OPEN = null; try { history.replaceState(null, '', '#' + TAB); } catch (x) {} render(); window.scrollTo(0, 0); return; }
   if (d.close) { DRAWER = null; OPEN = null; render(); return; }
