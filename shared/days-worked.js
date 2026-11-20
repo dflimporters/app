@@ -39,6 +39,7 @@
   const PAID_DAYS = 10;
   const DEFAULT_RATE = 4000;
   // Same list as REASONS in management/relief-coverage.html
+  const COV_TRAINING = 'Training';
   const REASONS = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Backfill for resignation', 'Training', 'Absent', 'Other'];
   // staff_type comes from relief_roster (get_days_worked); fall back to the role.
   const isTemp = p => p.staff_type ? p.staff_type === 'relief' : p.role === 'relief_merchandiser';
@@ -135,6 +136,9 @@
       '.dfld-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}',
       '.dfld-grid label{font-size:10px;font-weight:700;color:var(--d-muted);text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:3px}',
       '.dfld-grid label.full{grid-column:1/-1}',
+      '.dfld-covs{display:flex;flex-wrap:wrap;gap:4px}',
+      '.dfld-cov{display:inline-flex;align-items:center;gap:2px;background:var(--d-line);color:var(--d-text);border-radius:999px;padding:3px 4px 3px 9px;font-size:12px;font-weight:600;text-transform:none;letter-spacing:0}',
+      '.dfld-cov button{border:none;background:transparent;color:var(--d-muted);font-size:15px;line-height:1;cursor:pointer;padding:0 4px}',
       '.dfld-ltot{font-size:12px;font-weight:800;color:var(--d-ink);text-align:right;white-space:nowrap}',
       '.dfld-gtot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:2px solid var(--d-line);padding-top:10px;margin-top:4px;font-weight:800}',
       '.dfld-btn{border:none;border-radius:8px;padding:10px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;background:var(--d-ink);color:#fff}',
@@ -374,6 +378,20 @@
       return { week: ws, lines, note: '' };
     }
 
+    // "Covering for" holds several names (or "Training"), stored as one comma-separated
+    // string in `absent` so submit_tl_payroll / relief_coverage are unchanged.
+    const covList = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+    function covHtml(l, i) {
+      const sel = covList(l.absent), has = new Set(sel.map(x => x.toLowerCase()));
+      const team = (data.staff || []).filter(p => !isTemp(p) && p.id !== l.id).map(p => p.name).sort((a, b) => a.localeCompare(b));
+      const opts = [COV_TRAINING].concat(team).filter(n => !has.has(n.toLowerCase()));
+      return '<label>Covering for' +
+        (sel.length ? '<span class="dfld-covs">' + sel.map(n => '<span class="dfld-cov">' + esc(n) + '<button type="button" data-covrm="' + i + '" data-n="' + esc(n) + '" title="Remove">×</button></span>').join('') + '</span>' : '') +
+        '<select class="dfld-in" data-cov="' + i + '"><option value="">' + (sel.length ? '+ Add another…' : 'Who was off?') + '</option>' +
+        opts.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') +
+        '<option value="__other">Someone else…</option></select></label>';
+    }
+
     function lineHtml(l, i, existing) {
       const p = staffById()[l.id], w = ix.worked[l.id] || {};
       const days = lineDays(l.kind, ui.week);
@@ -391,7 +409,7 @@
         : 'Extra days · ' + r.worked + ' worked' + (r.assumed ? ' + ' + r.assumed + ' assumed' : '') + ' of ' + r.expected + ' owed';
       const reason = l.kind === 'relief'
         ? '<label>Reason<select class="dfld-in" data-f="reason" data-i="' + i + '"><option value="">Choose…</option>' + REASONS.map(x => '<option' + (x === l.reason ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
-          '<label>Covering for<input class="dfld-in" data-f="absent" data-i="' + i + '" list="dfld-team" placeholder="Who was off?" value="' + esc(l.absent) + '"></label>'
+          covHtml(l, i)
         : '<label class="full">Reason<input class="dfld-in" value="Extra day worked" disabled></label>';
       return '<div class="dfld-line"><div class="dfld-lhead"><div style="min-width:0"><div class="dfld-nm">' + esc(p.name) + '</div><div class="dfld-sub">' + esc(sub) + '</div></div>' +
         '<div style="display:flex;align-items:flex-start;gap:6px"><div class="dfld-ltot" data-ltot="' + i + '"></div><button type="button" class="dfld-x-btn" data-rm="' + i + '" title="Remove">×</button></div></div>' +
@@ -416,7 +434,6 @@
       else if (existing) h += '<div class="dfld-ok">Submitted ' + esc(new Date(existing.submitted_at).toLocaleString('en-JM', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + ' — it’s in Relief Coverage, waiting for the pay run. Submitting again replaces anything not paid yet.</div>';
       else h += '<div class="dfld-due">Not submitted for ' + range(ws, we) + ' yet — due Wednesday ' + short(addDays(ws, 2)) + '. Tap days to add or remove them.</div>';
 
-      h += '<datalist id="dfld-team">' + (data.staff || []).filter(p => !isTemp(p)).map(p => '<option value="' + esc(p.name) + '">').join('') + '</datalist>';
       h += dr.lines.length ? dr.lines.map((l, i) => lineHtml(l, i, existing)).join('')
         : '<div class="dfld-note" style="padding:10px 0;border-top:1px solid var(--d-line)">No relief or extra days to submit this week. Add someone below if needed.</div>';
 
@@ -518,6 +535,19 @@
       el.querySelectorAll('[data-f]').forEach(i => i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => {
         dr.lines[+i.dataset.i][i.dataset.f] = i.value; lineTotals();
       }));
+      el.querySelectorAll('[data-cov]').forEach(s => s.onchange = () => {
+        const l = dr.lines[+s.dataset.cov];
+        let v = s.value;
+        if (v === '__other') v = (prompt('Who was off?') || '').replace(/,/g, ' ').trim();
+        if (v && !covList(l.absent).some(x => x.toLowerCase() === v.toLowerCase())) l.absent = covList(l.absent).concat(v).join(', ');
+        render();
+      });
+      el.querySelectorAll('[data-covrm]').forEach(b => b.onclick = e => {
+        e.preventDefault();
+        const l = dr.lines[+b.dataset.covrm];
+        l.absent = covList(l.absent).filter(x => x !== b.dataset.n).join(', ');
+        render();
+      });
       el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { dr.lines.splice(+b.dataset.rm, 1); render(); });
       const add = el.querySelector('[data-k=add]');
       if (add) add.onchange = () => {
