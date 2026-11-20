@@ -2832,9 +2832,9 @@ const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin
   const left = m => { const x = Math.max(0, m - n); return x >= 60 ? Math.floor(x / 60) + 'h' + (x % 60 ? ' ' + (x % 60) + 'm' : '') : x + ' min'; };
   return {n, a, f, c, e, left, phase:n < a ? 0 : n < f ? 1 : n < c ? 2 : n < e ? 3 : 4}; };
 let LEADF = 'All', TELLF = 'open';
-// simple view (Scott, 20 Nov): new support people see Today, Tell the reps and a short Look up; "More tabs" brings back everything. Leads start on the full view.
+// simple view (Scott, 20 Nov): everyone (leads included) starts on Today, Tell the reps and a short Look up; "More tabs" brings back everything.
 let DAYSTEP = -1, SIMPLE_OVR = null; const SIMPLE_TABS = ['today', 'tell'], SIMPLE_LOOK = ['orders', 'stores'];
-const isSimple = () => { if (SIMPLE_OVR != null) return SIMPLE_OVR; let v = null; try { v = localStorage.getItem('ss-simple'); } catch (x) {} return v == null ? !HUBD.lead : v === '1'; };
+const isSimple = () => { if (SIMPLE_OVR != null) return SIMPLE_OVR; let v = null; try { v = localStorage.getItem('ss-simple'); } catch (x) {} return v == null ? true : v === '1'; };
 const ESCL = {};   // label for each escalated item, filled as the rows are drawn
 const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
 const finSent = sup => { const t = tick('fin:' + jaNow().date + ':' + sup); return t && t.v ? t : null; };
