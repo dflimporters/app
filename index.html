@@ -249,6 +249,57 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
+/* ---- Company accounts (admin/manager global view of the Customers tab) ---- */
+.scope{display:flex;gap:4px;background:#e9edf6;padding:3px;border-radius:10px;margin:14px 2px 0;width:max-content}
+.scope button{border:none;background:none;font-family:'Open Sans';font-weight:700;font-size:12px;color:var(--mut);padding:6px 14px;border-radius:8px;cursor:pointer}
+.scope button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.ghero{background:linear-gradient(150deg,#1b356e,var(--navy) 70%);color:#fff;border-radius:18px;padding:18px 18px 16px;margin-top:14px;box-shadow:0 6px 24px rgba(13,27,62,.22);position:relative;overflow:hidden}
+.ghero::after{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(91,142,240,.35),transparent 70%)}
+.ghero .k{font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#9fb2dc}
+.ghero .top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;position:relative;z-index:1}
+.ghero .amt{font-family:'Montserrat';font-weight:800;font-size:clamp(24px,7vw,32px);letter-spacing:-.5px;line-height:1.1;margin-top:4px;white-space:nowrap}
+.ghero .tg{font-size:12.5px;color:#cdd8f0;margin-top:3px}.ghero .tg b{color:#fff}
+.ghero .pc{font-family:'Montserrat';font-weight:800;font-size:clamp(30px,8.5vw,40px);line-height:1;letter-spacing:-1px;text-align:right}
+.ghero .pc span{font-size:.5em;margin-left:1px}
+.ghero .pc.good{color:#4fd69a}.ghero .pc.warn{color:#f5c04d}.ghero .pc.bad{color:#ff8a85}
+.ghero .pcl{font-size:10.5px;color:#9fb2dc;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:right;margin-top:4px}
+.gbar{height:10px;border-radius:8px;background:rgba(255,255,255,.14);margin:14px 0 7px;position:relative;z-index:1}
+.gbar>span{display:block;height:100%;border-radius:8px;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.gbar>span.good{background:linear-gradient(90deg,#1fa86a,#4fd69a)}.gbar>span.warn{background:linear-gradient(90deg,#d9920a,#f5c04d)}.gbar>span.bad{background:linear-gradient(90deg,#d64545,#ff8a85)}
+.gbar>i{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;opacity:.75;border-radius:2px}
+.gpace{display:flex;justify-content:space-between;font-size:11.5px;color:#cdd8f0;font-weight:600;position:relative;z-index:1}
+.gpace b{color:#fff;font-family:'Montserrat'}
+.gytd{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+.gytd .yk{font-size:10px;font-weight:800;letter-spacing:.8px;color:#9fb2dc;text-transform:uppercase;flex-shrink:0}
+.gytd .ybar{flex:1;height:6px;border-radius:6px;background:rgba(255,255,255,.14);overflow:hidden}
+.gytd .ybar>span{display:block;height:100%;border-radius:6px}
+.gytd .yv{font-size:12px;color:#cdd8f0;white-space:nowrap}.gytd .yv b{font-family:'Montserrat';font-weight:800;color:#fff}
+.gstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 4px}
+.gstat{background:var(--card);border-radius:12px;padding:10px 6px 9px;text-align:center;box-shadow:var(--shadow);cursor:pointer;border:1.5px solid transparent;transition:border-color .12s}
+.gstat.on{border-color:var(--blue)}
+.gstat .n{font-family:'Montserrat';font-weight:800;font-size:20px;line-height:1}
+.gstat .l{font-size:9.5px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.3px;margin-top:5px;line-height:1.2}
+.gareas{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px;scrollbar-width:none}
+.gareas::-webkit-scrollbar{display:none}
+.garea{flex-shrink:0;border:1.5px solid var(--line);background:#fff;color:var(--mut);font-family:'Open Sans';font-weight:700;font-size:12px;padding:6px 12px;border-radius:20px;cursor:pointer}
+.garea.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.grow{display:flex;gap:11px;align-items:flex-start}
+.grank{flex-shrink:0;width:28px;height:28px;border-radius:9px;background:#eef1f8;color:var(--mut);font-family:'Montserrat';font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.grank.r1{background:linear-gradient(135deg,#f9d66b,#e0a012);color:#fff;font-size:15px}
+.grank.r2{background:linear-gradient(135deg,#dfe4ec,#a7b1c2);color:#fff;font-size:15px}
+.grank.r3{background:linear-gradient(135deg,#e9b48a,#b87333);color:#fff;font-size:15px}
+.gbody{flex:1;min-width:0}
+.gsub{font-size:11px;color:var(--mut);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gpct{font-family:'Montserrat';font-weight:800;font-size:17px;line-height:1}
+.cbar.pace{position:relative;overflow:visible}
+.cbar.pace>span{border-radius:6px}
+.cbar.pace>span.good{background:linear-gradient(90deg,#178a55,#25b06e)}.cbar.pace>span.warn{background:linear-gradient(90deg,#d9920a,#f0b13d)}.cbar.pace>span.bad{background:linear-gradient(90deg,#c9302c,#e05c57)}
+.cbar.pace>i{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--navy);opacity:.3}
+.ypill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.ypill.good{background:#e5f5ec;color:var(--good)}.ypill.warn{background:#fdf3dc;color:#a5760a}.ypill.bad{background:#fbe6e6;color:var(--bad)}.ypill.none{background:#eef1f8;color:var(--mut)}
+.gmore{display:block;width:100%;margin:6px 0 0;padding:11px;border:1.5px dashed #c9d3e6;background:none;border-radius:12px;font-family:'Open Sans';font-weight:700;font-size:13px;color:var(--blue);cursor:pointer}
+@media(max-width:380px){.gstat .n{font-size:17px}.tab{font-size:11.5px;padding:9px 4px}}
+
 /* ---- More / launcher tab ---- */
 #tab-more{padding-bottom:0}                 /* iframe manages its own height; no tab-bar gap */
 .launch-wrap{padding:14px 14px calc(80px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
@@ -310,7 +361,7 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
           </button>
           <div>
-            <div class="hi">My Accounts</div>
+            <div class="hi" id="custkick">My Accounts</div>
             <div class="hname" id="custhdr">Customers</div>
           </div>
         </div>
@@ -1238,8 +1289,12 @@ function setSort(s,el){SORT=s;document.querySelectorAll("#tab-custs .tab").forEa
 let CUSTSEARCH="";
 function renderCustList(){
   const c=document.getElementById("custcontent");
-  document.getElementById("custhdr").textContent="My Accounts";
+  // Admin/manager, not viewing as a rep: company-wide accounts. One with their
+  // own book (REP) gets a Company | Mine toggle; one without lands on Company.
+  if(IS_MANAGER && !VIEWAS && (!REP || CUSTSCOPE==="all")){ renderGlobalCusts(); return; }
+  document.getElementById("custhdr").textContent="My Accounts"; document.getElementById("custkick").textContent="My Accounts";
   c.innerHTML=`
+    ${IS_MANAGER&&!VIEWAS&&REP?scopeToggleHtml():""}
     <input id="custsearch" class="search" placeholder="Search accounts…" value="${esc(CUSTSEARCH)}" oninput="CUSTSEARCH=this.value;drawList()">
     <div class="tabs">
       <button class="tab ${SORT==='gap'?'on':''}" onclick="setSort('gap',this)">Biggest gap</button>
@@ -1282,6 +1337,146 @@ function drawList(){
     </div>`;
   }).join("");
 }
+/* ---------- Company accounts (admin/manager) ----------
+   Every customer across every rep, from get_company_customer_scoreboard()
+   (is_manager() only). MTD vs this month's budget is the headline; YTD is
+   actual vs the budget for closed months plus this month pro-rated by selling
+   days — i.e. where the account should be today, not at month end. */
+let CUSTSCOPE="all", GC=null, GCAREA="all", GCSORT="lead", GCSTAT=null, GCSEARCH="", GCSHOW=50;
+const GC_MIN_LEAD=50000;   // Leaders ranks accounts with a J$50K+ month target, so a J$2K budget at 400% can't top the board
+function scopeToggleHtml(){
+  return `<div class="scope"><button class="${CUSTSCOPE==='all'?'on':''}" onclick="setCustScope('all')">Company</button><button class="${CUSTSCOPE==='mine'?'on':''}" onclick="setCustScope('mine')">My accounts</button></div>`;
+}
+function setCustScope(s){ CUSTSCOPE=s; renderCustList(); }
+function paceCls(pct,exp){ return pct>=exp-2?"good":pct>=exp-10?"warn":"bad"; }
+function ytdCls(p){ return p>=98?"good":p>=90?"warn":"bad"; }
+
+async function renderGlobalCusts(){
+  const c=document.getElementById("custcontent");
+  document.getElementById("custhdr").textContent="All Accounts"; document.getElementById("custkick").textContent="Company";
+  if(!GC){
+    c.innerHTML=`<div class="spin"></div>`;
+    try{
+      const r=await fetch(`${SB_URL}/rest/v1/rpc/get_company_customer_scoreboard`,{method:"POST",headers:{...await userH(),"Content-Type":"application/json"},body:"{}"});
+      if(!r.ok) throw new Error(r.status);
+      const rows=await r.json();
+      if(!Array.isArray(rows)) throw new Error("bad");
+      const sd=sellingDays(), frac=sd.total>0?sd.done/sd.total:0;
+      GC=rows.map(x=>{
+        const mb=+x.mtd_budget||0, mn=+x.mtd_net||0, yt=(+x.ytd_budget_prior||0)+mb*frac, ya=+x.ytd_actual||0;
+        return {cid:x.customer_id, name:x.customer_name||x.customer_id, reps:x.salespeople||"", area:x.area||"",
+          mb, mn, pct:mb>0?mn/mb*100:null, orders:+x.order_count||0, last:x.last_order_date,
+          yt, ya, ypct:yt>0?ya/yt*100:null};
+      });
+    }catch(e){ c.innerHTML=`<div class="empty">Couldn't load company accounts. Check your connection and try again.</div>`; return; }
+  }
+  c.innerHTML=`
+    ${REP?scopeToggleHtml():""}
+    <div id="ghero"></div>
+    <div class="gstats" id="gstats"></div>
+    <input class="search" placeholder="Search customers, reps…" value="${esc(GCSEARCH)}" oninput="GCSEARCH=this.value;GCSHOW=50;drawGlobal()">
+    <div class="gareas" id="gareas"></div>
+    <div class="tabs">
+      <button class="tab ${GCSORT==='lead'?'on':''}" onclick="setGcSort('lead')">🏆 Leaders</button>
+      <button class="tab ${GCSORT==='gap'?'on':''}" onclick="setGcSort('gap')">Gap</button>
+      <button class="tab ${GCSORT==='sales'?'on':''}" onclick="setGcSort('sales')">Top sales</button>
+      <button class="tab ${GCSORT==='dormant'?'on':''}" onclick="setGcSort('dormant')">No order</button>
+    </div>
+    <div id="glist"></div>`;
+  drawGlobal();
+}
+function setGcSort(s){ GCSORT=s; GCSTAT=null; GCSHOW=50; renderGlobalCusts(); }
+function setGcArea(a){ GCAREA=decodeURIComponent(a); GCSHOW=50; drawGlobal(); }
+function setGcStat(s){ GCSTAT=GCSTAT===s?null:s; if(GCSTAT==='none') GCSORT='dormant'; else if(GCSORT==='dormant') GCSORT='lead'; GCSHOW=50; renderGlobalCusts(); }
+function gcStat(x,exp){
+  if(!(x.mb>0)) return null;
+  if(x.mn<=0) return "none";
+  if(x.pct>=100) return "hit";
+  return x.pct>=exp-2?"pace":"behind";
+}
+
+function drawGlobal(){
+  if(!GC) return;
+  const sd=sellingDays(), exp=sd.total>0?sd.done/sd.total*100:0;
+  const month=new Date().toLocaleDateString("en-JM",{month:"long"});
+  const inArea=GC.filter(x=>GCAREA==="all"||x.area===GCAREA);
+
+  // Hero: totals for the selected area
+  const mb=inArea.reduce((a,x)=>a+x.mb,0), mn=inArea.reduce((a,x)=>a+x.mn,0);
+  const yt=inArea.reduce((a,x)=>a+x.yt,0), ya=inArea.reduce((a,x)=>a+x.ya,0);
+  const pct=mb>0?mn/mb*100:0, ypct=yt>0?ya/yt*100:0, cls=paceCls(pct,exp), ycls=ytdCls(ypct);
+  const gap=mb-mn, perDay=gap>0&&sd.left>0?gap/sd.left:0;
+  document.getElementById("ghero").innerHTML=`<div class="ghero">
+    <div class="top">
+      <div><div class="k">${GCAREA==="all"?"All accounts":esc(GCAREA)} · ${month} to date</div>
+        <div class="amt">${J(mn)}</div><div class="tg">Target <b>${J(mb)}</b></div></div>
+      <div><div class="pc ${cls}">${pct.toFixed(1)}<span>%</span></div><div class="pcl">Should be ${exp.toFixed(0)}%</div></div>
+    </div>
+    <div class="gbar"><span class="${cls}" style="width:${Math.max(0,Math.min(pct,100))}%"></span><i style="left:${Math.min(exp,100)}%"></i></div>
+    <div class="gpace"><span>Day <b>${sd.done}</b> of ${sd.total} selling days</span><span>${perDay>0?`<b>${Jk(perDay)}</b>/day to close`:gap<=0?"<b>Target hit 🎯</b>":""}</span></div>
+    <div class="gytd"><span class="yk">YTD</span>
+      <div class="ybar"><span class="${ycls}" style="width:${Math.max(0,Math.min(ypct,100))}%;background:${ycls==='good'?'#4fd69a':ycls==='warn'?'#f5c04d':'#ff8a85'}"></span></div>
+      <span class="yv"><b>${Jk(ya)}</b> / ${Jk(yt)} · <b style="color:${ycls==='good'?'#4fd69a':ycls==='warn'?'#f5c04d':'#ff8a85'}">${ypct.toFixed(0)}%</b></span></div>
+  </div>`;
+
+  // Status tiles (budgeted accounts in the selected area) — tap to filter
+  const cnt={hit:0,pace:0,behind:0,none:0};
+  inArea.forEach(x=>{const s=gcStat(x,exp); if(s) cnt[s]++;});
+  const tile=(k,label,color)=>`<div class="gstat ${GCSTAT===k?'on':''}" onclick="setGcStat('${k}')"><div class="n" style="color:${color}">${cnt[k]}</div><div class="l">${label}</div></div>`;
+  document.getElementById("gstats").innerHTML=
+    tile("hit","Target hit","var(--good)")+tile("pace","On pace","var(--blue)")+tile("behind","Behind","#d9920a")+tile("none","No order","var(--bad)");
+
+  // Area chips, biggest target first
+  const areas={}; GC.forEach(x=>{ if(x.area){ areas[x.area]=(areas[x.area]||0)+x.mb; } });
+  const alist=Object.keys(areas).sort((a,b)=>areas[b]-areas[a]);
+  document.getElementById("gareas").innerHTML=[`<button class="garea ${GCAREA==='all'?'on':''}" onclick="setGcArea('all')">All areas</button>`]
+    .concat(alist.map(a=>`<button class="garea ${GCAREA===a?'on':''}" onclick="setGcArea('${encQ(a)}')">${esc(a)}</button>`)).join("");
+
+  // List
+  let rows=inArea;
+  const q=GCSEARCH.trim().toLowerCase();
+  if(q) rows=rows.filter(x=>(x.name+" "+x.cid+" "+x.reps).toLowerCase().includes(q));
+  if(GCSTAT) rows=rows.filter(x=>gcStat(x,exp)===GCSTAT);
+  if(GCSORT==="lead") rows=rows.filter(x=>x.mb>=GC_MIN_LEAD).sort((a,b)=>b.pct-a.pct||b.mn-a.mn);
+  else if(GCSORT==="gap") rows=rows.filter(x=>x.mb>0&&x.mb>x.mn).sort((a,b)=>(b.mb-b.mn)-(a.mb-a.mn));
+  else if(GCSORT==="sales") rows=rows.filter(x=>x.mn>0).sort((a,b)=>b.mn-a.mn);
+  else if(GCSORT==="dormant") rows=rows.filter(x=>x.mb>0&&x.mn<=0).sort((a,b)=>b.mb-a.mb);
+  const list=document.getElementById("glist");
+  if(!rows.length){ list.innerHTML=`<div class="empty">${q?"No accounts match “"+esc(GCSEARCH)+"”.":GCSORT==="dormant"?"Every budgeted account has ordered. 🎯":"No accounts to show."}</div>`; return; }
+
+  list.innerHTML=rows.slice(0,GCSHOW).map((x,i)=>{
+    const has=x.mb>0, p=has?x.pct:0, rc=has?paceCls(p,exp):"";
+    const color=rc==="good"?"var(--good)":rc==="warn"?"#d9920a":"var(--bad)";
+    let right;
+    if(GCSORT==="gap") right=`<div class="g">${Jk(x.mb-x.mn)}</div><div class="gl">to target</div>`;
+    else if(GCSORT==="sales") right=`<div class="g" style="color:var(--navy)">${Jk(x.mn)}</div><div class="gl">${has?p.toFixed(0)+"% of target":"no target"}</div>`;
+    else if(GCSORT==="dormant") right=`<div class="g">${Jk(x.mb)}</div><div class="gl">target</div>`;
+    else right=`<div class="gpct" style="color:${color}">${p.toFixed(0)}%</div><div class="gl">of target</div>`;
+    const rank=GCSORT==="lead"&&!GCSTAT&&!q?i+1:null;
+    const yp=x.ypct==null?`<span class="ypill none">YTD —</span>`
+      :`<span class="ypill ${ytdCls(x.ypct)}">YTD ${x.ypct.toFixed(0)}% · ${Jk(x.ya)} / ${Jk(x.yt)}</span>`;
+    const sub=[x.reps,x.area].filter(Boolean).join(" · ")||x.cid;
+    return `<div class="cust tap" onclick="openCust(decodeURIComponent('${encQ(x.cid)}'))">
+      <div class="grow">
+        ${rank?`<div class="grank ${rank<=3?'r'+rank:''}">${rank<=3?["🥇","🥈","🥉"][rank-1]:rank}</div>`:""}
+        <div class="gbody">
+          <div class="crow1">
+            <div style="min-width:0"><div class="cname">${esc(x.name)}</div><div class="gsub">${esc(sub)}</div></div>
+            <div class="cgap">${right}</div>
+          </div>
+          ${has?`<div class="cbar pace"><span class="${rc}" style="width:${Math.max(0,Math.min(p,100))}%"></span><i style="left:${Math.min(exp,100)}%"></i></div>`:`<div style="height:10px"></div>`}
+          <div class="cmeta" style="align-items:center;gap:8px">
+            <span style="white-space:nowrap"><b>${Jk(x.mn)}</b>${has?" / "+Jk(x.mb):""} MTD</span>
+            ${GCSORT==="dormant"?`<span>${x.last?"Last "+fmtDate(x.last):"No order yet"} ›</span>`:yp}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join("")
+  + (rows.length>GCSHOW?`<button class="gmore" onclick="GCSHOW+=50;drawGlobal()">Show more · ${rows.length-GCSHOW} left</button>`:"")
+  + `<div class="foot">${rows.length.toLocaleString()} accounts${GCSORT==="lead"?" with a J$50K+ month target":""} · figures in JMD<br>YTD target = closed months + ${month} pro-rated to today · marker shows where you should be</div>`;
+}
+
 async function quickOrder(cid){
   await openCust(cid);
   if(CURCUST&&CURCUST.cid===cid) openOrderBuilder();
