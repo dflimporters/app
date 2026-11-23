@@ -118,6 +118,8 @@ const DFL_PAGE_ROLES = {
   // A rep's own AR. Rows are filtered in Postgres by ar_my_rep_code(); this list
   // only decides who can open the page. Keep roles that can carry a salesperson code.
   '/my-ar.html':            ['admin', 'manager', 'rep', 'rep_management'],
+  // A rep's own back orders (Close it / Re-enter it). Data is limited in Postgres by rep_my_backorders(); support and managers can open one rep's list with ?rep=Name.
+  '/my-backorders.html':    ['admin', 'manager', 'rep', 'rep_management', 'sales_support'],
   '/calendar.html':         ['admin', 'manager', 'rep', 'rep_management'],
   '/debrief.html':          ['admin', 'manager', 'rep', 'rep_management'],
   '/customer.html':         ['admin', 'manager', 'rep', 'rep_management'],

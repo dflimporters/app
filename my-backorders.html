@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1B3E">
+<title>DFL · My Back Orders</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Hidden until the auth guard confirms who's signed in; auth-guard.js reveals it. */
+body { visibility: hidden; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<style>
+/* My Back Orders (Scott, 23 Nov): the rep opens the link from the card sales support sent, and taps Close it or Re-enter it for each back order.
+   The answer is saved where the Sales Support Hub reads it, so support sees it at once. Same look as My AR. */
+:root{
+  --blue:#326BD3; --navy:#0D1B3E; --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
+  --good:#1f9d64; --warn:#e0a012; --bad:#d64545; --card:#fff;
+  --shadow:0 1px 3px rgba(13,27,62,.08),0 4px 16px rgba(13,27,62,.06);
+  --content-max:640px; --hdr-h:100px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:'Open Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:env(safe-area-inset-bottom);-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;box-sizing:border-box;height:calc(var(--hdr-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) max(20px, calc((100% - var(--content-max)) / 2)) 0;display:flex;align-items:center;position:sticky;top:0;z-index:5}
+.hrow{display:flex;justify-content:space-between;align-items:center;width:100%}
+.hi{font-size:12px;color:#9fb2dc;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.hname{font-family:'Montserrat';font-weight:800;font-size:22px;margin-top:2px;line-height:1.1}
+.homebtn{background:rgba(255,255,255,.12);border:none;color:#fff;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.homebtn:active{background:rgba(255,255,255,.24)}
+.asof{text-align:right;flex-shrink:0}
+.asof b{display:block;font-family:'Montserrat';font-weight:800;font-size:14px;color:#fff;margin-top:2px;letter-spacing:0;text-transform:none}
+.wrap{padding:0 14px 40px;max-width:640px;margin:0 auto}
+
+.hero{background:var(--card);border-radius:18px;padding:38px 16px 18px;box-shadow:var(--shadow);margin-top:-22px;position:relative}
+.hero .lbl{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mut)}
+.big{font-family:'Montserrat';font-weight:800;font-size:clamp(24px,7.2vw,32px);letter-spacing:-.5px;margin:3px 0 10px}
+.big small{font-size:.55em;color:var(--mut);font-weight:700;letter-spacing:0}
+.bar{height:12px;border-radius:8px;background:#eef1f8;overflow:hidden;display:flex}
+.bar>span{display:block;height:100%}
+.bar .re{background:var(--good)} .bar .cl{background:#8A96B4}
+.how{font-size:13px;line-height:1.5;color:var(--ink);margin:14px 0 0}
+.how b{font-weight:700}
+.asnote{background:#fff7e0;border:1.5px solid #f0d58a;border-radius:12px;padding:10px 12px;margin:12px 0 0;font-size:12.5px;font-weight:600;color:#7a5b00}
+
+.tabs{display:flex;gap:6px;margin:16px 2px 12px;background:#e9edf6;padding:4px;border-radius:12px}
+.tab{flex:1;border:none;background:transparent;padding:10px 6px;border-radius:9px;font-family:'Open Sans';font-weight:700;font-size:13px;color:var(--mut);cursor:pointer}
+.tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+
+.bo{background:var(--card);border-radius:16px;padding:15px 15px 14px;box-shadow:var(--shadow);margin-bottom:11px;border-left:5px solid #7B4FD0}
+.bo.re{border-left-color:var(--good)} .bo.cl{border-left-color:#8A96B4}
+.bo .nm{font-family:'Montserrat';font-weight:800;font-size:15.5px;line-height:1.25}
+.bo .mt{font-size:12px;color:var(--mut);font-weight:600;margin-top:3px}
+.bo .mt b{color:var(--ink)}
+.items{list-style:none;margin:12px 0 0;padding:0}
+.items li{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid #f1f5f9;font-size:13px}
+.items li:first-child{border-top:0;padding-top:0}
+.items .d{line-height:1.35}
+.items .q{flex-shrink:0;font-family:'Montserrat';font-weight:800;font-size:12.5px;color:var(--navy);white-space:nowrap}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin:3px 4px 0 0;vertical-align:1px}
+.pill.g{background:#e5f5ec;color:var(--good)} .pill.b{background:#e8f0fb;color:var(--blue)}
+.decide{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.dbtn{border:2px solid var(--line);background:#fff;border-radius:13px;padding:14px 8px;font-family:'Montserrat';font-weight:800;font-size:15px;color:var(--navy);cursor:pointer;transition:transform .08s}
+.dbtn:active{transform:scale(.98)}
+.dbtn small{display:block;font-family:'Open Sans';font-weight:600;font-size:11px;color:var(--mut);margin-top:3px}
+.dbtn.close.on{background:#6B7794;border-color:#6B7794;color:#fff} .dbtn.re.on{background:var(--good);border-color:var(--good);color:#fff}
+.dbtn.on small{color:#e6ecff}
+.dbtn[disabled]{opacity:.6;cursor:default}
+.who{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:9px;text-align:center}
+
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;line-height:1.6}
+.foot{text-align:center;color:var(--mut);font-size:11.5px;margin-top:22px;line-height:1.6}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:60px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--navy);color:#fff;font-weight:700;font-size:13px;padding:11px 18px;border-radius:12px;box-shadow:var(--shadow);z-index:20;max-width:90%}
+@media(prefers-reduced-motion){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="homebtn" onclick="window.location.href='/index.html'" aria-label="Back to My Numbers">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div>
+        <div class="hi">Close out the week</div>
+        <div class="hname">My back orders</div>
+      </div>
+    </div>
+    <div class="asof hi" id="asof"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="main"><div class="spin"></div></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const J = n => 'J$' + Math.round(Math.abs(+n || 0)).toLocaleString('en-JM');
+const fd = iso => iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-JM', {day:'numeric', month:'short'}) : '';
+const num = n => { const x = Math.round((+n || 0) * 100) / 100; return String(x); };
+
+let ORDERS = [], REP = '', ME = '', TAB = 'todo', ASREP = '';
+const firstName = n => String(n || '').split(' ')[0];
+
+document.addEventListener('dfl-auth-ready', e => init(e.detail.profile));
+
+async function init(profile) {
+  const main = document.getElementById('main');
+  try {
+    // support, managers and admins can open a rep's list with ?rep=Name to see what the rep sees; the database still decides who may
+    ASREP = new URLSearchParams(location.search).get('rep') || '';
+    const { data, error } = await sb.rpc('rep_my_backorders', ASREP ? {p_rep: ASREP} : {});
+    if (error) throw error;
+    ORDERS = data.orders || []; REP = data.rep; ME = data.me;
+    const d = new Date(); document.getElementById('asof').innerHTML = 'Today<b>' + esc(d.toLocaleDateString('en-JM', {day:'numeric', month:'short'})) + '</b>';
+    draw();
+  } catch (err) {
+    console.error(err);
+    main.innerHTML = '<div class="empty">Could not load your back orders right now.<br>Try again shortly.</div>';
+  }
+}
+
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2600); }
+
+function draw() {
+  const main = document.getElementById('main'), n = ORDERS.length;
+  if (!n) { main.innerHTML = '<div class="hero"><div class="lbl">' + esc(REP) + '</div><div class="big">No back orders</div><p class="how">Nothing is waiting on you. Nice work.</p></div>'; return; }
+  const re = ORDERS.filter(o => o.v === 're').length, cl = ORDERS.filter(o => o.v === 'close').length, left = n - re - cl;
+  const list = ORDERS.filter(o => TAB === 'todo' ? !o.v : !!o.v);
+  main.innerHTML =
+    '<div class="hero"><div class="lbl">' + esc(ASREP && REP !== ME ? REP + ' · back orders' : 'Your back orders') + '</div>' +
+      '<div class="big">' + (left ? left + ' <small>left to decide · ' + (re + cl) + ' of ' + n + ' done</small>' : 'All done <small>· ' + n + ' of ' + n + ' decided</small>') + '</div>' +
+      '<div class="bar"><span class="re" style="width:' + (re / n * 100) + '%"></span><span class="cl" style="width:' + (cl / n * 100) + '%"></span></div>' +
+      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. Back orders are cleared on Monday at 12 noon.</p>' +
+      (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
+    '</div>' +
+    '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
+    (list.length ? list.map(card).join('') : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
+    '<div class="foot">Sales support sees your answers straight away.</div>';
+}
+
+function card(o) {
+  const lines = (o.items || []).map(b => {
+    const have = +b.onhand >= +b.owed;
+    return '<li><span class="d">' + esc(b.desc) +
+      (b.newer ? '<br><span class="pill b">May already be on order ' + esc(b.newer) + '</span>' : b.invd ? '<br><span class="pill b">May already be invoiced ' + esc(fd(b.invd)) + '</span>' : have ? '<br><span class="pill g">In stock now</span>' : '') +
+      '</span><span class="q">' + num(b.owed) + ' owed</span></li>';
+  }).join('');
+  const by = o.v && o.by_name && o.by_name !== ME ? '<div class="who">Marked by ' + esc(o.by_name) + (o.at ? ' · ' + esc(fd(o.at)) : '') + '</div>' : '';
+  return '<section class="bo ' + (o.v || '') + '"><div class="nm">' + esc(o.name || o.c) + '</div>' +
+    '<div class="mt">Back order <b>' + esc(o.nbr) + '</b> · since ' + esc(fd(o.date)) + ' · ' + esc(J(o.val)) + '</div>' +
+    '<ul class="items">' + lines + '</ul>' +
+    '<div class="decide"><button class="dbtn close' + (o.v === 'close' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="close">Close it<small>Not wanted</small></button>' +
+    '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re">Re-enter it<small>Needs a new order</small></button></div>' + by + '</section>';
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-tab]'); if (t) { TAB = t.dataset.tab; draw(); return; }
+  const b = e.target.closest('[data-v]'); if (!b || b.disabled) return;
+  const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o) return;
+  const was = {v:o.v, by:o.by_name, at:o.at}, nv = o.v === b.dataset.v ? '' : b.dataset.v;   // tapping the chosen button again takes the answer back
+  o.v = nv || null; o.by_name = nv ? ME : null; o.at = nv ? new Date().toISOString() : null; draw();
+  const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr:o.nbr, p_v:nv, p_rep:ASREP} : {p_nbr:o.nbr, p_v:nv});
+  if (error) { o.v = was.v; o.by_name = was.by; o.at = was.at; draw(); toast('That did not save. Check your connection and try again.'); }
+  else toast(nv === 're' ? 'Saved: re-enter it' : nv === 'close' ? 'Saved: close it' : 'Answer taken back');
+});
+</script>
+</body>
+</html>
