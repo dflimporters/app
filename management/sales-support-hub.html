@@ -39,9 +39,15 @@ nav.tabs .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-
 nav.tabs button{font-family:var(--head);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border:0;background:transparent;color:var(--ink2);padding:8px 12px;border-radius:999px;white-space:nowrap}
 nav.tabs button[aria-selected="true"]{background:var(--navy);color:#fff}
 nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:600;font-size:12.5px;color:var(--blue);border:1px solid var(--line);background:#fff}
-.daysteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:8px 0 18px}
+.daysteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:8px 0 24px}
 .dstep{all:unset;cursor:pointer;box-sizing:border-box;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 14px 12px;display:flex;gap:10px;align-items:flex-start;min-width:0;--ac:#C5CCDB;box-shadow:inset 0 5px 0 var(--ac),0 1px 2px rgba(20,35,70,.06)}
 .dstep:hover{border-color:#326BD3}
+.dstep{position:relative}
+.dstep:not(.cur){background:#F7F8FB}
+.dstep .go{display:block;margin-top:7px;font:700 11.5px var(--head);color:var(--blue)}
+.dstep.cur .go{color:var(--ink3)}
+.dstep.cur::after{content:'';position:absolute;left:50%;bottom:-9px;width:14px;height:14px;background:#fff;border-right:2px solid #326BD3;border-bottom:2px solid #326BD3;transform:translateX(-50%) rotate(45deg)}
+.dayhint{margin:6px 0 0;font:600 12.5px var(--head);color:var(--ink2)}
 .dstep:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .dstep .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--head);background:#E6EAF2;color:var(--ink2)}
 .dstep .tx{min-width:0}
@@ -68,6 +74,14 @@ nav.tabs button.tabmore{margin-left:auto;text-transform:none;letter-spacing:0;fo
 .dstep.late .s{color:#D63B3B;font-weight:600}
 .dstep.done .n{background:#1A8F4C;color:#fff}
 @media (max-width:900px){.daysteps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* the four steps as real tabs: a row of tabs on a rule, the open one white and joined to the page below (Scott, 20 Nov) */
+.daysteps{display:flex;gap:4px;align-items:flex-end;margin:12px 0 18px;border-bottom:1px solid #D5DCEA;padding:0 2px}
+.dstep{flex:1 1 0;background:#E6EAF2;border:1px solid transparent;border-bottom:0;border-radius:12px 12px 0 0;padding:14px 14px 10px;align-items:center;box-shadow:inset 0 4px 0 var(--ac)}
+.dstep:not(.cur){background:#E6EAF2}
+.dstep:not(.cur):hover{background:#D9E1F2;border-color:transparent}
+.dstep.cur{z-index:1;background:#fff;border:1px solid #D5DCEA;border-bottom:0;margin-bottom:-1px;padding:17px 14px 13px;box-shadow:inset 0 5px 0 var(--ac)}
+.dstep.cur::after,.dstep .go,.dayhint{display:none}
+@media (max-width:900px){.daysteps{overflow-x:auto;scrollbar-width:none}.dstep{flex:0 0 172px}}
 nav.tabs .ct{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;line-height:16px;text-align:center}
 main{padding-block:16px 60px}
 h2{font-family:var(--head);font-size:15px;font-weight:700;margin:22px 0 4px;text-wrap:balance}
@@ -2785,6 +2799,17 @@ function shareCard(S, name) {
   const save = () => p.then(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name + '.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Card saved to your Downloads. Attach it in WhatsApp.'); }).catch(() => toast('Could not make the card. Try again.'));
   if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) navigator.clipboard.write([new ClipboardItem({'image/png': p})]).then(() => toast('Card copied. Paste it into WhatsApp.'), save); else save();
 }
+// the card for finance (an email or WhatsApp picture): payments received to release, and promises to pay (Scott, 20 Nov)
+function finSpec(list) {
+  const paid = list.filter(x => payOn(x.nbr)), prom = list.filter(x => !payOn(x.nbr) && promiseOf(x.nbr)), tot = a => a.reduce((s, x) => s + x.val, 0), rows = [];
+  const sub = (x, p) => [x.rep ? 'Rep ' + x.rep : '', x.past > 0 ? 'Past due ' + J(x.past) : '', p && p.text ? String(p.text).replace(/\s+/g, ' ').slice(0, 120) : '', x.repl ? 'Possible duplicate of order ' + x.repl : ''].filter(Boolean).join(' · ');
+  if (paid.length) { rows.push({group:'Payments received: please release these orders'}); paid.forEach(x => rows.push({cells:[x.cname, x.nbr, {t:J(x.val), b:1}, x.lastpay ? 'Last paid ' + fds(x.lastpay) : 'Payment in'], sub:sub(x), subc:x.repl ? '#D63B3B' : ''})); }
+  if (prom.length) { rows.push({group:'Promised to pay, not received yet'}); prom.forEach(x => { const p = promiseOf(x.nbr); rows.push({cells:[x.cname, x.nbr, {t:J(x.val), b:1}, 'Promised ' + promTxt(p).replace(/^[^ ]+ by /, '').replace(/^by /, '')], sub:sub(x, p), subc:x.repl ? '#D63B3B' : ''}); }); }
+  return {eyebrow:'DFL Importers · Held orders', title:'Orders for finance to release', sub:'Sales support: ' + SUPPORT + ' · ' + fds(jaNow().date),
+    tiles:[{v:String(paid.length), l:paid.length === 1 ? 'payment received · ' + J(tot(paid)) : 'payments received · ' + J(tot(paid)), c:'#1A8F4C'}, {v:String(prom.length), l:(prom.length === 1 ? 'promise to pay · ' : 'promises to pay · ') + J(tot(prom)), c:'#E8862A'}, {v:J(tot(list)), l:'held in total', c:'#326BD3'}].filter((z, i) => i === 2 || (i === 0 ? paid.length : prom.length)),
+    head:'Orders on hold', cols:[{t:'Customer', w:0}, {t:'Order', w:84}, {t:'Value', w:96}, {t:'Detail', w:150}], rows,
+    note:(paid.length ? 'Please release the orders under Payments received.' : '') + (paid.length && prom.length ? ' ' : '') + (prom.length ? 'The promised ones are listed so you can watch for the payment.' : '')};
+}
 // the card for orders we cannot fill: one order is addressed to the customer (the rep can forward it), several are for the rep
 function cfSpec(list, rep) {
   const one = list.length === 1, nIt = list.reduce((s, x) => s + x.cf.length, 0), val = list.reduce((s, x) => s + (x.value || 0), 0), d = fds(jaNow().date), rows = [], cn = x => (byId[x.c] || {}).name || x.c;
@@ -3064,7 +3089,7 @@ function vToday() {
   const main = ['Orders to check', 'Stuck orders'].map(grp).join(''), other = Object.keys(GRPC).filter(k => !['Orders to check', 'Stuck orders', 'Not delivered'].includes(k)).map(grp).join('');
   const eodText = eodTextSup(SUPPORT);
   const legendBase = `<span>Tap a status to move it on:</span><span><i style="background:#E2445C"></i>To do</span><span><i style="background:#FDAB3D"></i>Pending</span><span><i style="background:#00C875"></i>Done</span>${doneMode ? `<button class="btn sm" type="button" data-todayf="All">Show everything open</button>` : `<button class="btn sm" type="button" data-todayf="st:sorted">Show done (${nDoneAll})</button>`}`;
-  const finCopy = `<button class="btn sm pri" type="button" data-fincopy="1" ${FL.length ? '' : 'disabled'}>Copy the list for finance</button><button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button>`;
+  const finCopy = `<button class="btn sm pri" type="button" data-fincard="1" ${FL.length ? '' : 'disabled'}>Copy card for finance</button><button class="btn sm" type="button" data-fincopy="1" ${FL.length ? '' : 'disabled'}>Copy text</button><button class="btn sm" type="button" data-finsent="1" aria-pressed="${!!fin}">${fin ? '✓ Sent to finance. Undo' : 'Mark as sent to finance'}</button>`;
   const holdsHtml = !H.length ? '<div class="empty">Nothing on hold for these reps.</div>' : HS.length ? holdBoards(HS, 'th', 'today') : `<div class="empty">${doneMode ? 'No held orders are marked done yet.' : 'Every held order is marked done.'}</div>`;
   const checkHtml = main ? `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff</span></div>${main}` : doneMode ? '' : `<div class="legend" style="margin-top:6px"><span>Check before the ${t12(LEADT.cut)} cutoff: nothing to check and nothing stuck.</span></div>`;
   const otherHtml = other ? `<details class="fold"><summary>Other follow-ups (missed orders, due today, AR)</summary>${other}</details>` : '';
@@ -3087,15 +3112,15 @@ function vToday() {
     {t:'End of day report', w:`By ${t12(LEADT.end)}`, s:eod ? `Sent ${jaHm(eod.at)}` : 'Not sent', done:!!eod, late:cl.phase === 4 && !eod}];
   if (DAYSTEP < 0) { const f0 = steps.findIndex(s => !s.done); DAYSTEP = f0 < 0 ? 3 : f0; }
   const cur = DAYSTEP;
-  const strip = `<div class="daysteps">${steps.map((s, i) => `<button type="button" class="dstep${s.done ? ' done' : ''}${i === cur ? ' cur' : ''}${s.late && !s.done ? ' late' : ''}" data-daystep="${i}"><span class="n">${s.done ? '✓' : i + 1}</span><span class="tx"><b>${esc(s.t)}</b><span class="t">${esc(s.w)}</span><span class="s">${esc(s.s)}</span></span></button>`).join('')}</div>`;
+  const strip = `<div class="daysteps">${steps.map((s, i) => `<button type="button" class="dstep${s.done ? ' done' : ''}${i === cur ? ' cur' : ''}${s.late && !s.done ? ' late' : ''}" data-daystep="${i}"><span class="n">${s.done ? '✓' : i + 1}</span><span class="tx"><b>${esc(s.t)}</b><span class="t">${esc(s.w)}</span><span class="s">${esc(s.s)}</span><span class="go">${i === cur ? 'Showing below ↓' : 'Tap to open →'}</span></span></button>`).join('')}</div>`;
   const nav = `<div class="acts" style="margin:16px 0 6px">${cur > 0 ? `<button class="btn sm" type="button" data-daystep="${cur - 1}">← ${esc(steps[cur - 1].t)}</button>` : ''}${cur < 3 ? `<button class="btn sm pri" type="button" data-daystep="${cur + 1}">Next: ${esc(steps[cur + 1].t)} →</button>` : ''}</div>`;
   const body = [
     `<div class="legend" style="margin-top:6px">${legendBase}</div>${dbMsg()}${holdsHtml}`,
-    `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>List for finance</h3><span class="gn">${nPaid} paid · ${nProm} promised</span></div><div class="sec"><p class="note" style="margin:0 0 10px">Payments that came in and promises to pay are taken from the held orders in step 1. Copy the list, send it to finance, then mark it as sent.</p><div class="acts">${finCopy}</div></div></section>`,
+    `<section class="grp" style="--gc:#127F8C"><div class="gh"><h3>List for finance</h3><span class="gn">${nPaid} paid · ${nProm} promised</span></div><div class="sec"><p class="note" style="margin:0 0 10px">Payments that came in and promises to pay are taken from the held orders in step 1. Copy the card (a picture for an email or WhatsApp) or the text, send it to finance, then mark it as sent.</p><div class="acts">${finCopy}</div></div></section>`,
     `<div class="legend" style="margin-top:6px">${legendBase}</div>${dbMsg()}${checkHtml}${otherHtml}<div class="acts" style="margin-top:12px"><button class="btn sm" type="button" data-tab="tell">Tell the reps about shortages and failed deliveries →</button></div>`,
     eodHtml][cur];
   return `${lead1('day-top', dayMsg(cl, true), LEADINFO())}
-  ${strip}
+  <div class="dayhint">Your day in 4 steps, one after another. Tap a step to open it.</div>${strip}
   ${body}${nav}`;
 }
 
@@ -3267,6 +3292,7 @@ __on(document, 'click', e => {
   if (d.status) { setTick('st:' + d.status, NEXTST[stOf(d.status)]); return; }
   if (d.paytoggle) { const k = 'pay:' + d.paytoggle, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
   if (d.leadf) { LEADF = d.leadf; EXP = null; render(); return; }
+  if (d.fincard) { const l = financeList(); if (l.length) shareCard(finSpec(l), 'orders-for-finance-' + jaNow().date); return; }
   if (d.fincopy) { const l = financeList(); if (l.length) copyText(financeText(l), 'List for finance copied. Paste it into WhatsApp or an email.'); return; }
   if (d.finsent) { const k = 'fin:' + jaNow().date + ':' + SUPPORT, was = tick(k) && tick(k).v; setTick(k, was ? null : 1); return; }
   if (d.eodcopy) { copyText(eodTextSup(SUPPORT), 'End of day report copied.'); return; }
