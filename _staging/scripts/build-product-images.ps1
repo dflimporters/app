@@ -17,10 +17,11 @@
 #   built (e.g. the Active list from stock_items_raw). Without it every coded
 #   image is built.
 #
-# Writes <code>.jpg (800px) and t/<code>.jpg (160px thumbnail) and rewrites
+# Writes <code>.jpg (800px) and t/<code>.jpg (160px thumbnail) and updates
 # index.json, the list of codes the stock list shows a photo for. Existing files
-# are overwritten; photos for codes no longer found are left in place but
-# dropped from index.json. .webp is skipped: System.Drawing can't read it, so
+# are overwritten. With -Codes the built codes are ADDED to index.json (so a
+# one-item file adds one photo); without it index.json is rewritten and photos
+# for codes no longer found are dropped from it. .webp is skipped: System.Drawing can't read it, so
 # convert those to .jpg first. Run from the repo root, then commit product-images/.
 param(
   [string[]]$Source = @("$env:USERPROFILE\OneDrive - DFL Importers & Distributors\09 Marketing & Design\Going Online\PRODUCT IMAGES"),
@@ -74,5 +75,11 @@ foreach ($grp in ($files | Group-Object Code)) {
   }
   if (-not $ok) { $failed += $grp.Name }
 }
-'[' + (($done | Sort-Object | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']' | Set-Content -Encoding ascii -NoNewline (Join-Path $out 'index.json')
+$idx = Join-Path $out 'index.json'
+$listed = @($done)
+if ($want -and (Test-Path $idx)) {   # partial run: keep what's already listed
+  # foreach, not @(...): PowerShell 5.1's ConvertFrom-Json passes a JSON array down the pipe as ONE object
+  foreach ($c in (Get-Content -Raw $idx | ConvertFrom-Json)) { $listed += [string]$c }
+}
+'[' + (($listed | Where-Object { $_ -match '^\d+$' } | Sort-Object -Unique | ForEach-Object { '"' + $_ + '"' }) -join ',') + ']' | Set-Content -Encoding ascii -NoNewline $idx
 "Built $($done.Count) photos. Couldn't read: $($failed.Count) $($failed -join ', ')"
