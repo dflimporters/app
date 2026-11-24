@@ -40,7 +40,7 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet', 'sales_support'
+  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet', 'sales_support', 'supplier'
 ];
 
 // Roles that may open ONLY the pages that explicitly list them. For everyone
@@ -48,7 +48,9 @@ const DFL_ROLES = [
 // `hr` (Monique) is meant to see the HR Leave portal and nothing else.
 // `fleet` (Ordette Hamilton) sees the Fleet page and nothing else.
 // `sales_support` (Alecia, Jenelle, Althia) sees the Sales Support Hub and nothing else.
-const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet', 'sales_support'];
+// `supplier` is an outside company login (supplier_users) — it must never fall
+// through to an unlisted staff page, so it is listed-only too.
+const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet', 'sales_support', 'supplier'];
 
 // ------------------------------------------------------------
 // Where each role belongs when it has nowhere more specific to be.
@@ -73,7 +75,8 @@ const DFL_HOME_BY_ROLE = {
   rep_management: '/index.html',
   hr:           '/hr/index.html',
   fleet:        '/management/fleet.html',
-  sales_support: '/management/sales-support-hub.html'
+  sales_support: '/management/sales-support-hub.html',
+  supplier:     '/supplier/index.html'
 };
 
 // ------------------------------------------------------------
@@ -181,6 +184,14 @@ const DFL_PAGE_ROLES = {
   // Product price simulator — shows cost and GP. Must stay in step with
   // is_manager(), which get_product_price_master() checks server-side.
   '/dfl_product_price_dashboard.html':      ['manager', 'admin'],
+
+  // ---- Supplier portal ----
+  // Outside suppliers (role 'supplier', provisioned from supplier_users) see
+  // only their own items: supplier_dashboard() resolves the supplier from the
+  // login server-side. Staff here can preview any supplier with ?s=<id>; keep
+  // in step with supplier_staff_viewer() (admin, manager, management,
+  // rep_management). Editing shipments/logins is supplier_staff_editor().
+  '/supplier/index.html': ['supplier', 'admin', 'manager', 'management', 'rep_management'],
 
   // ---- Weekly Reports ----
   // Shell + the two pages it embeds — each listed individually, same reason
