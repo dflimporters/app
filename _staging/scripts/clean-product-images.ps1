@@ -45,7 +45,7 @@ if ($Codes) { $want = @{}; Get-Content $Codes | ForEach-Object { $c = $_.Trim();
 Add-Type -AssemblyName System.Net.Http
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $http = New-Object System.Net.Http.HttpClient
-$http.Timeout = [TimeSpan]::FromSeconds(120)
+$http.Timeout = [TimeSpan]::FromSeconds(300)
 $http.DefaultRequestHeaders.Add('x-api-key', $key)
 
 $srcRoot = (Get-Item -LiteralPath $Source).FullName
@@ -72,8 +72,14 @@ foreach ($p in $todo) {
     $fields = @{ 'background.color' = 'FFFFFF'; 'padding' = $Padding; 'outputSize' = $Size }
     if (-not $NoShadow) { $fields['shadow.mode'] = 'ai.soft' }
     foreach ($k in $fields.Keys) { $form.Add((New-Object System.Net.Http.StringContent $fields[$k]), $k) }
+    $resp = $null; $netErr = ''
     try { $resp = $http.PostAsync('https://image-api.photoroom.com/v2/edit', $form).GetAwaiter().GetResult() }
+    catch { $netErr = $_.Exception.InnerException.Message; if (-not $netErr) { $netErr = $_.Exception.Message } }
     finally { $fs.Dispose(); $form.Dispose() }
+    if (-not $resp) {   # timeout or connection drop: retry twice, then log and move on
+      if ($tries -le 2) { Start-Sleep -Seconds 10; continue }
+      $failed++; $msg = 'network error'; $body = $netErr; break
+    }
     $status = [int]$resp.StatusCode
     if ($status -eq 200) {
       [IO.File]::WriteAllBytes((Join-Path $Dest "$($p.Code).png"), $resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult())
