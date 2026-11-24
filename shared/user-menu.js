@@ -66,6 +66,14 @@
     listeners.forEach(function (fn) { try { fn(); } catch (e) {} });
   }
 
+  // "Installed" is remembered per app (per manifest), not for the whole site: there are
+  // several installable apps (Portal, Sales, Merch, Ask DFL), and a single flag meant
+  // installing one hid "Install app" on all the others.
+  function installedKey() {
+    const m = document.querySelector('link[rel="manifest"]');
+    return 'dfl-pwa-installed:' + (m ? m.getAttribute('href') : location.pathname);
+  }
+
   window.addEventListener('beforeinstallprompt', function (e) {
     // Stop Chrome's own mini-infobar; we surface it in the menu instead.
     e.preventDefault();
@@ -75,7 +83,7 @@
 
   window.addEventListener('appinstalled', function () {
     deferredPrompt = null;
-    try { localStorage.setItem('dfl-pwa-installed', '1'); } catch (e) {}
+    try { localStorage.setItem(installedKey(), '1'); } catch (e) {}
     notify();
   });
 
@@ -83,7 +91,7 @@
     // Already running as an installed app, or we've seen it installed before.
     installed: function () {
       if (isStandalone()) return true;
-      try { return localStorage.getItem('dfl-pwa-installed') === '1'; }
+      try { return localStorage.getItem(installedKey()) === '1'; }
       catch (e) { return false; }
     },
 
@@ -105,7 +113,7 @@
         p.prompt();
         p.userChoice.then(function (r) {
           if (r && r.outcome === 'accepted') {
-            try { localStorage.setItem('dfl-pwa-installed', '1'); } catch (e) {}
+            try { localStorage.setItem(installedKey(), '1'); } catch (e) {}
           }
           notify();
         });
