@@ -81,6 +81,10 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;box-siz
 .pick input{width:22px;height:22px;accent-color:var(--blue);margin:0;flex-shrink:0}
 .bo.sel{outline:2px solid var(--blue)}
 .bulk{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;background:var(--navy);color:#fff;border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 22px rgba(13,27,62,.3);margin-top:6px}
+.bulk.top{position:static;margin:0 0 12px;box-shadow:var(--shadow)}
+.bulk small{display:block;font-weight:600;font-size:11px;color:#9fb2dc;margin-top:1px}
+.badge{display:inline-block;font-family:'Montserrat';font-weight:800;font-size:11px;border-radius:20px;padding:2px 9px;margin-right:6px;color:#fff}
+.badge.close{background:#6B7794} .badge.re{background:var(--good)}
 .bulk label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;flex:1;min-width:0}
 .bulk input{width:22px;height:22px;accent-color:#7da4f0;margin:0;flex-shrink:0}
 .bulk button{border:none;background:#fff;color:var(--navy);border-radius:11px;padding:11px 14px;font:800 14px 'Montserrat';cursor:pointer;flex-shrink:0}
@@ -122,6 +126,7 @@ const J = n => 'J$' + Math.round(Math.abs(+n || 0)).toLocaleString('en-JM');
 const fd = iso => iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-JM', {day:'numeric', month:'short'}) : '';
 const num = n => { const x = Math.round((+n || 0) * 100) / 100; return String(x); };
 
+let DONE = [];   // done in live Acumatica in the last 14 days (from the server), shown under Decided
 let SEL = new Set(), BULK = null;   // SEL: ticked back orders (bulk close); BULK: {i, k} while a bulk close is running
 let ORDERS = [], REP = '', ME = '', TAB = 'todo', ASREP = '', MODE = 'off';   // MODE: off | test | live (whether a tap also updates Acumatica)
 const firstName = n => String(n || '').split(' ')[0];
@@ -135,7 +140,7 @@ async function init(profile) {
     ASREP = new URLSearchParams(location.search).get('rep') || '';
     const { data, error } = await sb.rpc('rep_my_backorders', ASREP ? {p_rep: ASREP} : {});
     if (error) throw error;
-    ORDERS = data.orders || []; REP = data.rep; ME = data.me; MODE = data.mode || 'off';
+    ORDERS = data.orders || []; DONE = data.done || []; REP = data.rep; ME = data.me; MODE = data.mode || 'off';
     const d = new Date(); document.getElementById('asof').innerHTML = 'Today<b>' + esc(d.toLocaleDateString('en-JM', {day:'numeric', month:'short'})) + '</b>';
     draw();
   } catch (err) {
@@ -147,31 +152,43 @@ async function init(profile) {
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2600); }
 
 function draw() {
-  const main = document.getElementById('main'), n = ORDERS.length;
+  const main = document.getElementById('main'), n = ORDERS.length + DONE.length;
   if (!n) { main.innerHTML = '<div class="hero"><div class="lbl">' + esc(REP) + '</div><div class="big">No back orders</div><p class="how">Nothing is waiting on you. Nice work.</p></div>'; return; }
-  const re = ORDERS.filter(o => o.v === 're').length, cl = ORDERS.filter(o => o.v === 'close').length, left = n - re - cl;
+  const re = ORDERS.filter(o => o.v === 're').length + DONE.filter(d => d.decision === 're').length, cl = ORDERS.filter(o => o.v === 'close').length + DONE.filter(d => d.decision === 'close').length, left = n - re - cl;
   const list = ORDERS.filter(o => TAB === 'todo' ? !o.v : !!o.v);
+  const doneCards = TAB === 'done' ? DONE.map(doneCard).join('') : '';
   main.innerHTML =
     '<div class="hero"><div class="lbl">' + esc(ASREP && REP !== ME ? REP + ' · back orders' : 'Your back orders') + '</div>' +
       '<div class="big">' + (left ? left + ' <small>left to decide · ' + (re + cl) + ' of ' + n + ' done</small>' : 'All done <small>· ' + n + ' of ' + n + ' decided</small>') + '</div>' +
       '<div class="bar"><span class="re" style="width:' + (re / n * 100) + '%"></span><span class="cl" style="width:' + (cl / n * 100) + '%"></span></div>' +
-      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order leaves this list. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
+      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order moves to <b>Decided</b>, where you can see what you closed and what you re-entered. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
       (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
     '</div>' +
     '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
-    (list.length ? list.map(card).join('') : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
-    bulkBar(list) +
+    (TAB === 'todo' ? bulkBar(list, true) : '') +
+    (list.length || doneCards ? list.map(card).join('') + doneCards : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
+    bulkBar(list, false) +
     '<div class="foot">Sales support sees your answers straight away.</div>';
 }
-function bulkBar(list) {
+function bulkBar(list, top) {
   if (TAB !== 'todo' || !list.length) return '';
   const ids = list.map(o => o.nbr), k = ids.filter(x => SEL.has(x)).length, all = k === ids.length;
-  if (BULK) return '<div class="bulk"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>';
-  return '<div class="bulk"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '> ' + (k ? k + ' selected' : 'Select all (' + ids.length + ')') + '</label>' +
+  if (BULK) return top ? '<div class="bulk top"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>' : '';
+  if (!top && !k) return '';
+  const lab = k ? k + ' selected' : 'Select all (' + ids.length + ')';
+  return '<div class="bulk' + (top ? ' top' : '') + '"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '><span>' + lab + (top && !k ? '<small>Tick orders to close several at once</small>' : '') + '</span></label>' +
     '<button type="button" data-bulk="1"' + (k ? '' : ' disabled') + '>Close selected' + (k ? ' (' + k + ')' : '') + '</button></div>';
 }
 
+function doneCard(d) {
+  const cl = d.decision === 'close';
+  return '<section class="bo ' + (cl ? 'cl' : 're') + '"><div class="nm">' + esc(d.name || d.c) + '</div>' +
+    '<div class="mt">Back order <b>' + esc(d.nbr) + '</b></div>' +
+    '<div class="acu ok"><span class="badge ' + (cl ? 'close' : 're') + '">' + (cl ? 'Closed' : 'Re-entered') + '</span>' + (cl ? 'Completed' : 'Opened again') + ' in Acumatica' +
+    (d.by_name || d.at ? ' · ' + esc((d.by_name && d.by_name !== ME ? d.by_name + ' · ' : '') + (d.at ? fd(d.at) : '')) : '') + '</div></section>';
+}
 function card(o) {
+  if (o.acu && o.acu.decision === o.v && o.acu.state === 'done' && o.acu.env === 'live') return doneCard({nbr: o.nbr, name: o.name, c: o.c, decision: o.v, by_name: o.by_name, at: o.at});
   const lines = (o.items || []).map(b => {
     const have = +b.onhand >= +b.owed;
     return '<li><span class="d">' + esc(b.desc) +
@@ -207,7 +224,7 @@ async function sendToAcumatica(o) {
     o.acu = { state: 'failed', env: MODE, decision: o.v, message: 'Could not reach Acumatica. Try again.' };
   }
   o.sending = false;
-  if (o.acu && o.acu.state === 'done' && o.acu.env === 'live') { ORDERS = ORDERS.filter(x => x !== o); SEL.delete(o.nbr); toast(o.v === 'close' ? 'Closed in Acumatica: order ' + o.nbr : 'Opened again in Acumatica: order ' + o.nbr); }
+  if (o.acu && o.acu.state === 'done' && o.acu.env === 'live') { SEL.delete(o.nbr); toast(o.v === 'close' ? 'Closed in Acumatica: order ' + o.nbr : 'Opened again in Acumatica: order ' + o.nbr); }
   draw();
 }
 
