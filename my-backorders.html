@@ -74,6 +74,21 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;box-siz
 .dbtn.close.on{background:#6B7794;border-color:#6B7794;color:#fff} .dbtn.re.on{background:var(--good);border-color:var(--good);color:#fff}
 .dbtn.on small{color:#e6ecff}
 .dbtn[disabled]{opacity:.6;cursor:default}
+.acu{margin-top:11px;border-radius:10px;padding:9px 11px;font-size:12.5px;font-weight:600;line-height:1.4}
+.acu.wait{background:#eef2f9;color:var(--mut)} .acu.ok{background:#e5f5ec;color:var(--good)} .acu.warn{background:#fff4e0;color:#9a5b00} .acu.bad{background:#fdeaea;color:#b3261e}
+.acu .retry{margin-left:6px;border:1.5px solid currentColor;background:#fff;color:inherit;border-radius:8px;padding:3px 10px;font:700 12px 'Montserrat';cursor:pointer}
+.pick{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer}
+.pick input{width:22px;height:22px;accent-color:var(--blue);margin:0;flex-shrink:0}
+.bo.sel{outline:2px solid var(--blue)}
+.bulk{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;background:var(--navy);color:#fff;border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 22px rgba(13,27,62,.3);margin-top:6px}
+.bulk.top{position:static;margin:0 0 12px;box-shadow:var(--shadow)}
+.bulk small{display:block;font-weight:600;font-size:11px;color:#9fb2dc;margin-top:1px}
+.badge{display:inline-block;font-family:'Montserrat';font-weight:800;font-size:11px;border-radius:20px;padding:2px 9px;margin-right:6px;color:#fff}
+.badge.close{background:#6B7794} .badge.re{background:var(--good)}
+.bulk label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;flex:1;min-width:0}
+.bulk input{width:22px;height:22px;accent-color:#7da4f0;margin:0;flex-shrink:0}
+.bulk button{border:none;background:#fff;color:var(--navy);border-radius:11px;padding:11px 14px;font:800 14px 'Montserrat';cursor:pointer;flex-shrink:0}
+.bulk button[disabled]{opacity:.45;cursor:default}
 .who{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:9px;text-align:center}
 
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;line-height:1.6}
@@ -111,7 +126,9 @@ const J = n => 'J$' + Math.round(Math.abs(+n || 0)).toLocaleString('en-JM');
 const fd = iso => iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-JM', {day:'numeric', month:'short'}) : '';
 const num = n => { const x = Math.round((+n || 0) * 100) / 100; return String(x); };
 
-let ORDERS = [], REP = '', ME = '', TAB = 'todo', ASREP = '';
+let DONE = [];   // done in live Acumatica in the last 14 days (from the server), shown under Decided
+let SEL = new Set(), BULK = null;   // SEL: ticked back orders (bulk close); BULK: {i, k} while a bulk close is running
+let ORDERS = [], REP = '', ME = '', TAB = 'todo', ASREP = '', MODE = 'off';   // MODE: off | test | live (whether a tap also updates Acumatica)
 const firstName = n => String(n || '').split(' ')[0];
 
 document.addEventListener('dfl-auth-ready', e => init(e.detail.profile));
@@ -123,7 +140,7 @@ async function init(profile) {
     ASREP = new URLSearchParams(location.search).get('rep') || '';
     const { data, error } = await sb.rpc('rep_my_backorders', ASREP ? {p_rep: ASREP} : {});
     if (error) throw error;
-    ORDERS = data.orders || []; REP = data.rep; ME = data.me;
+    ORDERS = data.orders || []; DONE = data.done || []; REP = data.rep; ME = data.me; MODE = data.mode || 'off';
     const d = new Date(); document.getElementById('asof').innerHTML = 'Today<b>' + esc(d.toLocaleDateString('en-JM', {day:'numeric', month:'short'})) + '</b>';
     draw();
   } catch (err) {
@@ -135,23 +152,43 @@ async function init(profile) {
 function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add('hidden'), 2600); }
 
 function draw() {
-  const main = document.getElementById('main'), n = ORDERS.length;
+  const main = document.getElementById('main'), n = ORDERS.length + DONE.length;
   if (!n) { main.innerHTML = '<div class="hero"><div class="lbl">' + esc(REP) + '</div><div class="big">No back orders</div><p class="how">Nothing is waiting on you. Nice work.</p></div>'; return; }
-  const re = ORDERS.filter(o => o.v === 're').length, cl = ORDERS.filter(o => o.v === 'close').length, left = n - re - cl;
+  const re = ORDERS.filter(o => o.v === 're').length + DONE.filter(d => d.decision === 're').length, cl = ORDERS.filter(o => o.v === 'close').length + DONE.filter(d => d.decision === 'close').length, left = n - re - cl;
   const list = ORDERS.filter(o => TAB === 'todo' ? !o.v : !!o.v);
+  const doneCards = TAB === 'done' ? DONE.map(doneCard).join('') : '';
   main.innerHTML =
     '<div class="hero"><div class="lbl">' + esc(ASREP && REP !== ME ? REP + ' · back orders' : 'Your back orders') + '</div>' +
       '<div class="big">' + (left ? left + ' <small>left to decide · ' + (re + cl) + ' of ' + n + ' done</small>' : 'All done <small>· ' + n + ' of ' + n + ' decided</small>') + '</div>' +
       '<div class="bar"><span class="re" style="width:' + (re / n * 100) + '%"></span><span class="cl" style="width:' + (cl / n * 100) + '%"></span></div>' +
-      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. Back orders are cleared on Monday at 12 noon.</p>' +
+      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order moves to <b>Decided</b>, where you can see what you closed and what you re-entered. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
       (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
     '</div>' +
     '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
-    (list.length ? list.map(card).join('') : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
+    (TAB === 'todo' ? bulkBar(list, true) : '') +
+    (list.length || doneCards ? list.map(card).join('') + doneCards : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
+    bulkBar(list, false) +
     '<div class="foot">Sales support sees your answers straight away.</div>';
 }
+function bulkBar(list, top) {
+  if (TAB !== 'todo' || !list.length) return '';
+  const ids = list.map(o => o.nbr), k = ids.filter(x => SEL.has(x)).length, all = k === ids.length;
+  if (BULK) return top ? '<div class="bulk top"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>' : '';
+  if (!top && !k) return '';
+  const lab = k ? k + ' selected' : 'Select all (' + ids.length + ')';
+  return '<div class="bulk' + (top ? ' top' : '') + '"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '><span>' + lab + (top && !k ? '<small>Tick orders to close several at once</small>' : '') + '</span></label>' +
+    '<button type="button" data-bulk="1"' + (k ? '' : ' disabled') + '>Close selected' + (k ? ' (' + k + ')' : '') + '</button></div>';
+}
 
+function doneCard(d) {
+  const cl = d.decision === 'close';
+  return '<section class="bo ' + (cl ? 'cl' : 're') + '"><div class="nm">' + esc(d.name || d.c) + '</div>' +
+    '<div class="mt">Back order <b>' + esc(d.nbr) + '</b></div>' +
+    '<div class="acu ok"><span class="badge ' + (cl ? 'close' : 're') + '">' + (cl ? 'Closed' : 'Re-entered') + '</span>' + (cl ? 'Completed' : 'Opened again') + ' in Acumatica' +
+    (d.by_name || d.at ? ' · ' + esc((d.by_name && d.by_name !== ME ? d.by_name + ' · ' : '') + (d.at ? fd(d.at) : '')) : '') + '</div></section>';
+}
 function card(o) {
+  if (o.acu && o.acu.decision === o.v && o.acu.state === 'done' && o.acu.env === 'live') return doneCard({nbr: o.nbr, name: o.name, c: o.c, decision: o.v, by_name: o.by_name, at: o.at});
   const lines = (o.items || []).map(b => {
     const have = +b.onhand >= +b.owed;
     return '<li><span class="d">' + esc(b.desc) +
@@ -159,22 +196,83 @@ function card(o) {
       '</span><span class="q">' + num(b.owed) + ' owed</span></li>';
   }).join('');
   const by = o.v && o.by_name && o.by_name !== ME ? '<div class="who">Marked by ' + esc(o.by_name) + (o.at ? ' · ' + esc(fd(o.at)) : '') + '</div>' : '';
-  return '<section class="bo ' + (o.v || '') + '"><div class="nm">' + esc(o.name || o.c) + '</div>' +
+  const a = o.sending ? {state:'sending'} : (o.acu && o.acu.decision === o.v ? o.acu : null);
+  const lock = !!(a && (a.state === 'sending' || (a.state === 'done' && a.env === 'live'))), dis = lock ? ' disabled' : '';
+  let st = '';
+  if (a && a.state === 'sending') st = '<div class="acu wait">Sending to Acumatica…</div>';
+  else if (a && a.state === 'done') st = '<div class="acu ok">' + (a.env === 'test' ? 'Test only: the Acumatica test copy was updated. ' : '') + (o.v === 'close' ? 'Done in Acumatica: the order is completed.' : 'Done in Acumatica: the order is open again.') + '</div>';
+  else if (a && a.state === 'skipped') st = '<div class="acu warn">Not changed in Acumatica. ' + esc(a.message || '') + '</div>';
+  else if (a && a.state === 'failed') st = '<div class="acu bad">Could not update Acumatica. ' + esc(a.message || '') + ' <button class="retry" data-retry="' + esc(o.nbr) + '">Try again</button></div>';
+  const pick = !o.v && !o.sending ? '<label class="pick"><input type="checkbox" data-sel="' + esc(o.nbr) + '"' + (SEL.has(o.nbr) ? ' checked' : '') + (BULK ? ' disabled' : '') + '> Select to close</label>' : '';
+  return '<section class="bo ' + (o.v || '') + (SEL.has(o.nbr) && !o.v ? ' sel' : '') + '">' + pick + '<div class="nm">' + esc(o.name || o.c) + '</div>' +
     '<div class="mt">Back order <b>' + esc(o.nbr) + '</b> · since ' + esc(fd(o.date)) + ' · ' + esc(J(o.val)) + '</div>' +
     '<ul class="items">' + lines + '</ul>' +
-    '<div class="decide"><button class="dbtn close' + (o.v === 'close' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="close">Close it<small>Not wanted</small></button>' +
-    '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re">Re-enter it<small>Needs a new order</small></button></div>' + by + '</section>';
+    '<div class="decide"><button class="dbtn close' + (o.v === 'close' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="close"' + dis + '>Close it<small>Not wanted</small></button>' +
+    '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re"' + dis + '>Re-enter it<small>Needs a new order</small></button></div>' + st + by + '</section>';
 }
 
+// after the answer is saved, ask the server to apply it in Acumatica (Close it = Complete Order, Re-enter it = Open Order). Does nothing while the switch is off.
+async function sendToAcumatica(o) {
+  if (MODE !== 'test' && MODE !== 'live') return;
+  o.sending = true; draw();
+  try {
+    const { data, error } = await sb.functions.invoke('backorder-acu', { body: { nbr: o.nbr } });
+    if (error) throw error;
+    o.acu = { state: data.state, env: data.env || MODE, decision: data.decision || o.v, message: data.message || '', status_after: data.status_after };
+    if (data.ok === false && data.state !== 'failed') o.acu = { state: 'failed', env: MODE, decision: o.v, message: data.error || 'Could not reach Acumatica.' };
+  } catch (err) {
+    o.acu = { state: 'failed', env: MODE, decision: o.v, message: 'Could not reach Acumatica. Try again.' };
+  }
+  o.sending = false;
+  if (o.acu && o.acu.state === 'done' && o.acu.env === 'live') { SEL.delete(o.nbr); toast(o.v === 'close' ? 'Closed in Acumatica: order ' + o.nbr : 'Opened again in Acumatica: order ' + o.nbr); }
+  draw();
+}
+
+document.addEventListener('change', e => {
+  if (BULK) return;
+  const s = e.target.closest('[data-sel]'); if (s) { s.checked ? SEL.add(s.dataset.sel) : SEL.delete(s.dataset.sel); draw(); return; }
+  if (e.target.closest('[data-all]')) { const ids = ORDERS.filter(o => !o.v && !o.sending).map(o => o.nbr); const all = ids.every(x => SEL.has(x)); ids.forEach(x => all ? SEL.delete(x) : SEL.add(x)); draw(); }
+});
+async function closeSelected() {
+  const pick = ORDERS.filter(o => SEL.has(o.nbr) && !o.v && !o.sending);
+  if (!pick.length || BULK) return;
+  const names = pick.slice(0, 8).map(o => '• ' + (o.name || o.c) + ' (' + o.nbr + ')').join('\n') + (pick.length > 8 ? '\n• and ' + (pick.length - 8) + ' more' : '');
+  if (!confirm('Close ' + pick.length + ' back order' + (pick.length > 1 ? 's' : '') + '?\n\n' + names + '\n\n' + (MODE === 'live' ? 'This completes them in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'They will be cleared on Monday at 12 noon.'))) return;
+  const stop = ev => { ev.preventDefault(); ev.returnValue = ''; }; window.addEventListener('beforeunload', stop);
+  let bad = 0; BULK = {i: 0, k: pick.length};
+  for (const o of pick) {
+    BULK.i++; draw();
+    const was = {v: o.v, by: o.by_name, at: o.at};
+    o.v = 'close'; o.by_name = ME; o.at = new Date().toISOString();
+    const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr: o.nbr, p_v: 'close', p_rep: ASREP} : {p_nbr: o.nbr, p_v: 'close'});
+    if (error) { o.v = was.v; o.by_name = was.by; o.at = was.at; bad++; continue; }
+    SEL.delete(o.nbr);
+    await sendToAcumatica(o);
+    if (o.acu && o.acu.state !== 'done') bad++;
+  }
+  window.removeEventListener('beforeunload', stop);
+  BULK = null; draw();
+  toast(bad ? (pick.length - bad) + ' closed, ' + bad + ' need a look (see Decided)' : pick.length + ' closed');
+}
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-bulk]')) { closeSelected(); return; }
+  if (BULK) return;
   const t = e.target.closest('[data-tab]'); if (t) { TAB = t.dataset.tab; draw(); return; }
+  const rt = e.target.closest('[data-retry]'); if (rt) { const o = ORDERS.find(x => x.nbr === rt.dataset.retry); if (o && o.v) sendToAcumatica(o); return; }
   const b = e.target.closest('[data-v]'); if (!b || b.disabled) return;
-  const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o) return;
+  const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o || o.sending) return;
   const was = {v:o.v, by:o.by_name, at:o.at}, nv = o.v === b.dataset.v ? '' : b.dataset.v;   // tapping the chosen button again takes the answer back
+  // Close it always asks first, so it is not hit by mistake
+  if (nv === 'close' && !confirm('Close it?\n\nBack order ' + o.nbr + ' for ' + (o.name || o.c) + '.\n' + (MODE === 'live' ? 'This completes the order in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'It will be cleared on Monday at 12 noon.'))) return;
   o.v = nv || null; o.by_name = nv ? ME : null; o.at = nv ? new Date().toISOString() : null; draw();
   const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr:o.nbr, p_v:nv, p_rep:ASREP} : {p_nbr:o.nbr, p_v:nv});
-  if (error) { o.v = was.v; o.by_name = was.by; o.at = was.at; draw(); toast('That did not save. Check your connection and try again.'); }
-  else toast(nv === 're' ? 'Saved: re-enter it' : nv === 'close' ? 'Saved: close it' : 'Answer taken back');
+  if (error) {
+    o.v = was.v; o.by_name = was.by; o.at = was.at; draw();
+    toast(/already been done/i.test(error.message || '') ? 'That one is already done in Acumatica, so it cannot be changed.' : 'That did not save. Check your connection and try again.');
+    return;
+  }
+  toast(nv === 're' ? 'Saved: re-enter it' : nv === 'close' ? 'Saved: close it' : 'Answer taken back');
+  if (nv) sendToAcumatica(o);
 });
 </script>
 </body>
