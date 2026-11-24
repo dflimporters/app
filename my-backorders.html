@@ -165,18 +165,16 @@ function draw() {
       (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
     '</div>' +
     '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
-    (TAB === 'todo' ? bulkBar(list, true) : '') +
     (list.length || doneCards ? list.map(card).join('') + doneCards : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
-    bulkBar(list, false) +
+    bulkBar(list) +
     '<div class="foot">Sales support sees your answers straight away.</div>';
 }
-function bulkBar(list, top) {
+function bulkBar(list) {
   if (TAB !== 'todo' || !list.length) return '';
   const ids = list.map(o => o.nbr), k = ids.filter(x => SEL.has(x)).length, all = k === ids.length;
-  if (BULK) return top ? '<div class="bulk top"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>' : '';
-  if (!top && !k) return '';
+  if (BULK) return '<div class="bulk"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>';
   const lab = k ? k + ' selected' : 'Select all (' + ids.length + ')';
-  return '<div class="bulk' + (top ? ' top' : '') + '"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '><span>' + lab + (top && !k ? '<small>Tick orders to close several at once</small>' : '') + '</span></label>' +
+  return '<div class="bulk"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '><span>' + lab + (!k ? '<small>Tick orders to close several at once</small>' : '') + '</span></label>' +
     '<button type="button" data-bulk="1"' + (k ? '' : ' disabled') + '>Close selected' + (k ? ' (' + k + ')' : '') + '</button></div>';
 }
 
