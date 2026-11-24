@@ -1551,7 +1551,7 @@ async function setTick(k, v) {
   if (error) { toast(/already been done/i.test(error.message || '') ? 'That one is already done in Acumatica, so it cannot be changed.' : 'That did not save. Check your connection and try again.'); return false; }
   return true;
 }
-// after a back-order answer is saved, the server applies it in Acumatica (Close it = Cancel Order, Re-enter it = Open Order). Off until Scott switches it on.
+// after a back-order answer is saved, the server applies it in Acumatica (Close it = Complete Order, Re-enter it = Open Order). Off until Scott switches it on.
 HUBD.acu = HUBD.acu || {}; HUBD.acuBusy = HUBD.acuBusy || {};
 async function sendBackOrder(nbr) {
   HUBD.acuBusy[nbr] = true; render();
@@ -2064,14 +2064,14 @@ const MONDAY = (() => { let d = ASOF; while (d8(d).getDay() !== 1) d = addDays(d
 const wantedOf = b => { const t = tick('bok:' + b.nbr + ':' + b.sku); return !!(t && t.v === 'keep'); };
 const repliedOf = nbr => { const t = tick('bow:' + nbr); return !!(t && t.v); };
 const bodOf = nbr => { const t = tick('bod:' + nbr); return t && (t.v === 'close' || t.v === 're') ? t.v : ''; };
-// what Acumatica did with a decided back order (Scott, 24 Nov): tapping Close it / Re-enter it now updates Acumatica by itself once Scott switches it on (Close it = Cancel Order, Re-enter it = Open Order)
+// what Acumatica did with a decided back order (Scott, 24 Nov): tapping Close it / Re-enter it now updates Acumatica by itself once Scott switches it on (Close it = Complete Order, Re-enter it = Open Order)
 const acuMap = () => (typeof HUBD !== 'undefined' && HUBD.acu) || {};
 const acuBusy = nbr => !!(typeof HUBD !== 'undefined' && HUBD.acuBusy && HUBD.acuBusy[nbr]);
 const acuState = nbr => { const a = acuMap()[nbr], dv = bodOf(nbr); return acuBusy(nbr) ? {state:'sending'} : (a && dv && a.decision === dv ? a : null); };
 const acuLocked = nbr => { const a = acuState(nbr); return !!(a && (a.state === 'sending' || (a.state === 'done' && a.env === 'live'))); };
 const acuLine = nbr => { const a = acuState(nbr), dv = bodOf(nbr); if (!a) return '';
   if (a.state === 'sending') return '<div class="acus wait">Sending to Acumatica…</div>';
-  if (a.state === 'done') return `<div class="acus ok">${a.env === 'test' ? 'Test only. ' : ''}${dv === 'close' ? 'Cancelled in Acumatica' : 'Opened again in Acumatica'}</div>`;
+  if (a.state === 'done') return `<div class="acus ok">${a.env === 'test' ? 'Test only. ' : ''}${dv === 'close' ? 'Completed in Acumatica' : 'Opened again in Acumatica'}</div>`;
   if (a.state === 'skipped') return `<div class="acus warn" title="${esc(a.message || '')}">Not changed: order ${esc(String(a.message || '').replace(/^Order \d+ /, '').slice(0, 80))}</div>`;
   if (a.state === 'failed') return `<div class="acus bad" title="${esc(a.message || '')}">Not sent to Acumatica <button type="button" class="acuretry" data-boretry="${esc(nbr)}">Try again</button></div>`;
   return ''; };
@@ -2106,7 +2106,7 @@ function boReview(cap) {
   const pool = reps.map(rep => ({rep, os:boOrders(rep).filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku)))}));
   const all = pool.flatMap(p => p.os), cnt = {all:all.length, none:all.filter(x => !bodOf(x.nbr)).length, re:all.filter(x => bodOf(x.nbr) === 're').length, close:all.filter(x => bodOf(x.nbr) === 'close').length, hand:all.filter(x => x.ls.some(b => b.canShip)).length, repl:all.filter(x => x.ls.some(b => b.rep)).length};
   const fbtn = (k, t) => `<button type="button" class="btn sm${BOF === k ? ' pri' : ''}" data-bof="${k}" aria-pressed="${BOF === k}">${t} (${cnt[k]})</button>`;
-  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link, taps Close it or Re-enter it, and the buttons here fill in by themselves. When the automatic update is on, a tap also updates Acumatica: Close it cancels the order there and Re-enter it opens it again, and the line shows what happened. Until then it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
+  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link, taps Close it or Re-enter it, and the buttons here fill in by themselves. When the automatic update is on, a tap also updates Acumatica: Close it completes the order there and Re-enter it opens it again, and the line shows what happened. Until then it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
     `<div class="acts" style="margin:0 0 12px"><span class="note" style="margin:0 6px 0 0">Show</span>${fbtn('all', 'All')}${fbtn('none', 'Undecided')}${fbtn('re', 'Re-enter it')}${fbtn('close', 'Close it')}<span class="note" style="margin:0 6px 0 10px">or</span>${fbtn('hand', 'Stock shows on hand')}${fbtn('repl', 'Likely replaced')}</div>` +
     pool.map(({rep, os:osAll}) => { const os = osAll.filter(x => BOF === 'all' || (BOF === 'none' ? !bodOf(x.nbr) : BOF === 'hand' ? x.ls.some(b => b.canShip) : BOF === 'repl' ? x.ls.some(b => b.rep) : bodOf(x.nbr) === BOF)); if (!os.length) return '';
       const decided = osAll.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, cap || 10);
@@ -3355,7 +3355,7 @@ __on(document, 'click', e => {
   if (d.boretry) { if (typeof sendBackOrder === 'function') sendBackOrder(d.boretry); return; }
   if (d.bod) { if (acuLocked(d.bod)) { toast('That one is already done in Acumatica, so it cannot be changed here.'); return; }
     const k = 'bod:' + d.bod, cur = tick(k), nv = cur && cur.v === d.bov ? null : d.bov, live = typeof HUBD !== 'undefined' && HUBD.acuMode === 'live';
-    if (nv === 'close' && live && !confirm('Close it?\n\nThis cancels back order ' + d.bod + ' in Acumatica. It cannot be undone here.')) return;
+    if (nv === 'close' && live && !confirm('Close it?\n\nThis completes back order ' + d.bod + ' in Acumatica. It cannot be undone here.')) return;
     Promise.resolve(setTick(k, nv)).then(ok => { if (ok && nv && typeof sendBackOrder === 'function') sendBackOrder(d.bod); }); return; }
   if (d.oost) { const k = 'oost:' + d.oost, on = tick(k) && tick(k).v; setTick(k, on ? null : 1); return; }
   if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }

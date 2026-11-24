@@ -166,7 +166,7 @@ function card(o) {
   const lock = !!(a && (a.state === 'sending' || (a.state === 'done' && a.env === 'live'))), dis = lock ? ' disabled' : '';
   let st = '';
   if (a && a.state === 'sending') st = '<div class="acu wait">Sending to Acumatica…</div>';
-  else if (a && a.state === 'done') st = '<div class="acu ok">' + (a.env === 'test' ? 'Test only: the Acumatica test copy was updated. ' : '') + (o.v === 'close' ? 'Done in Acumatica: the order is cancelled.' : 'Done in Acumatica: the order is open again.') + '</div>';
+  else if (a && a.state === 'done') st = '<div class="acu ok">' + (a.env === 'test' ? 'Test only: the Acumatica test copy was updated. ' : '') + (o.v === 'close' ? 'Done in Acumatica: the order is completed.' : 'Done in Acumatica: the order is open again.') + '</div>';
   else if (a && a.state === 'skipped') st = '<div class="acu warn">Not changed in Acumatica. ' + esc(a.message || '') + '</div>';
   else if (a && a.state === 'failed') st = '<div class="acu bad">Could not update Acumatica. ' + esc(a.message || '') + ' <button class="retry" data-retry="' + esc(o.nbr) + '">Try again</button></div>';
   return '<section class="bo ' + (o.v || '') + '"><div class="nm">' + esc(o.name || o.c) + '</div>' +
@@ -176,7 +176,7 @@ function card(o) {
     '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re"' + dis + '>Re-enter it<small>Needs a new order</small></button></div>' + st + by + '</section>';
 }
 
-// after the answer is saved, ask the server to apply it in Acumatica (Close it = Cancel Order, Re-enter it = Open Order). Does nothing while the switch is off.
+// after the answer is saved, ask the server to apply it in Acumatica (Close it = Complete Order, Re-enter it = Open Order). Does nothing while the switch is off.
 async function sendToAcumatica(o) {
   if (MODE !== 'test' && MODE !== 'live') return;
   o.sending = true; draw();
@@ -197,8 +197,8 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-v]'); if (!b || b.disabled) return;
   const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o || o.sending) return;
   const was = {v:o.v, by:o.by_name, at:o.at}, nv = o.v === b.dataset.v ? '' : b.dataset.v;   // tapping the chosen button again takes the answer back
-  // a Close it really cancels the order in Acumatica, so ask once
-  if (nv === 'close' && MODE === 'live' && !confirm('Close it?\n\nThis cancels back order ' + o.nbr + ' for ' + (o.name || o.c) + ' in Acumatica. It cannot be undone here.')) return;
+  // a Close it really completes the order in Acumatica, so ask once
+  if (nv === 'close' && MODE === 'live' && !confirm('Close it?\n\nThis completes back order ' + o.nbr + ' for ' + (o.name || o.c) + ' in Acumatica. It cannot be undone here.')) return;
   o.v = nv || null; o.by_name = nv ? ME : null; o.at = nv ? new Date().toISOString() : null; draw();
   const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr:o.nbr, p_v:nv, p_rep:ASREP} : {p_nbr:o.nbr, p_v:nv});
   if (error) {

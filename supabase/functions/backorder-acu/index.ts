@@ -1,6 +1,6 @@
 // backorder-acu: applies a saved back-order decision in Acumatica (Scott, 24 Nov).
-//   decision 'close' -> SalesOrder action CancelSalesOrder   (Complete Order is not in the API yet; Scott chose Cancel for now)
-//   decision 're'    -> SalesOrder action OpenSalesOrder
+//   decision 'close' -> SalesOrder action CompleteSalesOrder (DFL/1.0.001 endpoint, body { entity: { id: <order GUID> } })
+//   decision 're'    -> SalesOrder action OpenSalesOrder     (Default/24.200.001, by order type + number)
 // POST { nbr } with the signed-in user's token. The decision is already saved in ss_hub_ticks (bod_<order>) by the page; this reads it.
 // Off unless ss_acu_settings 'backorder_mode' is 'test' (TEST tenant) or 'live'. Result is recorded in ss_backorder_acu.
 // Safety: only acts on an order that is still 'Back Order' in Acumatica; one Acumatica session at a time (acu_leases); the caller must be
@@ -12,7 +12,8 @@ const admin = createClient(URL_, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const BASE = 'https://dflimporters.acumatica.com';
 const VERSION = '24.200.001';
 const GAP_MS = 1000;
-const ACTION: Record<string, string> = { close: 'CancelSalesOrder', re: 'OpenSalesOrder' };
+const ACTION: Record<string, string> = { close: 'CompleteSalesOrder', re: 'OpenSalesOrder' };
+const DFL_SO = '/entity/DFL/1.0.001/SalesOrder';   // custom DFL endpoint: has Complete Order (Default/24.200.001 does not)
 
 const creds = (env: string) => env === 'test'
   ? { user: Deno.env.get('ACU_SHIPVIA_USERNAME') ?? '', pass: Deno.env.get('ACU_SHIPVIA_PASSWORD') ?? '', tenant: Deno.env.get('ACU_SHIPVIA_TENANT') ?? '' }
@@ -67,10 +68,12 @@ const getOrder = async (nbr: string) => {
   const r = await acu('GET', `${SO}?$filter=${f}&$select=OrderNbr,Status&$top=1`);
   if (!r.ok) throw new Error(`Could not read order ${nbr} (${r.status}): ${errText(r.data)}`);
   const o = Array.isArray(r.data) ? r.data[0] : null;
-  return o ? { status: String(v(o.Status) ?? '') } : null;
+  return o ? { status: String(v(o.Status) ?? ''), id: typeof o.id === 'string' ? o.id : null } : null;
 };
-async function runAction(action: string, nbr: string) {
-  const r = await acu('POST', `${SO}/${action}`, { entity: { OrderType: { value: 'SO' }, OrderNbr: { value: nbr } } });
+async function runAction(action: string, nbr: string, id: string | null) {
+  const r = action === 'CompleteSalesOrder'
+    ? await acu('POST', `${DFL_SO}/${action}`, { entity: { id } })
+    : await acu('POST', `${SO}/${action}`, { entity: { OrderType: { value: 'SO' }, OrderNbr: { value: nbr } } });
   if (r.status === 204 || r.status === 200) return;
   if (r.status !== 202 || !r.location) throw new Error(`Acumatica refused ${action}: ${r.status} ${errText(r.data)}`);
   for (let i = 0; i < 45; i++) {
@@ -122,7 +125,8 @@ Deno.serve(async (req) => {
       const o = await getOrder(nbr);
       if (!o) return { state: 'skipped', before: null, after: null, message: `Order ${nbr} was not found in Acumatica${mode === 'test' ? ' (TEST)' : ''}.` };
       if (o.status !== 'Back Order') return { state: 'skipped', before: o.status, after: o.status, message: `Order ${nbr} is now ${o.status} in Acumatica, so nothing was changed.` };
-      await runAction(action, nbr);
+      if (action === 'CompleteSalesOrder' && !o.id) throw new Error(`Could not read the Acumatica id of order ${nbr}.`);
+      await runAction(action, nbr, o.id);
       const after = await getOrder(nbr);
       return { state: 'done', before: o.status, after: after?.status ?? null, message: null };
     });
