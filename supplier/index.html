@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supplier Portal — DFL Importers</title>
+<style>body { visibility: hidden; }</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Supplier portal — one page per supplier login. All data from
+     supplier_dashboard() (SECURITY DEFINER); suppliers only ever get their own
+     items, DFL staff can preview with ?s=<supplier id>.
+     SQL: /_staging/sql/2026-11-23_supplier_portal.sql */
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --border:#e2e8f0; --grid:#eef2f6;
+    --navy:#0f2044; --navy2:#1a3260;
+    --text:#1e293b; --text-2:#475569; --muted:#64748b; --dim:#94a3b8;
+    --accent:#2563eb; --accent-bg:#eff6ff;
+    --good:#15803d; --good-bg:#f0fdf4; --warn:#b45309; --warn-bg:#fffbeb;
+    --bad:#dc2626; --bad-bg:#fef2f2;
+    /* categorical slots, fixed order (dataviz reference palette, light) */
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s-other:#a8b1bd;
+    --shadow:0 1px 2px rgba(15,32,68,.06), 0 1px 3px rgba(15,32,68,.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; font-size:14px; line-height:1.45; }
+  button, input, select, textarea { font-family:inherit; font-size:inherit; color:inherit; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  /* ---- header ---- */
+  .top { background:var(--navy); color:#fff; }
+  .top-in { max-width:1180px; margin:0 auto; padding:14px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .top img { height:28px; }
+  .top .ttl { display:flex; flex-direction:column; line-height:1.2; }
+  .top .ttl b { font-size:16px; }
+  .top .ttl span { font-size:12px; color:#b8c4dc; }
+  .top .sp { flex:1; }
+  .top .who { font-size:12px; color:#b8c4dc; text-align:right; }
+  .top .btn-ghost { background:transparent; border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:7px; padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; text-decoration:none; }
+  .top .btn-ghost:hover { background:rgba(255,255,255,.08); }
+  .staffbar { background:#fbbf24; color:#1e293b; font-size:12px; font-weight:600; }
+  .staffbar div { max-width:1180px; margin:0 auto; padding:6px 20px; }
+
+  .tabs { background:var(--navy2); }
+  .tabs-in { max-width:1180px; margin:0 auto; padding:0 12px; display:flex; gap:2px; overflow-x:auto; }
+  .tab { background:none; border:none; color:#b8c4dc; padding:12px 14px; cursor:pointer; font-weight:600; font-size:13px; border-bottom:3px solid transparent; white-space:nowrap; }
+  .tab:hover { color:#fff; }
+  .tab.on { color:#fff; border-bottom-color:#60a5fa; }
+
+  main { max-width:1180px; margin:0 auto; padding:20px; }
+  .bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .bar h1 { font-size:20px; font-weight:700; margin-right:auto; }
+  .bar select, .field input, .field select, .field textarea {
+    border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:8px 10px; }
+  .btn { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-weight:600; cursor:pointer; }
+  .btn:hover { background:#1d4ed8; }
+  .btn.sec { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+  .btn.sec:hover { background:#f8fafc; }
+  .btn.danger { background:var(--surface); color:var(--bad); border:1px solid #fecaca; }
+  .btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:15px; font-weight:700; }
+  .card .sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .card-h { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .card-h > div:first-child { margin-right:auto; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid2 > .card { margin-bottom:0; }
+
+  .kpis { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:16px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); }
+  .kpi .l { font-size:12px; color:var(--muted); font-weight:600; }
+  .kpi .v { font-size:26px; font-weight:700; margin-top:4px; letter-spacing:-.01em; }
+  .kpi .d { font-size:12px; color:var(--text-2); margin-top:4px; }
+  .up { color:var(--good); font-weight:600; } .down { color:var(--bad); font-weight:600; }
+
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:9px 10px; border-bottom:1px solid var(--grid); vertical-align:top; }
+  th.r, td.r { text-align:right; }
+  tr.tot td { font-weight:700; border-top:1px solid var(--border); border-bottom:none; }
+  .tblwrap { overflow-x:auto; }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:8px; vertical-align:-1px; }
+
+  .pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .pill.ok { background:var(--good-bg); color:var(--good); }
+  .pill.low { background:var(--warn-bg); color:var(--warn); }
+  .pill.out { background:var(--bad-bg); color:var(--bad); }
+  .pill.st-ordered { background:#f1f5f9; color:#334155; }
+  .pill.st-shipped { background:var(--accent-bg); color:var(--accent); }
+  .pill.st-arrived { background:var(--warn-bg); color:var(--warn); }
+  .pill.st-received { background:var(--good-bg); color:var(--good); }
+  .pill.st-cancelled { background:#f1f5f9; color:var(--dim); text-decoration:line-through; }
+
+  /* ---- charts ---- */
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--text-2); margin-bottom:8px; }
+  .legend span { display:inline-flex; align-items:center; }
+  .chart { position:relative; width:100%; }
+  .chart svg { display:block; width:100%; height:auto; overflow:visible; }
+  .chart text { font-family:'Inter',system-ui,sans-serif; fill:var(--muted); font-size:11px; }
+  .chart .axis { stroke:var(--border); }
+  .chart .gl { stroke:var(--grid); }
+  .tip { position:fixed; pointer-events:none; z-index:50; background:#0f2044; color:#fff; border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.5; box-shadow:0 6px 20px rgba(0,0,0,.2); opacity:0; transition:opacity .08s; max-width:260px; }
+  .tip b { font-weight:700; }
+  .tip .row { display:flex; gap:10px; justify-content:space-between; }
+  .tip .row span:last-child { font-variant-numeric:tabular-nums; }
+  .hbar { display:grid; grid-template-columns:minmax(110px, 38%) 1fr auto; gap:8px; align-items:center; font-size:13px; padding:4px 0; }
+  .hbar .track { height:12px; background:var(--grid); border-radius:4px; overflow:hidden; }
+  .hbar .fill { height:100%; background:var(--s1); border-radius:0 4px 4px 0; }
+  .hbar .val { color:var(--text-2); font-variant-numeric:tabular-nums; min-width:96px; text-align:right; }
+
+  .note { font-size:12px; color:var(--muted); line-height:1.5; }
+  .empty { padding:26px; text-align:center; color:var(--muted); }
+  .loading { padding:60px; text-align:center; color:var(--muted); }
+  .err { background:var(--bad-bg); color:var(--bad); border-radius:10px; padding:14px 16px; }
+  .hidden { display:none !important; }
+
+  /* ---- shipments ---- */
+  .ship-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .ship-lines { font-size:12px; color:var(--text-2); }
+
+  /* ---- modal ---- */
+  .modal-bg { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:40; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+  .modal { background:var(--surface); border-radius:14px; width:100%; max-width:620px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  .modal h3 { font-size:17px; margin-bottom:14px; }
+  .fgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field label { font-size:12px; font-weight:600; color:var(--muted); }
+  .field.full { grid-column:1 / -1; }
+  .lines-tbl td { padding:6px 8px; }
+  .lines-tbl input { width:110px; text-align:right; border:1px solid var(--border); border-radius:7px; padding:6px 8px; }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; flex-wrap:wrap; }
+  .modal-actions .btn.danger { margin-right:auto; }
+  .formerr { color:var(--bad); font-size:13px; margin-top:10px; }
+
+  @media (max-width: 900px) {
+    .kpis, .ship-kpis { grid-template-columns:repeat(2, 1fr); }
+    .grid2 { grid-template-columns:1fr; }
+  }
+  @media (max-width: 640px) {
+    main { padding:14px 12px; }
+    .top-in { padding:12px 14px; }
+    .top .who { display:none; }
+    .kpi .v { font-size:22px; }
+    .card { padding:14px; }
+    .fgrid { grid-template-columns:1fr; }
+    .hide-sm { display:none; }
+    /* keep axis text legible: scroll the plot sideways instead of shrinking it */
+    .chart { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .chart svg { min-width:600px; }
+  }
+
+  /* ---- print = the monthly report ---- */
+  .print-only { display:none; }
+  @media print {
+    @page { margin:12mm; }
+    body { background:#fff; font-size:11px; }
+    .top, .tabs, .staffbar, .bar .btn, .bar select, .no-print, .tip { display:none !important; }
+    .print-only { display:block; }
+    main { padding:0; max-width:none; }
+    section.panel { display:block !important; }
+    section.panel[data-print="no"] { display:none !important; }
+    .card, .kpi { box-shadow:none; break-inside:avoid; }
+    .print-h { margin-bottom:12px; border-bottom:2px solid var(--navy); padding-bottom:8px; display:flex; align-items:center; gap:12px; }
+    .print-h img { height:24px; }
+    .grid2 { grid-template-columns:1fr 1fr; }
+    .kpis { grid-template-columns:repeat(4,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_White.png" alt="DFL">
+    <div class="ttl"><b id="hdrBrand">Supplier Portal</b><span id="hdrSupplier">DFL Importers &amp; Distributors</span></div>
+    <div class="sp"></div>
+    <div class="who" id="hdrWho"></div>
+    <a class="btn-ghost hidden" id="hubLink" href="/hub.html">DFL hub</a>
+    <button class="btn-ghost" type="button" onclick="logout()">Sign out</button>
+  </div>
+</header>
+<div class="staffbar hidden" id="staffBar"><div>DFL staff view: this is exactly what the supplier sees, plus the shipment editor and Access tab.</div></div>
+<nav class="tabs"><div class="tabs-in" id="tabs">
+  <button class="tab on" data-tab="overview">Overview</button>
+  <button class="tab" data-tab="sales">Sales</button>
+  <button class="tab" data-tab="stock">Stock</button>
+  <button class="tab" data-tab="shipments">Shipments</button>
+  <button class="tab hidden" data-tab="access" id="accessTab">Access</button>
+</div></nav>
+
+<main>
+  <div class="print-only print-h">
+    <img src="https://hzagwndglwhcepsirafi.supabase.co/storage/v1/object/public/Assets/DFL%20Logo%20Blue_Black.png" alt="DFL">
+    <div><b id="prTitle">Stock &amp; Sales Report</b><div class="note" id="prSub"></div></div>
+  </div>
+
+  <div class="bar">
+    <h1 id="pageTitle">Overview</h1>
+    <label class="note no-print" for="monthSel">Month</label>
+    <select id="monthSel" aria-label="Report month"></select>
+    <button class="btn sec" type="button" id="csvBtn">Download CSV</button>
+    <button class="btn" type="button" id="printBtn">Monthly report (PDF)</button>
+  </div>
+
+  <div id="loading" class="loading">Loading your numbers…</div>
+  <div id="loadErr" class="err hidden"></div>
+
+  <!-- OVERVIEW -->
+  <section class="panel hidden" data-panel="overview">
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="card-h"><div><h2>Cases sold by month</h2><div class="sub">Last 13 months, net of returns · hover a bar for detail</div></div></div>
+      <div class="legend" id="lgMonthly"></div>
+      <div class="chart" id="chMonthly"></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><div><h2>Stock position</h2><div class="sub">On hand now and days of cover at the last 90 days' sales rate</div></div></div>
+        <div class="tblwrap"><table id="tblStockMini"></table></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>Inbound</h2><div class="sub" id="inboundSub"></div></div></div>
+        <div id="inboundMini"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SALES -->
+  <section class="panel hidden" data-panel="sales">
+    <div class="card">
+      <div class="card-h"><div><h2>Sales by product</h2><div class="sub" id="salesSub"></div></div></div>
+      <div class="tblwrap"><table id="tblSales"></table></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><div><h2>By channel</h2><div class="sub">Cases sold in the month, by type of customer</div></div></div>
+        <div id="chChannel"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>By area</h2><div class="sub">Cases sold in the month, by DFL sales area</div></div></div>
+        <div id="chArea"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><h2>Monthly history</h2><div class="sub">Cases by product, last 13 months</div></div></div>
+      <div class="tblwrap"><table id="tblHistory"></table></div>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section class="panel hidden" data-panel="stock">
+    <div class="card">
+      <div class="card-h"><div><h2>Stock on hand</h2><div class="sub" id="stockSub"></div></div></div>
+      <div class="tblwrap"><table id="tblStock"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><h2>Stock over the last 6 months</h2><div class="sub">Cases on hand at the daily stock snapshot · dots mark deliveries received</div></div></div>
+      <div class="legend" id="lgStock"></div>
+      <div class="chart" id="chStock"></div>
+    </div>
+  </section>
+
+  <!-- SHIPMENTS -->
+  <section class="panel hidden" data-panel="shipments">
+    <div class="ship-kpis" id="shipKpis"></div>
+    <div class="card">
+      <div class="card-h">
+        <div><h2>Purchase orders &amp; containers</h2><div class="sub">Kept by DFL purchasing · ETAs are estimates until received</div></div>
+        <button class="btn hidden no-print" type="button" id="addShipBtn">+ Add shipment</button>
+      </div>
+      <div class="tblwrap" id="shipList"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><div><h2>Deliveries received into DFL stock</h2><div class="sub">Detected automatically from the daily stock count: a rise of 250+ cases in a day, plus that day's sales. Use it to check received shipments.</div></div></div>
+      <div class="tblwrap"><table id="tblReceipts"></table></div>
+    </div>
+  </section>
+
+  <!-- ACCESS (DFL staff editors) -->
+  <section class="panel hidden" data-panel="access" data-print="no">
+    <div class="card">
+      <div class="card-h"><div><h2>Who can sign in for this supplier</h2>
+        <div class="sub">They sign in at dflhq.com with "Supplier sign-in": we email them a one-time code. Only this supplier's products are visible to them.</div></div></div>
+      <div class="fgrid" style="grid-template-columns:2fr 2fr auto; align-items:end; margin-bottom:14px;">
+        <div class="field"><label for="accEmail">Email</label><input id="accEmail" type="email" placeholder="name@ansamcal.com" autocomplete="off"></div>
+        <div class="field"><label for="accName">Name</label><input id="accName" type="text" placeholder="Full name" autocomplete="off"></div>
+        <button class="btn" type="button" id="accAdd">Add</button>
+      </div>
+      <div class="formerr hidden" id="accErr"></div>
+      <div class="tblwrap"><table id="tblAccess"></table></div>
+    </div>
+  </section>
+
+  <p class="note" id="footNote" style="margin-top:8px;"></p>
+</main>
+
+<div class="tip" id="tip"></div>
+<div id="modalRoot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- helpers ----------
+  const $ = (s, el) => (el || document).querySelector(s);
+  const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  const nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+  const fmt = n => nf0.format(Math.round(Number(n) || 0));
+  const fmtJ = n => {
+    n = Number(n) || 0;
+    if (Math.abs(n) >= 1e6) return 'J$' + (n / 1e6).toFixed(n >= 1e7 ? 1 : 2) + 'M';
+    if (Math.abs(n) >= 1e3) return 'J$' + fmt(n / 1e3) + 'K';
+    return 'J$' + fmt(n);
+  };
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mLabel = (m, long) => { const [y, mo] = m.split('-'); return MONTHS[+mo - 1] + (long ? ' ' + y : " '" + y.slice(2)); };
+  const addMonths = (m, k) => { let [y, mo] = m.split('-').map(Number); mo += k; while (mo < 1) { mo += 12; y--; } while (mo > 12) { mo -= 12; y++; } return y + '-' + String(mo).padStart(2, '0'); };
+  const dLabel = d => { if (!d) return '—'; const [y, m, dd] = String(d).slice(0, 10).split('-'); return +dd + ' ' + MONTHS[+m - 1] + ' ' + y; };
+  function pct(a, b) {
+    if (!b) return '';
+    const p = (a - b) / Math.abs(b) * 100;
+    const cls = p >= 0 ? 'up' : 'down';
+    return '<span class="' + cls + '">' + (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p).toFixed(0) + '%</span>';
+  }
+
+  // Customer classes → plain-English channels. Several small ones fold into Other.
+  const CHANNEL = {
+    SUPERMARK: 'Supermarkets', WHOLESALES: 'Wholesale', RETAILINDV: 'Independent retail',
+    CORNERSHOP: 'Corner shops', MINIGROCER: 'Mini grocers', HOSPITALIT: 'Hotels & hospitality',
+    FOODSERVIC: 'Food service', RESTAURANT: 'Restaurants & bars', BAR: 'Restaurants & bars',
+    SERVICESTA: 'Service stations', GASSTATION: 'Service stations', INSTITUTIO: 'Institutions & schools',
+    SCHOOLS: 'Institutions & schools', SUBDIST: 'Sub-distributors', B2B: 'Businesses (B2B)', VENDORS: 'Vendors'
+  };
+  const channelOf = c => CHANNEL[c] || 'Other';
+
+  // "Clean & White Bleach (2litx6)" → "Bleach 2L × 6"
+  function shortName(name, brand) {
+    let s = String(name || '');
+    if (brand && s.toLowerCase().startsWith(brand.toLowerCase())) s = s.slice(brand.length).trim();
+    s = s.replace(/\((\d+(?:\.\d+)?)\s*lit(?:re)?x(\d+)\)/i, '$1L × $2')
+         .replace(/\((\d+)\s*mlx(\d+)\)/i, '$1ml × $2')
+         .replace(/\s+-\s+(\d+)c\/s$/i, ' × $1')
+         .replace(/\s{2,}/g, ' ').trim();
+    return s || name;
+  }
+
+  // ---------- state ----------
+  const params = new URLSearchParams(location.search);
+  let D = null;               // dashboard payload
+  let ITEMS = [];             // items shown (with short name, colour)
+  let month = null;           // 'YYYY-MM'
+  let tab = 'overview';
+  let profile = null;
+
+  // ---------- tooltip ----------
+  const tip = $('#tip');
+  function showTip(html, x, y) {
+    tip.innerHTML = html; tip.style.opacity = '1';
+    const r = tip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > innerHeight - 8) top = y - r.height - 14;
+    tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+  }
+  const hideTip = () => { tip.style.opacity = '0'; };
+
+  // ---------- load ----------
+  async function load() {
+    $('#loading').classList.remove('hidden');
+    $('#loadErr').classList.add('hidden');
+    const { data, error } = await sb.rpc('supplier_dashboard', { p_supplier: params.get('s') || 'ansamcal' });
+    $('#loading').classList.add('hidden');
+    if (error || !data) {
+      const msg = /not authorised/i.test(error && error.message || '')
+        ? 'Your login is not linked to a supplier yet. Please contact your DFL account manager.'
+        : 'Could not load the portal right now. Please refresh in a minute.';
+      $('#loadErr').textContent = msg;
+      $('#loadErr').classList.remove('hidden');
+      console.error('supplier_dashboard failed', error);
+      return;
+    }
+    D = data;
+    prepare();
+    renderAll();
+  }
+
+  function prepare() {
+    const brand = D.supplier.brand || '';
+    const last13 = new Set(monthsBack(D.today.slice(0, 7), 13));
+    const soldRecently = new Set(D.sales_monthly.filter(r => last13.has(r.m) && r.cases > 0).map(r => r.id));
+    ITEMS = D.items
+      .filter(i => i.status === 'Active' || i.on_hand > 0 || soldRecently.has(i.id))
+      .map(i => Object.assign({}, i, { short: shortName(i.name, brand) }));
+
+    // Colour follows the product, assigned once by 13-month volume, so it never
+    // changes between tabs or months. Top four get slots; the rest share grey.
+    const vol = {};
+    D.sales_monthly.forEach(r => { if (last13.has(r.m)) vol[r.id] = (vol[r.id] || 0) + Number(r.cases); });
+    const ranked = ITEMS.slice().sort((a, b) => (vol[b.id] || 0) - (vol[a.id] || 0));
+    ranked.forEach((it, k) => { it.color = k < 4 ? 'var(--s' + (k + 1) + ')' : 'var(--s-other)'; it.slot = k < 4 ? k : 4; });
+    ITEMS.sort((a, b) => a.slot - b.slot || a.short.localeCompare(b.short));
+
+    // Header
+    $('#hdrBrand').textContent = (brand ? brand + ' · ' : '') + 'Supplier Portal';
+    $('#hdrSupplier').textContent = D.supplier.name + ' × DFL Importers & Distributors';
+    document.title = (brand || D.supplier.name) + ' — Supplier Portal';
+    $('#staffBar').classList.toggle('hidden', !D.viewer.staff);
+    $('#hubLink').classList.toggle('hidden', !D.viewer.staff);
+    $('#accessTab').classList.toggle('hidden', !D.viewer.can_edit);
+    $('#addShipBtn').classList.toggle('hidden', !D.viewer.can_edit);
+    if (!D.viewer.can_edit && tab === 'access') tab = 'overview';
+
+    // Month picker: this month (to date) + 12 before
+    const cur = D.today.slice(0, 7);
+    const opts = monthsBack(cur, 13).reverse();
+    $('#monthSel').innerHTML = opts.map(m =>
+      '<option value="' + m + '">' + mLabel(m, true) + (m === cur ? ' (to date)' : '') + '</option>').join('');
+    const want = params.get('m');
+    month = opts.includes(want) ? want : cur;
+    $('#monthSel').value = month;
+
+    const s = D.synced || {};
+    $('#footNote').textContent =
+      'Sales are DFL invoices to our customers (sell-out from DFL), net of returns, in cases. Values are net invoice value in J$ at DFL selling prices. ' +
+      'Sales last updated ' + stamp(s.sales) + ' · stock last updated ' + stamp(s.stock) + '.';
+  }
+  function stamp(ts) {
+    if (!ts) return 'unknown';
+    const d = new Date(ts);
+    return d.toLocaleString('en-JM', { timeZone: 'America/Jamaica', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  }
+  function monthsBack(cur, n) { const out = []; for (let k = n - 1; k >= 0; k--) out.push(addMonths(cur, -k)); return out; }
+
+  // ---------- derived numbers ----------
+  function salesFor(m) {
+    const by = {};
+    D.sales_monthly.forEach(r => { if (r.m === m) by[r.id] = { cases: Number(r.cases), value: Number(r.value) }; });
+    return by;
+  }
+  // Comparison base for `m`: the whole earlier month, except for the current
+  // month, where it is the same days (1st..today) of that month — like for like.
+  const isCurrent = m => m === D.today.slice(0, 7);
+  function priorFor(m, back) {
+    if (!isCurrent(m)) return salesFor(addMonths(m, -back));
+    const by = {}, key = back === 12 ? 'ly' : 'pm';
+    (D.sales_mtd_prior || []).forEach(r => { if (r.period === key) by[r.id] = { cases: Number(r.cases), value: Number(r.value) }; });
+    return by;
+  }
+  function priorLabel(m, back) {
+    const pm = addMonths(m, -back);
+    return isCurrent(m) ? '1–' + (+D.today.slice(8, 10)) + ' ' + mLabel(pm) : mLabel(pm);
+  }
+  const sumCases = by => Object.values(by).reduce((s, r) => s + r.cases, 0);
+  const sumValue = by => Object.values(by).reduce((s, r) => s + r.value, 0);
+  function outlets(m) { const r = D.outlets_monthly.find(x => x.m === m); return r ? Number(r.outlets) : 0; }
+  function cover(it) { return it.avg_daily_90 > 0 ? it.on_hand / it.avg_daily_90 : null; }
+  function coverPill(it) {
+    const c = cover(it);
+    if (it.on_hand <= 0) return '<span class="pill out">✕ Out of stock</span>';
+    if (c == null) return '<span class="pill ok">✓ No recent sales</span>';
+    if (c < 21) return '<span class="pill low">! Low · ' + Math.round(c) + ' days</span>';
+    return '<span class="pill ok">✓ ' + Math.round(c) + ' days</span>';
+  }
+  function shipCases(s) { return (s.lines || []).reduce((t, l) => t + Number(l.cases), 0); }
+  function receivedLogged(m) {
+    return D.shipments.filter(s => s.status === 'received' && s.received_date && s.received_date.slice(0, 7) === m);
+  }
+  function receiptsDetected(m) { return D.receipts_detected.filter(r => r.d.slice(0, 7) === m); }
+  const itemById = id => ITEMS.find(i => i.id === id) || { short: id, color: 'var(--s-other)' };
+
+  // ---------- render ----------
+  function renderAll() {
+    $('#prSub').textContent = D.supplier.name + ' · ' + (D.supplier.brand || '') + ' · ' + mLabel(month, true) +
+      (month === D.today.slice(0, 7) ? ' (to ' + dLabel(D.today) + ')' : '');
+    $('#prTitle').textContent = (D.supplier.brand || D.supplier.name) + ' Stock & Sales Report';
+    renderOverview(); renderSales(); renderStock(); renderShipments();
+    if (D.viewer.can_edit) loadAccess();
+    showTab(tab);
+  }
+
+  function renderOverview() {
+    const now = salesFor(month), pm = priorFor(month, 1), ly = priorFor(month, 12);
+    const c = sumCases(now), v = sumValue(now);
+    const onHand = ITEMS.reduce((s, i) => s + i.on_hand, 0);
+    const daily = ITEMS.reduce((s, i) => s + Number(i.avg_daily_90), 0);
+    const recvL = receivedLogged(month).reduce((s, x) => s + shipCases(x), 0);
+    const recvD = receiptsDetected(month).reduce((s, x) => s + Number(x.cases_est), 0);
+    const isCur = isCurrent(month);
+    const vs = (a, b, lbl) => b ? pct(a, b) + ' vs ' + esc(lbl) : '<span class="note">no sales ' + esc(lbl) + '</span>';
+    $('#kpis').innerHTML = [
+      { l: 'Cases sold' + (isCur ? ' (month to date)' : ''), v: fmt(c),
+        d: vs(c, sumCases(ly), priorLabel(month, 12)) + '<br>' + vs(c, sumCases(pm), priorLabel(month, 1)) },
+      { l: 'Sales value', v: fmtJ(v), d: vs(v, sumValue(ly), priorLabel(month, 12)) + '<br>' + vs(v, sumValue(pm), priorLabel(month, 1)) },
+      { l: 'Outlets buying', v: fmt(outlets(month)), d: 'Customers invoiced at least one case' },
+      { l: 'Stock on hand now', v: fmt(onHand), d: daily > 0 ? '≈ ' + Math.round(onHand / daily) + ' days of cover overall' : '' }
+    ].map(k => '<div class="kpi"><div class="l">' + esc(k.l) + '</div><div class="v num">' + k.v + '</div><div class="d">' + k.d + '</div></div>').join('');
+
+    drawMonthly();
+
+    $('#tblStockMini').innerHTML = '<thead><tr><th>Product</th><th class="r">On hand</th><th>Cover</th></tr></thead><tbody>' +
+      ITEMS.map(it => '<tr><td><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</td><td class="r num">' + fmt(it.on_hand) + '</td><td>' + coverPill(it) + '</td></tr>').join('') +
+      '</tbody>';
+
+    const open = D.shipments.filter(s => ['ordered', 'shipped', 'arrived'].includes(s.status));
+    $('#inboundSub').textContent = 'Received in ' + mLabel(month, true) + ' and still to come';
+    let h = '<div class="kpis" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">' +
+      '<div class="kpi"><div class="l">Received in ' + esc(mLabel(month)) + '</div><div class="v num">' + fmt(recvL || recvD) + '</div><div class="d">' +
+      (recvL ? receivedLogged(month).length + ' shipment(s) logged' : recvD ? 'cases, detected from stock' : 'No deliveries yet') + '</div></div>' +
+      '<div class="kpi"><div class="l">On order / in transit</div><div class="v num">' + fmt(open.reduce((s, x) => s + shipCases(x), 0)) + '</div><div class="d">' + open.length + ' open shipment(s)</div></div></div>';
+    if (open.length) {
+      h += '<table><thead><tr><th>PO</th><th>Status</th><th>ETA</th><th class="r">Cases</th></tr></thead><tbody>' +
+        open.slice(0, 5).map(s => '<tr><td>' + esc(s.reference) + '</td><td>' + statusPill(s.status) + '</td><td>' + dLabel(s.eta) + '</td><td class="r num">' + fmt(shipCases(s)) + '</td></tr>').join('') + '</tbody></table>';
+    } else {
+      h += '<p class="note">No open purchase orders are logged yet. See the Shipments tab for deliveries detected from stock.</p>';
+    }
+    $('#inboundMini').innerHTML = h;
+  }
+
+  function renderSales() {
+    const now = salesFor(month), pm = priorFor(month, 1), ly = priorFor(month, 12);
+    $('#salesSub').textContent = mLabel(month, true) + (isCurrent(month) ? ' to date' : '') + ' vs ' + priorLabel(month, 1) + ' and ' + priorLabel(month, 12);
+    const rows = ITEMS.map(it => ({ it, c: (now[it.id] || {}).cases || 0, v: (now[it.id] || {}).value || 0,
+      pc: (pm[it.id] || {}).cases || 0, lc: (ly[it.id] || {}).cases || 0 }));
+    const T = rows.reduce((t, r) => ({ c: t.c + r.c, v: t.v + r.v, pc: t.pc + r.pc, lc: t.lc + r.lc }), { c: 0, v: 0, pc: 0, lc: 0 });
+    $('#tblSales').innerHTML = '<thead><tr><th>Product</th><th class="r">Cases</th><th class="r">Value</th><th class="r hide-sm">Last month</th><th class="r">vs LM</th><th class="r hide-sm">Last year</th><th class="r">vs LY</th></tr></thead><tbody>' +
+      rows.map(r => '<tr><td><span class="sw" style="background:' + r.it.color + '"></span>' + esc(r.it.short) + '</td><td class="r num">' + fmt(r.c) + '</td><td class="r num">' + fmtJ(r.v) +
+        '</td><td class="r num hide-sm">' + fmt(r.pc) + '</td><td class="r">' + pct(r.c, r.pc) + '</td><td class="r num hide-sm">' + fmt(r.lc) + '</td><td class="r">' + pct(r.c, r.lc) + '</td></tr>').join('') +
+      '<tr class="tot"><td>Total</td><td class="r num">' + fmt(T.c) + '</td><td class="r num">' + fmtJ(T.v) + '</td><td class="r num hide-sm">' + fmt(T.pc) + '</td><td class="r">' + pct(T.c, T.pc) +
+      '</td><td class="r num hide-sm">' + fmt(T.lc) + '</td><td class="r">' + pct(T.c, T.lc) + '</td></tr></tbody>';
+
+    // channel + area
+    const ch = {}; D.channel_monthly.filter(r => r.m === month).forEach(r => { const k = channelOf(r.channel); ch[k] = (ch[k] || 0) + Number(r.cases); });
+    $('#chChannel').innerHTML = hbars(ch);
+    const ar = {}; D.area_monthly.filter(r => r.m === month).forEach(r => { ar[r.area] = (ar[r.area] || 0) + Number(r.cases); });
+    $('#chArea').innerHTML = hbars(ar);
+
+    // history table (13 months, newest first)
+    const ms = monthsBack(D.today.slice(0, 7), 13).reverse();
+    const byM = {}; D.sales_monthly.forEach(r => { (byM[r.m] = byM[r.m] || {})[r.id] = Number(r.cases); });
+    $('#tblHistory').innerHTML = '<thead><tr><th>Month</th>' + ITEMS.map(it => '<th class="r"><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</th>').join('') + '<th class="r">Total</th><th class="r">Outlets</th></tr></thead><tbody>' +
+      ms.map(m => { const r = byM[m] || {}; const t = ITEMS.reduce((s, it) => s + (r[it.id] || 0), 0);
+        return '<tr><td>' + mLabel(m, true) + '</td>' + ITEMS.map(it => '<td class="r num">' + fmt(r[it.id] || 0) + '</td>').join('') + '<td class="r num"><b>' + fmt(t) + '</b></td><td class="r num">' + fmt(outlets(m)) + '</td></tr>'; }).join('') + '</tbody>';
+  }
+
+  function hbars(obj) {
+    const rows = Object.entries(obj).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    if (!rows.length) return '<div class="empty">No sales in this month yet.</div>';
+    const max = rows[0][1], tot = rows.reduce((s, r) => s + r[1], 0);
+    return rows.map(([k, v]) => '<div class="hbar"><div>' + esc(k) + '</div><div class="track"><div class="fill" style="width:' + (v / max * 100).toFixed(1) + '%"></div></div><div class="val">' + fmt(v) + ' <span class="note">' + (v / tot * 100).toFixed(0) + '%</span></div></div>').join('');
+  }
+
+  function renderStock() {
+    $('#stockSub').textContent = 'As of ' + stamp(D.synced && D.synced.stock) + ' · cover = on hand ÷ average daily cases sold over the last 90 days';
+    $('#tblStock').innerHTML = '<thead><tr><th>Product</th><th class="r">On hand (cases)</th><th class="r">Avg sold / day</th><th class="r hide-sm">Sold / month</th><th>Cover</th></tr></thead><tbody>' +
+      ITEMS.map(it => '<tr><td><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</td><td class="r num">' + fmt(it.on_hand) + '</td><td class="r num">' + Number(it.avg_daily_90).toFixed(1) +
+        '</td><td class="r num hide-sm">' + fmt(it.avg_daily_90 * 30.4) + '</td><td>' + coverPill(it) + '</td></tr>').join('') + '</tbody>';
+    drawStock();
+  }
+
+  const STATUS_LABEL = { ordered: 'Ordered', shipped: 'In transit', arrived: 'Arrived, clearing', received: 'Received', cancelled: 'Cancelled' };
+  const statusPill = s => '<span class="pill st-' + esc(s) + '">' + esc(STATUS_LABEL[s] || s) + '</span>';
+
+  function renderShipments() {
+    const S = D.shipments;
+    const cnt = st => S.filter(s => s.status === st);
+    const recv = receivedLogged(month), det = receiptsDetected(month);
+    const k = [
+      { l: 'Ordered', v: cnt('ordered').reduce((t, s) => t + shipCases(s), 0), d: cnt('ordered').length + ' PO(s)' },
+      { l: 'In transit', v: cnt('shipped').reduce((t, s) => t + shipCases(s), 0), d: cnt('shipped').length + ' shipment(s)' },
+      { l: 'Arrived, clearing', v: cnt('arrived').reduce((t, s) => t + shipCases(s), 0), d: cnt('arrived').length + ' shipment(s)' },
+      { l: 'Received in ' + mLabel(month), v: recv.length ? recv.reduce((t, s) => t + shipCases(s), 0) : det.reduce((t, r) => t + Number(r.cases_est), 0),
+        d: recv.length ? recv.length + ' logged' : det.length ? 'detected from stock' : 'none yet' }
+    ];
+    $('#shipKpis').innerHTML = k.map(x => '<div class="kpi"><div class="l">' + esc(x.l) + '</div><div class="v num">' + fmt(x.v) + '</div><div class="d">' + esc(x.d) + (x.l === 'Received in ' + mLabel(month) || x.v ? ' · cases' : '') + '</div></div>').join('');
+
+    if (!S.length) {
+      $('#shipList').innerHTML = '<div class="empty">No purchase orders logged yet.' + (D.viewer.can_edit ? ' Use “+ Add shipment” to log open POs and containers.' : '') + '</div>';
+    } else {
+      $('#shipList').innerHTML = '<table><thead><tr><th>PO / ref</th><th>Container</th><th>Status</th><th class="hide-sm">Ordered</th><th class="hide-sm">Shipped</th><th>ETA</th><th>Received</th><th class="r">Cases</th>' + (D.viewer.can_edit ? '<th class="no-print"></th>' : '') + '</tr></thead><tbody>' +
+        S.map(s => '<tr><td><b>' + esc(s.reference) + '</b>' + (s.notes ? '<div class="note">' + esc(s.notes) + '</div>' : '') +
+          '<div class="ship-lines">' + (s.lines || []).map(l => esc(itemById(l.id).short) + ': ' + fmt(l.cases)).join(' · ') + '</div></td>' +
+          '<td>' + esc(s.container_no || '—') + '</td><td>' + statusPill(s.status) + '</td><td class="hide-sm">' + dLabel(s.order_date) + '</td><td class="hide-sm">' + dLabel(s.ship_date) +
+          '</td><td>' + dLabel(s.eta) + '</td><td>' + dLabel(s.received_date) + '</td><td class="r num">' + fmt(shipCases(s)) + '</td>' +
+          (D.viewer.can_edit ? '<td class="no-print"><button class="btn sec" type="button" data-edit="' + esc(s.id) + '">Edit</button></td>' : '') + '</tr>').join('') + '</tbody></table>';
+    }
+
+    const R = D.receipts_detected.filter(r => r.d >= addMonths(D.today.slice(0, 7), -5) + '-01');
+    // group by day
+    const byDay = {};
+    R.forEach(r => { (byDay[r.d] = byDay[r.d] || []).push(r); });
+    const days = Object.keys(byDay).sort().reverse();
+    $('#tblReceipts').innerHTML = days.length
+      ? '<thead><tr><th>Date</th>' + ITEMS.map(it => '<th class="r"><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</th>').join('') + '<th class="r">Total</th></tr></thead><tbody>' +
+        days.map(d => { const m = {}; byDay[d].forEach(r => m[r.id] = Number(r.cases_est)); const t = Object.values(m).reduce((a, b) => a + b, 0);
+          return '<tr><td>' + dLabel(d) + '</td>' + ITEMS.map(it => '<td class="r num">' + (m[it.id] ? '≈ ' + fmt(m[it.id]) : '') + '</td>').join('') + '<td class="r num"><b>≈ ' + fmt(t) + '</b></td></tr>'; }).join('') + '</tbody>'
+      : '<tbody><tr><td class="empty">No deliveries detected in the last 6 months.</td></tr></tbody>';
+  }
+
+  // ---------- charts ----------
+  function legendHtml(items) {
+    return items.map(it => '<span><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</span>').join('');
+  }
+
+  // Stacked monthly bars, 13 months. 2px surface gap between segments,
+  // rounded top on the topmost segment only.
+  function drawMonthly() {
+    const el = $('#chMonthly');
+    const ms = monthsBack(D.today.slice(0, 7), 13);
+    const byM = {}; D.sales_monthly.forEach(r => { (byM[r.m] = byM[r.m] || {})[r.id] = Number(r.cases); });
+    const series = ITEMS.slice().reverse(); // draw largest slot at the bottom
+    const totals = ms.map(m => ITEMS.reduce((s, it) => s + Math.max(0, (byM[m] || {})[it.id] || 0), 0));
+    const max = niceMax(Math.max(1, ...totals));
+    const W = 820, H = 260, L = 48, R = 8, T = 10, B = 26;
+    const bw = (W - L - R) / ms.length, barW = Math.min(40, bw * 0.62);
+    const y = v => T + (H - T - B) * (1 - v / max);
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Cases sold by month, stacked by product">';
+    for (let g = 0; g <= 4; g++) { const v = max * g / 4, yy = y(v);
+      s += '<line class="' + (g ? 'gl' : 'axis') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text x="' + (L - 8) + '" y="' + (yy + 4) + '" text-anchor="end">' + fmtK(v) + '</text>'; }
+    ms.forEach((m, i) => {
+      const cx = L + bw * i + bw / 2, x = cx - barW / 2;
+      let acc = 0; const segs = [];
+      ITEMS.forEach(it => { const v = Math.max(0, (byM[m] || {})[it.id] || 0); if (v > 0) segs.push({ it, v }); });
+      segs.forEach((sg, k) => {
+        const y0 = y(acc), y1 = y(acc + sg.v); acc += sg.v;
+        const top = k === segs.length - 1;
+        const h = Math.max(0, y0 - y1 - (top ? 0 : 2));
+        s += top ? roundTopRect(x, y1, barW, h, 4, sg.it.color) : '<rect x="' + x + '" y="' + (y1 + 2) + '" width="' + barW + '" height="' + h + '" fill="' + sg.it.color + '"/>';
+      });
+      const sel = m === month;
+      s += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" style="' + (sel ? 'fill:var(--text);font-weight:700' : '') + '">' + mLabel(m) + '</text>';
+      s += '<rect data-m="' + m + '" x="' + (L + bw * i) + '" y="' + T + '" width="' + bw + '" height="' + (H - T - B) + '" fill="transparent" style="cursor:pointer"/>';
+    });
+    s += '</svg>';
+    el.innerHTML = s;
+    el.scrollLeft = el.scrollWidth; // on phones, start at the newest month
+    $('#lgMonthly').innerHTML = legendHtml(ITEMS);
+    $$('rect[data-m]', el).forEach(r => {
+      r.addEventListener('mousemove', e => {
+        const m = r.dataset.m, row = byM[m] || {}, t = ITEMS.reduce((a, it) => a + (row[it.id] || 0), 0);
+        showTip('<b>' + mLabel(m, true) + '</b>' + ITEMS.map(it => '<div class="row"><span><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</span><span>' + fmt(row[it.id] || 0) + '</span></div>').join('') +
+          '<div class="row" style="border-top:1px solid rgba(255,255,255,.2);margin-top:4px;padding-top:4px"><span>Total cases</span><span>' + fmt(t) + '</span></div>', e.clientX, e.clientY);
+      });
+      r.addEventListener('mouseleave', hideTip);
+      r.addEventListener('click', () => { setMonth(r.dataset.m); });
+    });
+  }
+
+  // Stock lines, last 180 days, crosshair tooltip, receipt dots.
+  function drawStock() {
+    const el = $('#chStock');
+    const pts = {}; const dates = [...new Set(D.stock_daily.map(r => r.d))].sort();
+    D.stock_daily.forEach(r => { (pts[r.id] = pts[r.id] || {})[r.d] = Number(r.on_hand); });
+    const series = ITEMS.filter(it => pts[it.id] && Object.values(pts[it.id]).some(v => v > 0));
+    if (!dates.length || !series.length) { el.innerHTML = '<div class="empty">No stock history yet.</div>'; $('#lgStock').innerHTML = ''; return; }
+    const max = niceMax(Math.max(1, ...series.flatMap(it => Object.values(pts[it.id]))));
+    const W = 820, H = 280, L = 52, R = 10, T = 10, B = 26;
+    const t0 = Date.parse(dates[0]), t1 = Date.parse(dates[dates.length - 1]);
+    const x = d => L + (W - L - R) * ((Date.parse(d) - t0) / Math.max(1, t1 - t0));
+    const y = v => T + (H - T - B) * (1 - v / max);
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Stock on hand by product over the last six months">';
+    for (let g = 0; g <= 4; g++) { const v = max * g / 4, yy = y(v);
+      s += '<line class="' + (g ? 'gl' : 'axis') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/><text x="' + (L - 8) + '" y="' + (yy + 4) + '" text-anchor="end">' + fmtK(v) + '</text>'; }
+    // month ticks
+    let lastM = '';
+    dates.forEach(d => { const m = d.slice(0, 7); if (m !== lastM && d.slice(8) <= '07') { lastM = m; s += '<text x="' + x(d) + '" y="' + (H - 8) + '" text-anchor="middle">' + mLabel(m) + '</text>'; } });
+    series.slice().reverse().forEach(it => {
+      const p = dates.filter(d => pts[it.id][d] != null).map(d => x(d).toFixed(1) + ',' + y(pts[it.id][d]).toFixed(1));
+      s += '<polyline fill="none" stroke="' + it.color + '" stroke-width="2" stroke-linejoin="round" points="' + p.join(' ') + '"/>';
+    });
+    D.receipts_detected.forEach(r => {
+      const it = series.find(i => i.id === r.id); if (!it || r.d < dates[0] || pts[r.id][r.d] == null) return;
+      s += '<circle cx="' + x(r.d) + '" cy="' + y(pts[r.id][r.d]) + '" r="4.5" fill="' + it.color + '" stroke="#fff" stroke-width="2"/>';
+    });
+    s += '<line id="xh" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--dim)" stroke-dasharray="3 3" style="display:none"/>';
+    s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent"/></svg>';
+    el.innerHTML = s;
+    el.scrollLeft = el.scrollWidth;
+    $('#lgStock').innerHTML = legendHtml(series);
+    const svg = $('svg', el), hit = $('#hit', el), xh = $('#xh', el);
+    hit.addEventListener('mousemove', e => {
+      const box = svg.getBoundingClientRect(); const px = (e.clientX - box.left) * (W / box.width);
+      const tt = t0 + (px - L) / (W - L - R) * (t1 - t0);
+      let best = dates[0]; dates.forEach(d => { if (Math.abs(Date.parse(d) - tt) < Math.abs(Date.parse(best) - tt)) best = d; });
+      xh.setAttribute('x1', x(best)); xh.setAttribute('x2', x(best)); xh.style.display = '';
+      const rec = D.receipts_detected.filter(r => r.d === best);
+      showTip('<b>' + dLabel(best) + '</b>' + series.map(it => '<div class="row"><span><span class="sw" style="background:' + it.color + '"></span>' + esc(it.short) + '</span><span>' + (pts[it.id][best] != null ? fmt(pts[it.id][best]) : '—') + '</span></div>').join('') +
+        (rec.length ? '<div style="margin-top:4px;color:#86efac">Delivery received ≈ ' + fmt(rec.reduce((a, r) => a + Number(r.cases_est), 0)) + ' cases</div>' : ''), e.clientX, e.clientY);
+    });
+    hit.addEventListener('mouseleave', () => { hideTip(); xh.style.display = 'none'; });
+  }
+
+  function roundTopRect(x, y, w, h, r, fill) {
+    if (h <= 0) return '';
+    r = Math.min(r, h, w / 2);
+    return '<path fill="' + fill + '" d="M' + x + ',' + (y + h) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + w - r) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + 'V' + (y + h) + 'Z"/>';
+  }
+  function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); for (const m of [1, 2, 2.5, 4, 5, 10]) if (v <= m * p) return m * p; return 10 * p; }
+  function fmtK(v) { return v >= 1000 ? (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k' : fmt(v); }
+
+  // ---------- shipment editor ----------
+  function openShipment(s) {
+    s = s || { status: 'ordered', lines: [] };
+    const q = {}; (s.lines || []).forEach(l => q[l.id] = l.cases);
+    const editable = ITEMS.filter(it => it.status === 'Active' || q[it.id]);
+    const v = k => esc(s[k] || '');
+    const dv = k => esc((s[k] || '').slice(0, 10));
+    $('#modalRoot').innerHTML = '<div class="modal-bg" id="mbg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh">' +
+      '<h3 id="mh">' + (s.id ? 'Edit shipment' : 'Add shipment') + '</h3>' +
+      '<div class="fgrid">' +
+      '<div class="field"><label for="f_ref">PO / reference *</label><input id="f_ref" value="' + v('reference') + '"></div>' +
+      '<div class="field"><label for="f_cont">Container no.</label><input id="f_cont" value="' + v('container_no') + '"></div>' +
+      '<div class="field"><label for="f_status">Status</label><select id="f_status">' + Object.keys(STATUS_LABEL).map(k => '<option value="' + k + '"' + (k === s.status ? ' selected' : '') + '>' + STATUS_LABEL[k] + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label for="f_order">Order date</label><input id="f_order" type="date" value="' + dv('order_date') + '"></div>' +
+      '<div class="field"><label for="f_ship">Ship date</label><input id="f_ship" type="date" value="' + dv('ship_date') + '"></div>' +
+      '<div class="field"><label for="f_eta">ETA</label><input id="f_eta" type="date" value="' + dv('eta') + '"></div>' +
+      '<div class="field"><label for="f_recv">Received date</label><input id="f_recv" type="date" value="' + dv('received_date') + '"></div>' +
+      '<div class="field full"><label for="f_notes">Notes (visible to the supplier)</label><textarea id="f_notes" rows="2">' + v('notes') + '</textarea></div>' +
+      '</div>' +
+      '<table class="lines-tbl" style="margin-top:14px"><thead><tr><th>Product</th><th class="r">Cases</th></tr></thead><tbody>' +
+      editable.map(it => '<tr><td>' + esc(it.short) + '</td><td class="r"><input type="number" min="0" step="1" inputmode="numeric" data-line="' + esc(it.id) + '" value="' + (q[it.id] != null ? esc(q[it.id]) : '') + '"></td></tr>').join('') +
+      '</tbody></table>' +
+      '<div class="formerr hidden" id="f_err"></div>' +
+      '<div class="modal-actions">' + (s.id ? '<button class="btn danger" type="button" id="f_del">Delete</button>' : '') +
+      '<button class="btn sec" type="button" id="f_cancel">Cancel</button><button class="btn" type="button" id="f_save">Save</button></div>' +
+      '</div></div>';
+    const close = () => { $('#modalRoot').innerHTML = ''; };
+    $('#f_cancel').onclick = close;
+    $('#mbg').addEventListener('click', e => { if (e.target.id === 'mbg') close(); });
+    $('#f_status').addEventListener('change', e => { if (e.target.value === 'received' && !$('#f_recv').value) $('#f_recv').value = D.today; });
+    $('#f_ref').focus();
+    $('#f_save').onclick = async () => {
+      const err = $('#f_err'); err.classList.add('hidden');
+      const payload = {
+        id: s.id || null, supplier_id: D.supplier.id,
+        reference: $('#f_ref').value, container_no: $('#f_cont').value, status: $('#f_status').value,
+        order_date: $('#f_order').value, ship_date: $('#f_ship').value, eta: $('#f_eta').value,
+        received_date: $('#f_recv').value, notes: $('#f_notes').value,
+        lines: $$('[data-line]').map(i => ({ id: i.dataset.line, cases: Number(i.value) || 0 })).filter(l => l.cases > 0)
+      };
+      if (!payload.reference.trim()) { err.textContent = 'Enter the PO number or a reference.'; err.classList.remove('hidden'); return; }
+      if (payload.status === 'received' && !payload.received_date) { err.textContent = 'Enter the date it was received.'; err.classList.remove('hidden'); return; }
+      $('#f_save').disabled = true; $('#f_save').textContent = 'Saving…';
+      const { error } = await sb.rpc('supplier_shipment_save', { p: payload });
+      if (error) { $('#f_save').disabled = false; $('#f_save').textContent = 'Save'; err.textContent = error.message || 'Could not save.'; err.classList.remove('hidden'); return; }
+      close(); await load();
+    };
+    if (s.id) $('#f_del').onclick = async () => {
+      if (!confirm('Delete shipment ' + s.reference + '? This cannot be undone.')) return;
+      const { error } = await sb.rpc('supplier_shipment_delete', { p_id: s.id });
+      if (error) { const err = $('#f_err'); err.textContent = error.message; err.classList.remove('hidden'); return; }
+      close(); await load();
+    };
+  }
+
+  // ---------- access ----------
+  async function loadAccess() {
+    const { data, error } = await sb.rpc('supplier_users_list', { p_supplier: D.supplier.id });
+    if (error) { $('#tblAccess').innerHTML = '<tbody><tr><td class="err">' + esc(error.message) + '</td></tr></tbody>'; return; }
+    $('#tblAccess').innerHTML = (data && data.length)
+      ? '<thead><tr><th>Email</th><th>Name</th><th>Status</th><th class="hide-sm">Last sign-in</th><th></th></tr></thead><tbody>' +
+        data.map(u => '<tr><td>' + esc(u.email) + '</td><td>' + esc(u.full_name || '') + '</td><td>' + (u.active ? '<span class="pill ok">Active</span>' : '<span class="pill out">Removed</span>') +
+          '</td><td class="hide-sm">' + (u.last_sign_in ? stamp(u.last_sign_in) : 'Never') + '</td><td class="r">' +
+          (u.active ? '<button class="btn danger" type="button" data-rm="' + esc(u.email) + '">Remove</button>' : '<button class="btn sec" type="button" data-re="' + esc(u.email) + '" data-name="' + esc(u.full_name || '') + '">Restore</button>') + '</td></tr>').join('') + '</tbody>'
+      : '<tbody><tr><td class="empty">No supplier logins yet. Add the people at ' + esc(D.supplier.name) + ' who should see this page.</td></tr></tbody>';
+  }
+  async function addAccess(email, name) {
+    const err = $('#accErr'); err.classList.add('hidden');
+    const { error } = await sb.rpc('supplier_user_add', { p_supplier: D.supplier.id, p_email: email, p_name: name });
+    if (error) { err.textContent = error.message; err.classList.remove('hidden'); return false; }
+    await loadAccess(); return true;
+  }
+
+  // ---------- CSV ----------
+  function downloadCsv() {
+    const now = salesFor(month), pm = priorFor(month, 1), ly = priorFor(month, 12);
+    const rows = [['Month', 'Item code', 'Product', 'Cases sold', 'Net sales value (J$)', 'Cases ' + priorLabel(month, 1), 'Cases ' + priorLabel(month, 12), 'On hand now (cases)', 'Avg cases sold per day (90d)', 'Days of cover']];
+    ITEMS.forEach(it => { const c = cover(it);
+      rows.push([month, it.id, it.name, (now[it.id] || {}).cases || 0, (now[it.id] || {}).value || 0, (pm[it.id] || {}).cases || 0, (ly[it.id] || {}).cases || 0, it.on_hand, it.avg_daily_90, c == null ? '' : Math.round(c)]); });
+    rows.push([]); rows.push(['Shipments', 'PO / ref', 'Container', 'Status', 'Order date', 'Ship date', 'ETA', 'Received date', 'Cases']);
+    D.shipments.forEach(s => rows.push(['', s.reference, s.container_no || '', STATUS_LABEL[s.status] || s.status, s.order_date || '', s.ship_date || '', s.eta || '', s.received_date || '', shipCases(s)]));
+    const csv = rows.map(r => r.map(v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = (D.supplier.id + '-stock-sales-' + month + '.csv');
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  // ---------- navigation ----------
+  const TITLES = { overview: 'Overview', sales: 'Sales', stock: 'Stock', shipments: 'Shipments', access: 'Supplier access' };
+  function showTab(t) {
+    tab = t;
+    $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+    $$('section.panel').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== t || !D));
+    $('#pageTitle').textContent = TITLES[t];
+    // Charts drawn while their tab was hidden have no width yet; once shown,
+    // start them at the newest month (matters on phones, where they scroll).
+    $$('.chart').forEach(c => { c.scrollLeft = c.scrollWidth; });
+  }
+  function setMonth(m) {
+    month = m; $('#monthSel').value = m;
+    const u = new URL(location.href); u.searchParams.set('m', m); history.replaceState(null, '', u);
+    renderAll();
+  }
+
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab); });
+  $('#monthSel').addEventListener('change', e => setMonth(e.target.value));
+  $('#printBtn').addEventListener('click', () => window.print());
+  $('#csvBtn').addEventListener('click', () => { if (D) downloadCsv(); });
+  $('#addShipBtn').addEventListener('click', () => openShipment(null));
+  $('#shipList').addEventListener('click', e => { const b = e.target.closest('[data-edit]'); if (b) openShipment(D.shipments.find(s => String(s.id) === b.dataset.edit)); });
+  $('#accAdd').addEventListener('click', async () => {
+    const ok = await addAccess($('#accEmail').value, $('#accName').value);
+    if (ok) { $('#accEmail').value = ''; $('#accName').value = ''; }
+  });
+  $('#tblAccess').addEventListener('click', async e => {
+    const rm = e.target.closest('[data-rm]'), re = e.target.closest('[data-re]');
+    if (rm) {
+      if (!confirm('Remove access for ' + rm.dataset.rm + '? They will be signed out of the portal.')) return;
+      const { error } = await sb.rpc('supplier_user_remove', { p_email: rm.dataset.rm });
+      if (error) { $('#accErr').textContent = error.message; $('#accErr').classList.remove('hidden'); return; }
+      loadAccess();
+    } else if (re) addAccess(re.dataset.re, re.dataset.name);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#mbg')) $('#modalRoot').innerHTML = ''; });
+
+  document.addEventListener('dfl-auth-ready', e => {
+    profile = e.detail.profile;
+    $('#hdrWho').textContent = profile.full_name || '';
+    load();
+  });
+  // Test hook: lets a framed test harness drive the page with a fixture.
+  window.__supplierPortal = { setData(d) { D = d; prepare(); renderAll(); $('#loading').classList.add('hidden'); } };
+})();
+</script>
+</body>
+</html>
