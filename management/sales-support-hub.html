@@ -861,6 +861,10 @@ th.on{color:var(--ink)}
 .fdb.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .fdb.on[data-bov="re"]{background:#1A8F4C;border-color:#1A8F4C}
 .fdb[disabled]{opacity:.6;cursor:default}
+.bobulk{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 14px;background:#f6f8fd;border-bottom:1px solid var(--line,#e6eaf2)}
+.bosall{display:flex;align-items:center;gap:8px;font:700 13px var(--head);cursor:pointer;flex-wrap:wrap}
+.bosall small{flex-basis:100%;margin-left:28px;font-weight:600;font-size:11px;color:var(--ink3)}
+.bocb,.bosall input{width:18px;height:18px;accent-color:var(--blue,#326BD3);vertical-align:-3px;margin:0 6px 0 0;cursor:pointer}
 .acuw{display:flex;flex-direction:column;align-items:center;min-width:0}
 .acus{margin-top:6px;font:700 11px var(--head);line-height:1.35;text-align:center}
 .acus.wait{color:var(--ink3)} .acus.ok{color:#1A8F4C} .acus.warn{color:#9a5b00} .acus.bad{color:#D63B3B}
@@ -1768,7 +1772,7 @@ const chainChips = () => '';
 const inChain = s => CHAINF === 'All' || ((byId[s] || s).rep || '') === CHAINF;
 
 // ---------- tabs ----------
-const TABS = [['today', 'Today'], ['tell', 'Tell the reps'], ['friday', 'Friday meeting'], ['reps', 'Reps'], ['stores', 'Customers'], ['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['lead', 'Lead view']];
+const TABS = [['today', 'Today'], ['tell', 'Tell the reps'], ['bowk', 'Back orders'], ['friday', 'Friday meeting'], ['reps', 'Reps'], ['stores', 'Customers'], ['orders', 'Orders'], ['backorders', 'Items owed'], ['deliv', 'Deliveries'], ['returns', 'Returns'], ['lead', 'Lead view']];
 // ---------- v3: status cells, avatars, icons ----------
 const ST = {todo:['st-todo', 'To do'], waiting:['st-waiting', 'Pending'], sorted:['st-sorted', 'Done']};
 const stOf = k => { const t = tick('st:' + k); if (t && ST[t.v]) return t.v; const d = tick('done:' + ASOF + ':' + k); return d && d.v ? 'sorted' : 'todo'; };
@@ -1781,6 +1785,7 @@ const ICO = {
   today:'<path d="M4 12l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
   orders:'<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
   backorders:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  bowk:'<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
   deals:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
   ar:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   stores:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -1850,7 +1855,7 @@ function recentNotes() { const l = NOTES.filter(n => n.kind !== 'eod' && n.kind 
   return `<details class="fold"><summary>Latest notes from the team (${NOTES.length})</summary><div class="sec"><ul class="nlog">${l.map(n => `<li><span class="m">${esc(fds(n.at.slice(0,10)))} · ${esc(who(n.by))} · ${esc(n.kind === 'reason' ? 'Reason: ' + (SKUD[n.sku] ? SKUD[n.sku][0] : n.sku) : n.kind === 'promise' ? 'Promise: ' + n.chain : n.c && byId[n.c] ? byId[n.c].name : n.kind)}</span><br>${esc(n.label ? n.label + '. ' : '')}${esc(n.text || n.name || '')}</li>`).join('')}</ul></div></details>`; }
 
 // ---------- shared pieces for Orders, Back orders and AR ----------
-const SUB = {orders:'check', deals:'open', backorders:'week', deliv:'prob', returns:'reason', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
+const SUB = {orders:'check', deals:'open', backorders:'bo', deliv:'prob', returns:'reason', ar:'chains', stores:'month', team:'stores'}; const INFO = {};
 // solid tile that switches a sub-tab
 const ctile = (sub, ic, n, l, x, col) => `<button type="button" class="ft" data-sub="${esc(sub)}" aria-pressed="${SUB[TAB] === sub}" style="--ftc:${col}"><span class="ic">${icon(ic, 2)}</span><span class="l">${esc(l)}</span><span class="n">${n}</span><span class="x">${x}</span></button>`;
 // a plain number card for the Look up tabs: same look as ctile but it does not open anything (Scott, 20 Nov: every Look up tab has the same cards)
@@ -2101,23 +2106,51 @@ function boSpec(rep) {
     rows:top.map(x => ({cells:[cn(x), String(x.ls.length), {t:J(x.val), b:1}, fds(x.date)], sub:'Back order ' + x.nbr + (bodOf(x.nbr) === 're' ? ' · Re-enter it' : bodOf(x.nbr) === 'close' ? ' · Close it' : '')})).concat(os.length > 14 ? [{more:`+ ${os.length - 14} more back orders`}] : []),
     note:'Open the link sent with this card and tap Close it or Re-enter it for each one. Close it if the customer no longer wants it. Re-enter it if it still needs to go on a new order.'};
 }
+// Close it asks first, always (Scott, 24 Nov), and several can be ticked and closed in one go (per rep)
+const BSEL = new Set(); let BBUSY = null;
+const closeAsk = (many, mode) => mode === 'live' ? 'This completes ' + (many ? 'them' : 'the order') + ' in Acumatica. It cannot be undone here.' : mode === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'Until the automatic update is on, ' + (many ? 'they are' : 'it is') + ' cleared on Monday at 12 noon.';
+async function closeSelectedBO(rep) {
+  const picks = boOrders(rep).filter(x => BSEL.has(x.nbr) && !bodOf(x.nbr) && !acuLocked(x.nbr));
+  if (!picks.length || BBUSY) return;
+  const cn = x => (byId[x.c] || {}).name || x.c, names = picks.slice(0, 8).map(x => '• ' + cn(x) + ' (' + x.nbr + ')').join('\n') + (picks.length > 8 ? '\n• and ' + (picks.length - 8) + ' more' : '');
+  if (!confirm('Close ' + picks.length + ' back order' + (picks.length > 1 ? 's' : '') + ' for ' + rep + '?\n\n' + names + '\n\n' + closeAsk(true, HUBD.acuMode))) return;
+  const stop = ev => { ev.preventDefault(); ev.returnValue = ''; }; window.addEventListener('beforeunload', stop);
+  BBUSY = {rep, i:0, k:picks.length}; let bad = 0;
+  for (const x of picks) {
+    BBUSY.i++; render();
+    const ok = await setTick('bod:' + x.nbr, 'close');
+    if (!ok) { bad++; continue; }
+    BSEL.delete(x.nbr);
+    await sendBackOrder(x.nbr);
+    const a = HUBD.acu[x.nbr]; if (HUBD.acuMode === 'test' || HUBD.acuMode === 'live') { if (!a || a.state !== 'done') bad++; }
+  }
+  window.removeEventListener('beforeunload', stop); BBUSY = null; render();
+  toast(bad ? (picks.length - bad) + ' closed, ' + bad + ' need a look (tap Decided)' : picks.length + ' closed');
+}
+__on(document, 'change', e => { const d = e.target.dataset || {};
+  if (d.bsel) { e.target.checked ? BSEL.add(d.bsel) : BSEL.delete(d.bsel); render(); }
+  else if (d.bsall) { const os = boOrders(d.bsall).filter(x => !bodOf(x.nbr) && !acuLocked(x.nbr)), all = os.every(x => BSEL.has(x.nbr)); os.forEach(x => all ? BSEL.delete(x.nbr) : BSEL.add(x.nbr)); render(); } });
 function boReview(cap) {
   const reps = REPS.filter(r => CHAINF === 'All' || r === CHAINF);
   const pool = reps.map(rep => ({rep, os:boOrders(rep).filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku)))}));
-  const all = pool.flatMap(p => p.os), cnt = {all:all.length, none:all.filter(x => !bodOf(x.nbr)).length, re:all.filter(x => bodOf(x.nbr) === 're').length, close:all.filter(x => bodOf(x.nbr) === 'close').length, hand:all.filter(x => x.ls.some(b => b.canShip)).length, repl:all.filter(x => x.ls.some(b => b.rep)).length};
+  const all = pool.flatMap(p => p.os), cnt = {none:all.filter(x => !bodOf(x.nbr)).length, dec:all.filter(x => bodOf(x.nbr)).length};
+  if (BOF !== 'none' && BOF !== 'dec') BOF = 'none';
   const fbtn = (k, t) => `<button type="button" class="btn sm${BOF === k ? ' pri' : ''}" data-bof="${k}" aria-pressed="${BOF === k}">${t} (${cnt[k]})</button>`;
-  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link, taps Close it or Re-enter it, and the buttons here fill in by themselves. When the automatic update is on, a tap also updates Acumatica: Close it completes the order there and Re-enter it opens it again, and the line shows what happened. Until then it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
-    `<div class="acts" style="margin:0 0 12px"><span class="note" style="margin:0 6px 0 0">Show</span>${fbtn('all', 'All')}${fbtn('none', 'Undecided')}${fbtn('re', 'Re-enter it')}${fbtn('close', 'Close it')}<span class="note" style="margin:0 6px 0 10px">or</span>${fbtn('hand', 'Stock shows on hand')}${fbtn('repl', 'Likely replaced')}</div>` +
-    pool.map(({rep, os:osAll}) => { const os = osAll.filter(x => BOF === 'all' || (BOF === 'none' ? !bodOf(x.nbr) : BOF === 'hand' ? x.ls.some(b => b.canShip) : BOF === 'repl' ? x.ls.some(b => b.rep) : bodOf(x.nbr) === BOF)); if (!os.length) return '';
-      const decided = osAll.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, cap || 10);
+  const secs = pool.map(({rep, os:osAll}) => { const os = osAll.filter(x => BOF === 'none' ? !bodOf(x.nbr) : !!bodOf(x.nbr)); if (!os.length) return '';
+      const decided = osAll.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, cap || 10), pick = BOF === 'none',
+        ids = os.filter(x => !acuLocked(x.nbr)).map(x => x.nbr), nSel = ids.filter(n => BSEL.has(n)).length, busy = BBUSY && BBUSY.rep === rep;
       return `<section class="grp gen" style="--gc:#7B4FD0;--cols:minmax(0,1.6fr) 96px 70px 90px 84px 190px 40px"><div class="gh"><h3>${av(rep)} ${esc(rep)}</h3><span class="gn">${osAll.length} back orders · ${decided} decided</span><span class="odbtns" style="margin-left:auto"><button class="btn sm pri" type="button" data-bocard="${esc(rep)}">Copy card</button><button class="btn sm" type="button" data-bolink="${esc(rep)}">Copy link message</button></span></div>
+        ${pick && ids.length ? `<div class="bobulk">${busy ? `<span class="note">Closing ${BBUSY.i} of ${BBUSY.k}… keep this page open</span>` : `<label class="bosall"><input type="checkbox" data-bsall="${esc(rep)}"${nSel === ids.length ? ' checked' : ''}> ${nSel ? nSel + ' selected' : 'Select all (' + ids.length + ')'}<small>Tick orders to close several at once</small></label><button type="button" class="btn sm" data-bobulk="${esc(rep)}"${nSel ? '' : ' disabled'}>Close selected${nSel ? ' (' + nSel + ')' : ''}</button>`}</div>` : ''}
         <div class="bhead"><div>Customer</div><div class="hm">Back order</div><div style="text-align:center">Items</div><div class="hm" style="text-align:right">Value</div><div class="hm" style="text-align:center">Since</div><div style="text-align:center">Decision</div><div></div></div>
-        ${sh.map(x => { const dv = bodOf(x.nbr);
-          return grow('bw:' + x.nbr, [cell(esc(byId[x.c].name), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(String(x.ls.length), 'c-age', 'center'), cell(J(x.val), 'c-age hm', 'right'), cell(esc(fds(x.date)), 'c-age hm', 'center'),
+        ${sh.map(x => { const dv = bodOf(x.nbr), tk = pick && !acuLocked(x.nbr) ? `<input type="checkbox" class="bocb" data-bsel="${esc(x.nbr)}"${BSEL.has(x.nbr) ? ' checked' : ''}${BBUSY ? ' disabled' : ''} aria-label="Select back order ${esc(x.nbr)}"> ` : '';
+          return grow('bw:' + x.nbr, [cell(tk + esc(byId[x.c].name), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(String(x.ls.length), 'c-age', 'center'), cell(J(x.val), 'c-age hm', 'right'), cell(esc(fds(x.date)), 'c-age hm', 'center'),
             `<div class="acuw"><div class="fdecs fdc"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Re-enter it</button></div>${acuLine(x.nbr)}</div>`],
             `<ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul>
             <div class="acts" style="margin-top:10px"><button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button></div>`); }).join('')}
         ${os.length > (cap || 10) ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="bw:${esc(rep)}">${SHOWALL['bw:' + rep] ? 'Show fewer' : 'Show the other ' + (os.length - (cap || 10))}</button></div>` : ''}</section>`; }).join('');
+  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link and taps Close it or Re-enter it, and the buttons here fill in by themselves. When the automatic update is on, a tap also updates Acumatica: Close it completes the order there (it asks you to confirm first) and Re-enter it opens it again, and the line shows what happened. To close several at once, tick them and use “Close selected” for that rep. “Decided” shows what has been closed or re-entered. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
+    `<div class="acts" style="margin:0 0 12px">${fbtn('none', 'To decide')}${fbtn('dec', 'Decided')}</div>` +
+    (secs || `<div class="empty">${BOF === 'none' ? 'Nothing left to decide. You can see what was decided under Decided.' : 'Nothing decided yet.'}</div>`);
 }
 // ---------- Friday meeting (Scott, 18 Nov): each support person goes through one rep's week with them, then records next week's plan ----------
 // Built to be quick (15 minutes a rep, 30 to 45 for the team) and mostly ticking: four coloured boxes, three groups (money, orders, customers)
@@ -2453,9 +2486,12 @@ async function oosPicture(list) {
     y += 10; });
   cx.fillStyle = '#1A2E5A'; cx.font = `600 24px ${FH}`; let fy = y + 52; foot.forEach(l => { cx.fillText(l, P, fy); fy += 34; });
   cv.toBlob(b => { if (!b) { toast('The picture did not work here. Try again.'); return; } const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'DFL-stock-update-' + ASOF + '.jpg'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Picture saved to your downloads. Send it to the reps.'); }, 'image/jpeg', 0.92);
-}function vBackorders() {
+}function vBowk() {
+  return `<div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number, item or rep" value="${esc(BQ)}" autocomplete="off"></div>${dbMsg()}${boReview()}`;
+}
+function vBackorders() {
   // To re-enter pill removed (Scott, 20 Nov): the weekly review has a Re-enter it filter. Counts are orders, not lines.
-  if (!['week', 'bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'week';
+  if (!['bo', 'bohand', 'borep', 'oos'].includes(SUB.backorders)) SUB.backorders = 'bo';
   const reL = REPS.filter(r => CHAINF === 'All' || r === CHAINF).flatMap(r => boOrders(r).filter(x => bodOf(x.nbr) === 're' && bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, r, ...x.ls.map(b => b.desc + ' ' + b.sku))).map(x => ({...x, rep:r})));
   const oos = oosList(), oosNo = oos.filter(x => !x.r && x.st !== 'xfer' && x.st !== 'gone').length;
   const bo = BO.filter(b => inChain(b.c));
@@ -2479,7 +2515,6 @@ async function oosPicture(list) {
     gboard('#7B4FD0', SUB.backorders === 'bohand' ? 'Stock shows on hand' : SUB.backorders === 'borep' ? 'Likely replaced by a newer order' : 'Back orders', gShow.length + ' items', 'minmax(0,2.4fr) 84px 76px 96px minmax(0,1.5fr) 40px', [['Item'], ['Stores', 'center'], ['Owed', 'center'], ['On hand', 'center'], ['Reason', '', 'rsn'], ['']],
       gShow.map(g => grow('bo:' + g.sku, [cell(esc(g.desc), 'c-store one c1'), cell(g.rows.length, 'c-age hm', 'center'), cell(`${g.qty}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(`<b class="${g.onhand >= g.qty ? 'up' : 'dn'}">${g.onhand}</b>`, 'c-age hm', 'center'), cell(rTag(g.sku), 'one c2 rsn')],
         `${rows(g.rows.map(b => row(storeLink(b.c), (b.rep ? 'Back order ' : 'Order ') + acuOrder(b.nbr) + ' · since ' + esc(fds(b.date)), b.open + ' owed', b.rep ? `<span class="up" title="Check it, then close back order ${esc(b.nbr)} in Acumatica.">${repText(b.rep)}</span>` : '')))}${rExp(g.sku)}`)), 'bo');
-  if (SUB.backorders === 'week') body = boReview();
   if (SUB.backorders === 'keep') body = lead1('b-keep', 'Back orders marked “Re-enter it”: these still need to go on a new order.', 'Decided on the Friday meeting page or in the weekly review. It does not change Acumatica: on Monday at 12 noon the back orders are cleared there, then enter these items on a new order. To change your mind, open the weekly review and tap the decision again.') +
     gboard('#7B4FD0', 'Marked Re-enter it', reL.length + ' back orders · ' + reL.reduce((a, x) => a + x.ls.length, 0) + ' items', 'minmax(0,1.6fr) 96px 70px minmax(0,.8fr) 40px', [['Customer'], ['Back order', '', 'hm'], ['Items', 'center'], ['Rep', '', 'hm'], ['']],
       reL.map(x => grow('kp:' + x.nbr, [cell(esc(byId[x.c] ? byId[x.c].name : x.c), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(x.ls.length, 'c-age', 'center'), cell(esc(firstName(x.rep)), 'one hm')],
@@ -2490,7 +2525,7 @@ async function oosPicture(list) {
       oosShow.map(x => grow('oos:' + x.sku, [cell(esc(x.desc), 'c-store one c1'), cell(x.custs.size, 'c-age hm', 'center'), cell(`${x.open}<span class="mlab"> owed</span>`, 'c-age hm mr', 'center'), cell(solid(OOS_ST[x.st][0], OOS_ST[x.st][1]), 'one', 'center'), cell(x.r ? rTag(x.sku) : `<span class="reason none">${esc(oosWhen(x))}</span>`, 'one c2 rsn')],
         plCards(x.ls.map(l => { const o = ordBy[l.nbr]; return {name:byId[o.c] ? byId[o.c].name : o.c, sub:`Order ${esc(l.nbr)} · ${esc(o.status)} · keyed ${esc(fds(o.date))} · rep ${esc(firstName((byId[o.c] || {}).rep) || '–')}`, tag:l.open + ' owed'}; })) +
         `<div class="bfacts"><div><span>Stock</span>${x.at71} at 71 · ${x.ash} at Ashenheim · ${x.open} owed (${J(x.val)})</div><div><span>Category</span>${esc(x.cls || '–')}${CMOF(x.cls) ? ' · ' + esc(CMOF(x.cls)) : ''}</div></div>${rExp(x.sku)}`)), 'oos');
-  LOOKVIEWS.backorders = [['week', 'Weekly review', weekN], ['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]];
+  LOOKVIEWS.backorders = [['bo', 'By item', groups.length], ['oos', 'Out of stock', oos.length]];
   return `
   <div class="dsearch"><label for="bq">Search back orders</label><input id="bq" type="search" placeholder="Customer, order number, item or rep" value="${esc(BQ)}" autocomplete="off"></div>
   ${dbMsg()}${body}`;
@@ -3034,7 +3069,7 @@ const leadClock = () => { const n = jaNow().min, a = hmin(LEADT.start), f = hmin
 let LEADF = 'All', TELLF = 'open';
 let HOLDF = 'all';
 // simple view (Scott, 20 Nov): everyone (leads included) starts on Today, Tell the reps and a short Look up; "More tabs" brings back everything.
-let DAYSTEP = -1, SIMPLE_OVR = null; const SIMPLE_TABS = ['today', 'tell'], SIMPLE_LOOK = ['orders', 'stores'];
+let DAYSTEP = -1, SIMPLE_OVR = null; const SIMPLE_TABS = ['today', 'tell', 'bowk'], SIMPLE_LOOK = ['orders', 'stores'];
 const isSimple = () => { if (SIMPLE_OVR != null) return SIMPLE_OVR; let v = null; try { v = localStorage.getItem('ss-simple'); } catch (x) {} return v == null ? true : v === '1'; };
 const ESCL = {};   // label for each escalated item, filled as the rows are drawn
 const payOn = nbr => { const t = tick('pay:' + nbr); return t && t.v ? t : null; };
@@ -3237,7 +3272,7 @@ function vLead() {
   <p class="note">Held orders are On Hold and Credit Hold orders from the last 90 days. Acumatica does not record when an order went on hold, so Held counts from the day it was keyed.</p>`;
 }
 // one "Look up" tab holds the views support uses to answer questions (Scott, 19 Nov); the views themselves are unchanged
-const LOOK = [['orders', 'Orders'], ['backorders', 'Back orders'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
+const LOOK = [['orders', 'Orders'], ['backorders', 'Items owed'], ['deliv', 'Deliveries'], ['stores', 'Customers'], ['returns', 'Returns']]; let LOOKLAST = 'orders';
 const inLook = k => LOOK.some(x => x[0] === k);
 const tabBar = () => { const simple = isSimple(), main = [], more = [], lead = []; let placed = false; TABS.forEach(([k, t]) => { if (k === 'lead') { if (HUBD.lead) lead.push([k, t]); return; } if (inLook(k)) { if (!placed) { main.push(['look', 'Look up']); placed = true; } return; } if (SIMPLE_TABS.includes(k)) main.push([k, t]); else if (!simple || k === TAB) more.push([k, t]); }); return main.concat(more, lead); };   // More tabs adds Friday meeting and Reps right after Look up (Scott, 20 Nov)
 // the View dropdown: each Look up view lists its own options while it renders (Scott, 20 Nov: replaces the second row of pills and the cards)
@@ -3253,17 +3288,17 @@ function render() {
   // on a phone the tab bar scrolls sideways: keep the open tab in view
   { const t = document.querySelector('#tabs [aria-selected="true"]'), p = t && t.parentElement; if (p && p.scrollWidth > p.clientWidth) p.scrollLeft = Math.max(0, t.offsetLeft - (p.clientWidth - t.offsetWidth) / 2); }
   const hr = TODAY.getHours ? new Date().getHours() : 9;
-  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], backorders:['Back orders', 'What we owe customers: keep or close each week'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why'], lead:['Lead view', 'The support team today: holds, finance lists, escalations and end of day reports'], tell:['Tell the reps', 'Everything to pass on to each rep, ticked off as you tell them']};
+  const TT = {today:[(hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening') + ', ' + SUPPORT, `${n} thing${n === 1 ? '' : 's'} need you · ${fd(ASOF)} · updated ${syncTxt(O.sync && (O.sync.built || O.sync.orders))}`], friday:['Friday meeting', 'Go through one rep’s week with them, then record next week’s plan'], reps:['Reps', 'Each rep against this month’s target'], orders:['Orders', 'What to check before it ships, what is open and what has shipped'], bowk:['Back orders', 'Close each back order or re-enter it, rep by rep'], backorders:['Items owed', 'What we owe customers, item by item, and what we can’t send'], deliv:['Deliveries', 'Where each shipment is, from Acumatica and the driver app'], stores:['Customers', 'Sales against target and last year'], returns:['Returns', 'What comes back, and why'], lead:['Lead view', 'The support team today: holds, finance lists, escalations and end of day reports'], tell:['Tell the reps', 'Everything to pass on to each rep, ticked off as you tell them']};
   document.getElementById('ptitle').textContent = TT[TAB][0]; document.getElementById('psub').textContent = TT[TAB][1];
   // Scott (or anyone with more than one support book) picks whose hub to see; everyone picks a rep
   const SUPS = (window.__ssSupports && window.__ssSupports()) || [];
   document.getElementById('tctl').innerHTML = TAB === 'lead' ? '' : focusSwitch() + (SUPS.length > 1 ? `<label class="chainsel"><span>Support</span><select id="supsel">${SUPS.map(x => `<option ${x === SUPPORT ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '') +
     `<label class="chainsel"><span>Rep</span><select id="chainsel">${['All', ...REPS].map(c => `<option value="${esc(c)}" ${CHAINF === c ? 'selected' : ''}>${esc(c === 'All' ? 'All ' + REPS.length + ' reps' : c)}</option>`).join('')}</select></label>`;
-  { const body = ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead, tell:vTell}[TAB] || vToday)(); document.getElementById('main').innerHTML = lookBar() + focusLine() + body; }
+  { const body = ({today:vToday, friday:vFriday, reps:vReps, orders:vOrders, backorders:vBackorders, bowk:vBowk, deliv:vDeliv, stores:vStores, returns:vReturns, lead:vLead, tell:vTell}[TAB] || vToday)(); document.getElementById('main').innerHTML = lookBar() + focusLine() + body; }
   if (TAB === 'returns' && window.__rqFocus) { const q = document.getElementById('rq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__rqFocus = false; }
   if (TAB === 'stores' && window.__cqFocus) { const q = document.getElementById('cq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__cqFocus = false; }
   if (TAB === 'orders' && window.__oqFocus) { const q = document.getElementById('oq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__oqFocus = false; }
-  if (TAB === 'backorders' && window.__bqFocus) { const q = document.getElementById('bq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__bqFocus = false; }
+  if ((TAB === 'backorders' || TAB === 'bowk') && window.__bqFocus) { const q = document.getElementById('bq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__bqFocus = false; }
   if (TAB === 'deliv' && window.__dqFocus) { const q = document.getElementById('dq'); if (q) { q.focus(); try { q.setSelectionRange(q.value.length, q.value.length); } catch (e) {} } window.__dqFocus = false; }
   // keep the pop-up where it was when it redraws (same pop-up), instead of jumping back to the top
   const dOld = document.querySelector('.drawer'), dKey = JSON.stringify(DRAWER), dTop = dOld && render.__dKey === dKey ? dOld.scrollTop : 0;
@@ -3282,6 +3317,7 @@ function toastUndo(m, fn) { const e = document.getElementById('toast'); UNDO = f
 __on(document, 'click', e => {
   if (e.target.closest('.bexp') && !e.target.closest('button')) return;   // typing in an open row
   if (e.target.closest('a.acu, a.acubtn')) return;   // Acumatica links open in a new tab, nothing else
+  if (e.target.closest('input[data-bsel]')) return;   // ticking a back order must not open its row
   const b = e.target.closest('button, [data-close], [data-exp], tr[data-store], tr[data-cat], [data-chain]'); if (!b) return;
   const d = b.dataset;
   if (d.simple !== undefined) { SIMPLE_OVR = d.simple === '1'; try { localStorage.setItem('ss-simple', SIMPLE_OVR ? '1' : '0'); } catch (x) {} if (SIMPLE_OVR && !SIMPLE_TABS.includes(TAB) && TAB !== 'lead' && !inLook(TAB)) TAB = 'today'; render(); return; }
@@ -3352,10 +3388,11 @@ __on(document, 'click', e => {
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bof) { BOF = d.bof; render(); return; }
   if (d.bow) { setTick('bow:' + d.bow, repliedOf(d.bow) ? null : 1); return; }
+  if (d.bobulk) { closeSelectedBO(d.bobulk); return; }
   if (d.boretry) { if (typeof sendBackOrder === 'function') sendBackOrder(d.boretry); return; }
   if (d.bod) { if (acuLocked(d.bod)) { toast('That one is already done in Acumatica, so it cannot be changed here.'); return; }
-    const k = 'bod:' + d.bod, cur = tick(k), nv = cur && cur.v === d.bov ? null : d.bov, live = typeof HUBD !== 'undefined' && HUBD.acuMode === 'live';
-    if (nv === 'close' && live && !confirm('Close it?\n\nThis completes back order ' + d.bod + ' in Acumatica. It cannot be undone here.')) return;
+    const k = 'bod:' + d.bod, cur = tick(k), nv = cur && cur.v === d.bov ? null : d.bov, mode = typeof HUBD !== 'undefined' ? HUBD.acuMode : 'off';
+    if (nv === 'close' && !confirm('Close it?\n\nBack order ' + d.bod + '.\n' + closeAsk(false, mode))) return;
     Promise.resolve(setTick(k, nv)).then(ok => { if (ok && nv && typeof sendBackOrder === 'function') sendBackOrder(d.bod); }); return; }
   if (d.oost) { const k = 'oost:' + d.oost, on = tick(k) && tick(k).v; setTick(k, on ? null : 1); return; }
   if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }
@@ -3380,7 +3417,7 @@ __on(document, 'change', e => { if (e.target.id === 'supsel' && window.__ssSwitc
 // back-order "still wanted" tick boxes (inside an open row, so they use change, not click)
 __on(document, 'change', e => { const k = e.target.dataset && e.target.dataset.bok; if (k) setTick('bok:' + k, e.target.checked ? 'keep' : null); });
 // delivery search: redraw as they type, keeping the cursor in the box
-let CQ = '', RQ = '', OQ = '', BQ = '', BOF = 'all';
+let CQ = '', RQ = '', OQ = '', BQ = '', BOF = 'none';
 let OQT = null; __on(document, 'input', e => { if (e.target.id !== 'oq') return; OQ = e.target.value; clearTimeout(OQT); OQT = setTimeout(() => { window.__oqFocus = true; EXP = null; render(); }, 220); });
 let BQT = null; __on(document, 'input', e => { if (e.target.id !== 'bq') return; BQ = e.target.value; clearTimeout(BQT); BQT = setTimeout(() => { window.__bqFocus = true; EXP = null; render(); }, 220); });
 let RQT = null; __on(document, 'input', e => { if (e.target.id !== 'rq') return; RQ = e.target.value; clearTimeout(RQT); RQT = setTimeout(() => { window.__rqFocus = true; EXP = null; render(); }, 220); });
