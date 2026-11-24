@@ -860,6 +860,11 @@ th.on{color:var(--ink)}
 .fdb:hover{background:#F3F5FA}
 .fdb.on{background:var(--ink);border-color:var(--ink);color:#fff}
 .fdb.on[data-bov="re"]{background:#1A8F4C;border-color:#1A8F4C}
+.fdb[disabled]{opacity:.6;cursor:default}
+.acuw{display:flex;flex-direction:column;align-items:center;min-width:0}
+.acus{margin-top:6px;font:700 11px var(--head);line-height:1.35;text-align:center}
+.acus.wait{color:var(--ink3)} .acus.ok{color:#1A8F4C} .acus.warn{color:#9a5b00} .acus.bad{color:#D63B3B}
+.acuretry{margin-left:4px;border:1px solid currentColor;background:#fff;color:inherit;border-radius:99px;padding:1px 8px;font:700 11px var(--head);cursor:pointer}
 .fdb:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .boitems{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .boitems li{display:flex;justify-content:space-between;gap:12px;font-size:13px;line-height:1.4;color:var(--ink)}
@@ -1543,7 +1548,20 @@ async function setTick(k, v) {
   const id = keyOk(k), at = new Date().toISOString(), val = v == null ? null : String(v);
   TICKS[id] = {k:id, v:val, at, by:MYID, by_name:MYNAME}; render();
   const { error } = await sb.from('ss_hub_ticks').upsert({k:id, v:val, at, by:MYID, by_name:MYNAME});
-  if (error) toast('That did not save. Check your connection and try again.');
+  if (error) { toast(/already been done/i.test(error.message || '') ? 'That one is already done in Acumatica, so it cannot be changed.' : 'That did not save. Check your connection and try again.'); return false; }
+  return true;
+}
+// after a back-order answer is saved, the server applies it in Acumatica (Close it = Cancel Order, Re-enter it = Open Order). Off until Scott switches it on.
+HUBD.acu = HUBD.acu || {}; HUBD.acuBusy = HUBD.acuBusy || {};
+async function sendBackOrder(nbr) {
+  HUBD.acuBusy[nbr] = true; render();
+  try {
+    const { data, error } = await sb.functions.invoke('backorder-acu', { body: { nbr } });
+    if (error) throw error;
+    if (data && data.state && !['off', 'none', 'sending'].includes(data.state)) HUBD.acu[nbr] = { nbr, decision: data.decision, env: data.env, state: data.state, message: data.message || data.error || '', status_after: data.status_after };
+    else if (data && data.ok === false) HUBD.acu[nbr] = { nbr, decision: bodOf(nbr), env: HUBD.acuMode || '', state: 'failed', message: data.error || 'Could not update Acumatica.' };
+  } catch (e) { HUBD.acu[nbr] = { nbr, decision: bodOf(nbr), env: HUBD.acuMode || '', state: 'failed', message: 'Could not reach Acumatica. Try again.' }; }
+  HUBD.acuBusy[nbr] = false; render();
 }
 async function addNote(n) {
   const row = {kind:n.kind, ref:n.ref || null, c:n.c || null, sku:n.sku || null, chain:n.chain || null, label:n.label || null, src:n.src || null,
@@ -2046,6 +2064,17 @@ const MONDAY = (() => { let d = ASOF; while (d8(d).getDay() !== 1) d = addDays(d
 const wantedOf = b => { const t = tick('bok:' + b.nbr + ':' + b.sku); return !!(t && t.v === 'keep'); };
 const repliedOf = nbr => { const t = tick('bow:' + nbr); return !!(t && t.v); };
 const bodOf = nbr => { const t = tick('bod:' + nbr); return t && (t.v === 'close' || t.v === 're') ? t.v : ''; };
+// what Acumatica did with a decided back order (Scott, 24 Nov): tapping Close it / Re-enter it now updates Acumatica by itself once Scott switches it on (Close it = Cancel Order, Re-enter it = Open Order)
+const acuMap = () => (typeof HUBD !== 'undefined' && HUBD.acu) || {};
+const acuBusy = nbr => !!(typeof HUBD !== 'undefined' && HUBD.acuBusy && HUBD.acuBusy[nbr]);
+const acuState = nbr => { const a = acuMap()[nbr], dv = bodOf(nbr); return acuBusy(nbr) ? {state:'sending'} : (a && dv && a.decision === dv ? a : null); };
+const acuLocked = nbr => { const a = acuState(nbr); return !!(a && (a.state === 'sending' || (a.state === 'done' && a.env === 'live'))); };
+const acuLine = nbr => { const a = acuState(nbr), dv = bodOf(nbr); if (!a) return '';
+  if (a.state === 'sending') return '<div class="acus wait">Sending to Acumatica…</div>';
+  if (a.state === 'done') return `<div class="acus ok">${a.env === 'test' ? 'Test only. ' : ''}${dv === 'close' ? 'Cancelled in Acumatica' : 'Opened again in Acumatica'}</div>`;
+  if (a.state === 'skipped') return `<div class="acus warn" title="${esc(a.message || '')}">Not changed: order ${esc(String(a.message || '').replace(/^Order \d+ /, '').slice(0, 80))}</div>`;
+  if (a.state === 'failed') return `<div class="acus bad" title="${esc(a.message || '')}">Not sent to Acumatica <button type="button" class="acuretry" data-boretry="${esc(nbr)}">Try again</button></div>`;
+  return ''; };
 // the items ticked "still wanted" (Scott, 12 Nov: needed a way to copy or download them for the new order). One entry per back order with kept items.
 const dlCsv = (name, text, ok) => { try { const b = new Blob(['﻿' + text], {type:'text/csv;charset=utf-8'}), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast(ok); } catch (x) { toast('Download did not work here. Use the copy button instead.'); } };
 const keptAll = () => REPS.flatMap(rep => boOrders(rep).map(x => ({...x, rep, kept:x.ls.filter(wantedOf)}))).filter(x => x.kept.length);
@@ -2077,7 +2106,7 @@ function boReview(cap) {
   const pool = reps.map(rep => ({rep, os:boOrders(rep).filter(x => bqHit(byId[x.c] && byId[x.c].name, x.c, x.nbr, rep, ...x.ls.map(b => b.desc + ' ' + b.sku)))}));
   const all = pool.flatMap(p => p.os), cnt = {all:all.length, none:all.filter(x => !bodOf(x.nbr)).length, re:all.filter(x => bodOf(x.nbr) === 're').length, close:all.filter(x => bodOf(x.nbr) === 'close').length, hand:all.filter(x => x.ls.some(b => b.canShip)).length, repl:all.filter(x => x.ls.some(b => b.rep)).length};
   const fbtn = (k, t) => `<button type="button" class="btn sm${BOF === k ? ' pri' : ''}" data-bof="${k}" aria-pressed="${BOF === k}">${t} (${cnt[k]})</button>`;
-  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link, taps Close it or Re-enter it, and the buttons here fill in by themselves. It does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again (see the “To re-enter” list). “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
+  return lead1('b-week', 'Decide each back order: close it or re-enter it.', 'Ask the rep whether the customer still wants the back order. Tap “Close it” if not, or “Re-enter it” if it still needs to go on a new order. It is the same decision as on the Friday meeting page. To save you asking each rep: tap “Copy card” to paste a picture of their back orders into WhatsApp, then “Copy link message” for the text and link. The rep opens the link, taps Close it or Re-enter it, and the buttons here fill in by themselves. When the automatic update is on, a tap also updates Acumatica: Close it cancels the order there and Re-enter it opens it again, and the line shows what happened. Until then it does not change Acumatica: on Monday at 12 noon the back orders are cleared there, and the ones marked “Re-enter it” are entered again. “May be on order” names the newer order that has the same item (tap its number to open it in Acumatica); “may already be invoiced” means the item was invoiced to the customer after the back order.') +
     `<div class="acts" style="margin:0 0 12px"><span class="note" style="margin:0 6px 0 0">Show</span>${fbtn('all', 'All')}${fbtn('none', 'Undecided')}${fbtn('re', 'Re-enter it')}${fbtn('close', 'Close it')}<span class="note" style="margin:0 6px 0 10px">or</span>${fbtn('hand', 'Stock shows on hand')}${fbtn('repl', 'Likely replaced')}</div>` +
     pool.map(({rep, os:osAll}) => { const os = osAll.filter(x => BOF === 'all' || (BOF === 'none' ? !bodOf(x.nbr) : BOF === 'hand' ? x.ls.some(b => b.canShip) : BOF === 'repl' ? x.ls.some(b => b.rep) : bodOf(x.nbr) === BOF)); if (!os.length) return '';
       const decided = osAll.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, cap || 10);
@@ -2085,7 +2114,7 @@ function boReview(cap) {
         <div class="bhead"><div>Customer</div><div class="hm">Back order</div><div style="text-align:center">Items</div><div class="hm" style="text-align:right">Value</div><div class="hm" style="text-align:center">Since</div><div style="text-align:center">Decision</div><div></div></div>
         ${sh.map(x => { const dv = bodOf(x.nbr);
           return grow('bw:' + x.nbr, [cell(esc(byId[x.c].name), 'c-store one c1'), cell(acuOrder(x.nbr), 'one hm'), cell(String(x.ls.length), 'c-age', 'center'), cell(J(x.val), 'c-age hm', 'right'), cell(esc(fds(x.date)), 'c-age hm', 'center'),
-            `<div class="fdecs fdc"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></div>`],
+            `<div class="acuw"><div class="fdecs fdc"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Re-enter it</button></div>${acuLine(x.nbr)}</div>`],
             `<ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul>
             <div class="acts" style="margin-top:10px"><button class="btn sm" type="button" data-store="${esc(x.c)}">Open customer</button></div>`); }).join('')}
         ${os.length > (cap || 10) ? `<div style="padding:8px 14px"><button class="btn sm" type="button" data-more="bw:${esc(rep)}">${SHOWALL['bw:' + rep] ? 'Show fewer' : 'Show the other ' + (os.length - (cap || 10))}</button></div>` : ''}</section>`; }).join('');
@@ -2283,7 +2312,7 @@ function vFriday() {
     const decided = os.filter(x => bodOf(x.nbr)).length, sh = SHOWALL['bw:' + rep] ? os : os.slice(0, N);
     const cards = sh.map(x => { const dv = bodOf(x.nbr), op = !!(FRI.bo || {})[x.nbr];
       const items = op ? `<div class="fitems"><ul class="boitems">${x.ls.map(b => `<li><span>${esc(b.desc)}${b.rep ? ` <span class="pill blue" title="${b.rep.src === 'order' ? 'Newer order ' + esc(b.rep.nbr) + ' has the same item' : 'The same item was invoiced after this back order'}">${b.rep.src === 'order' ? 'May be on order ' + acuOrder(b.rep.nbr) : 'May already be invoiced ' + esc(fds(b.rep.date))}</span>` : b.canShip ? ' <span class="pill green">In stock</span>' : ''}</span><span class="bol-q">${b.open} owed</span></li>`).join('')}</ul></div>` : '';
-      return `<div class="focard${op ? ' open' : ''}"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill purple">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em>${items}<div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}">Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}">Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div></div>`; }).join('');
+      return `<div class="focard${op ? ' open' : ''}"><div class="fcr"><span class="fpn"><button type="button" class="fpb" data-store="${esc(x.c)}" title="Open ${esc(byId[x.c].name)}">${esc(byId[x.c].name)}</button></span><span class="pill purple">${J(x.val)}</span></div><em class="fcd">Back order ${acuOrder(x.nbr)} · ${x.ls.length} item${x.ls.length === 1 ? '' : 's'} · since ${esc(fds(x.date))}</em>${items}<div class="fcb"><span class="fdecs"><button type="button" class="fdb${dv === 'close' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="close" aria-pressed="${dv === 'close'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Close it</button><button type="button" class="fdb${dv === 're' ? ' on' : ''}" data-bod="${esc(x.nbr)}" data-bov="re" aria-pressed="${dv === 're'}"${acuLocked(x.nbr) ? ' disabled' : ''}>Re-enter it</button></span><button type="button" class="fcl" data-frib="${esc(x.nbr)}" aria-expanded="${op}">${op ? 'Hide items ▴' : 'Items ▾'}</button></div>${acuLine(x.nbr)}</div>`; }).join('');
     return tray('Back orders', `ask ${esc(first)} about each one · ${decided} of ${os.length} decided`, '#7B4FD0', os.length, cards + moreOf('bw:' + rep, os, N)); })();
   // out of stock and transfers are not part of the Friday meeting (Scott, 19 Nov): the stock status is judged on every rep's orders, so a rep's card could say short while stock covered their share, and support asks for transfers anyway. The team picture and the Back orders tab carry stock.
   // fix before they ship: who has to act, and a Sorted tick shared with the Orders tab
@@ -3323,7 +3352,11 @@ __on(document, 'click', e => {
   if (d.undo) { const f = UNDO; UNDO = null; document.getElementById('toast').hidden = true; if (f) f(); return; }
   if (d.bof) { BOF = d.bof; render(); return; }
   if (d.bow) { setTick('bow:' + d.bow, repliedOf(d.bow) ? null : 1); return; }
-  if (d.bod) { const k = 'bod:' + d.bod, cur = tick(k); setTick(k, cur && cur.v === d.bov ? null : d.bov); return; }
+  if (d.boretry) { if (typeof sendBackOrder === 'function') sendBackOrder(d.boretry); return; }
+  if (d.bod) { if (acuLocked(d.bod)) { toast('That one is already done in Acumatica, so it cannot be changed here.'); return; }
+    const k = 'bod:' + d.bod, cur = tick(k), nv = cur && cur.v === d.bov ? null : d.bov, live = typeof HUBD !== 'undefined' && HUBD.acuMode === 'live';
+    if (nv === 'close' && live && !confirm('Close it?\n\nThis cancels back order ' + d.bod + ' in Acumatica. It cannot be undone here.')) return;
+    Promise.resolve(setTick(k, nv)).then(ok => { if (ok && nv && typeof sendBackOrder === 'function') sendBackOrder(d.bod); }); return; }
   if (d.oost) { const k = 'oost:' + d.oost, on = tick(k) && tick(k).v; setTick(k, on ? null : 1); return; }
   if (d.xfercopy) { copyText(xferMsg(xferList()), 'Transfer list copied. Paste it into WhatsApp.'); return; }
   if (d.xferdl) { dlCsv('transfer-list-' + ASOF + '.csv', xferCsv(xferList()), 'Transfer list downloaded.'); return; }
@@ -3429,6 +3462,12 @@ async function loadNotes() {
   HUBD.notes.length = 0; (a.data || []).forEach(n => HUBD.notes.push(n));
   Object.keys(HUBD.ticks).forEach(k => delete HUBD.ticks[k]); (b.data || []).forEach(t => HUBD.ticks[t.k] = t);
   [...(a.data || []), ...(b.data || [])].forEach(x => { if (x.by && x.by_name) HUBD.names[x.by] = x.by_name; });
+  // what Acumatica did with each decided back order, and whether the automatic update is on (off / test / live). Not fatal.
+  try {
+    const [ac, md] = await Promise.all([sb.from('ss_backorder_acu').select('*').limit(3000), sb.rpc('ss_backorder_mode')]);
+    if (!ac.error) { HUBD.acu = {}; (ac.data || []).forEach(r => HUBD.acu[r.nbr] = r); }
+    if (!md.error) HUBD.acuMode = md.data || 'off';
+  } catch (e) { console.warn('acu state failed', e); }
   // Friday plans, last 6 weeks (ss_hub_plans: each rep's weekly plan). Not fatal: the rest of the hub works without them.
   try {
     const since = new Date(Date.now() - 42 * 864e5).toISOString().slice(0, 10);
