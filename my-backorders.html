@@ -77,6 +77,14 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;box-siz
 .acu{margin-top:11px;border-radius:10px;padding:9px 11px;font-size:12.5px;font-weight:600;line-height:1.4}
 .acu.wait{background:#eef2f9;color:var(--mut)} .acu.ok{background:#e5f5ec;color:var(--good)} .acu.warn{background:#fff4e0;color:#9a5b00} .acu.bad{background:#fdeaea;color:#b3261e}
 .acu .retry{margin-left:6px;border:1.5px solid currentColor;background:#fff;color:inherit;border-radius:8px;padding:3px 10px;font:700 12px 'Montserrat';cursor:pointer}
+.pick{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12px;font-weight:700;color:var(--mut);cursor:pointer}
+.pick input{width:22px;height:22px;accent-color:var(--blue);margin:0;flex-shrink:0}
+.bo.sel{outline:2px solid var(--blue)}
+.bulk{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;background:var(--navy);color:#fff;border-radius:16px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 22px rgba(13,27,62,.3);margin-top:6px}
+.bulk label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;flex:1;min-width:0}
+.bulk input{width:22px;height:22px;accent-color:#7da4f0;margin:0;flex-shrink:0}
+.bulk button{border:none;background:#fff;color:var(--navy);border-radius:11px;padding:11px 14px;font:800 14px 'Montserrat';cursor:pointer;flex-shrink:0}
+.bulk button[disabled]{opacity:.45;cursor:default}
 .who{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:9px;text-align:center}
 
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;line-height:1.6}
@@ -114,6 +122,7 @@ const J = n => 'J$' + Math.round(Math.abs(+n || 0)).toLocaleString('en-JM');
 const fd = iso => iso ? new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-JM', {day:'numeric', month:'short'}) : '';
 const num = n => { const x = Math.round((+n || 0) * 100) / 100; return String(x); };
 
+let SEL = new Set(), BULK = null;   // SEL: ticked back orders (bulk close); BULK: {i, k} while a bulk close is running
 let ORDERS = [], REP = '', ME = '', TAB = 'todo', ASREP = '', MODE = 'off';   // MODE: off | test | live (whether a tap also updates Acumatica)
 const firstName = n => String(n || '').split(' ')[0];
 
@@ -146,12 +155,20 @@ function draw() {
     '<div class="hero"><div class="lbl">' + esc(ASREP && REP !== ME ? REP + ' · back orders' : 'Your back orders') + '</div>' +
       '<div class="big">' + (left ? left + ' <small>left to decide · ' + (re + cl) + ' of ' + n + ' done</small>' : 'All done <small>· ' + n + ' of ' + n + ' decided</small>') + '</div>' +
       '<div class="bar"><span class="re" style="width:' + (re / n * 100) + '%"></span><span class="cl" style="width:' + (cl / n * 100) + '%"></span></div>' +
-      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
+      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order leaves this list. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
       (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
     '</div>' +
     '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
     (list.length ? list.map(card).join('') : '<div class="empty">' + (TAB === 'todo' ? 'Everything is decided. You can change an answer under Decided.' : 'Nothing decided yet.') + '</div>') +
+    bulkBar(list) +
     '<div class="foot">Sales support sees your answers straight away.</div>';
+}
+function bulkBar(list) {
+  if (TAB !== 'todo' || !list.length) return '';
+  const ids = list.map(o => o.nbr), k = ids.filter(x => SEL.has(x)).length, all = k === ids.length;
+  if (BULK) return '<div class="bulk"><label>Closing ' + BULK.i + ' of ' + BULK.k + '… keep this page open</label></div>';
+  return '<div class="bulk"><label><input type="checkbox" data-all="1"' + (all ? ' checked' : '') + '> ' + (k ? k + ' selected' : 'Select all (' + ids.length + ')') + '</label>' +
+    '<button type="button" data-bulk="1"' + (k ? '' : ' disabled') + '>Close selected' + (k ? ' (' + k + ')' : '') + '</button></div>';
 }
 
 function card(o) {
@@ -169,7 +186,8 @@ function card(o) {
   else if (a && a.state === 'done') st = '<div class="acu ok">' + (a.env === 'test' ? 'Test only: the Acumatica test copy was updated. ' : '') + (o.v === 'close' ? 'Done in Acumatica: the order is completed.' : 'Done in Acumatica: the order is open again.') + '</div>';
   else if (a && a.state === 'skipped') st = '<div class="acu warn">Not changed in Acumatica. ' + esc(a.message || '') + '</div>';
   else if (a && a.state === 'failed') st = '<div class="acu bad">Could not update Acumatica. ' + esc(a.message || '') + ' <button class="retry" data-retry="' + esc(o.nbr) + '">Try again</button></div>';
-  return '<section class="bo ' + (o.v || '') + '"><div class="nm">' + esc(o.name || o.c) + '</div>' +
+  const pick = !o.v && !o.sending ? '<label class="pick"><input type="checkbox" data-sel="' + esc(o.nbr) + '"' + (SEL.has(o.nbr) ? ' checked' : '') + (BULK ? ' disabled' : '') + '> Select to close</label>' : '';
+  return '<section class="bo ' + (o.v || '') + (SEL.has(o.nbr) && !o.v ? ' sel' : '') + '">' + pick + '<div class="nm">' + esc(o.name || o.c) + '</div>' +
     '<div class="mt">Back order <b>' + esc(o.nbr) + '</b> · since ' + esc(fd(o.date)) + ' · ' + esc(J(o.val)) + '</div>' +
     '<ul class="items">' + lines + '</ul>' +
     '<div class="decide"><button class="dbtn close' + (o.v === 'close' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="close"' + dis + '>Close it<small>Not wanted</small></button>' +
@@ -188,17 +206,47 @@ async function sendToAcumatica(o) {
   } catch (err) {
     o.acu = { state: 'failed', env: MODE, decision: o.v, message: 'Could not reach Acumatica. Try again.' };
   }
-  o.sending = false; draw();
+  o.sending = false;
+  if (o.acu && o.acu.state === 'done' && o.acu.env === 'live') { ORDERS = ORDERS.filter(x => x !== o); SEL.delete(o.nbr); toast(o.v === 'close' ? 'Closed in Acumatica: order ' + o.nbr : 'Opened again in Acumatica: order ' + o.nbr); }
+  draw();
 }
 
+document.addEventListener('change', e => {
+  if (BULK) return;
+  const s = e.target.closest('[data-sel]'); if (s) { s.checked ? SEL.add(s.dataset.sel) : SEL.delete(s.dataset.sel); draw(); return; }
+  if (e.target.closest('[data-all]')) { const ids = ORDERS.filter(o => !o.v && !o.sending).map(o => o.nbr); const all = ids.every(x => SEL.has(x)); ids.forEach(x => all ? SEL.delete(x) : SEL.add(x)); draw(); }
+});
+async function closeSelected() {
+  const pick = ORDERS.filter(o => SEL.has(o.nbr) && !o.v && !o.sending);
+  if (!pick.length || BULK) return;
+  const names = pick.slice(0, 8).map(o => '• ' + (o.name || o.c) + ' (' + o.nbr + ')').join('\n') + (pick.length > 8 ? '\n• and ' + (pick.length - 8) + ' more' : '');
+  if (!confirm('Close ' + pick.length + ' back order' + (pick.length > 1 ? 's' : '') + '?\n\n' + names + '\n\n' + (MODE === 'live' ? 'This completes them in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'They will be cleared on Monday at 12 noon.'))) return;
+  const stop = ev => { ev.preventDefault(); ev.returnValue = ''; }; window.addEventListener('beforeunload', stop);
+  let bad = 0; BULK = {i: 0, k: pick.length};
+  for (const o of pick) {
+    BULK.i++; draw();
+    const was = {v: o.v, by: o.by_name, at: o.at};
+    o.v = 'close'; o.by_name = ME; o.at = new Date().toISOString();
+    const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr: o.nbr, p_v: 'close', p_rep: ASREP} : {p_nbr: o.nbr, p_v: 'close'});
+    if (error) { o.v = was.v; o.by_name = was.by; o.at = was.at; bad++; continue; }
+    SEL.delete(o.nbr);
+    await sendToAcumatica(o);
+    if (o.acu && o.acu.state !== 'done') bad++;
+  }
+  window.removeEventListener('beforeunload', stop);
+  BULK = null; draw();
+  toast(bad ? (pick.length - bad) + ' closed, ' + bad + ' need a look (see Decided)' : pick.length + ' closed');
+}
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-bulk]')) { closeSelected(); return; }
+  if (BULK) return;
   const t = e.target.closest('[data-tab]'); if (t) { TAB = t.dataset.tab; draw(); return; }
   const rt = e.target.closest('[data-retry]'); if (rt) { const o = ORDERS.find(x => x.nbr === rt.dataset.retry); if (o && o.v) sendToAcumatica(o); return; }
   const b = e.target.closest('[data-v]'); if (!b || b.disabled) return;
   const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o || o.sending) return;
   const was = {v:o.v, by:o.by_name, at:o.at}, nv = o.v === b.dataset.v ? '' : b.dataset.v;   // tapping the chosen button again takes the answer back
-  // a Close it really completes the order in Acumatica, so ask once
-  if (nv === 'close' && MODE === 'live' && !confirm('Close it?\n\nThis completes back order ' + o.nbr + ' for ' + (o.name || o.c) + ' in Acumatica. It cannot be undone here.')) return;
+  // Close it always asks first, so it is not hit by mistake
+  if (nv === 'close' && !confirm('Close it?\n\nBack order ' + o.nbr + ' for ' + (o.name || o.c) + '.\n' + (MODE === 'live' ? 'This completes the order in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'It will be cleared on Monday at 12 noon.'))) return;
   o.v = nv || null; o.by_name = nv ? ME : null; o.at = nv ? new Date().toISOString() : null; draw();
   const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr:o.nbr, p_v:nv, p_rep:ASREP} : {p_nbr:o.nbr, p_v:nv});
   if (error) {
