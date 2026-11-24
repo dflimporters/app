@@ -20,5 +20,15 @@
       "sizes": "512x512",
       "type": "image/png"
     }
+  ],
+  "_comment_shortcuts": "Long-press the installed DFL Portal icon to open these directly (Android/desktop). This app's scope covers the whole site, so on Android Ask DFL can't be installed as a second app beside it; the shortcut gives managers a one-tap way in, and can be dragged to the home screen as its own icon.",
+  "shortcuts": [
+    {
+      "name": "Ask DFL",
+      "short_name": "Ask DFL",
+      "description": "Ask about customers, products, prices, stock and sales",
+      "url": "/ask.html",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }
