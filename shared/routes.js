@@ -161,6 +161,9 @@ const DFL_PAGE_ROLES = {
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/relief-coverage.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
+  // Sales Explorer (customers, products and reps, any period against any other): sales_explorer_data()
+  // checks sales_explorer_can() itself: the price approver (Scott) only, for now. Side-nav: approverOnly.
+  '/management/sales-explorer.html':        ['admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
   // `fleet` can view, search, export and print. Document upload/approve still
   // needs is_manager() in Postgres, so those actions fail for her by design.
