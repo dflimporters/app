@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sales Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+/* Sales Explorer: customers, products and reps, any period against any other. Replaces the Claude "DFL Sales Explorer"
+   dashboard (and the 2023-24 Customer_Product_Rep Excel report). House style = the hubs; sections are pill tabs. */
+:root{
+  --navy:#0D1B3E; --blue:#326BD3; --blue-t:#E8F0FC;
+  --card:#FFFFFF; --line:#E1E6EF; --line2:#EEF1F6;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --cmp:#9DB6E6; --other:#D5DCEA;
+  --head:'Montserrat',system-ui,'Segoe UI',Arial,sans-serif; --body:'Open Sans',system-ui,'Segoe UI',Arial,sans-serif;
+  --shadow:0 1px 2px rgba(13,27,62,.06),0 4px 14px rgba(13,27,62,.06); --r:12px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:#F3F5F9;color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;margin:0}
+button{font:inherit;cursor:pointer}
+.content{min-width:0;padding:0 max(20px,env(safe-area-inset-right,0px)) 60px max(20px,env(safe-area-inset-left,0px))}
+.content>*{max-width:1240px;margin-left:auto;margin-right:auto}
+.topbar{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding-block:20px 8px}
+.topbar .grow{flex:1;min-width:0}
+.topbar h1{font-family:var(--head);font-size:22px;font-weight:800;margin:0;letter-spacing:-.2px}
+.topbar .sub{color:var(--ink2);font-size:13px;margin-top:2px}
+.fresh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink3)}
+.fresh .busy{color:var(--amber);font-weight:600}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--blue);color:var(--blue)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn:focus-visible,.ptabs button:focus-visible,.seg button:focus-visible,.chip:focus-visible,th button:focus-visible,tr[tabindex]:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+/* tabs */
+.ptabs{display:flex;gap:4px;background:#E6EAF2;border-radius:12px;padding:4px;margin:4px auto 12px;overflow-x:auto;scrollbar-width:none}
+.ptabs::-webkit-scrollbar{display:none}
+.ptabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:1 1 auto;gap:7px;padding:9px 12px;border-radius:9px;font-family:var(--head);font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.ptabs button svg{width:17px;height:17px;flex:none}
+.ptabs button:hover{color:var(--ink)}
+.ptabs button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.ptabs button[aria-selected="true"] svg{color:var(--blue)}
+/* filters */
+.filters{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld>span{font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--ink3)}
+.fld select,.fld input,.search{font:inherit;font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 9px;max-width:100%}
+.fld select{max-width:220px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);padding-bottom:7px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px auto 0}
+.chips:empty{display:none}
+.chip{border:1px solid #C9D7F2;background:var(--blue-t);color:var(--navy);border-radius:999px;padding:3px 10px;font-size:12px}
+.chip b{font-weight:700}
+main{padding-top:14px}
+/* KPI tiles */
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.tile{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px 12px;min-width:0}
+.tile .k{font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--ink3)}
+.tile .v{font-family:var(--head);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:4px}
+.tile .d{font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;min-height:1.3em}
+.tile .s{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.up{color:var(--green)} .down{color:var(--red)}
+/* panels */
+.panel{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;margin-top:14px;min-width:0}
+.panel h2{font-family:var(--head);font-size:15px;font-weight:700;margin:0;text-wrap:balance}
+.phead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.phead .ct{margin-left:auto;font-size:12px;color:var(--ink3)}
+.note{color:var(--ink3);font-size:12px;margin:2px 0 10px;max-width:80ch}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.cols2>.panel{margin-top:14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-left:auto}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.chart{position:relative;min-height:240px}
+.chart svg{display:block;width:100%;height:auto}
+.chart text{font-family:var(--body);font-size:11px;fill:var(--ink3)}
+.tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px 9px;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums;z-index:2}
+.tip b{font-family:var(--head)}
+/* tools above tables */
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.search{min-width:220px;flex:1 1 220px;max-width:340px}
+.seg{display:inline-flex;background:#EEF1F6;border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{all:unset;cursor:pointer;padding:5px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(13,27,62,.12)}
+/* tables */
+.tbl{overflow:auto;max-height:70vh;border:1px solid var(--line2);border-radius:8px}
+.tbl.short{max-height:none}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th{position:sticky;top:0;background:#F7F9FC;text-align:left;font-family:var(--head);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+th button{all:unset;cursor:pointer}
+th[aria-sort=ascending] button::after{content:" ▲";font-size:.85em}
+th[aria-sort=descending] button::after{content:" ▼";font-size:.85em}
+td{padding:7px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+.n{text-align:right;white-space:nowrap}
+th.n{text-align:right}
+td.name{font-weight:600;min-width:180px}
+td.name small{display:block;font-weight:400;color:var(--ink3);font-size:11.5px}
+tr[tabindex]{cursor:pointer}
+tr[tabindex]:hover td{background:#F7F9FC}
+tr.sel td{background:var(--blue-t)}
+td.msg{color:var(--ink3);text-align:center;padding:18px}
+.barcell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:110px}
+.barcell i{display:block;height:4px;border-radius:2px;background:var(--blue);opacity:.7;max-width:100%}
+.pill{display:inline-block;font-family:var(--head);font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;letter-spacing:.3px}
+.st-New{background:var(--blue-t);color:var(--blue)} .st-Growing{background:var(--green-t);color:var(--green)}
+.st-Declining{background:var(--amber-t);color:var(--amber)} .st-Lost{background:var(--red-t);color:var(--red)}
+.ch{font-size:10.5px;color:var(--ink3);font-weight:600;margin-left:6px}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:var(--r);padding:16px;color:var(--ink2);font-size:13px}
+.skel{color:transparent!important;background:linear-gradient(90deg,#EEF1F6 25%,#F6F8FB 50%,#EEF1F6 75%);background-size:200% 100%;animation:sh 1.2s infinite;border-radius:6px}
+@keyframes sh{to{background-position:-200% 0}}
+.foot{color:var(--ink3);font-size:11.5px;margin-top:18px}
+/* side panel for a customer or product (sits above the portal's own bar and menu) */
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.35);z-index:300}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:#F3F5F9;z-index:301;overflow-y:auto;box-shadow:-8px 0 30px rgba(13,27,62,.18);padding-bottom:40px}
+.drawer .dh{background:var(--navy);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 14px 18px;position:sticky;top:0;z-index:3;display:flex;gap:12px;align-items:flex-start}
+.drawer .dh h3{font-family:var(--head);font-size:17px;margin:0;line-height:1.25}
+.drawer .dh .s{font-size:12px;color:#C9D4EC;margin-top:2px}
+.drawer .dh button{margin-left:auto;background:transparent;border:1px solid #5A6B94;color:#fff;border-radius:8px;padding:5px 12px;flex:none}
+.drawer .db{padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.drawer .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+.drawer .tile .v{font-size:19px}
+.drawer .panel{margin-top:0}
+.drawer .chart{min-height:150px}
+.back{all:unset;cursor:pointer;color:#C9D4EC;font-size:12px;font-weight:600}
+.back:hover{color:#fff}
+@media (max-width:1000px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.cols2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .content{padding-left:14px;padding-right:14px}
+  .ptabs button svg{display:none}
+  .tiles,.drawer .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile .v{font-size:20px}
+  .hide-sm{display:none}
+  .fld select{max-width:none}
+  .filters .fld{flex:1 1 140px}
+  .search{max-width:none}
+}
+</style>
+</head>
+<body style="visibility:hidden">
+<div class="content portal">
+  <div class="topbar">
+    <div class="grow"><h1>Sales Explorer</h1><div class="sub" id="psub">&nbsp;</div></div>
+    <div class="fresh"><span id="asof"></span><span id="busy" class="busy" hidden>Rebuilding from the latest invoices, about a minute…</span><button type="button" class="btn" id="refresh">↻ Refresh now</button></div>
+  </div>
+  <nav class="ptabs" id="tabs" role="tablist" aria-label="Sales Explorer sections"></nav>
+  <section class="filters" aria-label="Filters">
+    <label class="fld"><span>Period</span>
+      <select id="f-preset">
+        <option value="ytd">Year to date</option><option value="mtd">Month to date</option><option value="last_month">Last month</option>
+        <option value="qtd">Quarter to date</option><option value="last_quarter">Last quarter</option><option value="l12">Last 12 months</option>
+        <option value="fy-1">Last full year</option><option value="fy-2">Full year, two years ago</option><option value="fy-3">Full year, three years ago</option>
+        <option value="custom">Custom dates</option>
+      </select></label>
+    <label class="fld" data-custom hidden><span>From</span><input id="f-start" type="date" min="2023-01-01"></label>
+    <label class="fld" data-custom hidden><span>To</span><input id="f-end" type="date" min="2023-01-01"></label>
+    <label class="fld"><span>Compare with</span>
+      <select id="f-compare"><option value="py">Same period last year</option><option value="pp">The period just before</option></select></label>
+    <label class="fld"><span>Rep</span><select id="f-rep" data-kind="rep" data-all="All reps"></select></label>
+    <label class="fld"><span>Reps shown as</span>
+      <select id="f-view"><option value="today">Today’s portfolio</option><option value="then">Who sold it at the time</option></select></label>
+    <label class="fld"><span>Customer class</span><select id="f-cls" data-kind="cls" data-all="All classes"></select></label>
+    <label class="fld"><span>Category</span><select id="f-cat" data-kind="cat" data-all="All categories"></select></label>
+    <label class="chk"><input id="f-usd" type="checkbox" checked> Include USD-billed accounts</label>
+    <button type="button" class="btn" id="f-reset">Reset</button>
+  </section>
+  <div class="chips" id="chips"></div>
+  <main id="main"><div class="empty">Loading…</div></main>
+  <p class="foot">Net revenue and GP from Acumatica invoice lines (invoices, credit memos and debit memos; voided and rejected left out), summarised at 7:00am and 1:00pm Jamaica time and whenever Refresh now is pressed. Credits are already negative. Drops count each day a customer was invoiced. All amounts in J$.</p>
+</div>
+<div id="drawer"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script>window.DFL_PAGE_TITLE = 'Sales Explorer';</script>
+<script>
+(function () {
+  // ---------- data: public.sales_explorer_data(part, params) over the mv_sales_explorer summary ----------
+  // Parts are cached per filter set; changing a filter reloads only what the open tab shows.
+  const cache = new Map();
+  const NUM_KEEP = new Set(['customer_id', 'sku', 'value', 'kind', 'month', 'last_order', 'rep', 'customer', 'customer_class', 'category', 'description', 'status', 'channel']);
+  const tidy = (rows) => Array.isArray(rows) ? rows.map((r) => { const o = {}; for (const k in r) { const v = r[k]; o[k] = (!NUM_KEEP.has(k) && typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v)) ? Number(v) : v; } return o; }) : rows;
+  function get(part, extra) {
+    // the filter choices don't depend on the filters, so they load once
+    const p = part === 'options' ? {} : Object.assign(baseParams(), extra || {});
+    const key = part + '|' + JSON.stringify(p);
+    if (!cache.has(key)) {
+      const e = { status: 'loading', data: null, error: null };
+      // a failed part stays failed (no retry loop) until Reset, a filter change or Refresh now asks again
+      e.promise = sb.rpc('sales_explorer_data', { p_part: part, p }).then((r) => {
+        if (r.error) throw r.error;
+        e.status = 'ok'; e.data = tidy(r.data);
+      }).catch((err) => { e.status = 'error'; e.error = err; }).then(() => render());
+      cache.set(key, e);
+      return e;
+    }
+    return cache.get(key);
+  }
+  const errText = (e) => { const m = String((e && e.message) || e || ''); return /42501|management/.test(m + (e && e.code)) ? 'The Sales Explorer is not open to you yet.' : 'Could not load this. Reload the page; if it keeps happening, tell Scott.'; };
+
+  // ---------- formatting ----------
+  const compact2 = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 });
+  const compact1 = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+  const int = new Intl.NumberFormat('en');
+  const isNum = (v) => typeof v === 'number' && isFinite(v);
+  const J = (v) => !isNum(v) ? '—' : (v < 0 ? '−' : '') + 'J$' + (Math.abs(v) >= 1e9 ? compact2 : compact1).format(Math.abs(v));
+  const N = (v) => !isNum(v) ? '—' : int.format(Math.round(v));
+  const P = (v) => !isNum(v) ? '—' : v.toFixed(1) + '%';
+  const D = (v) => !isNum(v) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + '%';
+  const PTS = (v) => !isNum(v) ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1) + ' pts';
+  const JD = (v) => !isNum(v) ? '—' : (v > 0 ? '+' : '') + J(v);
+  const toneC = (v) => isNum(v) && v > 0 ? 'up' : isNum(v) && v < 0 ? 'down' : '';
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const day = (s) => { if (!s) return '—'; const [y, m, d] = s.split('-').map(Number); return d + ' ' + MON[m - 1] + ' ' + y; };
+  const range = (s, e) => { const [y1] = s.split('-'), [y2] = e.split('-'); const a = day(s); return (y1 === y2 ? a.slice(0, a.lastIndexOf(' ')) : a) + ' – ' + day(e); };
+
+  // ---------- period ----------
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const ymd = (y, m, d) => new Date(Date.UTC(y, m, d));
+  const now = new Date();
+  const today = ymd(now.getFullYear(), now.getMonth(), now.getDate());
+  const addYears = (d, n) => { const y = d.getUTCFullYear() + n, m = d.getUTCMonth(); return ymd(y, m, Math.min(d.getUTCDate(), new Date(Date.UTC(y, m + 1, 0)).getUTCDate())); };
+  const addDays = (d, n) => new Date(d.getTime() + n * 864e5);
+  function presetRange(p) {
+    const y = today.getUTCFullYear(), m = today.getUTCMonth(), q = Math.floor(m / 3) * 3;
+    switch (p) {
+      case 'mtd': return [ymd(y, m, 1), today];
+      case 'last_month': return [ymd(y, m - 1, 1), ymd(y, m, 0)];
+      case 'qtd': return [ymd(y, q, 1), today];
+      case 'last_quarter': return [ymd(y, q - 3, 1), ymd(y, q, 0)];
+      case 'l12': return [addDays(addYears(today, -1), 1), today];
+      case 'fy-1': return [ymd(y - 1, 0, 1), ymd(y - 1, 11, 31)];
+      case 'fy-2': return [ymd(y - 2, 0, 1), ymd(y - 2, 11, 31)];
+      case 'fy-3': return [ymd(y - 3, 0, 1), ymd(y - 3, 11, 31)];
+      default: return [ymd(y, 0, 1), today];
+    }
+  }
+  function compareRange(s, e, mode) {
+    if (mode === 'pp') { const n = Math.round((e - s) / 864e5) + 1; const pe = addDays(s, -1); return [addDays(pe, -(n - 1)), pe]; }
+    return [addYears(s, -1), addYears(e, -1)];
+  }
+
+  // ---------- state (kept on this device so the page reopens where it was left) ----------
+  const DEF = { tab: 'overview', preset: 'ytd', compare: 'py', start: null, end: null, rep: null, view: 'today', cls: null, cat: null, usd: true };
+  let S = Object.assign({}, DEF);
+  try { Object.assign(S, JSON.parse(localStorage.getItem('sales-explorer') || '{}')); } catch (e) { /* first visit */ }
+  const fromHash = location.hash.slice(1); if (fromHash) S.tab = fromHash;
+  const save = () => { try { localStorage.setItem('sales-explorer', JSON.stringify(S)); } catch (e) { /* private window */ } };
+  function period() {
+    let s, e;
+    if (S.preset === 'custom' && S.start && S.end) { s = new Date(S.start + 'T00:00:00Z'); e = new Date(S.end + 'T00:00:00Z'); if (e < s) [s, e] = [e, s]; }
+    else [s, e] = presetRange(S.preset === 'custom' ? 'ytd' : S.preset);
+    const [ps, pe] = compareRange(s, e, S.compare);
+    return { start: iso(s), end: iso(e), pstart: iso(ps), pend: iso(pe) };
+  }
+  const baseParams = () => Object.assign(period(), { include_usd: S.usd, rep_view: S.view, rep: S.rep, cls: S.cls, cat: S.cat });
+
+  // per-table UI state (not saved)
+  const SORT = { reps: { k: 'rev_c', d: -1 }, cls: { k: 'rev_c', d: -1 }, cats: { k: 'rev_c', d: -1 }, cust: { k: 'rev_c', d: -1 }, prod: { k: 'rev_c', d: -1 }, dcust: { k: 'rev_c', d: -1 }, dsku: { k: 'rev_c', d: -1 } };
+  const F = { custQ: '', custSt: '', custCh: '', prodQ: '', prodSt: '', dSt: '' };
+  let DRAWER = null; // {type:'cust'|'sku', id, name, back}
+  const LIMIT = 500;
+
+  // ---------- tabs ----------
+  const ICON = {
+    overview: '<path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />',
+    reps: '<circle cx="9" cy="8" r="3.2"/><path d="M3 19c.8-3.2 3.2-5 6-5s5.2 1.8 6 5"/><path d="M16 5.5a3 3 0 0 1 0 5.6M18.5 14.4c1.4.8 2.2 2.4 2.5 4.6"/>',
+    customers: '<path d="M3 10l1.5-5h15L21 10M4 10v9h16v-9M3 10h18M9 19v-5h6v5"/>',
+    products: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+    categories: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  };
+  const TABS = [['overview', 'Overview'], ['reps', 'Reps'], ['customers', 'Customers'], ['products', 'Products'], ['categories', 'Categories & classes']];
+  if (!TABS.some((t) => t[0] === S.tab)) S.tab = 'overview';
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = TABS.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>${l}</button>`).join('');
+  tabsEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-tab]'); if (!b) return; S.tab = b.dataset.tab; save(); history.replaceState(null, '', '#' + S.tab); render(); });
+
+  // ---------- filters ----------
+  const $ = (id) => document.getElementById(id);
+  function syncControls() {
+    $('f-preset').value = S.preset; $('f-compare').value = S.compare; $('f-view').value = S.view; $('f-usd').checked = S.usd !== false;
+    const pr = period();
+    document.querySelectorAll('[data-custom]').forEach((el) => { el.hidden = S.preset !== 'custom'; });
+    if (document.activeElement !== $('f-start')) $('f-start').value = pr.start;
+    if (document.activeElement !== $('f-end')) $('f-end').value = pr.end;
+    const opts = get('options');
+    for (const id of ['f-rep', 'f-cls', 'f-cat']) {
+      const sel = $(id), kind = sel.dataset.kind, cur = S[kind] || '';
+      const vals = opts.status === 'ok' ? opts.data.filter((r) => r.kind === kind).map((r) => r.value).sort((a, b) => a.localeCompare(b)) : [];
+      if (cur && !vals.includes(cur)) vals.unshift(cur);
+      const sig = kind + vals.join('|');
+      if (sel.dataset.sig !== sig) { sel.innerHTML = `<option value="">${esc(sel.dataset.all)}</option>` + vals.map((v) => `<option>${esc(v)}</option>`).join(''); sel.dataset.sig = sig; }
+      sel.value = cur;
+    }
+  }
+  const setF = (patch) => { Object.assign(S, patch); save(); render(); };
+  $('f-preset').addEventListener('change', (e) => { const v = e.target.value; if (v === 'custom') { const pr = period(); setF({ preset: v, start: pr.start, end: pr.end }); } else setF({ preset: v }); });
+  $('f-compare').addEventListener('change', (e) => setF({ compare: e.target.value }));
+  $('f-view').addEventListener('change', (e) => setF({ view: e.target.value, rep: null }));
+  $('f-usd').addEventListener('change', (e) => setF({ usd: e.target.checked }));
+  for (const [id, k] of [['f-rep', 'rep'], ['f-cls', 'cls'], ['f-cat', 'cat']]) $(id).addEventListener('change', (e) => setF({ [k]: e.target.value || null }));
+  for (const [id, k] of [['f-start', 'start'], ['f-end', 'end']]) $(id).addEventListener('change', (e) => { if (e.target.value && e.target.validity.valid) setF({ [k]: e.target.value }); });
+  $('f-reset').addEventListener('click', () => { S = Object.assign({}, DEF, { tab: S.tab }); save(); render(); });
+  $('chips').addEventListener('click', (ev) => { const b = ev.target.closest('[data-clear]'); if (b) setF({ [b.dataset.clear]: null }); });
+
+  // ---------- small renderers ----------
+  const pill = (s) => s ? `<span class="pill st-${esc(s)}">${esc(s)}</span>` : '—';
+  const STATUS = ['', 'New', 'Growing', 'Declining', 'Lost'];
+  const seg = (name, cur, vals, labels) => `<div class="seg" role="group" data-seg="${name}">` + vals.map((v, i) => `<button type="button" data-v="${esc(v)}" aria-pressed="${v === cur}">${esc(labels ? labels[i] : (v || 'All'))}</button>`).join('') + '</div>';
+  function sorted(rows, st) {
+    const k = st.k, d = st.d;
+    return rows.slice().sort((a, b) => { const x = a[k], y = b[k]; if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * d; });
+  }
+  // cols: [field, label, type, opts]   types: name, txt, j, jbar, jd, d, p, n, day, status
+  function table(id, g, rows, cols, o) {
+    const st = SORT[id];
+    const head = cols.map(([f, l, t, x]) => `<th class="${['j', 'jbar', 'jd', 'd', 'p', 'n'].includes(t) ? 'n' : ''}${x && x.hide ? ' hide-sm' : ''}"${st.k === f ? ` aria-sort="${st.d > 0 ? 'ascending' : 'descending'}"` : ''}><button type="button" data-sort="${id}:${f}">${esc(l)}</button></th>`).join('');
+    let body;
+    if (!g || g.status === 'loading') body = `<tr><td class="msg" colspan="${cols.length}">Loading…</td></tr>`;
+    else if (g.status === 'error') body = `<tr><td class="msg" colspan="${cols.length}">${esc(errText(g.error))}</td></tr>`;
+    else if (!rows.length) body = `<tr><td class="msg" colspan="${cols.length}">${esc(o.empty || 'Nothing in this period.')}</td></tr>`;
+    else {
+      const max = Math.max(1, ...rows.map((r) => isNum(r.rev_c) ? r.rev_c : 0));
+      body = rows.map((r) => {
+        const key = r[o.key];
+        const tds = cols.map(([f, l, t, x]) => {
+          const v = r[f], h = x && x.hide ? ' hide-sm' : '';
+          switch (t) {
+            case 'name': return `<td class="name${h}">${esc(v == null ? '—' : v)}${x && x.sub ? `<small>${esc(x.sub(r))}</small>` : ''}</td>`;
+            case 'j': return `<td class="n${h}">${J(v)}</td>`;
+            case 'jbar': return `<td class="n${h}"><div class="barcell"><span>${J(v)}</span><i style="width:${isNum(v) && v > 0 ? (v / max * 100).toFixed(1) : 0}%"></i></div></td>`;
+            case 'jd': return `<td class="n ${toneC(v)}${h}">${JD(v)}</td>`;
+            case 'd': return `<td class="n ${toneC(v)}${h}">${D(v)}</td>`;
+            case 'p': return `<td class="n${h}">${P(v)}</td>`;
+            case 'n': return `<td class="n${h}">${N(v)}</td>`;
+            case 'day': return `<td class="${h}">${day(v)}</td>`;
+            case 'status': return `<td class="${h}">${pill(v)}</td>`;
+            default: return `<td class="${h}">${esc(v == null ? '—' : v)}</td>`;
+          }
+        }).join('');
+        return `<tr${o.pick ? ` tabindex="0" data-pick="${esc(o.pick)}" data-id="${esc(key)}"` : ''}${o.selected != null && key === o.selected ? ' class="sel"' : ''}>${tds}</tr>`;
+      }).join('');
+    }
+    return `<div class="tbl${o.short ? ' short' : ''}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+  function chart(rows, p, h) {
+    if (!rows || !rows.length) return '<div class="empty">No sales for these filters.</div>';
+    const W = 1000, H = h || 260, mt = 10, mb = 26, mr = 6;
+    const vals = rows.map((r) => r.rev || 0), lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+    const step = (() => { const raw = (hi - lo) / 4 || 1, mag = Math.pow(10, Math.floor(Math.log10(raw))); const f = raw / mag; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag; })();
+    const y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step || step;
+    const ticks = []; for (let t = y0; t <= y1 + step / 2; t += step) ticks.push(t);
+    const ml = 64, x0 = ml, xw = W - ml - mr, bw = xw / rows.length;
+    const y = (v) => mt + (y1 - v) / (y1 - y0) * (H - mt - mb);
+    const inR = (r, s, e) => { const ms = r.month + '-01', [yy, mm] = r.month.split('-').map(Number); const me = iso(new Date(Date.UTC(yy, mm, 0))); return ms <= e && me >= s; };
+    const col = (r) => inR(r, p.start, p.end) ? 'var(--blue)' : inR(r, p.pstart, p.pend) ? 'var(--cmp)' : 'var(--other)';
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly revenue">`;
+    for (const t of ticks) s += `<line x1="${x0}" x2="${W - mr}" y1="${y(t)}" y2="${y(t)}" stroke="#EEF1F6"/><text x="${x0 - 8}" y="${y(t)}" dy="0.32em" text-anchor="end">${J(t)}</text>`;
+    rows.forEach((r, i) => {
+      const v = r.rev || 0, bx = x0 + i * bw + bw * 0.1, w = Math.max(1, bw * 0.8), top = y(Math.max(0, v)), hh = Math.abs(y(v) - y(0));
+      s += `<rect x="${bx.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0.5, hh).toFixed(1)}" rx="${Math.min(3, w / 2).toFixed(1)}" fill="${col(r)}"/>`;
+      const m = Number(r.month.slice(5)) - 1;
+      if (m === 0 || i === 0 || (m === 6 && bw * 6 > 70)) s += `<text x="${(x0 + i * bw + bw * 0.1).toFixed(1)}" y="${H - 8}">${MON[m]}${m === 0 || i === 0 ? ' ' + r.month.slice(0, 4) : ''}</text>`;
+      s += `<rect class="hit" data-i="${i}" x="${(x0 + i * bw).toFixed(1)}" y="${mt}" width="${bw.toFixed(1)}" height="${H - mt - mb}" fill="transparent"/>`;
+    });
+    s += `<line x1="${x0}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}" stroke="#C5CCDB"/></svg><div class="tip" hidden></div>`;
+    return s;
+  }
+  function wireChart(el, rows) {
+    if (!el) return;
+    const tip = el.querySelector('.tip'), svg = el.querySelector('svg'); if (!tip || !svg) return;
+    svg.addEventListener('mousemove', (ev) => {
+      const h = ev.target.closest('.hit'); if (!h) { tip.hidden = true; return; }
+      const r = rows[Number(h.dataset.i)]; const [yy, mm] = r.month.split('-').map(Number);
+      tip.innerHTML = `<b>${MONTH[mm - 1]} ${yy}</b><br>Revenue ${J(r.rev)}<br>GP ${J(r.gp)} · ${P(r.gp_pct)}`; tip.hidden = false;
+      const box = el.getBoundingClientRect(), hb = h.getBoundingClientRect();
+      tip.style.left = Math.max(0, Math.min(box.width - tip.offsetWidth, hb.left - box.left + hb.width / 2 - tip.offsetWidth / 2)) + 'px';
+      tip.style.top = '4px';
+    });
+    svg.addEventListener('mouseleave', () => { tip.hidden = true; });
+  }
+  const legend = '<div class="legend"><span><i style="background:var(--blue)"></i>Selected period</span><span><i style="background:var(--cmp)"></i>Comparison period</span><span><i style="background:var(--other)"></i>Other months</span></div>';
+
+  // ---------- views ----------
+  const kpiTile = (k, g, f, sub) => {
+    const r = g.status === 'ok' && g.data[0] ? g.data[0] : null, load = g.status === 'loading';
+    const v = r ? r[f.v] : null, d = r ? r[f.d] : null;
+    return `<div class="tile"><div class="k">${k}</div><div class="v${load ? ' skel' : ''}">${f.fmt(v)}</div><div class="d ${toneC(d)}">${r ? D(d) : '&nbsp;'}</div><div class="s">${r ? sub(r) : '&nbsp;'}</div></div>`;
+  };
+  function vOverview() {
+    const k = get('kpis'), m = get('monthly', { cust: null, sku: null }), c = get('by_class'), cat = get('by_cat'), pr = period();
+    const err = k.status === 'error' ? `<div class="empty">${esc(errText(k.error))}</div>` : '';
+    return err + `<div class="tiles">` +
+      kpiTile('Revenue', k, { v: 'rev_c', d: 'rev_chg_pct', fmt: J }, (r) => 'Comparison ' + J(r.rev_p)) +
+      kpiTile('Gross profit', k, { v: 'gp_c', d: 'gp_chg_pct', fmt: J }, (r) => 'GP ' + P(r.gp_pct_c) + ' (' + PTS(r.gp_pct_chg_pts) + ')') +
+      kpiTile('Customers buying', k, { v: 'cust_c', d: 'cust_chg_pct', fmt: N }, (r) => 'Comparison ' + N(r.cust_p)) +
+      kpiTile('SKUs sold', k, { v: 'sku_c', d: 'sku_chg_pct', fmt: N }, (r) => 'Comparison ' + N(r.sku_p)) +
+      kpiTile('Drops', k, { v: 'drops_c', d: 'drops_chg_pct', fmt: N }, (r) => 'Customer delivery days · comparison ' + N(r.drops_p)) +
+      `</div><section class="panel"><div class="phead"><h2>Monthly revenue since January 2023</h2>${legend}</div><p class="note">Follows the rep, class, category and USD filters. Hover a month for revenue and GP%.</p>` +
+      `<div class="chart" id="ch-main">${m.status === 'ok' ? chart(m.data, pr) : m.status === 'error' ? `<div class="empty">${esc(errText(m.error))}</div>` : '<div class="skel" style="height:240px"></div>'}</div></section>` +
+      `<div class="cols2"><section class="panel"><div class="phead"><h2>By customer class</h2></div><p class="note">Click a class to filter the whole page.</p>` +
+      table('cls', c, c.status === 'ok' ? sorted(c.data, SORT.cls) : [], [['customer_class', 'Class', 'name'], ['rev_c', 'Revenue', 'jbar'], ['chg_pct', 'Change', 'd'], ['gp_pct', 'GP%', 'p'], ['customers', 'Customers', 'n', { hide: true }]], { key: 'customer_class', pick: 'cls', selected: S.cls, short: true }) +
+      `</section><section class="panel"><div class="phead"><h2>Top 10 categories</h2></div><p class="note">The full list is on Categories &amp; classes. Click one to filter the page.</p>` +
+      table('cats', cat, cat.status === 'ok' ? sorted(cat.data, SORT.cats).slice(0, 10) : [], [['category', 'Category', 'name'], ['rev_c', 'Revenue', 'jbar'], ['chg_pct', 'Change', 'd'], ['gp_pct', 'GP%', 'p'], ['customers', 'Buyers', 'n', { hide: true }]], { key: 'category', pick: 'cat', selected: S.cat, short: true }) +
+      `</section></div>`;
+  }
+  function vReps() {
+    const g = get('by_rep');
+    return `<section class="panel"><div class="phead"><h2>By rep</h2><span class="ct">${g.status === 'ok' ? N(g.data.length) + ' reps' : ''}</span></div>` +
+      `<p class="note">${S.view === 'then' ? 'Each customer counts under the rep who sold them most in the selected period.' : 'Today’s portfolio: every year counts under the rep who has the customer now (who sold them most in the last 3 months, else their customer record), so years compare like for like. No current rep means accounts whose rep has left.'} Click a rep to filter the whole page.</p>` +
+      table('reps', g, g.status === 'ok' ? sorted(g.data, SORT.reps) : [], [['rep', 'Rep', 'name'], ['rev_c', 'Revenue', 'jbar'], ['rev_p', 'Comparison', 'j', { hide: true }], ['chg', 'Change', 'jd'], ['chg_pct', 'Change %', 'd'], ['gp_pct', 'GP%', 'p'], ['customers', 'Customers', 'n']], { key: 'rep', pick: 'rep', selected: S.rep, short: true }) + '</section>';
+  }
+  function custRows(g) {
+    if (g.status !== 'ok') return [];
+    const q = F.custQ.trim().toLowerCase();
+    return g.data.filter((r) => (!F.custSt || r.status === F.custSt) && (!F.custCh || r.channel === F.custCh) && (!q || [r.customer, r.customer_id, r.rep].some((v) => v && String(v).toLowerCase().includes(q))));
+  }
+  function vCustomers() {
+    const g = get('customers'), rows = custRows(g);
+    const ct = g.status !== 'ok' ? '' : rows.length > LIMIT ? `Top ${N(LIMIT)} of ${N(rows.length)} customers; search to narrow` : `${N(rows.length)} customers`;
+    return `<section class="panel"><div class="phead"><h2>Customers</h2><span class="ct">${ct}</span></div>` +
+      `<p class="note">Every customer with sales in either period. Key and Chain come from the KAM lists, else the Acumatica segment. Click a customer to see what they buy.</p>` +
+      `<div class="tools"><input class="search" type="search" id="q-cust" placeholder="Search customer, code or rep" value="${esc(F.custQ)}" aria-label="Search customers">` +
+      seg('custSt', F.custSt, STATUS) + seg('custCh', F.custCh, ['', 'Key', 'Chain', 'Hospitality'], ['All accounts', 'Key', 'Chain', 'Hospitality']) + '</div>' +
+      table('cust', g, sorted(rows, SORT.cust).slice(0, LIMIT), [
+        ['customer', 'Customer', 'name', { sub: (r) => [r.customer_id, r.channel].filter(Boolean).join(' · ') }], ['customer_class', 'Class', 'txt', { hide: true }], ['rep', 'Rep', 'txt', { hide: true }],
+        ['rev_c', 'Revenue', 'jbar'], ['rev_p', 'Comparison', 'j', { hide: true }], ['chg', 'Change', 'jd'], ['chg_pct', 'Change %', 'd', { hide: true }],
+        ['gp_pct', 'GP%', 'p'], ['last_order', 'Last order', 'day', { hide: true }], ['status', 'Status', 'status']],
+      { key: 'customer_id', pick: 'cust', empty: 'No customers match.' }) + '</section>';
+  }
+  function prodRows(g) {
+    if (g.status !== 'ok') return [];
+    const q = F.prodQ.trim().toLowerCase();
+    return g.data.filter((r) => (!F.prodSt || r.status === F.prodSt) && (!q || [r.sku, r.description, r.category].some((v) => v && String(v).toLowerCase().includes(q))));
+  }
+  function vProducts() {
+    const g = get('products'), rows = prodRows(g);
+    const ct = g.status !== 'ok' ? '' : rows.length > LIMIT ? `Top ${N(LIMIT)} of ${N(rows.length)} products; search to narrow` : `${N(rows.length)} products`;
+    return `<section class="panel"><div class="phead"><h2>Products</h2><span class="ct">${ct}</span></div>` +
+      `<p class="note">Every SKU with sales in either period; MOQ items are left out. Click a product to see who buys it.</p>` +
+      `<div class="tools"><input class="search" type="search" id="q-prod" placeholder="Search SKU, description or category" value="${esc(F.prodQ)}" aria-label="Search products">` + seg('prodSt', F.prodSt, STATUS) + '</div>' +
+      table('prod', g, sorted(rows, SORT.prod).slice(0, LIMIT), [
+        ['description', 'Product', 'name', { sub: (r) => r.sku }], ['category', 'Category', 'txt', { hide: true }], ['qty_c', 'Qty', 'n', { hide: true }],
+        ['rev_c', 'Revenue', 'jbar'], ['chg', 'Change', 'jd'], ['chg_pct', 'Change %', 'd', { hide: true }], ['gp_pct', 'GP%', 'p'], ['customers', 'Buyers', 'n', { hide: true }], ['status', 'Status', 'status']],
+      { key: 'sku', pick: 'sku', empty: 'No products match.' }) + '</section>';
+  }
+  function vCategories() {
+    const cat = get('by_cat'), c = get('by_class');
+    return `<div class="cols2"><section class="panel"><div class="phead"><h2>By category</h2><span class="ct">${cat.status === 'ok' ? N(cat.data.length) + ' categories' : ''}</span></div><p class="note">Item class of each invoice line. Click a category to filter the whole page.</p>` +
+      table('cats', cat, cat.status === 'ok' ? sorted(cat.data, SORT.cats) : [], [['category', 'Category', 'name'], ['rev_c', 'Revenue', 'jbar'], ['chg_pct', 'Change', 'd'], ['gp_pct', 'GP%', 'p'], ['customers', 'Buyers', 'n', { hide: true }]], { key: 'category', pick: 'cat', selected: S.cat, short: true }) +
+      `</section><section class="panel"><div class="phead"><h2>By customer class</h2></div><p class="note">Class as held on the customer record. Click a class to filter the whole page.</p>` +
+      table('cls', c, c.status === 'ok' ? sorted(c.data, SORT.cls) : [], [['customer_class', 'Class', 'name'], ['rev_c', 'Revenue', 'jbar'], ['chg_pct', 'Change', 'd'], ['gp_pct', 'GP%', 'p'], ['customers', 'Customers', 'n', { hide: true }]], { key: 'customer_class', pick: 'cls', selected: S.cls, short: true }) +
+      '</section></div>';
+  }
+
+  // ---------- side panel: one customer or one product ----------
+  function vDrawer() {
+    const d = DRAWER, isC = d.type === 'cust';
+    const g = get(isC ? 'cust_detail' : 'sku_detail', { [d.type]: d.id });
+    const m = get('monthly', { cust: isC ? d.id : null, sku: isC ? null : d.id });
+    const rows = g.status === 'ok' ? g.data : [];
+    const sum = (f) => rows.reduce((a, r) => a + (isNum(r[f]) ? r[f] : 0), 0);
+    const rc = sum('rev_c'), rp = sum('rev_p'), gp = rows.reduce((a, r) => a + (isNum(r.rev_c) && isNum(r.gp_pct) ? r.rev_c * r.gp_pct / 100 : 0), 0);
+    const chg = rp > 0 ? (rc / rp - 1) * 100 : null, ok = g.status === 'ok';
+    const name = d.name || (rows[0] && (isC ? rows[0].customer : rows[0].description)) || d.id;
+    const sub = isC ? [d.id, d.rep, d.cls, d.channel].filter(Boolean).join(' · ') : [d.id, rows[0] && rows[0].category || d.cat].filter(Boolean).join(' · ');
+    const shown = rows.filter((r) => !F.dSt || r.status === F.dSt);
+    const counts = STATUS.slice(1).map((s) => rows.filter((r) => r.status === s).length);
+    const cols = isC
+      ? [['description', 'Product', 'name', { sub: (r) => r.sku }], ['category', 'Category', 'txt', { hide: true }], ['qty_c', 'Qty', 'n'], ['qty_p', 'Qty comp.', 'n', { hide: true }], ['rev_c', 'Revenue', 'jbar'], ['rev_p', 'Comparison', 'j', { hide: true }], ['chg', 'Change', 'jd'], ['gp_pct', 'GP%', 'p'], ['status', 'Status', 'status']]
+      : [['customer', 'Customer', 'name', { sub: (r) => [r.customer_id, r.rep].filter(Boolean).join(' · ') }], ['customer_class', 'Class', 'txt', { hide: true }], ['qty_c', 'Qty', 'n'], ['qty_p', 'Qty comp.', 'n', { hide: true }], ['rev_c', 'Revenue', 'jbar'], ['rev_p', 'Comparison', 'j', { hide: true }], ['chg', 'Change', 'jd'], ['gp_pct', 'GP%', 'p'], ['status', 'Status', 'status']];
+    const pr = period();
+    return `<div class="scrim" data-close></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(name)}">` +
+      `<div class="dh"><div>${d.back ? `<button type="button" class="back" data-back>← Back to ${esc(d.back.name || d.back.id)}</button>` : ''}<h3>${esc(name)}</h3><div class="s">${esc(sub)}</div></div><button type="button" data-close>Close</button></div><div class="db">` +
+      `<div class="tiles"><div class="tile"><div class="k">Revenue</div><div class="v${ok ? '' : ' skel'}">${ok ? J(rc) : '—'}</div><div class="d ${toneC(chg)}">${ok ? D(chg) : '&nbsp;'}</div><div class="s">Comparison ${ok ? J(rp) : '—'}</div></div>` +
+      `<div class="tile"><div class="k">Change</div><div class="v ${toneC(rc - rp)}">${ok ? JD(rc - rp) : '—'}</div><div class="s">${esc(range(pr.start, pr.end))}</div></div>` +
+      `<div class="tile"><div class="k">GP%</div><div class="v">${ok && rc ? P(gp / rc * 100) : '—'}</div><div class="s">Selected period</div></div>` +
+      `<div class="tile"><div class="k">${isC ? 'Products' : 'Buyers'}</div><div class="v">${ok ? N(rows.filter((r) => isNum(r.rev_c) && r.rev_c > 0).length) : '—'}</div><div class="s">${ok ? 'of ' + N(rows.length) + ' in either period' : '&nbsp;'}</div></div></div>` +
+      `<section class="panel"><div class="phead"><h2>Monthly revenue</h2>${legend}</div><div class="chart" id="ch-drawer">${m.status === 'ok' ? chart(m.data, pr, 200) : '<div class="skel" style="height:150px"></div>'}</div></section>` +
+      `<section class="panel"><div class="phead"><h2>${isC ? 'What they buy' : 'Who buys it'}</h2><span class="ct">${ok ? N(shown.length) + (isC ? ' products' : ' customers') : ''}</span></div>` +
+      `<p class="note">${isC ? 'By product, selected period against the comparison period. Click a product to see everyone who buys it.' : 'By customer, selected period against the comparison period. Click a customer to see what else they buy.'}</p>` +
+      `<div class="tools">${seg('dSt', F.dSt, STATUS, STATUS.map((s, i) => !s ? 'All' : ok ? `${s} ${counts[i - 1]}` : s))}</div>` +
+      table(isC ? 'dcust' : 'dsku', g, sorted(shown, SORT[isC ? 'dcust' : 'dsku']), cols, { key: isC ? 'sku' : 'customer_id', pick: isC ? 'dsku' : 'dcust', empty: F.dSt ? 'None with this status.' : 'No sales in either period.', short: true }) +
+      '</section></div></aside>';
+  }
+  function openDrawer(d) { F.dSt = ''; SORT.dcust = { k: 'rev_c', d: -1 }; SORT.dsku = { k: 'rev_c', d: -1 }; DRAWER = d; FOCUS_DRAWER = true; render(); }
+  let FOCUS_DRAWER = false;
+  const closeDrawer = () => { DRAWER = null; render(); };
+
+  // ---------- page events (one listener each, survives every redraw) ----------
+  document.addEventListener('click', (ev) => {
+    const t = ev.target;
+    const so = t.closest('[data-sort]');
+    if (so) { const [id, f] = so.dataset.sort.split(':'); const st = SORT[id]; st.d = st.k === f ? -st.d : (['customer', 'customer_class', 'rep', 'sku', 'description', 'category', 'status'].includes(f) ? 1 : -1); st.k = f; render(); return; }
+    const sg = t.closest('[data-seg] button');
+    if (sg) { F[sg.parentNode.dataset.seg] = sg.dataset.v; render(); return; }
+    if (t.closest('[data-close]')) { closeDrawer(); return; }
+    if (t.closest('[data-back]')) { const b = DRAWER.back; openDrawer(b); return; }
+    const tr = t.closest('tr[data-pick]');
+    if (tr) pick(tr.dataset.pick, tr.dataset.id);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && DRAWER) closeDrawer();
+    if (ev.key === 'Enter') { const tr = ev.target.closest && ev.target.closest('tr[data-pick]'); if (tr) pick(tr.dataset.pick, tr.dataset.id); }
+  });
+  document.addEventListener('input', (ev) => {
+    if (ev.target.id === 'q-cust') { F.custQ = ev.target.value; render(); }
+    if (ev.target.id === 'q-prod') { F.prodQ = ev.target.value; render(); }
+  });
+  function pick(kind, id) {
+    if (kind === 'rep' || kind === 'cls' || kind === 'cat') { setF({ [kind]: S[kind] === id ? null : id }); return; }
+    const find = (part, key) => { const g = get(part); return g.status === 'ok' ? g.data.find((r) => String(r[key]) === id) : null; };
+    if (kind === 'cust') { const r = find('customers', 'customer_id') || {}; openDrawer({ type: 'cust', id, name: r.customer, rep: r.rep, cls: r.customer_class, channel: r.channel }); }
+    if (kind === 'sku') { const r = find('products', 'sku') || {}; openDrawer({ type: 'sku', id, name: r.description, cat: r.category }); }
+    if (kind === 'dsku') { if (id === '(no SKU)') return; const r = (get('cust_detail', { cust: DRAWER.id }).data || []).find((x) => x.sku === id) || {}; openDrawer({ type: 'sku', id, name: r.description, cat: r.category, back: DRAWER }); }
+    if (kind === 'dcust') { const r = (get('sku_detail', { sku: DRAWER.id }).data || []).find((x) => x.customer_id === id) || {}; openDrawer({ type: 'cust', id, name: r.customer, rep: r.rep, cls: r.customer_class, back: DRAWER }); }
+  }
+
+  // ---------- header, chips, draw ----------
+  const jam = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Jamaica', hour: 'numeric', minute: '2-digit', hour12: true, day: 'numeric', month: 'short' });
+  let ASOF = null;
+  function header() {
+    const pr = period();
+    $('psub').textContent = range(pr.start, pr.end) + ', compared with ' + range(pr.pstart, pr.pend) + (S.usd === false ? '. USD-billed accounts left out.' : '.');
+    $('asof').textContent = ASOF && ASOF.refreshed_at ? 'Data as of ' + jam.format(new Date(ASOF.refreshed_at)) : '';
+    const chips = [];
+    if (S.rep) chips.push(['Rep', S.rep, 'rep']);
+    if (S.cls) chips.push(['Class', S.cls, 'cls']);
+    if (S.cat) chips.push(['Category', S.cat, 'cat']);
+    $('chips').innerHTML = chips.map(([k, v, c]) => `<button type="button" class="chip" data-clear="${c}" aria-label="Clear ${k.toLowerCase()} filter"><b>${k}:</b> ${esc(v)} ×</button>`).join('');
+  }
+  const VIEWS = { overview: vOverview, reps: vReps, customers: vCustomers, products: vProducts, categories: vCategories };
+  let queued = false;
+  function render() {
+    if (queued) return; queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      tabsEl.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+      syncControls(); header();
+      const main = $('main'), a = document.activeElement, focusId = a && a.id, caret = a && a.selectionStart;
+      main.innerHTML = VIEWS[S.tab]();
+      wireChart(document.getElementById('ch-main'), (get('monthly', { cust: null, sku: null }).data) || []);
+      const dEl = $('drawer'), dr = dEl.querySelector('.drawer'), dy = dr ? dr.scrollTop : 0;
+      dEl.innerHTML = DRAWER ? vDrawer() : '';
+      document.body.style.overflow = DRAWER ? 'hidden' : '';
+      if (DRAWER) {
+        const nd = dEl.querySelector('.drawer');
+        if (nd && FOCUS_DRAWER) { FOCUS_DRAWER = false; nd.scrollTop = 0; const c = nd.querySelector('.dh [data-close]'); if (c) c.focus(); } else if (nd) nd.scrollTop = dy;
+        wireChart(document.getElementById('ch-drawer'), (get('monthly', { cust: DRAWER.type === 'cust' ? DRAWER.id : null, sku: DRAWER.type === 'sku' ? DRAWER.id : null }).data) || []);
+      }
+      if (focusId && (focusId === 'q-cust' || focusId === 'q-prod')) { const el = $(focusId); if (el) { el.focus(); try { el.setSelectionRange(caret, caret); } catch (e) { /* not a text field */ } } }
+    });
+  }
+
+  // ---------- Refresh now: the rebuild runs on the server within about a minute ----------
+  async function loadAsOf() { try { const r = await sb.rpc('sales_explorer_data', { p_part: 'as_of', p: {} }); if (!r.error) { ASOF = r.data; header(); } } catch (e) { /* header just stays blank */ } }
+  $('refresh').addEventListener('click', async () => {
+    const btn = $('refresh'), busy = $('busy');
+    btn.disabled = true; busy.hidden = false; busy.textContent = 'Rebuilding from the latest invoices, about a minute…';
+    try {
+      const r = await sb.rpc('sales_explorer_request_refresh'); if (r.error) throw r.error;
+      const asked = new Date(r.data).getTime(), t0 = Date.now();
+      while (Date.now() - t0 < 4 * 60000) {
+        await new Promise((ok) => setTimeout(ok, 10000));
+        await loadAsOf();
+        if (ASOF && ASOF.refreshed_at && new Date(ASOF.refreshed_at).getTime() >= asked) { cache.clear(); busy.hidden = true; render(); return; }
+      }
+      busy.textContent = 'Still rebuilding. The figures will update on your next visit.';
+    } catch (e) { busy.textContent = 'Refresh didn’t start. Try again in a few minutes.'; }
+    finally { btn.disabled = false; }
+  });
+
+  let STARTED = false;
+  function start() {
+    if (STARTED) return; STARTED = true;
+    document.body.style.visibility = 'visible';
+    history.replaceState(null, '', '#' + S.tab);
+    loadAsOf(); render();
+    // the summary changes at 7am and 1pm: look for a newer one every 15 minutes while the page is open
+    setInterval(async () => { if (document.hidden) return; const was = ASOF && ASOF.refreshed_at; await loadAsOf(); if (ASOF && ASOF.refreshed_at !== was && was) { cache.clear(); render(); } }, 15 * 60000);
+  }
+  document.addEventListener('dfl-auth-ready', start);
+  if (window.DFL_PROFILE) start();
+})();
+</script>
+</body>
+</html>

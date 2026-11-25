@@ -128,6 +128,8 @@
         { label: 'Key Account Hub', href: '/management/key-hub.html', icon: '🔑', keyHub: true },
         // ssHub: the sales support people (Alecia, Jenelle, Althia) and the price approver (Scott) only.
         { label: 'Sales Support Hub', href: '/management/sales-support-hub.html', icon: '🎧', ssHub: true },
+        // approverOnly: Scott only for now (sales_explorer_data checks the same).
+        { label: 'Sales Explorer', href: '/management/sales-explorer.html', icon: '🔎', approverOnly: true },
         { label: 'Dashboards', href: '/management/', icon: '📊' },
         { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
         { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },
