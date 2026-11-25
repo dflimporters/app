@@ -1367,7 +1367,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
   // Contact and order history load separately (loadCustContact/loadCustHistory);
   // keep them across re-renders of the same account (the YTD/MTD toggle).
   const keep=CURCUST&&CURCUST.cid===cid?CURCUST:{};
-  CURCUST={cid, cache, budget, mbudget, merch, hot, contact:keep.contact, hist:keep.hist};
+  CURCUST={cid, cache, budget, mbudget, merch, hot, contact:keep.contact, contactOpen:keep.contactOpen, hist:keep.hist};
   const c=document.getElementById("custcontent");
   const today=new Date();
   const name=cache?cache.customer_name:cid;
@@ -1398,11 +1398,8 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     .map(([cat,bud])=>{const a=Number(byCat[cat]||0);return{cat,bud,actual:a,pct:bud>0?Math.round(a/bud*100):0};})
     .sort((a,b)=>b.bud-a.bud);
 
-  // category gaps from cat_last_purchase
+  // last purchase per category — shown under a Budget-by-category row that has no sales in the period
   const catLast=cache?(cache.cat_last_purchase||{}):{};
-  const catGaps=Object.entries(catLast).filter(([k])=>!EXCL.includes(k))
-    .map(([cat,d])=>({cat,d,ds:Math.round((today-new Date(d))/86400000)}))
-    .sort((a,b)=>b.ds-a.ds).slice(0,8);
 
   const itemHist=cache?(cache.item_history||{}):{};
   const replenish=Object.entries(itemHist).filter(([,v])=>v.item_class&&!EXCL.includes(v.item_class)&&Math.round((today-new Date(v.last_date))/86400000)>avgFreq*1.5)
@@ -1411,7 +1408,10 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
   const keyLast=cache?(cache.key_item_last||{}):{};
   const keyOpp=(KEYSKUS||[]).map(sku=>{const lp=keyLast[sku.inventory_id]||null;const ds=lp?Math.round((today-new Date(lp))/86400000):null;return{sku,lp,ds,never:!lp};})
     .filter(r=>r.never||r.ds>60).sort((a,b)=>(b.ds||99999)-(a.ds||99999)).slice(0,10);
-  CURCUST.replenish=replenish; CURCUST.keyOpp=keyOpp;
+  CURCUST.replenish=replenish; CURCUST.keyOpp=keyOpp;   // both still feed the suggested order
+  // On screen, the Hot List already covers lapsed reorders (it is a ranked superset of
+  // "replenishment due"), so only key SKUs this account has never bought get their own card.
+  const keyNever=(KEYSKUS||[]).filter(sku=>!keyLast[sku.inventory_id]);
 
   const catColor=p=>p>=60?"var(--good)":p>=40?"#a5760a":"var(--bad)";
   const catBg=p=>p>=60?"#f0fdf4":p>=40?"#fffbeb":"#fff5f5";
@@ -1438,17 +1438,6 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     </div>
 
     <div class="dcard" id="custContact">${custContactHtml()}</div>
-
-    <div class="dcard" style="border:1.5px solid var(--ink);cursor:pointer" onclick="openOrderBuilder()">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <div style="min-width:0">
-          <div class="dlbl" style="margin-bottom:3px">🛒 Suggested order</div>
-          <div class="lr1">${sugLines.length?sugLines.length+' SKU'+(sugLines.length!==1?'s':'')+' · '+sugCs+' cs suggested':'Start an order for this account'}</div>
-          <div class="lr2">${sugBreak?esc(sugBreak)+' · ':''}edit quantities, add items, then share</div>
-        </div>
-        <button style="flex-shrink:0;padding:10px 14px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">Build order ›</button>
-      </div>
-    </div>
 
     <div class="dcard">
       <div class="dlbl" style="display:flex;justify-content:space-between;align-items:center">
@@ -1481,6 +1470,17 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
       </div>
     </div>
 
+    <div class="dcard" style="border:1.5px solid var(--ink);cursor:pointer" onclick="openOrderBuilder()">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="min-width:0">
+          <div class="dlbl" style="margin-bottom:3px">🛒 Suggested order</div>
+          <div class="lr1">${sugLines.length?sugLines.length+' SKU'+(sugLines.length!==1?'s':'')+' · '+sugCs+' cs suggested':'Start an order for this account'}</div>
+          <div class="lr2">${sugBreak?esc(sugBreak)+' · ':''}edit quantities, add items, then share</div>
+        </div>
+        <button style="flex-shrink:0;padding:10px 14px;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">Build order ›</button>
+      </div>
+    </div>
+
     <div class="dcard" id="custHist">${custHistHtml()}</div>
 
     <div class="dcard">
@@ -1496,7 +1496,7 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     <div class="dcard">
       <div class="dlbl">Budget by category · ${isY?'YTD':'MTD'}</div>
       ${catRows.length?`<table class="ctable"><thead><tr><th>Category</th><th>Budget</th><th>Actual</th><th>%</th></tr></thead><tbody>
-        ${catRows.map(r=>`<tr><td>${esc(r.cat)}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
+        ${catRows.map(r=>`<tr><td>${esc(r.cat)}${r.actual<=0?`<div class="lr2">${catLast[r.cat]?'Last bought '+fmtDate(catLast[r.cat])+' ('+Math.round((today-new Date(catLast[r.cat]))/86400000)+'d ago)':'Never bought'}</div>`:''}</td><td class="num">${Jk(r.bud)}</td><td class="num">${Jk(r.actual)}</td><td class="num pctcell" style="color:${catColor(r.pct)};background:${catBg(r.pct)}">${r.pct}%</td></tr>`).join("")}
       </tbody></table>`:`<div class="empty" style="padding:16px">No category budget set.</div>`}
     </div>
 
@@ -1506,18 +1506,8 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
     </div>
 
     <div class="dcard">
-      <div class="dlbl amber">Category gaps · longest since purchase</div>
-      ${catGaps.length?catGaps.map(g=>`<div class="listrow"><span class="dot amberdot"></span><div><div class="lr1">${esc(g.cat)}</div><div class="lr2">Last: ${fmtDate(g.d)} (${g.ds}d ago)</div></div></div>`).join(""):`<div class="empty" style="padding:12px">No category gaps.</div>`}
-    </div>
-
-    <div class="dcard">
-      <div class="dlbl green">Replenishment due</div>
-      ${replenish.length?replenish.map(([,it])=>{const ds=Math.round((today-new Date(it.last_date))/86400000);const nm=it.description.length>46?it.description.slice(0,43)+"…":it.description;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(it.item_class)} · Last: ${fmtDate(it.last_date)} (${ds}d ago)</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">Nothing overdue for replenishment.</div>`}
-    </div>
-
-    <div class="dcard">
-      <div class="dlbl red">Key SKU opportunities</div>
-      ${keyOpp.length?keyOpp.map(r=>{const nm=r.sku.description.length>46?r.sku.description.slice(0,43)+"…":r.sku.description;const lt=r.never?"NEVER PURCHASED":"Last: "+fmtDate(r.lp)+" ("+r.ds+"d ago)";return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(r.sku.posting_class)} · ${lt}</div></div></div>`;}).join(""):`<div class="empty" style="padding:12px">All key SKUs purchased recently.</div>`}
+      <div class="dlbl red">Key SKUs not yet stocked${keyNever.length?' ('+keyNever.length+')':''}</div>
+      ${keyNever.length?keyNever.slice(0,10).map(sku=>{const d=sku.description||sku.inventory_id||'';const nm=d.length>46?d.slice(0,43)+"…":d;return `<div class="listrow"><span class="dot reddot"></span><div><div class="lr1">${esc(nm)}</div><div class="lr2">${esc(sku.posting_class||'')} · never purchased</div></div></div>`;}).join("")+(keyNever.length>10?`<div class="lr2" style="padding:8px 0 0">+ ${keyNever.length-10} more</div>`:''):`<div class="empty" style="padding:12px">This account has bought every key SKU.</div>`}
     </div>
 
     <div class="foot">Figures in JMD · directional for GP.<br>Account data updated ${cache&&cache.refreshed_at?fmtDate(cache.refreshed_at):"daily"}</div>`;
@@ -1553,9 +1543,14 @@ async function loadCustContact(cid){
   const el=document.getElementById("custContact"); if(el) el.innerHTML=custContactHtml();
 }
 
+// Collapsed by default so the account's sales figures sit at the top of the screen.
+function toggleCustContact(){ if(!CURCUST) return; CURCUST.contactOpen=!CURCUST.contactOpen; const el=document.getElementById("custContact"); if(el) el.innerHTML=custContactHtml(); }
 function custContactHtml(){
-  const k=CURCUST&&CURCUST.contact;
-  const head=`<div class="dlbl">📇 Contact</div>`;
+  const k=CURCUST&&CURCUST.contact, open=!!(CURCUST&&CURCUST.contactOpen);
+  const peek=k&&!k.error?[k.owner,k.phones&&k.phones[0]].filter(Boolean).join(" · "):"";
+  const head=`<div class="dlbl" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${open?'':'0'};cursor:pointer" onclick="toggleCustContact()">
+    <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📇 Customer details${!open&&peek?` <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--mut)">· ${esc(peek)}</span>`:''}</span><span style="white-space:nowrap;margin-left:10px">${open?'Hide ▴':'Show ▾'}</span></div>`;
+  if(!open) return head;
   if(!k) return head+`<div class="lr2">Loading…</div>`;
   if(k.error) return head+`<div class="lr2">Couldn't load contact details.</div>`;
   const rows=[];
@@ -1592,6 +1587,13 @@ async function loadCustHistory(cid){
 function drawCustHist(){ const el=document.getElementById("custHist"); if(el) el.innerHTML=custHistHtml(); }
 function setHistView(v){ if(CURCUST&&CURCUST.hist){ CURCUST.hist.view=v; drawCustHist(); } }
 function toggleHistInv(i){ const h=CURCUST&&CURCUST.hist; if(!h) return; h.open[i]=!h.open[i]; drawCustHist(); }
+// Invoices and products show the latest HIST_PREVIEW rows until "Show all" is tapped.
+const HIST_PREVIEW=5;
+function toggleHistAll(){ const h=CURCUST&&CURCUST.hist; if(!h) return; h.all=!h.all; drawCustHist(); }
+function histMoreBtn(h,total,noun){
+  if(total<=HIST_PREVIEW) return "";
+  return `<button class="pbtn" style="display:block;width:100%;margin-top:8px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer" onclick="toggleHistAll()">${h.all?'Show fewer ▴':`Show all ${total} ${noun} ▾`}</button>`;
+}
 function setHistQ(v){
   const h=CURCUST&&CURCUST.hist; if(!h) return; h.q=v;
   const list=document.getElementById("histSkuList"); if(list) list.innerHTML=histSkuRows(h);
@@ -1634,7 +1636,7 @@ function custHistHtml(){
 }
 
 function histInvRows(h,docs){
-  return docs.map((d,i)=>{
+  return docs.slice(0,h.all?docs.length:HIST_PREVIEW).map((d,i)=>{
     const cr=d.type==="CRM", open=!!h.open[i];
     return `<div class="histdoc">
       <div class="listrow tap" style="cursor:pointer" onclick="toggleHistInv(${i})">
@@ -1648,7 +1650,7 @@ function histInvRows(h,docs){
         ${d.lines.map(l=>`<tr><td>${esc(l.description||l.inventory_id||(cr?"Credit / adjustment":"—"))}<div class="lr2">${esc(l.inventory_id||'')}${l.uom?' · '+esc(l.uom):''}</div></td><td class="num">${fmtQty(l.quantity)}</td><td class="num">${J(l.unit_price||0)}</td><td class="num">${J(l.ext_amount||0)}</td></tr>`).join("")}
       </tbody></table>`:''}
     </div>`;
-  }).join("");
+  }).join("")+histMoreBtn(h,docs.length,"invoices");
 }
 
 // Per-product YTD summary: invoiced qty and average price paid (credits excluded,
@@ -1668,9 +1670,11 @@ function histSkuRows(h){
   let list=Object.values(m).sort((a,b)=>b.amt-a.amt);
   if(q) list=list.filter(s=>((s.desc||"")+" "+(s.id||"")+" "+(s.cls||"")).toLowerCase().includes(q));
   if(!list.length) return `<div class="empty" style="padding:12px">${q?"No products match.":"No products invoiced yet this year."}</div>`;
+  const total=list.length;
+  if(!q&&!h.all) list=list.slice(0,HIST_PREVIEW);   // a search always shows every match
   return `<table class="ctable histlines"><thead><tr><th>Product</th><th>Qty</th><th>Avg price</th><th>Total</th></tr></thead><tbody>
     ${list.map(s=>`<tr><td>${esc(s.desc)}<div class="lr2">${esc(s.cls||'')} · ${s.refs.size} order${s.refs.size!==1?'s':''}${s.last?` · last ${fmtDateY(s.last)} @ ${J(s.lastPrice)}`:' · no charge'}</div></td><td class="num">${fmtQty(s.qty)}</td><td class="num">${s.qty?J(s.amt/s.qty):'—'}</td><td class="num">${Jk(s.amt)}</td></tr>`).join("")}
-  </tbody></table>`;
+  </tbody></table>`+(q?"":histMoreBtn(h,total,"products"));
 }
 function fmtQty(n){ n=Math.abs(Number(n)||0); return Number.isInteger(n)?n.toLocaleString():n.toLocaleString(undefined,{maximumFractionDigits:2}); }
 // invoice_date is midnight UTC; read the calendar date itself so Jamaica (UTC-5) doesn't show the day before.
