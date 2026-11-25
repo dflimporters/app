@@ -749,7 +749,7 @@ function closeMorePage(){
   document.getElementById('moreLauncher').classList.remove('hidden');
 }
 
-let CUST=[], SORT="gap", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null, CATMTD=[];
+let CUST=[], SORT="all", ORD=null, ORDLIST=[], LASTS=null, ORDSORT="value", ORDCTX=null, CATMTD=[];
 
 // At-risk flag: a store's year-to-date actual (via the get_ytd_actuals RPC,
 // same threshold/logic as the merch app) falls below a flat dollar amount —
@@ -1168,7 +1168,7 @@ function render(s){
 
     <div id="arhome"></div>
 
-    <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="goCusts()">View all →</span></div>
+    <div class="secthdr"><h2>Biggest gaps to close</h2><span class="cnt link" onclick="SORT='gap';goCusts()">View all →</span></div>
     <div id="teaser"></div>
     <div class="foot">Figures in JMD · directional for GP.<br>Updated ${lastRefresh()}</div>`;
   drawTeaser();
@@ -1241,8 +1241,8 @@ function renderCustList(){
   c.innerHTML=`
     <input id="custsearch" class="search" placeholder="Search accounts…" value="${esc(CUSTSEARCH)}" oninput="CUSTSEARCH=this.value;drawList()">
     <div class="tabs">
+      <button class="tab ${SORT==='all'?'on':''}" onclick="setSort('all',this)">All${CUST.length?' ('+CUST.length+')':''}</button>
       <button class="tab ${SORT==='gap'?'on':''}" onclick="setSort('gap',this)">Biggest gap</button>
-      <button class="tab ${SORT==='sales'?'on':''}" onclick="setSort('sales',this)">Top sales</button>
       <button class="tab ${SORT==='dormant'?'on':''}" onclick="setSort('dormant',this)">No order yet</button>
     </div>
     <div id="list"></div>`;
@@ -1255,14 +1255,15 @@ function drawList(){
   const q=CUSTSEARCH.trim().toLowerCase();
   if(q) rows=rows.filter(x=>((x.customer_name||"")+" "+(x.customer_id||"")).toLowerCase().includes(q));
   if(SORT==="gap") rows=rows.filter(x=>+x.monthly_budget>0).sort((a,b)=>(b.monthly_budget-b.net_sales)-(a.monthly_budget-a.net_sales));
-  else if(SORT==="sales") rows.sort((a,b)=>b.net_sales-a.net_sales);
+  // All: the rep's whole book (budgeted in 2026 or invoiced in the last 12 months), most recent order first
+  else if(SORT==="all") rows.sort((a,b)=>(b.last_order_date||"").localeCompare(a.last_order_date||"")||(a.customer_name||"").localeCompare(b.customer_name||""));
   else if(SORT==="dormant") rows=rows.filter(x=>+x.monthly_budget>0 && +x.net_sales<=0).sort((a,b)=>b.monthly_budget-a.monthly_budget);
   if(!rows.length){list.innerHTML=`<div class="empty">${q?"No accounts match “"+esc(CUSTSEARCH)+"”.":SORT==="dormant"?"Every budgeted account has ordered. 🎯":"No accounts to show."}</div>`;return;}
-  list.innerHTML=rows.slice(0,200).map(x=>{
+  list.innerHTML=rows.slice(0,500).map(x=>{
     const bud=+x.monthly_budget, net=+x.net_sales, gap=bud-net;
     const pct=bud>0?Math.max(0,Math.min(net/bud*100,100)):0;
     const met=bud>0&&net>=bud;
-    const last=x.last_order_date?fmtDate(x.last_order_date):"No order yet";
+    const last=x.last_order_date?"last "+fmtDate(x.last_order_date):"no order in 12 mo";
     return `<div class="cust tap" onclick="openCust(decodeURIComponent('${encQ(x.customer_id)}'))">
       <div class="crow1">
         <div><div class="cname">${esc(x.customer_name||x.customer_id)}</div><div class="cid">${esc(x.customer_id)}</div></div>
@@ -1274,7 +1275,7 @@ function drawList(){
       ${bud>0?`<div class="cbar"><span class="${met?'met':''}" style="width:${pct}%"></span></div>`:""}
       <div class="cmeta">
         <span><b>${Jk(net)}</b>${bud>0?" / "+Jk(bud):""}</span>
-        <span>${x.order_count||0} ord · ${last} ›</span>
+        <span>${x.order_count||0} ord MTD · ${last} ›</span>
       </div>
       ${ytdRiskBadgeHtml(x.customer_id)}
       <button class="qorder" onclick="event.stopPropagation();quickOrder('${x.customer_id}')">🛒 Suggested order</button>
@@ -1377,7 +1378,11 @@ function renderCustDetail(cid, cache, budget, mbudget, merch, hot){
   const avgFreq=cache?(cache.avg_freq_days||30):30;
   const lastDate=lastOrder?new Date(lastOrder):null;
   const daysSince=lastDate?Math.round((today-lastDate)/86400000):null;
-  const nextDue=lastDate?new Date(lastDate.getTime()+avgFreq*86400000):null;
+  // Next due counts from the last REAL order (refresh_precall_cadence: a small top-up of a
+  // short delivery doesn't restart the clock), and a weekend due date moves to Monday.
+  const realLast=cache&&cache.last_real_order_date?new Date(cache.last_real_order_date+"T12:00:00"):lastDate;
+  let nextDue=realLast?new Date(realLast.getTime()+avgFreq*86400000):null;
+  if(nextDue){ const wd=nextDue.getDay(); if(wd===6) nextDue=new Date(nextDue.getTime()+2*86400000); else if(wd===0) nextDue=new Date(nextDue.getTime()+86400000); }
   const daysToNext=nextDue?Math.round((nextDue-today)/86400000):null;
   const overdue=daysToNext!==null&&daysToNext<0;
   const dueSoon=daysToNext!==null&&daysToNext>=0&&daysToNext<=3;
@@ -1794,7 +1799,8 @@ function sellingDays(){
   return {total, done, left: total-done};
 }
 function lastRefresh(){const r=CUST[0]&&CUST[0].refreshed_at;if(!r)return"just now";const d=new Date(r);return d.toLocaleString("en-JM",{hour:"numeric",minute:"2-digit",day:"numeric",month:"short"});}
-function fmtDate(s){const d=new Date(s);return d.toLocaleDateString("en-JM",{day:"numeric",month:"short"});}
+// A bare "YYYY-MM-DD" parses as UTC midnight, which Jamaica (UTC-5) shows as the day before; read it at local noon.
+function fmtDate(s){const d=typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s)?new Date(s+"T12:00:00"):new Date(s);return d.toLocaleDateString("en-JM",{day:"numeric",month:"short"});}
 // Quote-safe, so it is also correct inside attributes, and tolerates non-strings.
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 // For a value placed inside a quoted JS string in an inline onclick:
