@@ -17,7 +17,7 @@ body { visibility: hidden; }
 <script src="/shared/routes.js"></script>
 <script src="/shared/auth-guard.js"></script>
 <style>
-/* My Back Orders (Scott, 23 Nov): the rep opens the link from the card sales support sent, and taps Close it or Re-enter it for each back order.
+/* My Back Orders (Scott, 23 Nov): the rep opens the link from the card sales support sent, and taps Close it or Reopen it for each back order.
    The answer is saved where the Sales Support Hub reads it, so support sees it at once. Same look as My AR. */
 :root{
   --blue:#326BD3; --navy:#0D1B3E; --ink:#0D1B3E; --mut:#6b7794; --line:#e6eaf2; --bg:#f4f6fb;
@@ -162,7 +162,7 @@ function draw() {
     '<div class="hero"><div class="lbl">' + esc(ASREP && REP !== ME ? REP + ' · back orders' : 'Your back orders') + '</div>' +
       '<div class="big">' + (left ? left + ' <small>left to decide · ' + (re + cl) + ' of ' + n + ' done</small>' : 'All done <small>· ' + n + ' of ' + n + ' decided</small>') + '</div>' +
       '<div class="bar"><span class="re" style="width:' + (re / n * 100) + '%"></span><span class="cl" style="width:' + (cl / n * 100) + '%"></span></div>' +
-      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Re-enter it</b> if it still needs to go on a new order. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order moves to <b>Decided</b>, where you can see what you closed and what you re-entered. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
+      '<p class="how">For each one, ask the customer: <b>Close it</b> if they no longer want it, or <b>Reopen it</b> if it still needs to go ahead. ' + (MODE === 'live' ? 'Your answer updates Acumatica straight away, and the order moves to <b>Decided</b>, where you can see what you closed and what you reopened. To close several at once, tick them and use <b>Close selected</b>.' : 'Back orders are cleared on Monday at 12 noon.') + '</p>' +
       (ASREP && REP !== ME ? '<div class="asnote">You are looking at ' + esc(REP) + '’s list. Taps you make here are saved for them.</div>' : '') +
     '</div>' +
     '<div class="tabs"><button class="tab' + (TAB === 'todo' ? ' on' : '') + '" data-tab="todo">To decide (' + left + ')</button><button class="tab' + (TAB === 'done' ? ' on' : '') + '" data-tab="done">Decided (' + (re + cl) + ')</button></div>' +
@@ -183,7 +183,7 @@ function doneCard(d) {
   const cl = d.decision === 'close';
   return '<section class="bo ' + (cl ? 'cl' : 're') + '"><div class="nm">' + esc(d.name || d.c) + '</div>' +
     '<div class="mt">Back order <b>' + esc(d.nbr) + '</b></div>' +
-    '<div class="acu ok"><span class="badge ' + (cl ? 'close' : 're') + '">' + (cl ? 'Closed' : 'Re-entered') + '</span>' + (cl ? 'Completed' : 'Opened again') + ' in Acumatica' +
+    '<div class="acu ok"><span class="badge ' + (cl ? 'close' : 're') + '">' + (cl ? 'Closed' : 'Reopened') + '</span>' + (cl ? 'Completed' : 'Opened again') + ' in Acumatica' +
     (d.by_name || d.at ? ' · ' + esc((d.by_name && d.by_name !== ME ? d.by_name + ' · ' : '') + (d.at ? fd(d.at) : '')) : '') + '</div></section>';
 }
 function card(o) {
@@ -207,10 +207,10 @@ function card(o) {
     '<div class="mt">Back order <b>' + esc(o.nbr) + '</b> · since ' + esc(fd(o.date)) + ' · ' + esc(J(o.val)) + '</div>' +
     '<ul class="items">' + lines + '</ul>' +
     '<div class="decide"><button class="dbtn close' + (o.v === 'close' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="close"' + dis + '>Close it<small>Not wanted</small></button>' +
-    '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re"' + dis + '>Re-enter it<small>Needs a new order</small></button></div>' + st + by + '</section>';
+    '<button class="dbtn re' + (o.v === 're' ? ' on' : '') + '" data-n="' + esc(o.nbr) + '" data-v="re"' + dis + '>Reopen it<small>Opens it again</small></button></div>' + st + by + '</section>';
 }
 
-// after the answer is saved, ask the server to apply it in Acumatica (Close it = Complete Order, Re-enter it = Open Order). Does nothing while the switch is off.
+// after the answer is saved, ask the server to apply it in Acumatica (Close it = Complete Order, Reopen it = Open Order). Does nothing while the switch is off.
 async function sendToAcumatica(o) {
   if (MODE !== 'test' && MODE !== 'live') return;
   o.sending = true; draw();
@@ -261,8 +261,9 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('[data-v]'); if (!b || b.disabled) return;
   const o = ORDERS.find(x => x.nbr === b.dataset.n); if (!o || o.sending) return;
   const was = {v:o.v, by:o.by_name, at:o.at}, nv = o.v === b.dataset.v ? '' : b.dataset.v;   // tapping the chosen button again takes the answer back
-  // Close it always asks first, so it is not hit by mistake
+  // Close it and Reopen it both ask first, so neither is hit by mistake
   if (nv === 'close' && !confirm('Close it?\n\nBack order ' + o.nbr + ' for ' + (o.name || o.c) + '.\n' + (MODE === 'live' ? 'This completes the order in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'It will be cleared on Monday at 12 noon.'))) return;
+  if (nv === 're' && !confirm('Reopen it?\n\nBack order ' + o.nbr + ' for ' + (o.name || o.c) + '.\n' + (MODE === 'live' ? 'This opens the order again in Acumatica. It cannot be undone here.' : MODE === 'test' ? 'Test mode: only the Acumatica test copy is changed.' : 'It will be cleared on Monday at 12 noon.'))) return;
   o.v = nv || null; o.by_name = nv ? ME : null; o.at = nv ? new Date().toISOString() : null; draw();
   const { error } = await sb.rpc('rep_decide_backorder', ASREP ? {p_nbr:o.nbr, p_v:nv, p_rep:ASREP} : {p_nbr:o.nbr, p_v:nv});
   if (error) {
@@ -270,7 +271,7 @@ document.addEventListener('click', async e => {
     toast(/already been done/i.test(error.message || '') ? 'That one is already done in Acumatica, so it cannot be changed.' : 'That did not save. Check your connection and try again.');
     return;
   }
-  toast(nv === 're' ? 'Saved: re-enter it' : nv === 'close' ? 'Saved: close it' : 'Answer taken back');
+  toast(nv === 're' ? 'Saved: reopen it' : nv === 'close' ? 'Saved: close it' : 'Answer taken back');
   if (nv) sendToAcumatica(o);
 });
 </script>
