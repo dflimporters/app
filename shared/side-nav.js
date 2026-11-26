@@ -122,6 +122,8 @@
         // password gate and is in DFL_PAGE_ROLES as manager/admin.
         // approverOnly: Scott's tabbed view — hidden from other admins.
         { label: 'Head of Sales', href: '/management/head-of-sales.html', icon: '⭐', approverOnly: true },
+        // approverOnly: Scott only (sales_hub_data checks the same).
+        { label: 'DFL Sales Hub', href: '/management/sales-hub.html', icon: '🧭', approverOnly: true },
         // chainHub: Andrea Skelton (chain KAM) and the price approver (Scott) only.
         { label: 'Chain Store Hub', href: '/management/chain-hub.html', icon: '🏪', chainHub: true },
         // keyHub: Shallet Marsh (key KAM) and the price approver (Scott) only.
