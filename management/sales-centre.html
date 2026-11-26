@@ -774,7 +774,7 @@ function dRep(name) {
   const d = daysAgo(r.last);
   openPanel(r.name, 'Rep &middot; support ' + esc(r.support), esc(r.area || ''),
     `<div class="facts">${fact('Achieved', r.ach + '%', 'should be ' + SHOULD + '% by today', cls(r.ach))}${fact('Sales / target', M(r.sales), 'of ' + M(r.target))}${fact('Still to sell', M(Math.max(r.target - r.sales, 0)), 'needs ' + M(need) + ' a working day')}${fact('Last order', d == null ? 'none' : d === 0 ? 'today' : d + 'd ago', '')}${fact('Open orders', M(r.open_v), 'awaiting shipment')}${fact('Back orders', M(r.bo_v), 'owed to customers')}</div>${hs}` +
-    `<div id="dropBox"><h4>Stopped ordering this month</h4><div class="empty" style="margin:0">Working it out&hellip;</div></div><div class="acts"><button class="btn" data-snap="${esc(r.name)}">Make card for ${esc(r.short)}</button></div>`);
+    `<div id="dropBox"><h4>Stopped ordering this month</h4><div class="empty" style="margin:0">Working it out&hellip;</div></div><div class="acts"><button class="btn" data-snap="${esc(r.name)}" data-pack="call">Call list card for ${esc(r.short)}</button><button class="btn ghost" data-snap="${esc(r.name)}" data-pack="tgt">Behind target</button><button class="btn ghost" data-snap="${esc(r.name)}" data-pack="opp">Opportunities</button></div>`);
   loadDropped(r.name);
 }
 /* customers in the rep's book who bought in the last 3 full months but have not been invoiced this month */
@@ -803,13 +803,49 @@ function openDrawer(spec) {
 }
 
 /* ---------- WhatsApp cards (images) ---------- */
-const PACKS = [['bo', 'Back orders'], ['hold', 'Orders on hold']];
+const PACKS = [['call', 'Call list'], ['tgt', 'Behind target'], ['opp', 'Opportunities'], ['bo', 'Back orders'], ['hold', 'Orders on hold']];
 const NOTES = {
+  call: 'This is your call list for today, most important first. Please speak to each customer and tell me the outcome by end of day.',
+  tgt: 'These customers normally buy from you every month and have not ordered yet this month. Please call each one today and tell me what they say.',
+  opp: 'These back-ordered items are in stock at 71 right now. Confirm with each customer and I will get them shipped. Tap your answer on My back orders: dflhq.com/my-backorders.html',
   bo: 'These items are owed to your customers. Ask each customer: close it if they no longer want it, or reopen it if it still needs to go ahead. Tap your answer on My back orders: dflhq.com/my-backorders.html',
   hold: 'Credit and on-hold orders need payment, or a payment plan from me, before they ship. Please speak to each customer today and tell me the outcome.' };
 const closeOut = (rep) => D.bo.filter((l) => l.rep === rep && l.days <= 90 && !(l.ans && l.ansState === 'done'));
+/* Customers who stopped ordering this month come from the rep_dropped part; cached per rep so the card can fill in once it arrives */
+S.drop = {};
+function needDrop(rep, pack) { return ['call', 'tgt', 'opp'].indexOf(pack) >= 0 && rep && S.drop[rep] === undefined; }
+const readyBO = (rep) => D.bo.filter((l) => l.rep === rep && l.ss[1] === 'g' && !(l.ans && l.ansState === 'done')).sort((a, b) => b.v - a.v);
 function snapModel(rep, pack) {
   const rows = [];
+  if (pack === 'call' || pack === 'tgt' || pack === 'opp') {
+    const dr = S.drop[rep], r = D.reps.find((x) => x.name === rep) || { target: 0, sales: 0, ach: 0 };
+    const left = Math.max(num(D.pulse.wd_total) - num(D.pulse.wd_done), 1), toSell = Math.max(r.target - r.sales, 0);
+    const stopped = (dr && dr.rows) || [], stoppedN = dr ? num(dr.n) : 0, stoppedV = dr ? num(dr.usual_total) : 0, wait = !dr;
+    const H = D.orders.filter((o) => isHeld(o) && o.rep === rep).sort((a, b) => b.v - a.v);
+    const R = readyBO(rep), rv = R.reduce((s, l) => s + l.v, 0);
+    const stoppedRow = (x) => ({ n: tc(x.name), sub: 'Nothing invoiced this month', badge: ['Stopped ordering', 'a'], a: K(x.usual), b: daysAgo(x.last) == null ? '' : 'last ' + fmtShort(x.last) });
+    if (pack === 'tgt') {
+      stopped.slice(0, 8).forEach((x) => rows.push(stoppedRow(x)));
+      if (stoppedN > 8) rows.push({ n: '+ ' + (stoppedN - 8) + ' more customers', sub: 'Open the rep in the Sales Centre to see them all', a: '', b: '' });
+      return { eyebrow: 'Behind target · DFL Importers', title: `${first(rep)}, you are at ${r.ach}% of target`, sub: `Should be at ${SHOULD}% by today · month target ${K(r.target)}`,
+        tiles: [[r.ach + '%', 'achieved so far', COL[cls(r.ach)]], [K(toSell), 'still to sell', '#326BD3'], [K(toSell / left), 'needed a working day', '#F9A825']], heading: 'Customers to win back', cols: ['Customer', 'Usual a month', 'Last invoice'], rows,
+        empty: wait ? 'Working it out…' : `Nobody in ${first(rep)}'s book has stopped ordering this month.` };
+    }
+    if (pack === 'opp') {
+      R.slice(0, 8).forEach((l) => rows.push({ n: l.item, sub: l.cust + ' · ' + l.nbr, badge: l.ss, a: K(l.v), b: l.days + ' days' }));
+      if (R.length > 8) rows.push({ n: '+ ' + (R.length - 8) + ' more lines', sub: 'Open My back orders to see them all', a: '', b: '' });
+      return { eyebrow: 'Opportunities · DFL Importers', title: `${first(rep)}, sales you can close now`, sub: 'Back orders that are in stock at 71 today',
+        tiles: [[K(rv), 'ready to ship', '#1A8F4C'], [wait ? '…' : K(stoppedV), 'usual a month, lapsed', '#F9A825'], [K(toSell), 'still to sell this month', '#326BD3']], heading: 'Confirm these with the customer', cols: ['Item', 'Value', 'Days open'], rows, empty: `No back orders in stock for ${first(rep)} right now.` };
+    }
+    /* call list: held orders first, then customers who stopped ordering, then back orders that can ship */
+    H.slice(0, 3).forEach((o) => rows.push({ n: o.cust, sub: 'Order ' + o.nbr, badge: OST[o.st], a: K(o.v), b: o.days + ' days' }));
+    stopped.slice(0, 3).forEach((x) => rows.push(stoppedRow(x)));
+    R.slice(0, 2).forEach((l) => rows.push({ n: l.cust, sub: l.item, badge: ['Ready to ship', 'g'], a: K(l.v), b: l.days + ' days' }));
+    const calls = new Set(H.map((o) => o.cid).concat(stopped.map((x) => x.id), R.map((l) => l.cid))).size;
+    return { eyebrow: 'Call list · DFL Importers', title: `${first(rep)}, your calls for today`, sub: 'Held orders, customers gone quiet and back orders ready to ship',
+      tiles: [[calls + (stoppedN > stopped.length ? '+' : ''), 'customers to call', '#326BD3'], [K(H.reduce((s, o) => s + o.v, 0)), 'held orders', '#D63B3B'], [wait ? '…' : K(stoppedV), 'usual a month, lapsed', '#F9A825']], heading: 'Start at the top', cols: ['Customer', 'Value', 'How long'], rows,
+      empty: wait ? 'Working it out…' : `Nothing urgent for ${first(rep)} right now.` };
+  }
   if (pack === 'bo') {
     const L = D.bo.filter((l) => l.rep === rep).sort((a, b) => b.days - a.days);
     const n = boOrders(L), tv = L.reduce((s, l) => s + l.v, 0), od = L.reduce((m, l) => Math.max(m, l.days), 0);
@@ -841,6 +877,12 @@ function buildSnap(host) {
   host.querySelectorAll('[data-pack]').forEach((b) => { b.onclick = () => { S.snapPack = b.getAttribute('data-pack'); buildSnap(host); }; });
   const ta = host.querySelector('#noteIn'); ta.value = note; ta.oninput = () => { S.notes[S.snapPack] = ta.value; $('cardNote').textContent = ta.value; };
   host.querySelector('#cpImg').onclick = copyCard; host.querySelector('#dlImg').onclick = downloadCard;
+  const rep = S.snapRep, pk = S.snapPack;
+  if (needDrop(rep, pk)) {
+    S.drop[rep] = null;
+    rpc('rep_dropped', { rep }).then((r) => { S.drop[rep] = r || { rows: [], n: 0, usual_total: 0 }; }, () => { S.drop[rep] = { rows: [], n: 0, usual_total: 0 }; })
+      .then(() => { if (host.isConnected && S.snapRep === rep && ['call', 'tgt', 'opp'].indexOf(S.snapPack) >= 0) buildSnap(host); });
+  }
 }
 function openSnapModal(rep, pack) { if (rep) S.snapRep = rep; if (pack) S.snapPack = pack; buildSnap(openModal('Make card', '')); }
 function cardCanvas() {
