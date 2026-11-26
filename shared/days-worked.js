@@ -126,6 +126,7 @@
       '.dfld-picks .dfld-wk{gap:3px}',
       '.dfld-pk{flex:1;min-width:0;height:38px;border-radius:6px;border:1.5px solid var(--d-line);background:var(--d-card);color:var(--d-text);font:inherit;font-size:10px;line-height:1.05;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;position:relative}',
       '.dfld-pk small{font-size:8px;font-weight:700;color:var(--d-muted)}',
+      '.dfld-wkl{font-size:9px;font-weight:700;color:var(--d-muted);text-transform:uppercase;letter-spacing:.3px;margin:2px 0}',
       '.dfld-pk b{font-size:11px}',
       '.dfld-pk.wk{border-color:var(--d-good)}',
       '.dfld-pk.wk::after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--d-good)}',
@@ -334,10 +335,12 @@
     // ── TL payroll submission ──────────────────────────────────────────────
     function subFor(ws) { return (data.submissions || []).find(s => s.week_start === ws && s.tl_rep_id === data.me); }
 
-    // Dates a line may offer: relief → the week, extra day → the week's fortnight.
+    // Dates a line may offer: relief → the week before plus the week (so a TL can
+    // catch up days missed last week), extra day → the week's fortnight. Keep the
+    // relief window in step with the check in submit_tl_payroll().
     function lineDays(kind, ws) {
-      const start = kind === 'relief' ? ws : fortnightStart(ws), n = kind === 'relief' ? 7 : 14;
-      return Array.from({ length: n }, (_, i) => addDays(start, i));
+      const start = kind === 'relief' ? addDays(ws, -7) : fortnightStart(ws);
+      return Array.from({ length: 14 }, (_, i) => addDays(start, i));
     }
     // Locked = already payable in the Relief Coverage log, other than this week's own
     // still-unpaid submission rows (those are what a resubmit replaces).
@@ -356,7 +359,8 @@
       (data.staff || []).forEach(p => {
         const w = ix.worked[p.id] || {};
         if (isTemp(p)) {
-          const dates = lineDays('relief', ws).filter(d => d <= today && w[d] && !locked(p.id, d, existing));
+          // Pre-tick only the selected week; last week's days are there to tick by hand.
+          const dates = lineDays('relief', ws).filter(d => d >= ws && d <= today && w[d] && !locked(p.id, d, existing));
           if (dates.length) lines.push({ id: p.id, kind: 'relief', dates: new Set(dates), reason: '', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
         } else {
           const r = calc(p, fs, ix, today);
@@ -400,12 +404,13 @@
         const tip = dayLabel(d) + (w[d] ? ' — worked' : d > today ? ' — upcoming' : ' — no visit logged') + (lk ? ' · already in Relief Coverage' : '');
         return '<button type="button" class="dfld-pk' + (on ? ' on' : '') + (lk ? ' lock' : '') + (w[d] ? ' wk' : '') + '" data-pick="' + i + '" data-d="' + d + '"' + (lk ? ' disabled' : '') + ' title="' + esc(tip) + '"><small>' + DOW[dow(d)][0] + '</small><b>' + toD(d).getUTCDate() + '</b></button>';
       };
-      const picks = l.kind === 'relief'
-        ? '<div class="dfld-picks"><div class="dfld-wk">' + days.map(pick).join('') + '</div></div>'
-        : '<div class="dfld-picks"><div class="dfld-wk">' + days.slice(0, 7).map(pick).join('') + '</div><div class="dfld-wk">' + days.slice(7).map(pick).join('') + '</div></div>';
+      const wkLbl = t => l.kind === 'relief' ? '<div class="dfld-wkl">' + t + '</div>' : '';
+      const picks = '<div class="dfld-picks">' + wkLbl('Week before · ' + range(days[0], days[6])) + '<div class="dfld-wk">' + days.slice(0, 7).map(pick).join('') + '</div>' +
+        wkLbl('Selected week · ' + range(days[7], days[13])) + '<div class="dfld-wk">' + days.slice(7).map(pick).join('') + '</div></div>';
       const r = l.kind === 'extra' ? calc(p, fortnightStart(ui.week), ix, today) : null;
+      const logged = days.filter(d => w[d]);
       const sub = l.kind === 'relief'
-        ? 'Temp relief · logged ' + (lineDays('relief', ui.week).filter(d => w[d]).map(d => DOW[dow(d)]).join(', ') || 'nothing yet this week')
+        ? 'Temp relief · logged ' + (logged.map(d => DOW[dow(d)] + ' ' + toD(d).getUTCDate()).join(', ') || 'no visits in these two weeks')
         : 'Extra days · ' + r.worked + ' worked' + (r.assumed ? ' + ' + r.assumed + ' assumed' : '') + ' of ' + r.expected + ' owed';
       const reason = l.kind === 'relief'
         ? '<label>Reason<select class="dfld-in" data-f="reason" data-i="' + i + '"><option value="">Choose…</option>' + REASONS.map(x => '<option' + (x === l.reason ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
