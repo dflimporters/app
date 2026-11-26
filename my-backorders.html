@@ -189,10 +189,9 @@ function doneCard(d) {
 function card(o) {
   if (o.acu && o.acu.decision === o.v && o.acu.state === 'done' && o.acu.env === 'live') return doneCard({nbr: o.nbr, name: o.name, c: o.c, decision: o.v, by_name: o.by_name, at: o.at});
   const lines = (o.items || []).map(b => {
-    // Stock is judged against everything owed on this item across all back orders, not this one line (Scott, 25 Nov):
-    // covers it all = In stock now; covers at least 15% = Short; less than that = Out of stock
-    const oh = Math.max(0, +b.onhand || 0), need = Math.max(+b.demand || 0, +b.owed || 0);
-    const st = oh >= need ? 'ok' : oh / need >= 0.15 ? 'short' : 'out';
+    // Stock label (Scott, 25 Nov): 0 on hand = Out of stock, 1 to 19 = Short on stock, 20 or more = In stock now
+    const oh = Math.max(0, +b.onhand || 0);
+    const st = oh <= 0 ? 'out' : oh < 20 ? 'short' : 'ok';
     const stk = st === 'ok' ? '<br><span class="pill g">In stock now</span>' : st === 'short' ? '<br><span class="pill a">Short on stock</span>' : '<br><span class="pill r">Out of stock</span>';
     return '<li><span class="d">' + esc(b.desc) +
       (b.newer ? '<br><span class="pill b">May already be on order ' + esc(b.newer) + '</span>' : b.invd ? '<br><span class="pill b">May already be invoiced ' + esc(fd(b.invd)) + '</span>' : stk) +

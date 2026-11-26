@@ -1301,9 +1301,8 @@ const chkStep = x => x.kind === 'free' ? `For ${x.f.oq} bought${x.f.n > 1 ? ' ac
 
 // back-order lines (still open on Back Order orders)
 const BO = LINES.filter(l => ordBy[l.nbr].status === 'Back Order' && l.open > 0).map(l => ({...l, c:ordBy[l.nbr].c, date:ordBy[l.nbr].date, age:daysBetween(ordBy[l.nbr].date, ASOF), canShip:l.onhand >= l.open}));
-// stock is judged against everything owed on the item across ALL back orders, not one line (Scott, 25 Nov): covers it all = ok, at least 15% = short, less = out
-const boDemand = {}; BO.forEach(b => { boDemand[b.sku] = (boDemand[b.sku] || 0) + b.open; });
-BO.forEach(b => { const oh = Math.max(0, b.onhand), need = boDemand[b.sku]; b.st = oh >= need ? 'ok' : oh / need >= 0.15 ? 'short' : 'out'; b.canShip = b.st === 'ok'; });
+// stock label (Scott, 25 Nov): 0 on hand = out, 1 to 19 = short, 20 or more = ok
+BO.forEach(b => { const oh = Math.max(0, b.onhand); b.st = oh <= 0 ? 'out' : oh < 20 ? 'short' : 'ok'; b.canShip = b.st === 'ok'; });
 const stkPill = b => b.st === 'ok' ? ' <span class="pill green">In stock</span>' : b.st === 'short' ? ' <span class="pill amber">Short</span>' : ' <span class="pill red">Out of stock</span>';
 
 // short-shipped lines, last 90 days: one row per order + item (split shipments added together)
