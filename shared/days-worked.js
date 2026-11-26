@@ -359,8 +359,10 @@
       (data.staff || []).forEach(p => {
         const w = ix.worked[p.id] || {};
         if (isTemp(p)) {
-          // Pre-tick only the selected week; last week's days are there to tick by hand.
-          const dates = lineDays('relief', ws).filter(d => d >= ws && d <= today && w[d] && !locked(p.id, d, existing));
+          // Pre-tick every day worked in the window (the week before + the selected week)
+          // that isn't already in Relief Coverage, so last week's unclaimed days aren't
+          // missed when a TL submits a fortnight at once. Locked days stay unticked.
+          const dates = lineDays('relief', ws).filter(d => d <= today && w[d] && !locked(p.id, d, existing));
           if (dates.length) lines.push({ id: p.id, kind: 'relief', dates: new Set(dates), reason: '', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
         } else {
           const r = calc(p, fs, ix, today);
