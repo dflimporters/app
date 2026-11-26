@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DFL Sales Hub</title>
+<title>DFL Sales Centre</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap">
 <style>
-/* DFL Sales Hub: Scott's one page for the day (replaces the Head of Sales Desk mockup, 26 Nov 2026).
+/* DFL Sales Centre: Scott's one page for the day (replaces the Head of Sales Desk mockup, 26 Nov 2026).
    Data: public.sales_hub_data(part, p), read-only, Scott only (is_price_approver). House style = the hubs.
    Everything opens in a side panel or a pop-up, never a new page. Sections are pill tabs across the top. */
 :root{
@@ -283,7 +283,7 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
 <body style="visibility:hidden">
 <div class="content portal">
   <div class="topbar">
-    <div class="grow"><h1>DFL Sales Hub</h1><div class="sub" id="psub">&nbsp;</div></div>
+    <div class="grow"><h1>DFL Sales Centre</h1><div class="sub" id="psub">&nbsp;</div></div>
     <div class="tctl">
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
@@ -295,7 +295,7 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
       <button class="btn" id="snapTop" type="button">Make card</button>
     </div>
   </div>
-  <nav class="ptabs" id="tabs" aria-label="Sales Hub sections" role="tablist"></nav>
+  <nav class="ptabs" id="tabs" aria-label="Sales Centre sections" role="tablist"></nav>
   <div class="asofline" id="asof"></div>
   <div id="strip"></div>
   <main id="view"><div class="empty">Loading the latest figures…</div></main>
@@ -312,7 +312,7 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
 <script src="/shared/auth-guard.js"></script>
 <script src="/shared/side-nav.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
-<script>window.DFL_PAGE_TITLE = 'DFL Sales Hub';</script>
+<script>window.DFL_PAGE_TITLE = 'DFL Sales Centre';</script>
 <script>
 (function () {
 'use strict';
@@ -982,7 +982,7 @@ $('snapTop').addEventListener('click', () => openSnapModal(S.snapRep || undefine
 async function reload(manual) {
   const btn = $('refreshBtn'); btn.disabled = true;
   try { await loadAll(); header(); renderTabs(); render(); if (manual) toast('Refreshed.'); }
-  catch (e) { if (!D.loaded) { D.error = /42501|not allowed/.test(String((e && (e.message || e.code)) || '')) ? 'The Sales Hub is not open to you.' : 'Could not load the figures. Reload the page; if it keeps happening, tell Scott.'; render(); } else if (manual) toast('Could not refresh. Try again.'); }
+  catch (e) { if (!D.loaded) { D.error = /42501|not allowed/.test(String((e && (e.message || e.code)) || '')) ? 'The Sales Centre is not open to you.' : 'Could not load the figures. Reload the page; if it keeps happening, tell Scott.'; render(); } else if (manual) toast('Could not refresh. Try again.'); }
   finally { btn.disabled = false; }
 }
 $('refreshBtn').addEventListener('click', () => reload(true));

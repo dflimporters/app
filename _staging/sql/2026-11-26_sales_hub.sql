@@ -1,4 +1,4 @@
--- DFL Sales Hub (Scott-only page, management/sales-hub.html).
+-- DFL Sales Centre (Scott-only page, management/sales-centre.html).
 -- ONE read-only function. It writes nothing and changes no tables. Gated by is_price_approver() (Scott only),
 -- the same gate as the Sales Explorer. Approved by Scott on 26 Nov 2026.
 --

@@ -1,4 +1,4 @@
--- DFL Sales Hub, part 2 (applied 26 Nov 2026 as migrations sales_hub_data_key_groups_stores and sales_hub_data_products_categories_dropped).
+-- DFL Sales Centre, part 2 (applied 26 Nov 2026 as migrations sales_hub_data_key_groups_stores and sales_hub_data_products_categories_dropped).
 -- Everything here is read-only. It extends public.sales_hub_data() (see 2026-11-26_sales_hub.sql) and is applied on top of it by
 -- editing the live function text, so the full current definition is best read with pg_get_functiondef('public.sales_hub_data(text,jsonb)'::regprocedure).
 --

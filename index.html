@@ -522,6 +522,8 @@ async function initApp(profile){
   const isAdmin = profile.role==="admin" || profile.role==="manager";
   IS_MANAGER = isAdmin;
   IS_REP_MANAGEMENT = profile.role==="rep_management";
+  // approverOnly tiles (Budget Explorer) show for the price approver (Scott) only; rebuild the launcher once we know
+  sb.rpc('is_price_approver').then((r) => { IS_PRICE_APPROVER = !!(r && r.data === true); moreBuilt = false; }).catch(() => {});
   document.getElementById("nav-admin").style.display=isAdmin?"":"none";
 
   // Territory cover (rep_cover): someone filling in for a rep — e.g. a team
@@ -730,7 +732,7 @@ function goCusts(){        // Customers nav button: always land on the account l
 }
 
 /* ---------- More / launcher ---------- */
-let IS_MANAGER = false, IS_REP_MANAGEMENT = false, moreBuilt = false;
+let IS_MANAGER = false, IS_REP_MANAGEMENT = false, IS_PRICE_APPROVER = false, moreBuilt = false;
 
 // The page list. Add future pages here — set managerOnly:true to hide from
 // reps, or repManagementOnly:true to show only to the rep_management role
@@ -752,7 +754,7 @@ const MORE_PAGES = [
   { key:'price-requests', title:'Price Requests', sub:'Ask for a lower price & track decisions', icon:'💲', src:'price-requests.html', cmOnly:true, topLevel:true },
   // { key:'forms', title:'Forms', sub:'Submit requests', icon:'📝', src:'forms.html' },
   { key:'morning-brief', title:'Morning Brief', sub:'MTD sales dashboard', icon:'☀️', src:'morning-brief.html', repManagementOnly:true, topLevel:true },
-  { key:'budget-explorer', title:'Budget Explorer', sub:'Budget vs actuals', icon:'💰', src:'budget-explorer.html', repManagementOnly:true, topLevel:true },
+  { key:'budget-explorer', title:'Budget Explorer', sub:'Budget vs actuals', icon:'💰', src:'budget-explorer.html', approverOnly:true, topLevel:true },
   { key:'gondola-tracker', title:'Gondola Tracker', sub:'Gondola rentals & analysis', icon:'🏬', src:'gondola-rentals.html', repManagementOnly:true, topLevel:true },
 ];
 
@@ -760,7 +762,7 @@ function goMore(){ switchTab('more'); showMoreLauncher(); }
 
 function buildMoreLauncher(){
   const pages = MORE_PAGES.filter(p =>
-    (!p.managerOnly || IS_MANAGER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER) &&
+    (!p.managerOnly || IS_MANAGER) && (!p.approverOnly || IS_PRICE_APPROVER) && (!p.repManagementOnly || IS_REP_MANAGEMENT) && (!p.hideFromManager || !IS_MANAGER) &&
     (!p.cmOnly || IS_MANAGER || IS_REP_MANAGEMENT) &&
     // Someone here only to cover a territory (rep_cover) gets the reference
     // pages; the rest act as the signed-in person (their own leave, debriefs,
