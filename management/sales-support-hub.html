@@ -2100,7 +2100,7 @@ const boMsg = (rep, os) => [`Hi ${firstName(rep)}, your back orders are cleared 
 // the weekly back-order card for a rep (Scott, 23 Nov): a picture to paste into WhatsApp, with the link where the rep taps Close it / Reopen it.
 // The link is the rep's own page (my-backorders.html); the rep signs in with their normal login and what they tap lands back here.
 const BOLINK = 'https://dflhq.com/my-backorders.html';
-const boLinkMsg = rep => { const os = boOrders(rep), left = os.filter(x => !bodOf(x.nbr)).length; return [`Hi ${firstName(rep)}, you have ${os.length} back order${os.length === 1 ? '' : 's'}${left < os.length ? ' (' + left + ' still to decide)' : ''}. Please open this link and tap *Close it* or *Reopen it* for each one. They are cleared on Monday at 12 noon:`, '', BOLINK].join('\n'); };
+const boLinkMsg = rep => { const os = boOrders(rep), left = os.filter(x => !bodOf(x.nbr)).length; return [`Hi ${firstName(rep)}, you have ${os.length} back order${os.length === 1 ? '' : 's'}${left < os.length ? ' (' + left + ' still to decide)' : ''}. Please open this link and tap *Close it* or *Reopen it* for each one. Any that are left will be cleared from Acumatica on Monday by 12 noon:`, '', BOLINK].join('\n'); };
 function boSpec(rep) {
   const os = boOrders(rep), cn = x => (byId[x.c] || {}).name || x.c, val = os.reduce((s, x) => s + x.val, 0), left = os.filter(x => !bodOf(x.nbr)).length, top = os.slice(0, 14);
   return {eyebrow:'DFL Importers · Back orders', title:`${firstName(rep)}, your back orders to close out`, sub:`Sales support · ${fds(jaNow().date)} · cleared Monday at 12 noon`,
