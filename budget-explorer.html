@@ -665,7 +665,12 @@ window.DFL_PAGE_TITLE = 'Budget Explorer';
   });
   document.getElementById('exportBtn').addEventListener('click', exportCSV);
 
-  function init() {
+  async function init() {
+    // Scott only (the price approver). Anyone else, including other admins, goes to their normal home page.
+    try {
+      const gate = await sb.rpc('is_price_approver');
+      if (gate.error || gate.data !== true) { document.body.style.visibility = 'hidden'; location.replace(dflHome(window.DFL_PROFILE || {})); return; }
+    } catch (e) { document.body.style.visibility = 'hidden'; location.replace('/index.html'); return; }
     renderAll();
     loadBudget(state.source);
   }
