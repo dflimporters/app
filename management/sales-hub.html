@@ -240,6 +240,9 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
 
 /* Chain and Key overall cards: calm, one soft tint per group so they are easy to tell apart */
 .kts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0 20px 14px}
+/* Sales support rows: a fixed last column so "Active" and "No activity today" do not push the middle column about */
+.row.rowsup{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 132px}
+.row.rowsup .pill{justify-self:end}
 #dropBox{margin-top:24px}
 .dsum{font-size:13px;color:var(--ink2);margin:0 0 10px;line-height:1.5}
 .dsum b{color:var(--ink);font-family:var(--head)}
@@ -293,6 +296,7 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
     </div>
   </div>
   <nav class="ptabs" id="tabs" aria-label="Sales Hub sections" role="tablist"></nav>
+  <div class="asofline" id="asof"></div>
   <div id="strip"></div>
   <main id="view"><div class="empty">Loading the latest figures…</div></main>
   <div class="embeds" id="embeds" hidden></div>
@@ -434,7 +438,9 @@ const areaList = () => { const set = new Set(D.orders.map((o) => o.area).concat(
 function header() {
   if (!D.pulse) return;
   const p = D.pulse;
-  $('psub').textContent = fmtDay(p.as_at) + ' · sales to ' + fmtDay(p.as_at) + ' · figures refreshed ' + fmtTime(p.refreshed_at) + ', orders live · day ' + num(p.wd_done) + ' of ' + num(p.wd_total) + ' working days';
+  $('psub').textContent = fmtDay(p.as_at) + ' · sales to ' + fmtDay(p.as_at) + ' · figures refreshed ' + fmtTime(p.refreshed_at) + ', orders live';
+  const left = num(p.wd_total) - num(p.wd_done), mon = new Date(String(p.as_at).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-GB', { month: 'long' });
+  $('asof').innerHTML = `<span>Day ${num(p.wd_done)} of ${num(p.wd_total)} working days, ${left} left</span><span class="dot"></span><span>${num(p.cal_days)} calendar days in ${mon}</span>`;
 }
 function renderTabs() {
   const held = D.orders.filter((o) => o.st === 'credit' || o.st === 'hold').length;
@@ -459,18 +465,15 @@ const repRow = (r) => `<button class="row" data-open="rep:${esc(r.name)}"><span 
 function vPulse() {
   const reps = D.reps.filter((r) => r.target > 0).sort((a, b) => a.ach - b.ach).slice(0, 5);
   const sup = D.support.map((s) => { const ok = s.acted > 0;
-    return `<button class="row" data-open="support:${esc(s.n)}"><span class="who2">${av(s.n)}<span><b>${esc(s.n)}</b><small>${s.bo_n} back orders &middot; ${s.hold_n} on hold</small></span></span><span><b class="num">${s.acted} actioned today</b><small>last touch ${esc(lastTouchText(s.last))}</small></span><span class="pill ${ok ? 'g' : 'r'}">${ok ? 'Active' : 'No activity today'}</span></button>`; }).join('');
-  const held = D.orders.filter((o) => o.st === 'credit' || o.st === 'hold').sort((a, b) => b.v - a.v).slice(0, 4).map((o) =>
-    `<button class="row" data-open="order:${esc(o.nbr)}"><span><b>${esc(o.nbr)} &middot; ${esc(o.cust)}</b><small>${esc(first(o.rep))} &middot; ${esc(o.area)}</small></span><span><b class="num">${K(o.v)}</b><small>${o.days} days</small></span>${ordPill(o)}</button>`).join('');
-  const ship = D.bo.filter((l) => l.flag).sort((a, b) => b.days - a.days).slice(0, 4).map((l) =>
-    `<button class="row" data-open="cust:${esc(l.cid)}"><span><b>${esc(l.item)}</b><small>${esc(l.cust)} &middot; ${esc(first(l.rep))}</small></span><span><b class="num">${l.qty} cases</b><small>support: ${esc(l.sup)}</small></span><span class="pill a">${l.days} days</span></button>`).join('');
+    return `<button class="row rowsup" data-open="support:${esc(s.n)}"><span class="who2">${av(s.n)}<span><b>${esc(s.n)}</b><small>${s.bo_n} back orders &middot; ${s.hold_n} on hold</small></span></span><span><b class="num">${s.acted} actioned today</b><small>last touch ${esc(lastTouchText(s.last))}</small></span><span class="pill ${ok ? 'g' : 'r'}">${ok ? 'Active' : 'No activity today'}</span></button>`; }).join('');
+  const behindCats = D.cats.filter((c) => c.ach != null && c.target >= 1e6).sort((a, b) => a.ach - b.ach).slice(0, 5).map((c) =>
+    `<button class="row" data-open="cat:${esc(c.cls)}"><span><b>${esc(c.cls)}</b><small>${c.cm ? esc(c.cm) : 'no category manager'} &middot; ${M(c.sales)} of ${M(c.target)}</small></span>${bar(c.ach)}<span class="pct ${cls(c.ach)}">${c.ach}%</span></button>`).join('');
   const behindStores = D.stores.filter((s) => s.ach != null).sort((a, b) => a.ach - b.ach).slice(0, 5).map((s) =>
     `<button class="row" data-open="cust:${esc(s.id)}"><span><b>${esc(s.name)}</b><small>${esc(GRP[s.grp] || '')} &middot; ${K(s.sales)} of ${K(s.target)}</small></span>${bar(s.ach)}<span class="pct ${cls(s.ach)}">${s.ach}%</span></button>`).join('');
   return '<div class="grid">' +
     card('Sales support: is it being worked?', 'Ticks and notes in the Sales Support Hub, today', 'Back orders', 'bo', sup || '<div class="empty">No support people set up.</div>') +
     card('Reps falling behind', '5 lowest against month target', 'All reps', 'reps', reps.map(repRow).join('')) +
-    card('Orders on hold', 'Credit hold and on hold, biggest first', 'All orders', 'orders', held || '<div class="empty">Nothing on hold.</div>') +
-    card('Back orders you can ship now', 'In stock at 71 but still open 4+ days', 'All back orders', 'bo', ship || '<div class="empty">Nothing waiting that is in stock.</div>') +
+    card('Categories falling behind', '5 lowest against month target', 'All categories', 'cats', behindCats || '<div class="empty">No category targets found.</div>') +
     card('Chain and Key stores falling behind', '5 lowest against month target', 'All stores', 'stores', behindStores || '<div class="empty">No store targets found.</div>') + '</div>';
 }
 
