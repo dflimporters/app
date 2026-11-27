@@ -300,6 +300,14 @@ header{background:linear-gradient(160deg,#1b356e,var(--navy));color:#fff;
 .gmore{display:block;width:100%;margin:6px 0 0;padding:11px;border:1.5px dashed #c9d3e6;background:none;border-radius:12px;font-family:'Open Sans';font-weight:700;font-size:13px;color:var(--blue);cursor:pointer}
 @media(max-width:380px){.gstat .n{font-size:17px}.tab{font-size:11.5px;padding:9px 4px}}
 
+/* Admin tab: team YTD line under the MTD bar */
+.ytdrow{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+.ytdrow .yk{font-size:10px;font-weight:800;letter-spacing:.8px;color:var(--mut);flex-shrink:0}
+.ytdrow .ybar{flex:1;height:6px;border-radius:6px;background:#eef1f8;overflow:hidden}
+.ytdrow .ybar>span{display:block;height:100%;border-radius:6px}
+.ytdrow .ybar>span.good{background:var(--good)}.ytdrow .ybar>span.warn{background:var(--warn)}.ytdrow .ybar>span.bad{background:var(--bad)}
+.ytdrow .yv{font-size:12px;color:var(--mut);white-space:nowrap}.ytdrow .yv b{font-family:'Montserrat';font-weight:800;color:var(--ink)}
+
 /* ---- More / launcher tab ---- */
 #tab-more{padding-bottom:0}                 /* iframe manages its own height; no tab-bar gap */
 .launch-wrap{padding:14px 14px calc(80px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
@@ -456,7 +464,7 @@ const SB_URL="https://hzagwndglwhcepsirafi.supabase.co";
 const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6YWd3bmRnbHdoY2Vwc2lyYWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA1OTcsImV4cCI6MjA5MTY4NjU5N30.ZtU8gCK4TqDMRyES0sOm8iWDOHjkWPwHQEjepvu7PP4";
 async function userH(){ const { data:{ session } } = await sb.auth.getSession(); if(!session) throw new Error('not signed in'); return { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token }; } // signed-in token, for `reps`
 const J=n=>"$"+Math.round(n).toLocaleString("en-JM");
-const Jk=n=>{const a=Math.abs(n);if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return "$"+(n/1e3).toFixed(0)+"K";return "$"+Math.round(n)};
+const Jk=n=>{const a=Math.abs(n);if(a>=1e9)return "$"+(n/1e9).toFixed(2)+"B";if(a>=1e6)return "$"+(n/1e6).toFixed(1)+"M";if(a>=1e3)return "$"+(n/1e3).toFixed(0)+"K";return "$"+Math.round(n)};
 
 /* ---------- Auth wiring ---------- */
 // auth-guard.js has already checked the session and the profiles
@@ -604,7 +612,7 @@ async function renderAdmin(){
   if(!ADMINROWS){
     c.innerHTML=`<div class="spin"></div>`;
     try{
-      const [dashR,repR]=await Promise.all([
+      const [dashR,repR,ytdR]=await Promise.all([
         fetch(`${SB_URL}/rest/v1/rep_dashboard_cache?select=*`,{headers:await userH()}).then(r=>r.json()),
         // role=in.(rep,rep_management): rep_management is a rep who also has
         // management access, with a salesperson_id and a budget like any other
@@ -612,12 +620,20 @@ async function renderAdmin(){
         //
         // `pin` is deliberately NOT selected. It is the retired PIN-auth
         // credential and this page used to print it in the team list.
-        fetch(`${SB_URL}/rest/v1/reps?active=eq.true&role=in.(rep,rep_management)&select=name,salesperson_id,area,role`,{headers:await userH()}).then(r=>r.json())
+        fetch(`${SB_URL}/rest/v1/reps?active=eq.true&role=in.(rep,rep_management)&select=name,salesperson_id,area,role`,{headers:await userH()}).then(r=>r.json()),
+        // YTD per rep (get_rep_ytd_scoreboard, is_manager() only). Optional: if it
+        // fails the leaderboard still draws, just without the YTD figures.
+        fetch(`${SB_URL}/rest/v1/rpc/get_rep_ytd_scoreboard`,{method:"POST",headers:{...await userH(),"Content-Type":"application/json"},body:"{}"}).then(r=>r.ok?r.json():[]).catch(()=>[])
       ]);
       const dash={}; (Array.isArray(dashR)?dashR:[]).forEach(d=>{dash[d.salesperson]=d;});
+      const ytd={}; (Array.isArray(ytdR)?ytdR:[]).forEach(y=>{ytd[y.salesperson]=y;});
+      // YTD target = closed months + this month pro-rated by selling days, so
+      // 100% means on track as of today (same rule as Company accounts).
+      const sd=sellingDays(), frac=sd.total>0?sd.done/sd.total:0;
       ADMINROWS=(Array.isArray(repR)?repR:[]).map(r=>{
-        const d=dash[r.name]||{};
-        return {name:r.name, sp_id:r.salesperson_id, area:r.area,
+        const d=dash[r.name]||{}, y=ytd[r.name];
+        const yt=y?(+y.ytd_budget_prior||0)+(+d.monthly_target||0)*frac:0, ya=y?+y.ytd_actual||0:0;
+        return {yt, ya, ypct:y&&yt>0?ya/yt*100:null, name:r.name, sp_id:r.salesperson_id, area:r.area,
           target:+d.monthly_target||0, actual:+d.monthly_actual||0,
           pct:+d.pct_to_target||0, pace:d.pace_status||"",
           orders:+d.orders_mtd||0, custs:+d.active_customers_mtd||0};
@@ -637,10 +653,14 @@ function drawAdmin(){
   const tcls=tpct>=expPace-2?"good":tpct>=expPace-10?"warn":"bad";
   const gap=tgt-act, perDay=(gap>0&&sd.left>0)?gap/sd.left:0;
   const behind=rows.filter(x=>x.pct<expPace-10).length;
+  const yt=rows.reduce((a,x)=>a+x.yt,0), ya=rows.reduce((a,x)=>a+x.ya,0);
+  const ypct=yt>0?ya/yt*100:null, ycls=ypct==null?"":ytdCls(ypct);
+  const ycolor=ycls==="good"?"var(--good)":ycls==="warn"?"#d9920a":"var(--bad)";
   // sort
   if(ADMINSORT==="pct") rows.sort((a,b)=>b.pct-a.pct);
   else if(ADMINSORT==="gap") rows.sort((a,b)=>(b.target-b.actual)-(a.target-a.actual));
   else if(ADMINSORT==="sales") rows.sort((a,b)=>b.actual-a.actual);
+  else if(ADMINSORT==="ytd") rows.sort((a,b)=>(b.ypct??-1)-(a.ypct??-1));
   else if(ADMINSORT==="name") rows.sort((a,b)=>a.name.localeCompare(b.name));
 
   c.innerHTML=`
@@ -652,12 +672,16 @@ function drawAdmin(){
       </div>
       <div class="bar"><span class="${tcls}" style="width:${Math.max(0,Math.min(tpct,100))}%"></span><i class="barmark" style="left:${Math.min(expPace,100)}%"></i></div>
       <div class="pacerow"><span><b>${rows.length}</b> reps · <b style="color:${behind?'var(--bad)':'var(--good)'}">${behind}</b> behind pace</span><span>${gap>0&&sd.left>0?"<b>"+Jk(perDay)+"</b>/day team":""}</span></div>
+      ${ypct!=null?`<div class="ytdrow"><span class="yk">YTD</span>
+        <div class="ybar"><span class="${ycls}" style="width:${Math.max(0,Math.min(ypct,100))}%"></span></div>
+        <span class="yv"><b>${Jk(ya)}</b> / ${Jk(yt)} · <b style="color:${ycolor}">${ypct.toFixed(0)}%</b></span></div>`:""}
     </div>
 
     <div class="secthdr"><h2>Rep leaderboard</h2><span class="cnt">tap a rep to view their app</span></div>
     <div class="tabs">
-      <button class="tab ${ADMINSORT==='pct'?'on':''}" onclick="setAdminSort('pct')">Attainment</button>
-      <button class="tab ${ADMINSORT==='gap'?'on':''}" onclick="setAdminSort('gap')">Biggest gap</button>
+      <button class="tab ${ADMINSORT==='pct'?'on':''}" onclick="setAdminSort('pct')">MTD %</button>
+      <button class="tab ${ADMINSORT==='ytd'?'on':''}" onclick="setAdminSort('ytd')">YTD %</button>
+      <button class="tab ${ADMINSORT==='gap'?'on':''}" onclick="setAdminSort('gap')">Gap</button>
       <button class="tab ${ADMINSORT==='sales'?'on':''}" onclick="setAdminSort('sales')">Top sales</button>
     </div>
     ${rows.map((r,i)=>{
@@ -669,11 +693,13 @@ function drawAdmin(){
           <div><div class="cname">${esc(r.name)}</div><div class="cid">${esc(r.area||r.sp_id)}</div></div>
           <div class="cgap"><div class="g" style="color:${rcolor}">${r.pct.toFixed(0)}%</div><div class="gl">achieved</div></div>
         </div>
-        <div class="cbar"><span class="${rcls}" style="width:${p}%"></span></div>
-        <div class="cmeta"><span><b>${Jk(r.actual)}</b> / ${Jk(r.target)}</span><span>${esc(r.pace)} ›</span></div>
+        <div class="cbar pace"><span class="${rcls}" style="width:${p}%"></span><i style="left:${Math.min(expPace,100)}%"></i></div>
+        <div class="cmeta" style="align-items:center;gap:6px 8px;flex-wrap:wrap"><span style="white-space:nowrap"><b>${Jk(r.actual)}</b> / ${Jk(r.target)} MTD</span>${r.ypct==null
+          ?`<span class="ypill none">YTD —</span>`
+          :`<span class="ypill ${ytdCls(r.ypct)}">YTD ${r.ypct.toFixed(0)}% · ${Jk(r.ya)} / ${Jk(r.yt)}</span>`}</div>
       </div>`;
     }).join("")}
-    <div class="foot">Figures in JMD · directional for GP.<br>Team pace based on ${sd.done} of ${sd.total} selling days</div>`;
+    <div class="foot">Figures in JMD · directional for GP.<br>Team pace based on ${sd.done} of ${sd.total} selling days<br>YTD target = closed months + this month pro-rated to today</div>`;
 }
 
 function setAdminSort(s){ ADMINSORT=s; drawAdmin(); }
