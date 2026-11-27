@@ -39,6 +39,7 @@
   const PAID_DAYS = 10;
   const DEFAULT_RATE = 4000;
   // Same list as REASONS in management/relief-coverage.html
+  const COV_TRAINING = 'Training';
   const REASONS = ['Vacation Leave', 'Sick Leave', 'Emergency Leave', 'Backfill for resignation', 'Training', 'Absent', 'Other'];
   // staff_type comes from relief_roster (get_days_worked); fall back to the role.
   const isTemp = p => p.staff_type ? p.staff_type === 'relief' : p.role === 'relief_merchandiser';
@@ -125,6 +126,7 @@
       '.dfld-picks .dfld-wk{gap:3px}',
       '.dfld-pk{flex:1;min-width:0;height:38px;border-radius:6px;border:1.5px solid var(--d-line);background:var(--d-card);color:var(--d-text);font:inherit;font-size:10px;line-height:1.05;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;position:relative}',
       '.dfld-pk small{font-size:8px;font-weight:700;color:var(--d-muted)}',
+      '.dfld-wkl{font-size:9px;font-weight:700;color:var(--d-muted);text-transform:uppercase;letter-spacing:.3px;margin:2px 0}',
       '.dfld-pk b{font-size:11px}',
       '.dfld-pk.wk{border-color:var(--d-good)}',
       '.dfld-pk.wk::after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:var(--d-good)}',
@@ -135,6 +137,9 @@
       '.dfld-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}',
       '.dfld-grid label{font-size:10px;font-weight:700;color:var(--d-muted);text-transform:uppercase;letter-spacing:.3px;display:flex;flex-direction:column;gap:3px}',
       '.dfld-grid label.full{grid-column:1/-1}',
+      '.dfld-covs{display:flex;flex-wrap:wrap;gap:4px}',
+      '.dfld-cov{display:inline-flex;align-items:center;gap:2px;background:var(--d-line);color:var(--d-text);border-radius:999px;padding:3px 4px 3px 9px;font-size:12px;font-weight:600;text-transform:none;letter-spacing:0}',
+      '.dfld-cov button{border:none;background:transparent;color:var(--d-muted);font-size:15px;line-height:1;cursor:pointer;padding:0 4px}',
       '.dfld-ltot{font-size:12px;font-weight:800;color:var(--d-ink);text-align:right;white-space:nowrap}',
       '.dfld-gtot{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:2px solid var(--d-line);padding-top:10px;margin-top:4px;font-weight:800}',
       '.dfld-btn{border:none;border-radius:8px;padding:10px 14px;font:inherit;font-weight:800;font-size:13px;cursor:pointer;background:var(--d-ink);color:#fff}',
@@ -330,10 +335,12 @@
     // ── TL payroll submission ──────────────────────────────────────────────
     function subFor(ws) { return (data.submissions || []).find(s => s.week_start === ws && s.tl_rep_id === data.me); }
 
-    // Dates a line may offer: relief → the week, extra day → the week's fortnight.
+    // Dates a line may offer: relief → the week before plus the week (so a TL can
+    // catch up days missed last week), extra day → the week's fortnight. Keep the
+    // relief window in step with the check in submit_tl_payroll().
     function lineDays(kind, ws) {
-      const start = kind === 'relief' ? ws : fortnightStart(ws), n = kind === 'relief' ? 7 : 14;
-      return Array.from({ length: n }, (_, i) => addDays(start, i));
+      const start = kind === 'relief' ? addDays(ws, -7) : fortnightStart(ws);
+      return Array.from({ length: 14 }, (_, i) => addDays(start, i));
     }
     // Locked = already payable in the Relief Coverage log, other than this week's own
     // still-unpaid submission rows (those are what a resubmit replaces).
@@ -352,6 +359,9 @@
       (data.staff || []).forEach(p => {
         const w = ix.worked[p.id] || {};
         if (isTemp(p)) {
+          // Pre-tick every day worked in the window (the week before + the selected week)
+          // that isn't already in Relief Coverage, so last week's unclaimed days aren't
+          // missed when a TL submits a fortnight at once. Locked days stay unticked.
           const dates = lineDays('relief', ws).filter(d => d <= today && w[d] && !locked(p.id, d, existing));
           if (dates.length) lines.push({ id: p.id, kind: 'relief', dates: new Set(dates), reason: '', absent: '', rate: p.rate || DEFAULT_RATE, note: '' });
         } else {
@@ -374,6 +384,20 @@
       return { week: ws, lines, note: '' };
     }
 
+    // "Covering for" holds several names (or "Training"), stored as one comma-separated
+    // string in `absent` so submit_tl_payroll / relief_coverage are unchanged.
+    const covList = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+    function covHtml(l, i) {
+      const sel = covList(l.absent), has = new Set(sel.map(x => x.toLowerCase()));
+      const team = (data.staff || []).filter(p => !isTemp(p) && p.id !== l.id).map(p => p.name).sort((a, b) => a.localeCompare(b));
+      const opts = [COV_TRAINING].concat(team).filter(n => !has.has(n.toLowerCase()));
+      return '<label>Covering for' +
+        (sel.length ? '<span class="dfld-covs">' + sel.map(n => '<span class="dfld-cov">' + esc(n) + '<button type="button" data-covrm="' + i + '" data-n="' + esc(n) + '" title="Remove">×</button></span>').join('') + '</span>' : '') +
+        '<select class="dfld-in" data-cov="' + i + '"><option value="">' + (sel.length ? '+ Add another…' : 'Who was off?') + '</option>' +
+        opts.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') +
+        '<option value="__other">Someone else…</option></select></label>';
+    }
+
     function lineHtml(l, i, existing) {
       const p = staffById()[l.id], w = ix.worked[l.id] || {};
       const days = lineDays(l.kind, ui.week);
@@ -382,16 +406,17 @@
         const tip = dayLabel(d) + (w[d] ? ' — worked' : d > today ? ' — upcoming' : ' — no visit logged') + (lk ? ' · already in Relief Coverage' : '');
         return '<button type="button" class="dfld-pk' + (on ? ' on' : '') + (lk ? ' lock' : '') + (w[d] ? ' wk' : '') + '" data-pick="' + i + '" data-d="' + d + '"' + (lk ? ' disabled' : '') + ' title="' + esc(tip) + '"><small>' + DOW[dow(d)][0] + '</small><b>' + toD(d).getUTCDate() + '</b></button>';
       };
-      const picks = l.kind === 'relief'
-        ? '<div class="dfld-picks"><div class="dfld-wk">' + days.map(pick).join('') + '</div></div>'
-        : '<div class="dfld-picks"><div class="dfld-wk">' + days.slice(0, 7).map(pick).join('') + '</div><div class="dfld-wk">' + days.slice(7).map(pick).join('') + '</div></div>';
+      const wkLbl = t => l.kind === 'relief' ? '<div class="dfld-wkl">' + t + '</div>' : '';
+      const picks = '<div class="dfld-picks">' + wkLbl('Week before · ' + range(days[0], days[6])) + '<div class="dfld-wk">' + days.slice(0, 7).map(pick).join('') + '</div>' +
+        wkLbl('Selected week · ' + range(days[7], days[13])) + '<div class="dfld-wk">' + days.slice(7).map(pick).join('') + '</div></div>';
       const r = l.kind === 'extra' ? calc(p, fortnightStart(ui.week), ix, today) : null;
+      const logged = days.filter(d => w[d]);
       const sub = l.kind === 'relief'
-        ? 'Temp relief · logged ' + (lineDays('relief', ui.week).filter(d => w[d]).map(d => DOW[dow(d)]).join(', ') || 'nothing yet this week')
+        ? 'Temp relief · logged ' + (logged.map(d => DOW[dow(d)] + ' ' + toD(d).getUTCDate()).join(', ') || 'no visits in these two weeks')
         : 'Extra days · ' + r.worked + ' worked' + (r.assumed ? ' + ' + r.assumed + ' assumed' : '') + ' of ' + r.expected + ' owed';
       const reason = l.kind === 'relief'
         ? '<label>Reason<select class="dfld-in" data-f="reason" data-i="' + i + '"><option value="">Choose…</option>' + REASONS.map(x => '<option' + (x === l.reason ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select></label>' +
-          '<label>Covering for<input class="dfld-in" data-f="absent" data-i="' + i + '" list="dfld-team" placeholder="Who was off?" value="' + esc(l.absent) + '"></label>'
+          covHtml(l, i)
         : '<label class="full">Reason<input class="dfld-in" value="Extra day worked" disabled></label>';
       return '<div class="dfld-line"><div class="dfld-lhead"><div style="min-width:0"><div class="dfld-nm">' + esc(p.name) + '</div><div class="dfld-sub">' + esc(sub) + '</div></div>' +
         '<div style="display:flex;align-items:flex-start;gap:6px"><div class="dfld-ltot" data-ltot="' + i + '"></div><button type="button" class="dfld-x-btn" data-rm="' + i + '" title="Remove">×</button></div></div>' +
@@ -416,7 +441,6 @@
       else if (existing) h += '<div class="dfld-ok">Submitted ' + esc(new Date(existing.submitted_at).toLocaleString('en-JM', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + ' — it’s in Relief Coverage, waiting for the pay run. Submitting again replaces anything not paid yet.</div>';
       else h += '<div class="dfld-due">Not submitted for ' + range(ws, we) + ' yet — due Wednesday ' + short(addDays(ws, 2)) + '. Tap days to add or remove them.</div>';
 
-      h += '<datalist id="dfld-team">' + (data.staff || []).filter(p => !isTemp(p)).map(p => '<option value="' + esc(p.name) + '">').join('') + '</datalist>';
       h += dr.lines.length ? dr.lines.map((l, i) => lineHtml(l, i, existing)).join('')
         : '<div class="dfld-note" style="padding:10px 0;border-top:1px solid var(--d-line)">No relief or extra days to submit this week. Add someone below if needed.</div>';
 
@@ -518,6 +542,19 @@
       el.querySelectorAll('[data-f]').forEach(i => i.addEventListener(i.tagName === 'SELECT' ? 'change' : 'input', () => {
         dr.lines[+i.dataset.i][i.dataset.f] = i.value; lineTotals();
       }));
+      el.querySelectorAll('[data-cov]').forEach(s => s.onchange = () => {
+        const l = dr.lines[+s.dataset.cov];
+        let v = s.value;
+        if (v === '__other') v = (prompt('Who was off?') || '').replace(/,/g, ' ').trim();
+        if (v && !covList(l.absent).some(x => x.toLowerCase() === v.toLowerCase())) l.absent = covList(l.absent).concat(v).join(', ');
+        render();
+      });
+      el.querySelectorAll('[data-covrm]').forEach(b => b.onclick = e => {
+        e.preventDefault();
+        const l = dr.lines[+b.dataset.covrm];
+        l.absent = covList(l.absent).filter(x => x !== b.dataset.n).join(', ');
+        render();
+      });
       el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { dr.lines.splice(+b.dataset.rm, 1); render(); });
       const add = el.querySelector('[data-k=add]');
       if (add) add.onchange = () => {

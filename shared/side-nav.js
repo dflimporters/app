@@ -106,6 +106,7 @@
     {
       group: 'Tools',
       items: [
+        { label: 'Ask DFL',           href: '/ask.html',             icon: '💬' },
         { label: 'Specials & Flyers', href: '/specials.html',        icon: '🎯' },
         { label: 'Manage Specials',   href: '/specials-upload.html', icon: '📤' },
         { label: 'Price Requests',    href: '/price-requests.html',  icon: '💲' },
@@ -121,8 +122,19 @@
         // password gate and is in DFL_PAGE_ROLES as manager/admin.
         // approverOnly: Scott's tabbed view — hidden from other admins.
         { label: 'Head of Sales', href: '/management/head-of-sales.html', icon: '⭐', approverOnly: true },
+        // approverOnly: Scott only (sales_hub_data checks the same).
+        { label: 'DFL Sales Centre', href: '/management/sales-centre.html', icon: '🧭', approverOnly: true },
+        // chainHub: Andrea Skelton (chain KAM) and the price approver (Scott) only.
+        { label: 'Chain Store Hub', href: '/management/chain-hub.html', icon: '🏪', chainHub: true },
+        // keyHub: Shallet Marsh (key KAM) and the price approver (Scott) only.
+        { label: 'Key Account Hub', href: '/management/key-hub.html', icon: '🔑', keyHub: true },
+        // ssHub: the sales support people (Alecia, Jenelle, Althia) and the price approver (Scott) only.
+        { label: 'Sales Support Hub', href: '/management/sales-support-hub.html', icon: '🎧', ssHub: true },
+        // approverOnly: Scott only for now (sales_explorer_data checks the same).
+        { label: 'Sales Explorer', href: '/management/sales-explorer.html', icon: '🔎', approverOnly: true },
         { label: 'Dashboards', href: '/management/', icon: '📊' },
-        { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰' },
+        // approverOnly: Scott only (27 Nov 2026). The page itself also checks is_price_approver() and sends anyone else home.
+        { label: 'Budget Explorer', href: '/budget-explorer.html', icon: '💰', approverOnly: true },
         { label: 'Gondola Tracker', href: '/gondola-rentals.html', icon: '🏬' },
         { label: 'Morning Brief', href: '/morning-brief.html', icon: '☀️' }
       ]
@@ -665,6 +677,9 @@
   // shows exactly what the guard would let through, by construction.
   function visible(item, role) {
     if (item.approverOnly && !isPriceApprover) return false;
+    if (item.chainHub && !isPriceApprover && !((window.DFL_PROFILE || {}).full_name === 'Andrea Skelton')) return false;
+    if (item.keyHub && !isPriceApprover && !((window.DFL_PROFILE || {}).full_name === 'Shallet Marsh')) return false;
+    if (item.ssHub && !isPriceApprover && ['Alecia', 'Jenelle', 'Althia'].indexOf(String((window.DFL_PROFILE || {}).full_name || '').split(' ')[0]) === -1) return false;
     if (item.hrOnly && !isHr) return false;
     // HR Records: HR get People + Library; managers get the Library only.
     if (item.hrOrManager && !isHr && ['admin', 'manager'].indexOf(role) === -1) return false;

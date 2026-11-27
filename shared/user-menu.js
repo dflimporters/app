@@ -6,7 +6,7 @@
 //
 // 1. window.DFLInstall — the whole PWA install story in one place.
 // 2. An avatar dropdown for the two field apps (Sales, Merch): name + role,
-//    "Install app", "Sign out".
+//    "What's new" (reopens shared/whats-new.js), "Install app", "Sign out".
 //
 // ------------------------------------------------------------
 // WHAT THIS REPLACED, AND WHY
@@ -66,6 +66,14 @@
     listeners.forEach(function (fn) { try { fn(); } catch (e) {} });
   }
 
+  // "Installed" is remembered per app (per manifest), not for the whole site: there are
+  // several installable apps (Portal, Sales, Merch, Ask DFL), and a single flag meant
+  // installing one hid "Install app" on all the others.
+  function installedKey() {
+    const m = document.querySelector('link[rel="manifest"]');
+    return 'dfl-pwa-installed:' + (m ? m.getAttribute('href') : location.pathname);
+  }
+
   window.addEventListener('beforeinstallprompt', function (e) {
     // Stop Chrome's own mini-infobar; we surface it in the menu instead.
     e.preventDefault();
@@ -75,7 +83,7 @@
 
   window.addEventListener('appinstalled', function () {
     deferredPrompt = null;
-    try { localStorage.setItem('dfl-pwa-installed', '1'); } catch (e) {}
+    try { localStorage.setItem(installedKey(), '1'); } catch (e) {}
     notify();
   });
 
@@ -83,7 +91,7 @@
     // Already running as an installed app, or we've seen it installed before.
     installed: function () {
       if (isStandalone()) return true;
-      try { return localStorage.getItem('dfl-pwa-installed') === '1'; }
+      try { return localStorage.getItem(installedKey()) === '1'; }
       catch (e) { return false; }
     },
 
@@ -105,7 +113,7 @@
         p.prompt();
         p.userChoice.then(function (r) {
           if (r && r.outcome === 'accepted') {
-            try { localStorage.setItem('dfl-pwa-installed', '1'); } catch (e) {}
+            try { localStorage.setItem(installedKey(), '1'); } catch (e) {}
           }
           notify();
         });
@@ -265,6 +273,19 @@
     }
     panel.appendChild(who);
 
+    // --- what's new (shared/whats-new.js; hidden on pages that don't load it) ---
+    const news = document.createElement('button');
+    news.type = 'button';
+    news.className = 'dfl-um__item';
+    news.innerHTML = '<span class="dfl-um__ico">✨</span><span>What’s new</span>';
+    news.addEventListener('click', function () {
+      closeAll();
+      if (window.DFL_WHATS_NEW) window.DFL_WHATS_NEW.open();
+    });
+    panel.appendChild(news);
+    function syncNews() { news.style.display = window.DFL_WHATS_NEW ? '' : 'none'; }
+    syncNews();
+
     // --- install (only when it's actually on offer) ---
     const install = document.createElement('button');
     install.type = 'button';
@@ -310,6 +331,7 @@
       const isOpen = panel.classList.contains('open');
       closeAll();
       if (!isOpen) {
+        syncNews();   // whats-new.js may load after this menu was built
         panel.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
       }

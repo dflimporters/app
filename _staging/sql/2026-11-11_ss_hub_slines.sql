@@ -1,0 +1,9 @@
+-- Sales Support Hub: approved by Scott and APPLIED 2026-11-11 as migration ss_hub_slines (the function was re-created from its live definition with this one key added before 'sync').
+-- Adds 'slines' to the ops part of ss_hub_data: the driver app's item results for the support person's shipments in the last 21 days,
+-- only items not delivered in full (short-picked, refused, "customer says not ordered", damaged …), with the reason label and the driver's note.
+-- Shape: [shipment, sku, description, expected qty, delivered qty, result, reason, note]. Read-only; nothing else changes.
+-- Applied as: create or replace function public.ss_hub_data(...) with this one extra key in the 'ops' json_build_object:
+--   'slines', (select json_agg(json_build_array(sl.shipment_nbr, sl.inventory_id, sl.description, sl.expected_qty, sl.delivered_qty, sl.result, coalesce(rc.label, sl.reason_code), sl.note))
+--              from lm_stop_lines sl left join lm_reason_codes rc on rc.code = sl.reason_code
+--              where sl.shipment_nbr in (select shipment_nbr from sh where shipment_date >= current_date - 21)
+--                and sl.result is not null and (coalesce(sl.delivered_qty, 0) < coalesce(sl.expected_qty, 0) or sl.result <> 'delivered')),

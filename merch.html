@@ -363,6 +363,11 @@ body.dfl-readonly .readonly-note{display:block}
 .ss-val{font-size:20px;font-weight:800;line-height:1}
 .ss-lbl{font-size:10px;opacity:.65;margin-top:3px}
 .stores-loading{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.stores-view-toggle{display:flex;background:var(--card);border:1.5px solid var(--border);border-radius:var(--rad-sm);padding:3px;gap:3px;margin-bottom:10px}
+.stores-view-toggle button{flex:1;border:none;background:none;border-radius:6px;padding:7px 6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.stores-view-toggle button.on{background:var(--navy);color:#fff}
+.ss-comm{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.ss-comm strong{font-size:16px}
 </style>
 
 <style>
@@ -714,6 +719,8 @@ body.dfl-readonly .readonly-note{display:block}
           <!-- Camera-only input: no accept attribute gallery fallback, capture=environment forces camera -->
           <input type="file" id="shelf-file-input" accept="image/*" capture="environment" onchange="handlePhotoSelect(this.files)" style="display:none">
           <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+            <!-- Camera exemption notice (reps.photo_exempt_until) -->
+            <div id="photo-exempt-note" style="display:none;background:#fff7e6;border:1px solid #f59e0b;color:#92400e;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600"></div>
             <!-- Photo counter -->
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:12px;color:var(--muted)" id="photo-counter-lbl">0 of 3 required</div>
@@ -859,6 +866,13 @@ body.dfl-readonly .readonly-note{display:block}
         <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--navy);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><polyline points="15 18 9 12 15 6"/></svg>
         Home
       </button>
+
+      <!-- This month / last month — last month is read-only history, so the
+           route-editing controls and visit times below don't change with it. -->
+      <div class="stores-view-toggle" id="stores-view-toggle">
+        <button id="sv-cur" class="on" onclick="setStoresView('cur')">This month</button>
+        <button id="sv-last" onclick="setStoresView('last')">Last month</button>
+      </div>
 
       <div id="stores-summary-banner"></div>
 
@@ -1367,6 +1381,7 @@ body.dfl-readonly .readonly-note{display:block}
 <script src="/shared/section-switcher.js"></script>
 <script src="/shared/hub-button.js"></script>
 <script src="/shared/user-menu.js"></script>
+<script src="/shared/whats-new.js"></script>
 <script src="/shared/stock-prices.js"></script>
 <script src="/shared/days-worked.js"></script>
 <script src="/training/course-data.js"></script>
@@ -1524,6 +1539,35 @@ function isRelief(){
 // team. management/merch-dashboard.html already models them that way.
 const MERCH_FIELD_ROLES = ['merchandiser', 'relief_merchandiser', 'tl_merch'];
 const TEAM_LEAD_ROLES   = ['team_leader', 'tl_merch'];
+
+// A TL's team = active reps whose team_lead_id is one of tlLedIds(): the TL
+// themself plus any TL they co-lead (tl_co_leads, e.g. Jomo co-leads
+// Coliesha's team). A co-lead is 'view' or 'full': _tlWriteIds holds only the
+// teams this TL may act on, so a view-only co-TL sees the team but gets no
+// approve/assign/submit buttons (the server refuses those too). Resolved by
+// get_tl_scope; admin "view as" passes the TL's id. Falls back to just the TL.
+let _tlLedIds=[], _tlWriteIds=[];
+async function tlLedIds(u){
+  let sc=null;
+  try{ sc=await restRpc('get_tl_scope', cu&&cu.viewingAs?{p_rep:u.id}:{}); }
+  catch(e){ console.warn('TL scope lookup failed:',e); }
+  _tlLedIds=sc&&Array.isArray(sc.led)&&sc.led.length?sc.led:[u.id];
+  _tlWriteIds=sc&&Array.isArray(sc.write)&&sc.write.length?sc.write:[u.id];
+  return _tlLedIds;
+}
+// False only for someone on a team this TL can view but not act on.
+function tlCanActOnLead(leadId){
+  return !leadId || !_tlLedIds.includes(leadId) || _tlWriteIds.includes(leadId);
+}
+function tlCanActOn(repId){
+  const m=(tlMyMerch||[]).find(x=>x.id===repId);
+  return !m || tlCanActOnLead(m.team_lead_id);
+}
+// Every team member is view-only (e.g. a TL-designate before handover).
+function tlTeamViewOnly(){
+  return !!(tlMyMerch&&tlMyMerch.length) && tlMyMerch.every(m=>!tlCanActOnLead(m.team_lead_id));
+}
+const TL_VIEW_ONLY_MSG='👁️ View only — your access to this team is view-only, so their own team leader acts on this.';
 
 // PostgREST `in` filter: roleIn(['a','b']) -> "role=in.(a,b)"
 function roleIn(roles){ return 'role=in.(' + roles.join(',') + ')'; }
@@ -1705,7 +1749,7 @@ async function startApp(profile){
     // so rep_id can legitimately be null — they get the oversight roster view.
     let rep=null;
     if(profile.rep_id){
-      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id,pending_promotion_role`);
+      const rows=await rest(`reps?id=eq.${profile.rep_id}&select=id,name,initials,area,role,team_lead_id,pending_promotion_role,photo_exempt_until`);
       rep=rows&&rows[0]?rows[0]:null;
     }
 
@@ -1725,7 +1769,8 @@ async function startApp(profile){
         territory: rep.area || '',
         team_lead: tlName,
         team_lead_id: rep.team_lead_id || null,
-        role: profile.role             // profiles.role is authoritative
+        role: profile.role,            // profiles.role is authoritative
+        photoExemptUntil: rep.photo_exempt_until || null
       };
       if(rep.pending_promotion_role) showPromotionBanner(rep.pending_promotion_role);
     }else{
@@ -1832,6 +1877,11 @@ async function launchMerch(u){
   // Update dynamic month labels
   const lbl = document.getElementById('stores-month-lbl');
   if(lbl) lbl.textContent = 'My stores — '+_curLabel;
+  // Back to "This month" — an admin switching between view-as people mustn't
+  // see the previous person's last-month figures.
+  storesView='cur'; storePerfLast=null; storeCommLast=null;
+  document.getElementById('sv-cur').classList.add('on');
+  document.getElementById('sv-last').classList.remove('on');
   // Start geolocation watch
   startGeoWatch(); updateLiveDot(); updateSyncBadge();
   // Load in parallel
@@ -2017,13 +2067,14 @@ async function loadStoreCorrections(wrapId,listId){
     const rows=await rest('visit_store_corrections?status=eq.pending&order=requested_at.desc&select=*');
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
-    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(function(r){
+      const viewOnly=!cu.viewingAs && !tlCanActOn(r.requester_rep_id);
+      const readonly=!!cu.viewingAs||viewOnly;
       return '<div class="merch-card"><div style="font-weight:700;font-size:13px;color:var(--navy)">'+escapeHtmlM(r.requester_name)+' · '+escapeHtmlM(r.visit_date||'')+'</div>'+
         '<div style="font-size:12px;margin:4px 0"><span style="color:var(--muted)">Logged:</span> '+escapeHtmlM(r.old_store_name||r.old_customer_id||'')+'</div>'+
         '<div style="font-size:12px;margin-bottom:4px"><span style="color:var(--muted)">Should be:</span> <b>'+escapeHtmlM(r.new_store_name)+'</b></div>'+
         (r.reason?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px">“'+escapeHtmlM(r.reason)+'”</div>':'<div style="margin-bottom:8px"></div>')+
-        (readonly?'<div style="font-size:11px;color:var(--muted)">👁️ Read-only while viewing as someone else.</div>'
+        (readonly?'<div style="font-size:11px;color:var(--muted)">'+(viewOnly?TL_VIEW_ONLY_MSG:'👁️ Read-only while viewing as someone else.')+'</div>'
         :'<div style="display:flex;gap:8px"><button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideStoreCorrection(this,\''+r.id+'\',true,\''+wrapId+'\',\''+listId+'\')">Approve</button>'+
          '<button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideStoreCorrection(this,\''+r.id+'\',false,\''+wrapId+'\',\''+listId+'\')">Decline</button></div>')+
         '</div>';
@@ -2339,7 +2390,7 @@ async function saveStockStage(){
 // ── STAGE 3: PICTURES (mandatory — gates Close out via updatePhotoGating) ──
 async function savePhotosStage(){
   if(cu&&cu.viewingAs){alert("You are viewing as another user — writes are disabled.");return;}
-  if(pendingPhotos.length<MIN_PHOTOS){alert('Take at least '+MIN_PHOTOS+' shelf photos first.');return;}
+  if(pendingPhotos.length<minPhotos()){alert('Take at least '+MIN_PHOTOS+' shelf photos first.');return;}
   const btn=document.getElementById('v-step3-btn');
   btn.disabled=true;btn.textContent='Saving…';
   try{
@@ -2349,7 +2400,7 @@ async function savePhotosStage(){
       try{
         await rest(`merch_visit_log?id=eq.${activeVisit.id}`,{
           method:'PATCH',headers:{'Prefer':'return=minimal'},
-          body:{shelf_photo_urls:urls, photos_logged_at:stamp}
+          body:{shelf_photo_urls:urls, photos_logged_at:stamp, photos_waived:photosWaived()}
         });
         activeVisit.photosLoggedAt=stamp;
       }catch(e){ console.warn('photos stage patch failed (will resend at close out):',e); }
@@ -2377,6 +2428,7 @@ async function closeOutVisit(){
     shelf_photo_urls: await ensureAllPhotosUploaded(),
     stock_logged_at: activeVisit.stockLoggedAt||now,
     photos_logged_at: activeVisit.photosLoggedAt||now,
+    photos_waived: photosWaived(),
     clock_out:now
   };
   try{
@@ -2469,7 +2521,7 @@ function continueVisit(visitId){
   updatePhotoGating();
 
   const isOffline=typeof v.id==='string'&&v.id.indexOf('offline_')===0;
-  const stage=(v.shelf_photo_urls&&v.shelf_photo_urls.length>=MIN_PHOTOS)?4:(v.stock_logged_at?3:2);
+  const stage=((v.shelf_photo_urls&&v.shelf_photo_urls.length>=MIN_PHOTOS)||(v.photos_logged_at&&photoExemptActive()))?4:(v.stock_logged_at?3:2);
   activeVisit={
     id: isOffline?null:v.id,
     offlineLocalId: isOffline?parseInt(v.id.slice('offline_'.length),10):null,
@@ -2728,6 +2780,7 @@ async function loadTLKpi(){
         '<div style="font-size:12px;font-weight:700;color:var(--navy)">'+escapeHtmlM(b.name)+'</div>'+
         (b.evaluated_at
           ? '<div style="font-size:11px;font-weight:700;color:var(--green)">✓ '+new Date(b.evaluated_at).toLocaleDateString('en-JM',{day:'numeric',month:'short'})+'</div>'
+          : !tlCanActOn(b.rep_id) ? '<div style="font-size:11px;color:var(--muted)">👁️ View only</div>'
           : '<button class="hide-when-readonly" data-id="'+escapeHtmlM(b.rep_id)+'" data-name="'+escapeHtmlM(b.name)+'" onclick="openEvaluationTool(this.dataset.id,this.dataset.name)" style="padding:5px 10px;border:none;border-radius:6px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;cursor:pointer">Evaluate</button>')+
       '</div>').join('')
       : '<div style="font-size:12px;color:var(--muted)">No brand ambassadors on your team.</div>';
@@ -2759,7 +2812,7 @@ function renderAnyBA(q){
   drop.innerHTML=hits.length
     ? hits.map(b=>`<div class="store-opt" data-id="${escapeHtmlM(b.id)}" data-name="${escapeHtmlM(b.name)}" onclick="pickAnyBA(this)">
         <div class="so-name">${escapeHtmlM(b.name)}</div>
-        <div class="so-city">${escapeHtmlM(b.area||'')}${b.team_lead_id===cu.id?' · your team':''}</div></div>`).join('')
+        <div class="so-city">${escapeHtmlM(b.area||'')}${(b.team_lead_id===cu.id||_tlLedIds.includes(b.team_lead_id))?' · your team':''}</div></div>`).join('')
     : '<div class="store-none">No Brand Ambassador matches</div>';
   drop.classList.add('open');
 }
@@ -2803,15 +2856,17 @@ async function loadTLData(u){
     // up front rather than after the early-return for an empty team.
     loadTLIncentive(u, period);
     loadTLOwnCommission(u, period);
-    loadTLKpi();
     loadMyEvents(u);
 
     // 1. This TL's merchandisers, from `reps` via the team_lead_id FK.
     //    Was: merch_app_users?team_lead=eq.<the TL's full name> — a free-text
     //    name match that broke silently on any typo or rename.
-    const myMerch=await rest(`reps?team_lead_id=eq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role&order=name`);
+    //    Includes any team this TL co-leads (tlLedIds), never the TL themself.
+    const leadIds=await tlLedIds(u);
+    const myMerch=await rest(`reps?team_lead_id=${pgIn(leadIds)}&id=neq.${u.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=id,name,area,role,team_lead_id&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     tlMyMerch=myMerch||[];
+    loadTLKpi();   // after tlMyMerch: its Evaluate buttons check tlCanActOn()
     loadTeamRouteRequests();
     loadTLLeaveApprovals();
     loadTLUpcomingLeave();
@@ -2937,10 +2992,10 @@ async function loadTeamRouteRequests(){
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.customer_name)}</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${escapeHtmlM(r.requester_name)} wants to take this over from ${escapeHtmlM(r.current_holder_name||'—')}</div>
-      <div style="display:flex;gap:8px">
+      ${!tlCanActOnLead(r.team_lead_rep_id) ? `<div style="font-size:11px;color:var(--muted)">${TL_VIEW_ONLY_MSG}</div>` : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" data-id="${r.id}" onclick="tlDecideRequest(this,true)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" data-id="${r.id}" onclick="tlDecideRequest(this,false)">Deny</button>
-      </div>
+      </div>`}
     </div>`).join('');
   }catch(e){ console.warn('team route requests load failed',e); }
 }
@@ -3231,13 +3286,13 @@ async function loadTLLeaveApprovals(){
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
-    const readonly=!!cu.viewingAs;
     list.innerHTML=rows.map(r=>`<div class="merch-card">
       <div style="font-weight:700;font-size:13px;color:var(--navy)">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}, ${r.days_requested}d</div>
       <div style="font-size:12px;color:var(--muted);margin:2px 0 10px">${r.from_date} → ${r.to_date}${r.remarks?' · '+escapeHtmlM(r.remarks):''}</div>
       ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-bottom:8px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
-      ${readonly
+      ${cu.viewingAs
         ? `<div style="font-size:11px;color:var(--muted)">👁️ Read-only — open this TL's real login, or approve it from your own admin screen, to act on this.</div>`
+        : !tlCanActOn(r.requester_id) ? `<div style="font-size:11px;color:var(--muted)">${TL_VIEW_ONLY_MSG}</div>`
         : `<div style="display:flex;gap:8px">
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px" onclick="decideLeaveRequest(this,'${r.id}',true,reloadTLLeaveViews)">Approve</button>
         <button class="submit-btn" style="flex:1;padding:8px;font-size:13px;background:#fff;color:var(--red);border:1.5px solid var(--red)" onclick="decideLeaveRequest(this,'${r.id}',false,reloadTLLeaveViews)">Deny</button>
@@ -3262,13 +3317,12 @@ async function loadTLUpcomingLeave(){
     if(!rows||!rows.length){ wrap.style.display='none'; list.innerHTML=''; return; }
     wrap.style.display='block';
     rows.forEach(r=>{ _leaveRowsById[r.id]=r; });
-    const readonly=!!cu.viewingAs;
-    list.innerHTML=rows.map(r=>`<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
+    list.innerHTML=rows.map(r=>{ const readonly=!!cu.viewingAs||!tlCanActOn(r.requester_id); return `<div class="merch-card" style="background:var(--blue-lt);border-color:var(--navy)">
       <div style="font-size:13px;font-weight:700">${escapeHtmlM(r.requester_name)} — ${r.leave_type==='vacation'?'🌴 Vacation':'🤒 Sick'}</div>
       <div style="font-size:12px;color:var(--muted)">${r.from_date} → ${r.to_date} (${r.days_requested}d)</div>
       ${r.covering_name?`<div style="font-size:11px;color:var(--navy);margin-top:4px">🔄 Covered by ${escapeHtmlM(r.covering_name)}${r.covering_phone?' · '+escapeHtmlM(r.covering_phone):''}</div>`:''}
       ${readonly?'':`<button class="submit-btn" style="margin-top:8px;padding:6px 10px;font-size:12px;background:#fff;color:var(--navy);border:1.5px solid var(--navy)" onclick="openLeaveCoveringModal('${r.id}',loadTLUpcomingLeave)">🔄 ${r.covering_name?'Edit':'Set'} covering</button>`}
-    </div>`).join('');
+    </div>`; }).join('');
   }catch(e){ console.warn('upcoming leave load failed:',e); }
 }
 
@@ -3549,8 +3603,9 @@ function daysWorked(){
     _daysWorkedFor=who;
     _daysWorked=DFL_DAYS.mount(document.getElementById('dw-body'),{
       call:(fn,args)=>restRpc(fn,(fn==='get_days_worked'&&who!=='self')?Object.assign({},args,{p_as_rep:who}):args), mode:'tl',
-      readOnly:()=>document.body.classList.contains('dfl-readonly'),
-      readOnlyNote:()=>cu&&cu.viewingAs?'Viewing as '+cu.full_name+' — this is exactly what they see. Submitting is turned off.':'',
+      readOnly:()=>document.body.classList.contains('dfl-readonly')||tlTeamViewOnly(),
+      readOnlyNote:()=>cu&&cu.viewingAs?'Viewing as '+cu.full_name+' — this is exactly what they see. Submitting is turned off.'
+        :tlTeamViewOnly()?'View only — you can see this team’s days worked, but their own team leader submits payroll.':'',
       theme:{ink:'var(--navy)',text:'var(--text)',muted:'var(--muted)',line:'var(--border)',card:'var(--card)',good:'var(--green)',warn:'var(--amber)',bad:'var(--red)',accent:'var(--navy2)',shadow:'var(--shadow)',radius:'var(--rad-sm)'}
     });
   }
@@ -3663,12 +3718,13 @@ function tlPickReassignStore(el){
   const drop=document.getElementById('tl-reassign-drop');
   drop.innerHTML=''; drop.classList.remove('open');
 
-  if(!tlMyMerch.length){
+  const assignable=tlMyMerch.filter(m=>tlCanActOn(m.id));
+  if(!assignable.length){
     document.getElementById('tl-reassign-panel').style.display='block';
-    document.getElementById('tl-reassign-panel').innerHTML='<div style="font-size:12px;color:var(--muted)">No brand ambassadors on your team yet.</div>';
+    document.getElementById('tl-reassign-panel').innerHTML='<div style="font-size:12px;color:var(--muted)">'+(tlMyMerch.length?TL_VIEW_ONLY_MSG:'No brand ambassadors on your team yet.')+'</div>';
     return;
   }
-  const opts=tlMyMerch.map(m=>`<option value="${m.id}">${escapeHtmlM(m.name)}</option>`).join('');
+  const opts=assignable.map(m=>`<option value="${m.id}">${escapeHtmlM(m.name)}</option>`).join('');
   const panel=document.getElementById('tl-reassign-panel');
   panel.style.display='block';
   panel.innerHTML=`
@@ -4406,7 +4462,8 @@ async function loadAuditStores(){
     }
     listEl.innerHTML='<div class="spinner" style="margin:8px auto"></div>';
     // This TL's merchandisers via the reps.team_lead_id FK — same join as loadTLData.
-    const myMerch=await rest(`reps?team_lead_id=eq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
+    const leadIds=await tlLedIds(cu);
+    const myMerch=await rest(`reps?team_lead_id=${pgIn(leadIds)}&id=neq.${cu.id}&${roleIn(MERCH_FIELD_ROLES)}&active=eq.true&select=name&order=name`);
     const myNames=(myMerch||[]).map(m=>m.name);
     if(!myNames.length){
       auditAllStores=[];
@@ -5457,7 +5514,19 @@ function ytdRiskBadgeHtml(customerId){
 }
 
 // ── MY STORES ──
-let storePerf=[], storesPeriod=new Date().getMonth()+1, storesLoaded=false;
+// storePerf is always the current month — the home quick-stores list reads
+// it too. Last month is held separately (storePerfLast) and only shown on the
+// My Stores tab while storesView==='last'.
+let storePerf=[], storesLoaded=false;
+let storePerfLast=null, storeCommLast=null, storesView='cur';
+// Last month's period. get_merch_store_perf builds its period from the
+// current year + (p_month-1) months, so p_month=0 in January is last December.
+const _lastDate = new Date(_curYear, _curMonthNum-2, 1);
+const _lastMonthArg = _curMonthNum-1;
+const _lastPeriod = String(_lastDate.getFullYear())+String(_lastDate.getMonth()+1).padStart(2,'0');
+const _lastLabel = _monthNames[_lastDate.getMonth()]+' '+_lastDate.getFullYear();
+
+function shownStorePerf(){ return storesView==='last' ? (storePerfLast||[]) : storePerf; }
 
 async function ensureStoresLoaded(){
   if(isRelief() && !myStores.length) return; // no route, no targets — nothing for this tab to show
@@ -5467,6 +5536,8 @@ async function ensureStoresLoaded(){
 
 async function loadStorePerf(){
   document.getElementById('stores-list').innerHTML='<div class="stores-loading"><div class="spinner"></div></div>';
+  // The route may have just changed (add/remove store) — drop last month's copy.
+  storePerfLast=null;
   try{
     const [rows]=await Promise.all([
       restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_curMonthNum}),
@@ -5474,32 +5545,73 @@ async function loadStorePerf(){
     ]);
     storePerf=rows||[];
     storesLoaded=true;
+    renderQuickStores();
+    if(storesView==='last'){ await loadLastMonthPerf(); return; }
     renderStoresSummary();
-    renderStores(); renderQuickStores();
+    renderStores();
   }catch(e){
     console.error(e);
     document.getElementById('stores-list').innerHTML='<div class="stores-loading">Failed to load. Check connection.</div>';
   }
 }
 
+async function loadLastMonthPerf(){
+  document.getElementById('stores-list').innerHTML='<div class="stores-loading"><div class="spinner"></div></div>';
+  document.getElementById('stores-summary-banner').innerHTML='';
+  try{
+    const [rows,comm]=await Promise.all([
+      restRpc('get_merch_store_perf',{p_name:cu.full_name,p_month:_lastMonthArg}),
+      rest(`merchandiser_summary?period=eq.${_lastPeriod}&merchandiser_name=eq.${encodeURIComponent(cu.full_name)}&select=commission,stores_qualified,stores_100`).catch(function(){return [];})
+    ]);
+    storePerfLast=rows||[];
+    storeCommLast=(comm||[])[0]||null;
+    if(storesView!=='last') return; // switched back while loading
+    renderStoresSummary();
+    renderStores();
+  }catch(e){
+    console.error(e);
+    document.getElementById('stores-list').innerHTML='<div class="stores-loading">Failed to load. Check connection.</div>';
+  }
+}
+
+function setStoresView(v){
+  if(v===storesView) return;
+  storesView=v;
+  document.getElementById('sv-cur').classList.toggle('on',v==='cur');
+  document.getElementById('sv-last').classList.toggle('on',v==='last');
+  const lbl=document.getElementById('stores-month-lbl');
+  if(lbl) lbl.textContent='My stores — '+(v==='last'?_lastLabel:_curLabel);
+  if(v==='last' && !storePerfLast){ loadLastMonthPerf(); return; }
+  renderStoresSummary();
+  renderStores();
+}
+
 function renderStoresSummary(){
-  const withTarget=storePerf.filter(s=>s.target_amount>0);
-  const qualifying=storePerf.filter(s=>s.qualifying).length;
-  const totalTarget=storePerf.reduce((s,r)=>s+parseFloat(r.target_amount||0),0);
-  const totalActual=storePerf.reduce((s,r)=>s+parseFloat(r.actual_amount||0),0);
+  const perf=shownStorePerf();
+  const qualifying=perf.filter(s=>s.qualifying).length;
+  const totalTarget=perf.reduce((s,r)=>s+parseFloat(r.target_amount||0),0);
+  const totalActual=perf.reduce((s,r)=>s+parseFloat(r.actual_amount||0),0);
   const overallPct=totalTarget>0?Math.round(totalActual/totalTarget*100):0;
+  // Last month is closed, so its commission is final — worth showing here.
+  // (This month's running figure is already on the home screen.)
+  const commHtml = storesView==='last'
+    ? `<div class="ss-comm"><span style="opacity:.75">Commission earned in ${_lastLabel}</span><strong>${storeCommLast?'$'+Math.round(parseFloat(storeCommLast.commission||0)).toLocaleString():'–'}</strong></div>`
+    : '';
   document.getElementById('stores-summary-banner').innerHTML=`
-    <div class="stores-summary">
-      <div class="ss-item"><div class="ss-val">${storePerf.length}</div><div class="ss-lbl">Total stores</div></div>
-      <div class="ss-item"><div class="ss-val">${qualifying}</div><div class="ss-lbl">Qualifying</div></div>
-      <div class="ss-item"><div class="ss-val">${overallPct}%</div><div class="ss-lbl">Overall</div></div>
-      <div class="ss-item"><div class="ss-val">${totalActual>=1e6?"$"+(totalActual/1e6).toFixed(2)+"M":"$"+Math.round(totalActual/1000)+"K"}</div><div class="ss-lbl">Actual</div></div>
+    <div class="stores-summary" style="flex-direction:column;gap:0">
+      <div style="display:flex;gap:20px">
+        <div class="ss-item"><div class="ss-val">${perf.length}</div><div class="ss-lbl">Total stores</div></div>
+        <div class="ss-item"><div class="ss-val">${qualifying}</div><div class="ss-lbl">Qualifying</div></div>
+        <div class="ss-item"><div class="ss-val">${overallPct}%</div><div class="ss-lbl">Overall</div></div>
+        <div class="ss-item"><div class="ss-val">${totalActual>=1e6?"$"+(totalActual/1e6).toFixed(2)+"M":"$"+Math.round(totalActual/1000)+"K"}</div><div class="ss-lbl">Actual</div></div>
+      </div>
+      ${commHtml}
     </div>`;
 }
 
 function renderStores(){
   const sort=document.getElementById('stores-sort').value;
-  let sorted=[...storePerf];
+  let sorted=[...shownStorePerf()];
   if(sort==='pct-desc') sorted.sort((a,b)=>parseFloat(b.achievement_pct||0)-parseFloat(a.achievement_pct||0));
   else if(sort==='pct-asc') sorted.sort((a,b)=>parseFloat(a.achievement_pct||0)-parseFloat(b.achievement_pct||0));
   else if(sort==='name') sorted.sort((a,b)=>a.customer_name.localeCompare(b.customer_name));
@@ -6158,9 +6270,30 @@ function renderPhotoThumbs(){
   });
 }
 
+// Camera exemption — reps.photo_exempt_until (set by an admin in the DB, e.g.
+// a broken phone camera). While today (Jamaica) <= that date, Pictures no
+// longer needs 3 photos, and the visit is stamped photos_waived=true.
+function photoExemptActive(){
+  if(!cu || !cu.photoExemptUntil) return false;
+  const today = new Date().toLocaleDateString('en-CA', {timeZone:'America/Jamaica'});
+  return today <= cu.photoExemptUntil;
+}
+function minPhotos(){ return photoExemptActive() ? 0 : MIN_PHOTOS; }
+function photosWaived(){ return photoExemptActive() && pendingPhotos.length < MIN_PHOTOS; }
+
 function updatePhotoGating(){
   const count = pendingPhotos.length;
-  const met = count >= MIN_PHOTOS;
+  const exempt = photoExemptActive();
+  const met = count >= minPhotos();
+
+  var exNote = document.getElementById('photo-exempt-note');
+  if(exNote){
+    exNote.style.display = exempt ? 'block' : 'none';
+    if(exempt){
+      var d = new Date(cu.photoExemptUntil+'T12:00:00');
+      exNote.textContent = 'Camera exemption is on until ' + d.toLocaleDateString('en-JM',{day:'numeric',month:'short'}) + '. You can continue without photos — take any you can.';
+    }
+  }
 
   // Counter label
   const lbl = document.getElementById('photo-counter-lbl');
@@ -6191,7 +6324,10 @@ function updatePhotoGating(){
   // Status text
   var status = document.getElementById('photo-status');
   if(status){
-    if(met){
+    if(exempt && count < MIN_PHOTOS){
+      status.textContent = count+' photo'+(count!==1?'s':'')+' taken — OK to continue (camera exemption)';
+      status.style.color = 'var(--green)';
+    } else if(met){
       status.textContent = count+' photos taken ✓' + (count < MAX_PHOTOS ? ' — you can add up to '+(MAX_PHOTOS-count)+' more' : '');
       status.style.color = 'var(--green)';
     } else {

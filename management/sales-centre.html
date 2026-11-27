@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DFL Sales Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+/* DFL Sales Centre: Scott's one page for the day (replaces the Head of Sales Desk mockup, 26 Nov 2026).
+   Data: public.sales_hub_data(part, p), read-only, Scott only (is_price_approver). House style = the hubs.
+   Everything opens in a side panel or a pop-up, never a new page. Sections are pill tabs across the top. */
+:root{
+  --navy:#0D1B3E; --blue:#326BD3; --blue-t:#E8F0FC;
+  --card:#FFFFFF; --line:#E1E6EF; --line2:#EEF1F6;
+  --ink:#1A2340; --ink2:#4A5578; --ink3:#8A95B0;
+  --green:#1A8F4C; --green-t:#E6F4EC; --amber:#C47A1A; --amber-t:#FBF1E3; --red:#D63B3B; --red-t:#FBE9E9;
+  --head:'Montserrat',system-ui,'Segoe UI',Arial,sans-serif; --body:'Open Sans',system-ui,'Segoe UI',Arial,sans-serif;
+  --shadow:0 1px 2px rgba(13,27,62,.06),0 4px 14px rgba(13,27,62,.06); --r:12px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:#F3F5F9;color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+.num{font-variant-numeric:tabular-nums}
+.content{min-width:0;padding:0 max(20px,env(safe-area-inset-right,0px)) 60px max(20px,env(safe-area-inset-left,0px))}
+.content>*{max-width:1240px;margin-left:auto;margin-right:auto}
+
+/* title + search */
+.topbar{display:flex;align-items:flex-end;gap:14px;padding-block:20px 8px;flex-wrap:wrap}
+.topbar .grow{flex:1 1 240px;min-width:0}
+.topbar h1{font-family:var(--head);font-size:22px;font-weight:800;margin:0;letter-spacing:-.2px}
+.topbar .sub{color:var(--ink3);font-size:12.5px;margin-top:2px}
+.tctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1 1 520px;justify-content:flex-end}
+.search{position:relative;flex:1 1 300px;max-width:440px;min-width:0}
+.search>svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink3);pointer-events:none}
+.search input{width:100%;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:10px 40px 10px 38px;font:inherit;font-size:13.5px;box-shadow:var(--shadow)}
+.search input::placeholder{color:var(--ink3)}
+.search input:focus{outline:2px solid var(--blue);border-color:var(--blue)}
+.search kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:var(--head);font-size:11px;color:var(--ink3);border:1px solid var(--line);border-radius:5px;padding:1px 7px;background:#F7F9FC}
+#qres{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(13,27,62,.18);z-index:30;overflow:hidden}
+.qrow{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 14px}
+.qrow:last-child{border-bottom:0}
+.qrow:hover,.qrow.on{background:var(--blue-t)}
+.qrow b{font-weight:600}
+.qrow small{color:var(--ink3);display:block;font-size:12px}
+.tag{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-radius:6px;padding:2px 7px;background:var(--blue-t);color:var(--blue);flex:none}
+.btn{font-family:var(--head);font-weight:700;font-size:12.5px;border-radius:10px;padding:10px 14px;border:1px solid var(--blue);background:var(--blue);color:#fff;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.ghost{background:var(--card);color:var(--blue);border-color:var(--line);box-shadow:var(--shadow)}
+.btn.ghost:hover{background:var(--blue-t);filter:none}
+.btn.sm{padding:7px 11px;font-size:12px}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* tabs */
+.ptabs{display:flex;gap:4px;background:#E6EAF2;border-radius:12px;padding:4px;margin:4px auto 6px;overflow-x:auto;scrollbar-width:none;container:ptabs / inline-size}
+.ptabs::-webkit-scrollbar{display:none}
+.ptabs button{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:1 1 auto;gap:7px;padding:9px 12px;border-radius:9px;font-family:var(--head);font-size:13px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.ptabs button svg{width:17px;height:17px;flex:none}
+@container ptabs (max-width:760px){.ptabs button svg{display:none}.ptabs button{padding:9px 9px}}
+.ptabs button:hover{color:var(--ink)}
+.ptabs button[aria-selected="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(13,27,62,.12)}
+.ptabs button[aria-selected="true"] svg{color:var(--blue)}
+.ptabs button:focus-visible{outline:2px solid var(--blue)}
+.ptabs .ct{margin-left:2px;background:var(--red);color:#fff;font-size:10.5px;border-radius:9px;padding:0 6px;line-height:17px}
+.asofline{font-size:11.5px;color:var(--ink3);margin:0 auto 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.asofline i{display:inline-block;width:2px;height:12px;background:var(--ink)}
+.asofline .dot{width:3px;height:3px;border-radius:50%;background:var(--ink3)}
+
+/* calm tiles */
+.ftiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:0 auto 16px}
+@media (max-width:1399px){.ftiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:640px){.ftiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ft{all:unset;box-sizing:border-box;cursor:default;display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;border-radius:var(--r);padding:18px 16px 12px;
+  background:color-mix(in srgb,var(--ftc) 9%,#fff);color:var(--ink);border:1px solid color-mix(in srgb,var(--ftc) 26%,#fff);
+  box-shadow:inset 0 5px 0 var(--ftc),0 1px 2px rgba(20,35,70,.06);transition:box-shadow .12s}
+button.ft{cursor:pointer}
+button.ft:hover{box-shadow:inset 0 5px 0 var(--ftc),0 6px 16px rgba(13,27,62,.12)}
+button.ft:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.ft .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--ftc) 15%,#fff);color:var(--ftc);margin-bottom:6px}
+.ft .ic svg{width:19px;height:19px}
+.ft .l{font-family:var(--head);font-size:12.5px;font-weight:600;color:color-mix(in srgb,var(--ftc) 55%,#3A4766)}
+.ft .n{font-family:var(--head);font-weight:800;font-size:25px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--ftc)}
+.ft .xs{display:block;width:100%;font-size:11.5px;color:var(--ink2);margin-top:8px;padding-top:8px;border-top:1px solid color-mix(in srgb,var(--ftc) 22%,#fff)}
+
+.av{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--head);font-weight:700;font-size:11px;color:#fff;box-shadow:0 0 0 2px #fff}
+.who2{display:flex;align-items:center;gap:10px;min-width:0}
+.who2>span:last-child{min-width:0;display:block}
+
+main{padding-block:8px 40px}
+h2{font-family:var(--head);font-size:14.5px;font-weight:800;margin:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{background:var(--card);border:1px solid #E8ECF3;border-radius:var(--r);box-shadow:var(--shadow);min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px 20px 12px;flex-wrap:wrap}
+.card>header p{margin:2px 0 0;font-size:12px;color:var(--ink3)}
+.card .body{padding:0 4px 8px}
+.hact{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.more{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--blue);background:none;border:0;padding:4px 2px;white-space:nowrap}
+.more:hover{text-decoration:underline}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:14px;color:var(--ink2);font-size:13px;margin:0 16px 12px}
+.err{background:var(--red-t);color:#8f1f1f;border-radius:10px;padding:14px;font-size:13px}
+
+/* rows (Pulse cards) */
+.row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 16px;border-radius:0}
+.row:first-child{border-top:0}
+button.row:hover{background:var(--blue-t)}
+.row b{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row small{color:var(--ink3);font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pct{font-family:var(--head);font-weight:700;font-size:14px;min-width:44px;text-align:right}
+.pct.g{color:var(--green)}.pct.a{color:var(--amber)}.pct.r{color:var(--red)}
+.bt{position:relative;height:8px;background:#E8ECF5;border-radius:4px}
+.bt i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.bt i.g{background:var(--green)}.bt i.a{background:var(--amber)}.bt i.r{background:var(--red)}.bt i.b{background:var(--blue)}
+.bt u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);text-decoration:none}
+.pill{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-radius:12px;padding:3px 9px;white-space:nowrap;display:inline-block}
+.pill.g{background:var(--green-t);color:var(--green)}.pill.a{background:var(--amber-t);color:var(--amber)}.pill.r{background:var(--red-t);color:var(--red)}.pill.n{background:var(--blue-t);color:var(--blue)}
+
+/* tables: fixed columns, even padding, sortable headers, no sideways scroll */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+th{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink3);text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:#FAFBFD}
+td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+th:first-child,td:first-child{padding-left:20px}
+th:last-child,td:last-child{padding-right:24px}
+table.dense th,table.dense td{padding-left:10px;padding-right:10px}
+table.dense th:first-child,table.dense td:first-child{padding-left:20px}
+table.dense th:last-child,table.dense td:last-child{padding-right:20px}
+th.r,td.r{text-align:right}
+th.c,td.c{text-align:center}
+.sorth{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.sorth i{font-style:normal;font-size:8px;opacity:.35}
+.sorth.on{color:var(--ink)}
+.sorth.on i{opacity:1;color:var(--blue)}
+.sorth:hover{color:var(--ink)}
+.sorth:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+tr[data-open],tr[data-exp],tr[data-area],tr[data-rrep]{cursor:pointer}
+tr[data-open]:hover td,tr[data-exp]:hover td,tr[data-area]:hover td,tr[data-rrep]:hover td{background:var(--blue-t)}
+.chev{display:inline-block;width:14px;color:var(--ink3);font-size:10px}
+tr.open>td{background:#fff;border-bottom-color:transparent}
+tr.open:hover>td{background:#fff}
+tr.open .chev{color:var(--blue)}
+tr.sub>td{background:#E6EAF2;padding:6px 24px 18px 44px;overflow:visible;border-bottom:1px solid #D9DFEB}
+.xp{background:#fff;border:1px solid #D9DFEB;border-left:4px solid var(--blue);border-radius:10px;box-shadow:0 2px 8px rgba(13,27,62,.06);overflow:hidden}
+.xp-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 16px;background:#F4F6FA;border-bottom:1px solid var(--line);font-family:var(--head);font-size:12.5px;color:var(--navy);flex-wrap:wrap}
+.xp-h span{font-weight:500;color:var(--ink2);font-family:var(--body);font-size:12px}
+.xp table{font-size:12.5px;background:#fff}
+.xp th{background:#fff;padding:9px 12px;border-bottom:1px solid #E3E8F2}
+.xp td{padding:10px 12px;border-bottom:1px solid #EDF0F6}
+.xp tr:last-child td{border-bottom:0}
+.xp tbody tr:hover td{background:#F5F8FE}
+.xp th:first-child,.xp td:first-child{padding-left:16px}
+.xp th:last-child,.xp td:last-child{padding-right:16px}
+td .bt{min-width:90px}
+td .barc{display:flex;gap:10px;align-items:center}
+td .barc .bt{flex:1}
+.mut{color:var(--ink3)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 12px;align-items:center}
+.filters .sp{width:10px}
+.f{font-family:var(--head);font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--card);border-radius:16px;padding:5px 12px;color:var(--ink2)}
+.f[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+.filters select{width:auto}
+.filters input.s{width:240px;max-width:100%;padding:7px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
+select,textarea,input.ro{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:12.5px}
+select.full,textarea,input.ro{width:100%}
+textarea{resize:vertical;line-height:1.5;font-size:13px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{font-family:var(--head);font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:9px 12px;color:var(--ink2)}
+.seg button[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* side panel + pop-up (above the portal's own top bar and menu) */
+.scrim{position:fixed;inset:0;background:rgba(13,27,62,.45);z-index:300;opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:var(--card);z-index:301;transform:translateX(102%);transition:transform .2s ease;display:flex;flex-direction:column;box-shadow:-12px 0 36px rgba(13,27,62,.25)}
+.drawer.on{transform:none}
+.dh{background:var(--card);border-bottom:1px solid var(--line);padding:16px 18px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-top:max(16px,env(safe-area-inset-top,0px))}
+.dh h3{margin:6px 0 0;font-family:var(--head);font-size:20px;font-weight:800;line-height:1.25;letter-spacing:-.2px}
+.dh p{margin:2px 0 0;font-size:12.5px;color:var(--ink3)}
+.x{background:#fff;border:1px solid var(--line);color:var(--ink2);border-radius:9px;width:32px;height:32px;font-size:18px;line-height:1;flex:none}
+.x:hover{background:var(--blue-t);color:var(--blue)}
+.db{padding:16px 18px;overflow-y:auto;flex:1;padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+.db h4{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink3);margin:20px 0 8px}
+.db h4:first-child{margin-top:0}
+.facts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.fact{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.fact small{display:block;font-family:var(--head);font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--ink3)}
+.fact b{font-family:var(--head);font-size:18px;display:block;margin-top:2px}
+.fact span{font-size:12px;color:var(--ink3)}
+.list{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.list .li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px}
+.list .li:first-child{border-top:0}
+.list .li small{color:var(--ink3);display:block;font-size:12px}
+.list button.li{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;cursor:pointer}
+.list button.li:first-child{border-top:0}
+.list button.li:hover{background:var(--blue-t)}
+.list button.li small{color:var(--ink3);display:block;font-size:12px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.callout{border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.callout.r{background:var(--red-t);color:#8f1f1f}.callout.a{background:var(--amber-t);color:#7a4a0c}.callout.g{background:var(--green-t);color:#0f5f31}.callout.n{background:var(--blue-t);color:#1d4a9e}
+.modal{position:fixed;inset:0;z-index:302;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.on{display:flex}
+.mbox{background:var(--card);border-radius:14px;width:min(780px,100%);max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(13,27,62,.35)}
+.mbox>.mh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pad{padding:16px 18px}
+label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink3);display:block;margin-bottom:5px}
+.snapctl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:14px;align-items:end}
+.cardwrap{margin-top:16px;background:#E6EAF2;border-radius:12px;padding:14px;overflow-x:auto}
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:303;max-width:calc(100% - 32px)}
+
+/* WhatsApp card (what gets sent) */
+.wcard{width:700px;background:#fff;color:#0D1B3E;font-family:var(--body);border-radius:4px;overflow:hidden;margin:0 auto}
+.wc-h{background:#0D1B3E;border-bottom:6px solid #F9A825;padding:30px 36px 26px}
+.wc-eye{color:#F9A825;font:700 12px var(--head);letter-spacing:2.4px;text-transform:uppercase}
+.wc-t{color:#fff;font:800 30px/1.2 var(--head);margin-top:10px}
+.wc-s{color:#B7C3E3;font-size:14px;margin-top:8px}
+.wc-b{padding:26px 36px 30px}
+.wc-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.wc-tile{background:#F4F6FB;border-left:5px solid var(--c);border-radius:12px;padding:16px 18px}
+.wc-tile b{display:block;font:800 30px/1.15 var(--head);color:#0D1B3E}
+.wc-tile span{display:block;font-size:13px;color:#4A5578;margin-top:2px}
+.wc-hd{font:800 14px var(--head);letter-spacing:1.4px;text-transform:uppercase;margin:26px 0 6px}
+.wc-tb{width:100%;border-collapse:collapse;table-layout:auto}
+.wc-tb th{background:none;font:700 12px var(--head);letter-spacing:0;text-transform:none;color:#4A5578;padding:8px;border-bottom:2px solid #0D1B3E}
+.wc-tb td{padding:13px 8px;border-bottom:1px solid #E1E6F0;font-size:15px;vertical-align:middle;overflow:visible;white-space:normal}
+.wc-tb td.r,.wc-tb th.r{text-align:right}
+.wc-tb th:first-child,.wc-tb td:first-child{padding-left:8px}
+.wc-tb th:last-child,.wc-tb td:last-child{padding-right:8px}
+.wc-n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#0D1B3E;color:#fff;font:700 12px var(--head);margin-right:12px;vertical-align:middle}
+.wc-nm{font:700 15px var(--head);vertical-align:middle}
+.wc-bg{font:700 11px var(--head);border-radius:14px;padding:4px 10px;margin-left:10px;vertical-align:middle;white-space:nowrap}
+.wc-bg.n{background:#E3ECFB;color:#326BD3}.wc-bg.r{background:#FBE8E8;color:#C23030}.wc-bg.a{background:#FBF1E1;color:#B26B12}.wc-bg.g{background:#E6F4EC;color:#1A8F4C}
+.wc-sub{font-size:12.5px;color:#6B7794;margin:3px 0 0 40px}
+.wc-note{margin-top:22px;background:#FFF5E4;border:1.5px solid #F9A825;border-radius:12px;padding:18px 22px;font-size:15px;line-height:1.55;white-space:pre-wrap}
+
+.phone{max-width:380px;margin:0 auto;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#F3F5F9}
+.phone iframe{width:100%;height:560px;border:0;display:block}
+
+/* Chain and Key overall cards: calm, one soft tint per group so they are easy to tell apart */
+.kts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0 20px 14px}
+/* Sales support rows: a fixed last column so "Active" and "No activity today" do not push the middle column about */
+.row.rowsup{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 132px}
+.row.rowsup .pill{justify-self:end}
+#dropBox{margin-top:24px}
+.dsum{font-size:13px;color:var(--ink2);margin:0 0 10px;line-height:1.5}
+.dsum b{color:var(--ink);font-family:var(--head)}
+.dlist .dhead,.dlist .drow{display:grid;grid-template-columns:minmax(0,1fr) 96px 84px;gap:12px;align-items:center;padding:10px 12px}
+.dlist .dhead{background:#FAFBFD;font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink3)}
+.dlist .dhead span:nth-child(n+2),.dlist .drow>*:nth-child(n+2){text-align:right}
+.dlist .drow{background:none;border:0;border-top:1px solid var(--line);width:100%;text-align:left;font-size:13px;cursor:pointer}
+.dlist .drow:hover{background:var(--blue-t)}
+.dlist .drow b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dnote{font-size:12px;color:var(--ink3);margin:8px 0 0}
+.lnk{all:unset;cursor:pointer;color:var(--blue);font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+.lnk:hover{text-decoration:underline}
+.lnk:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
+.kt{all:unset;box-sizing:border-box;cursor:pointer;display:block;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;box-shadow:var(--shadow)}
+.kt.chain{--kc:#326BD3;background:#F1F6FE;border-color:#D3E1F7}
+.kt.key{--kc:#7B4FD0;background:#F6F2FD;border-color:#E0D6F4}
+.kt.key_damita{--kc:#127F8C;background:#EFF8F9;border-color:#CFE6EA}
+.kt:hover{border-color:var(--kc)}
+.kt[aria-pressed="true"]{border-color:var(--kc);box-shadow:0 0 0 2px color-mix(in srgb,var(--kc) 22%,#fff),var(--shadow)}
+.kt:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.kt .kl{font-family:var(--head);font-size:12px;font-weight:700;color:var(--ink2);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.kt .kl>span:first-child::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--kc);margin-right:8px}
+.kt .kn{font-family:var(--head);font-weight:800;font-size:20px}
+.kt .bt{margin:8px 0 6px;background:rgba(13,27,62,.09)}
+.kt .ks{display:block;font-size:11.5px;color:var(--ink3)}
+.seg.big button{font-size:13px;padding:10px 20px}
+.seg.big button[data-set="storeT:key"][aria-pressed=true],.seg.big button[data-set="storeT:key_all"][aria-pressed=true]{background:#7B4FD0;border-color:#7B4FD0}
+.seg.big button[data-set="storeT:key_other"][aria-pressed=true]{background:#5B6B8C;border-color:#5B6B8C}
+.seg.big button[data-set="storeT:key_damita"][aria-pressed=true]{background:#127F8C;border-color:#127F8C}
+@media (max-width:1100px){.kts{grid-template-columns:minmax(0,1fr)}}
+
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.snapctl{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){.content{padding-left:14px;padding-right:14px}}
+@media (max-width:520px){.row{grid-template-columns:minmax(0,1fr) auto}.row .bt{grid-column:1/-1;order:3}}
+@media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
+</style>
+</head>
+<body style="visibility:hidden">
+<div class="content portal">
+  <div class="topbar">
+    <div class="grow"><h1>DFL Sales Centre</h1><div class="sub" id="psub">&nbsp;</div></div>
+    <div class="tctl">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+        <input id="q" type="search" autocomplete="off" placeholder="Look up an order, customer, product or rep" aria-label="Quick lookup">
+        <kbd>/</kbd>
+        <div id="qres" hidden></div>
+      </div>
+      <button class="btn ghost" id="refreshBtn" type="button">&#8635; Refresh</button>
+      <button class="btn" id="snapTop" type="button">Make card</button>
+    </div>
+  </div>
+  <nav class="ptabs" id="tabs" aria-label="Sales Centre sections" role="tablist"></nav>
+  <div class="asofline" id="asof"></div>
+  <div id="strip"></div>
+  <main id="view"><div class="empty">Loading the latest figures…</div></main>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" aria-label="Detail"></aside>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="mbox" id="mbox"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/shared/supabase-client.js"></script>
+<script src="/shared/routes.js"></script>
+<script src="/shared/auth-guard.js"></script>
+<script src="/shared/side-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+<script>window.DFL_PAGE_TITLE = 'DFL Sales Centre';</script>
+<script>
+(function () {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const num = (v) => (v == null || v === '' ? 0 : Number(v));
+/* under J$1M shows as J$800K (J$450 under a thousand); J$1M and over shows in millions or in full */
+const small = (v) => (Math.abs(v) >= 1000 ? 'J$' + Math.round(v / 1e3) + 'K' : 'J$' + Math.round(v));
+const M = (v) => { v = num(v); return Math.abs(v) >= 1e6 ? 'J$' + (v / 1e6).toFixed(1) + 'M' : small(v); };
+const K = (v) => { v = num(v); return Math.abs(v) >= 1e6 ? 'J$' + (v / 1e6).toFixed(2) + 'M' : small(v); };
+const J = (v) => { v = num(v); return Math.abs(v) < 1e6 ? small(v) : 'J$' + Math.round(v).toLocaleString('en-US'); };
+const tc = (s) => String(s || '').toLowerCase().replace(/(^|[\s\-'(\/&])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+const first = (n) => String(n || '').split(' ')[0];
+const TZ = 'America/Jamaica';
+const fmtDay = (d) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+const fmtShort = (d) => d ? new Date(String(d).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+const fmtTime = (t) => t ? new Date(t).toLocaleTimeString('en-GB', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true }).replace(' ', '').toLowerCase() : '';
+const dayKey = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: TZ });
+const todayKey = () => new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+const lastTouchText = (t) => !t ? 'never' : (dayKey(t) === todayKey() ? 'today ' + fmtTime(t) : fmtDay(dayKey(t)));
+const daysAgo = (d) => d ? Math.max(0, Math.round((new Date(todayKey() + 'T12:00:00') - new Date(String(d).slice(0, 10) + 'T12:00:00')) / 864e5)) : null;
+
+/* ---------- state and data ---------- */
+let SHOULD = 86;
+const S = { tab: 'pulse', repF: 'all', ordF: 'all', ordView: 'list', ordChan: 'all', ordArea: 'all', ordRep: 'all', storeT: 'chain', ordQ: '', boBy: 'line', boSup: 'all', boRep: 'all', boChan: 'all', boAge: 'all', boQ: '', boOpen: {}, sort: {}, snapRep: '', snapPack: 'bo', notes: {} };
+const D = { pulse: null, reps: [], orders: [], stores: [], cats: [], areas: [], bo: [], support: [], supMap: {}, boByNbr: {}, loaded: false, error: null };
+const TABS = [['pulse', 'Pulse'], ['reps', 'Reps'], ['orders', 'Orders'], ['bo', 'Back orders'], ['cats', 'Categories'], ['stores', 'Chain & Key']];
+const AREA_ORDER = ['South East', 'South Central', 'South West', 'North West', 'North East', 'Hospitality North', 'Hospitality South', 'Unassigned'];
+/* Chain / Key groups come from ask_kam_accounts, the same lists the Chain & Key dashboard and the Chain and Key hubs use:
+   chain = Andrea Skelton (44), key = Shallet Marsh (35), key_damita = Damita Samuels-Foster (22) */
+const GRP = { chain: 'Chain', key: 'Key · Shallet', key_damita: 'Key · Damita', key_other: 'Key', key_all: 'All key' };
+/* key_other = customers marked Key in Acumatica that are not on Shallet's or Damita's list (they sit in reps' books) */
+const STORE_TYPES = [['all', 'All stores'], ['chain', 'Chain'], ['key_all', 'All key stores'], ['key', 'Key · Shallet'], ['key_damita', 'Key · Damita']];
+const OST = { credit: ['Credit hold', 'r'], hold: ['On hold', 'a'], open: ['Open', 'n'], shipping: ['Shipping', 'g'] };
+const STKEY = { 'Open': 'open', 'Shipping': 'shipping', 'On Hold': 'hold', 'Credit Hold': 'credit' };
+const ANS = { close: ['Closed', 'n'], re: ['Reopened', 'g'] };
+const cls = (a) => (a >= SHOULD ? 'g' : (a >= SHOULD - 8 ? 'a' : 'r'));
+const COL = { g: '#1A8F4C', a: '#C47A1A', r: '#D63B3B' };
+
+async function rpc(part, p) {
+  const r = await sb.rpc('sales_hub_data', { p_part: part, p: p || {} });
+  if (r.error) throw r.error;
+  return r.data;
+}
+function stockState(s71, qty) {
+  if (s71 == null) return ['Stock n/a', 'n'];
+  return s71 <= 0 ? ['Out of stock', 'r'] : (s71 < qty ? ['Short at 71', 'a'] : ['In stock at 71', 'g']);
+}
+async function loadAll() {
+  const [pulse, reps, orders, bo, sup, stores, cats] = await Promise.all([rpc('pulse'), rpc('reps'), rpc('orders'), rpc('backorders'), rpc('support'), rpc('stores'), rpc('categories')]);
+  D.pulse = pulse; SHOULD = num(pulse.pace_pct) || 86;
+  D.reps = (reps.reps || []).map((r) => ({ name: r.name, short: first(r.name), area: r.area, target: num(r.target), sales: num(r.sales), ach: Math.round(num(r.ach)), achx: num(r.ach), open_v: num(r.open_v), bo_v: num(r.bo_v), support: r.support || 'Not assigned', last: r.last_invoice }));
+  D.orders = (orders.orders || []).map((o) => ({ nbr: o.nbr, st: STKEY[o.st] || 'open', date: o.date, days: num(o.days), cid: o.cid, cust: tc(o.cust), rep: o.rep, area: o.area, chan: o.chan, v: num(o.v) }));
+  D.areas = (orders.areas || []).map((a) => ({ a: a.a, open_n: num(a.open_n), open_v: num(a.open_v), credit_n: num(a.credit_n), credit_v: num(a.credit_v), hold_n: num(a.hold_n), hold_v: num(a.hold_v), bo_n: num(a.bo_n), bo_v: num(a.bo_v) }));
+  D.supMap = bo.support || {};
+  D.bo = (bo.lines || []).map((l) => { const qty = num(l.qty), s71 = l.s71 == null ? null : num(l.s71), ss = stockState(s71, qty);
+    return { nbr: l.nbr, line: l.line, item: l.item || l.sku, sku: l.sku, cid: l.cid, cust: tc(l.cust), qty, v: num(l.v), days: num(l.days), rep: l.rep, area: l.area, chan: l.chan, s71, ss,
+      sup: D.supMap[l.rep] || 'Not assigned', ans: l.ans, ansState: l.ans_state, flag: ss[1] === 'g' && num(l.days) >= 4 }; });
+  D.boByNbr = {}; D.bo.forEach((l) => { D.boByNbr[l.nbr] = l; });
+  D.support = (sup.support || []).map((s) => ({ n: s.support, full: s.full_name, reps: s.reps || [], acted: num(s.acted_today), last: s.last_touch, bo_n: num(s.bo_n), open_n: num(s.open_n), hold_n: num(s.hold_n) }));
+  D.stores = (stores.stores || []).map((s) => { const target = num(s.target), sales = num(s.sales);
+    return { id: s.id, name: tc(s.name), grp: s.grp, kam: s.kam, target, sales, ach: target > 0 ? Math.round(sales / target * 100) : null, open_v: num(s.open_v), bo_v: num(s.bo_v), last: s.last }; });
+  D.cats = (cats.cats || []).map((c) => { const target = num(c.target), sales = num(c.sales);
+    return { cls: c.cls, cm: c.cm, target, sales, ach: target > 0 ? Math.round(sales / target * 100) : null, gp: c.gp_pct == null ? null : num(c.gp_pct), open_v: num(c.open_v), bo_v: num(c.bo_v) }; });
+  D.loaded = true; D.error = null; D.at = new Date();
+}
+
+/* ---------- icons, tiles, small parts ---------- */
+const ICO = {
+  pulse: '<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',
+  reps: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
+  orders: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+  bo: '<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  cats: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  stores: '<path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6"/>',
+  money: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5v11"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+  trend: '<path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/>',
+  card: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>'
+};
+const icon = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.8}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]}</svg>`;
+const AVC = ['#326BD3', '#7B4FD0', '#127F8C', '#C47A1A', '#D63B3B', '#1A8F4C', '#0D1B3E', '#B5487A'];
+const av = (n) => { let h = 0; const s = String(n || '?'); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; const ini = s.split(/[\s-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase(); return `<span class="av" style="background:${AVC[h % AVC.length]}" aria-hidden="true">${esc(ini)}</span>`; };
+const bar = (a) => `<div class="bt" title="${a}% of target, should be ${SHOULD}% by today"><i class="${cls(a)}" style="width:${Math.min(Math.max(a, 0), 100)}%"></i><u style="left:${Math.min(SHOULD, 100)}%"></u></div>`;
+const barc = (a) => `<div class="barc">${bar(a)}<b class="pct ${cls(a)}">${a}%</b></div>`;
+const stp = (ss) => `<span class="pill ${ss[1]}">${ss[0]}</span>`;
+const ordPill = (o) => `<span class="pill ${OST[o.st][1]}">${OST[o.st][0]}</span>`;
+const ansPill = (l) => l.ans ? `<span class="pill ${ANS[l.ans][1]}" title="${esc(l.ansState || '')}">${ANS[l.ans][0]}</span>` : '<span class="pill a">Not answered</span>';
+function tile(ic, col, l, n, x, go, title) {
+  const inner = `<span class="ic">${icon(ic, 2)}</span><span class="l">${l}</span><span class="n">${n}</span><span class="xs">${x}</span>`;
+  const t = title ? ` title="${esc(title)}"` : '';
+  return go ? `<button type="button" class="ft" data-go="${go}"${t} style="--ftc:${col}">${inner}</button>` : `<div class="ft"${t} style="--ftc:${col}">${inner}</div>`;
+}
+let toastT; function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3600); }
+function copyText(txt) {
+  const fb = () => { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) { /* no clipboard */ } document.body.removeChild(ta); toast(ok ? 'Copied.' : 'Select the text and copy it.'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => toast('Copied.'), fb); else fb();
+}
+
+/* ---------- sortable table ---------- */
+const DEFS = {};
+function dt(key, cols, rows, o) {
+  o = o || {}; DEFS[key] = o.def;
+  const s = S.sort[key] || o.def, col = cols.find((c) => c.id === s.id) || cols[0];
+  const data = rows.slice().sort((a, b) => { const x = col.val(a), y = col.val(b); const d = (typeof x === 'string' || typeof y === 'string') ? String(x).localeCompare(String(y)) : x - y; return d * s.dir; });
+  const cg = '<colgroup>' + cols.map((c) => `<col style="width:${c.w}%">`).join('') + '</colgroup>';
+  const th = cols.map((c) => { const on = s.id === c.id, ar = on ? (s.dir > 0 ? '▲' : '▼') : '↕';
+    return `<th class="${c.al || ''}" aria-sort="${on ? (s.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="sorth${on ? ' on' : ''}" data-sort="${key}:${c.id}"${c.num ? ' data-n="1"' : ''}>${c.label}<i>${ar}</i></button></th>`; }).join('');
+  const body = data.map((r) => {
+    const attr = o.attr ? o.attr(r) : (o.open ? `data-open="${esc(o.open(r))}"` : '');
+    return `<tr ${attr}>` + cols.map((c) => `<td class="${c.al || ''}">${c.html(r)}</td>`).join('') + '</tr>' + (o.sub ? o.sub(r, cols.length) : '');
+  }).join('');
+  return `<div class="tw"><table class="dense" style="min-width:${o.minw || 0}px">${cg}<thead><tr>${th}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" class="mut">${o.empty || 'Nothing here.'}</td></tr>`}</tbody></table></div>`;
+}
+const card = (title, sub, more, tab, inner) => `<section class="card"><header><div><h2>${title}</h2><p>${sub}</p></div><button class="more" data-tab="${tab}">${more} &rarr;</button></header><div class="body">${inner}</div></section>`;
+const chips = (key, list, counts) => list.map((f) => `<button type="button" class="f" data-set="${key}:${f[0]}" aria-pressed="${S[key] === f[0]}">${f[1]}${counts ? ' ' + counts(f[0]) : ''}</button>`).join('');
+const selBox = (key, opts, label) => `<select id="${key}" data-sel="${key}" aria-label="${label}">${opts.map((o) => `<option value="${esc(o[0])}"${S[key] === o[0] ? ' selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
+const searchBox = (key, ph) => `<input class="s" type="search" id="${key}" data-q="${key}" placeholder="${ph}" value="${esc(S[key])}" aria-label="${ph}">`;
+const areaList = () => { const set = new Set(D.orders.map((o) => o.area).concat(D.areas.map((a) => a.a))); return AREA_ORDER.filter((a) => set.has(a)).concat([...set].filter((a) => !AREA_ORDER.includes(a))); };
+
+/* ---------- header, tabs, tiles ---------- */
+function header() {
+  if (!D.pulse) return;
+  const p = D.pulse;
+  $('psub').textContent = fmtDay(p.as_at) + ' · sales to ' + fmtDay(p.as_at) + ' · figures refreshed ' + fmtTime(p.refreshed_at) + ', orders live';
+  const left = num(p.wd_total) - num(p.wd_done), mon = new Date(String(p.as_at).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-GB', { month: 'long' });
+  $('asof').innerHTML = `<span>Day ${num(p.wd_done)} of ${num(p.wd_total)} working days, ${left} left</span><span class="dot"></span><span>${num(p.cal_days)} calendar days in ${mon}</span>`;
+}
+function renderTabs() {
+  const held = D.orders.filter((o) => o.st === 'credit' || o.st === 'hold').length;
+  $('tabs').innerHTML = TABS.map((t) => `<button type="button" role="tab" data-tab="${t[0]}" aria-selected="${S.tab === t[0]}">${icon(t[0])}<span>${t[1]}</span>${t[0] === 'orders' && held ? `<span class="ct">${held}</span>` : ''}</button>`).join('');
+}
+function setTab(t) { S.tab = t; history.replaceState(null, '', '#' + t); renderTabs(); render(); window.scrollTo(0, 0); }
+function stripHTML() {
+  const p = D.pulse, ach = num(p.ach_pct), proj = num(p.projected), tgt = num(p.target), pp = tgt ? Math.round(proj / tgt * 100) : 0;
+  const pc = pp >= 100 ? COL.g : pp >= 95 ? COL.a : COL.r;
+  const holdV = num(p.credit_v) + num(p.hold_v), holdN = num(p.credit_n) + num(p.hold_n);
+  return '<div class="ftiles">' +
+    tile('target', '#7B4FD0', 'Month target', M(tgt), `<b style="color:${COL[cls(ach)]}">${ach}%</b> achieved, should be ${SHOULD}% by today`) +
+    tile('money', '#326BD3', 'Sales this month', M(p.sales), 'to ' + fmtDay(p.as_at)) +
+    tile('trend', pc, 'Projected month-end', M(proj), 'as of ' + fmtDay(p.as_at), '', `Sales to the last completed working day, scaled by how much earlier months grew from the same point to month-end. Range ${M(p.proj_low)} to ${M(p.proj_high)}. Same figure as the EA Command Centre.`) +
+    tile('orders', '#127F8C', 'Open orders', M(p.open_v), `${num(p.open_n)} orders awaiting shipment`, 'orders:area') +
+    tile('bo', '#C47A1A', 'Back orders', M(p.bo_v), `${num(p.bo_n)} orders on back order`, 'bo:all') +
+    tile('card', COL.r, 'On hold', M(holdV), `${holdN} orders: ${num(p.credit_n)} credit hold, ${num(p.hold_n)} on hold`, 'orders:held') + '</div>';
+}
+
+/* ---------- Pulse ---------- */
+const repRow = (r) => `<button class="row" data-open="rep:${esc(r.name)}"><span class="who2">${av(r.name)}<span><b>${esc(r.short)}</b><small>${esc(M(r.sales))} of ${esc(M(r.target))} &middot; support: ${esc(r.support)}</small></span></span>${bar(r.ach)}<span class="pct ${cls(r.ach)}">${r.ach}%</span></button>`;
+function vPulse() {
+  const reps = D.reps.filter((r) => r.target > 0).sort((a, b) => a.ach - b.ach).slice(0, 5);
+  const sup = D.support.map((s) => { const ok = s.acted > 0;
+    return `<button class="row rowsup" data-open="support:${esc(s.n)}"><span class="who2">${av(s.n)}<span><b>${esc(s.n)}</b><small>${s.bo_n} back orders &middot; ${s.hold_n} on hold</small></span></span><span><b class="num">${s.acted} actioned today</b><small>last touch ${esc(lastTouchText(s.last))}</small></span><span class="pill ${ok ? 'g' : 'r'}">${ok ? 'Active' : 'No activity today'}</span></button>`; }).join('');
+  const behindCats = D.cats.filter((c) => c.ach != null && c.target >= 1e6).sort((a, b) => a.ach - b.ach).slice(0, 5).map((c) =>
+    `<button class="row" data-open="cat:${esc(c.cls)}"><span><b>${esc(c.cls)}</b><small>${c.cm ? esc(c.cm) : 'no category manager'} &middot; ${M(c.sales)} of ${M(c.target)}</small></span>${bar(c.ach)}<span class="pct ${cls(c.ach)}">${c.ach}%</span></button>`).join('');
+  const behindStores = D.stores.filter((s) => s.ach != null).sort((a, b) => a.ach - b.ach).slice(0, 5).map((s) =>
+    `<button class="row" data-open="cust:${esc(s.id)}"><span><b>${esc(s.name)}</b><small>${esc(GRP[s.grp] || '')} &middot; ${K(s.sales)} of ${K(s.target)}</small></span>${bar(s.ach)}<span class="pct ${cls(s.ach)}">${s.ach}%</span></button>`).join('');
+  return '<div class="grid">' +
+    card('Sales support: is it being worked?', 'Ticks and notes in the Sales Support Hub, today', 'Back orders', 'bo', sup || '<div class="empty">No support people set up.</div>') +
+    card('Reps falling behind', '5 lowest against month target', 'All reps', 'reps', reps.map(repRow).join('')) +
+    card('Categories falling behind', '5 lowest against month target', 'All categories', 'cats', behindCats || '<div class="empty">No category targets found.</div>') +
+    card('Chain and Key stores falling behind', '5 lowest against month target', 'All stores', 'stores', behindStores || '<div class="empty">No store targets found.</div>') + '</div>';
+}
+
+/* ---------- Reps ---------- */
+function vReps() {
+  let list = D.reps.filter((r) => r.target > 0);
+  if (S.repF === 'behind') list = list.filter((r) => r.ach < SHOULD);
+  if (S.repF === 'track') list = list.filter((r) => r.ach >= SHOULD);
+  const fl = [['all', 'All ' + D.reps.filter((r) => r.target > 0).length], ['behind', 'Behind'], ['track', 'On track']].map((f) => `<button class="f" data-repf="${f[0]}" aria-pressed="${S.repF === f[0]}">${f[1]}</button>`).join('');
+  const cols = [
+    { id: 'name', label: 'Rep', w: 14, val: (r) => r.short, html: (r) => `<span class="who2">${av(r.name)}<b>${esc(r.short)}</b></span>` },
+    { id: 'sup', label: 'Support', w: 10, val: (r) => r.support, html: (r) => esc(r.support) },
+    { id: 'ach', label: 'Achieved', w: 22, num: 1, val: (r) => r.ach, html: (r) => barc(r.ach) },
+    { id: 'mtd', label: 'Sales', w: 10, al: 'r', num: 1, val: (r) => r.sales, html: (r) => `<span class="num">${M(r.sales)}</span>` },
+    { id: 'tgt', label: 'Target', w: 10, al: 'r', num: 1, val: (r) => r.target, html: (r) => `<span class="num">${M(r.target)}</span>` },
+    { id: 'oo', label: 'Open orders', w: 11, al: 'c', num: 1, val: (r) => r.open_v, html: (r) => `<span class="num">${M(r.open_v)}</span>` },
+    { id: 'bo', label: 'Back orders', w: 11, al: 'c', num: 1, val: (r) => r.bo_v, html: (r) => `<span class="num">${M(r.bo_v)}</span>` },
+    { id: 'last', label: 'Last order', w: 12, al: 'c', num: 1, val: (r) => daysAgo(r.last) == null ? 999 : daysAgo(r.last), html: (r) => { const d = daysAgo(r.last); return d == null ? '<span class="mut">none</span>' : (d === 0 ? 'today' : d + 'd ago'); } }];
+  return `<section class="card"><header><div><h2>Reps</h2><p>Click a column heading to sort. Click a rep for their numbers, what needs you and a card to send.</p></div><div class="hact"><button class="btn ghost sm" data-export type="button">Month-end export</button></div></header><div class="filters">${fl}</div>` +
+    dt('reps', cols, list, { def: { id: 'ach', dir: 1 }, open: (r) => 'rep:' + r.name, minw: 860 }) + '</section>';
+}
+
+/* ---------- Orders ---------- */
+const isHeld = (o) => o.st === 'credit' || o.st === 'hold';
+function vOrders() {
+  const view = S.ordView, cur = view === 'area' ? 'area' : view === 'rep' ? 'rep' : (S.ordChan === 'all' ? 'list' : S.ordChan);
+  const seg = '<div class="seg">' + [['list', 'List'], ['area', 'By area'], ['rep', 'By rep'], ['chain', 'Chain'], ['key_all', 'Key']].map((o) => `<button type="button" data-ov="${o[0]}" aria-pressed="${cur === o[0]}">${o[1]}</button>`).join('') + '</div>';
+  const chanNote = S.ordChan === 'chain' ? 'Orders from the 44 chain stores (Andrea Skelton). ' : S.ordChan === 'key' ? 'Orders from the 35 key stores (Shallet Marsh). ' : S.ordChan === 'key_damita' ? 'Orders from the 22 key stores (Damita Samuels-Foster). ' : S.ordChan === 'key_all' ? 'Orders from all key stores: Shallet\'s 35, Damita\'s 22 and the 14 other key stores. ' : S.ordChan === 'key_other' ? 'Orders from the 14 other key stores that sit in reps\' books. ' : '';
+  const head = `<header><div><h2>Orders</h2><p>${view === 'area' ? 'Open orders across the company, split by area. Click an area to see its orders.' : view === 'rep' ? 'Open orders split by rep. Click a rep to see their orders.' : chanNote + 'Search an order number, or click a row for what the customer owes and what to do.'}</p></div><div class="hact">${seg}<button class="btn ghost sm" data-snap="${esc(S.snapRep)}" data-pack="hold" type="button">Card: orders on hold</button></div></header>`;
+  if (view === 'rep') {
+    const by = {};
+    const row = (name) => (by[name] = by[name] || { name, open_v: 0, open_n: 0, credit_v: 0, credit_n: 0, hold_v: 0, hold_n: 0, bo_v: 0, bo_n: 0 });
+    D.orders.forEach((o) => { const r = row(o.rep); if (o.st === 'open') { r.open_v += o.v; r.open_n++; } else if (o.st === 'credit') { r.credit_v += o.v; r.credit_n++; } else if (o.st === 'hold') { r.hold_v += o.v; r.hold_n++; } });
+    const boSeen = {}; D.bo.forEach((l) => { const r = row(l.rep); r.bo_v += l.v; const k = l.rep + '|' + l.nbr; if (!boSeen[k]) { boSeen[k] = 1; r.bo_n++; } });
+    const rows = Object.values(by).filter((r) => r.open_v || r.credit_v || r.hold_v || r.bo_v);
+    const tot = rows.reduce((a, r) => a + r.open_v, 0) || 1;
+    const cols = [
+      { id: 'name', label: 'Rep', w: 18, val: (r) => first(r.name), html: (r) => `<span class="who2">${av(r.name)}<b>${esc(first(r.name))}</b></span>` },
+      { id: 'v', label: 'Open orders', w: 15, al: 'c', num: 1, val: (r) => r.open_v, html: (r) => `<span class="num" title="${r.open_n} orders">${M(r.open_v)}</span>` },
+      { id: 'cv', label: 'Credit hold', w: 14, al: 'c', num: 1, val: (r) => r.credit_v, html: (r) => `<span class="num" title="${r.credit_n} orders">${r.credit_v ? M(r.credit_v) : '<span class="mut">none</span>'}</span>` },
+      { id: 'hv', label: 'On hold', w: 14, al: 'c', num: 1, val: (r) => r.hold_v, html: (r) => `<span class="num" title="${r.hold_n} orders">${r.hold_v ? M(r.hold_v) : '<span class="mut">none</span>'}</span>` },
+      { id: 'bo', label: 'Back orders', w: 14, al: 'c', num: 1, val: (r) => r.bo_v, html: (r) => `<span class="num" title="${r.bo_n} orders">${M(r.bo_v)}</span>` },
+      { id: 'sh', label: 'Share of open value', w: 25, num: 1, val: (r) => r.open_v, html: (r) => { const p = Math.round(r.open_v / tot * 100); return `<div class="barc"><div class="bt"><i class="b" style="width:${p}%"></i></div><b class="pct" style="color:var(--ink2)">${p}%</b></div>`; } }];
+    return `<section class="card">${head}` + dt('ordrep', cols, rows, { def: { id: 'v', dir: -1 }, attr: (r) => `data-rrep="${esc(r.name)}"` }) +
+      '<div class="filters" style="padding-top:12px;border-top:1px solid var(--line)"><span class="mut" style="font-size:12px">Open orders use the EA Command Centre rule (status Open, lines still to ship). Holds are orders on Credit Hold or On Hold. Hover a value for the number of orders.</span></div></section>';
+  }
+  if (view === 'area') {
+    const rows = D.areas.filter((x) => x.open_v || x.credit_v || x.hold_v || x.bo_v);
+    const tot = rows.reduce((a, x) => a + x.open_v, 0) || 1;
+    const cols = [
+      { id: 'a', label: 'Area', w: 16, val: (x) => AREA_ORDER.indexOf(x.a) < 0 ? 99 : AREA_ORDER.indexOf(x.a), html: (x) => `<b>${esc(x.a)}</b>` },
+      { id: 'v', label: 'Open orders', w: 15, al: 'c', num: 1, val: (x) => x.open_v, html: (x) => `<span class="num" title="${x.open_n} orders">${M(x.open_v)}</span>` },
+      { id: 'cv', label: 'Credit hold', w: 15, al: 'c', num: 1, val: (x) => x.credit_v, html: (x) => `<span class="num" title="${x.credit_n} orders">${x.credit_v ? M(x.credit_v) : '<span class="mut">none</span>'}</span>` },
+      { id: 'hv', label: 'On hold', w: 15, al: 'c', num: 1, val: (x) => x.hold_v, html: (x) => `<span class="num" title="${x.hold_n} orders">${x.hold_v ? M(x.hold_v) : '<span class="mut">none</span>'}</span>` },
+      { id: 'bo', label: 'Back orders', w: 15, al: 'c', num: 1, val: (x) => x.bo_v, html: (x) => `<span class="num" title="${x.bo_n} orders">${M(x.bo_v)}</span>` },
+      { id: 'sh', label: 'Share of open value', w: 24, num: 1, val: (x) => x.open_v, html: (x) => { const p = Math.round(x.open_v / tot * 100); return `<div class="barc"><div class="bt"><i class="b" style="width:${p}%"></i></div><b class="pct" style="color:var(--ink2)">${p}%</b></div>`; } }];
+    const totN = rows.reduce((a, x) => a + x.open_n, 0);
+    return `<section class="card">${head}` + dt('ordarea', cols, rows, { def: { id: 'v', dir: -1 }, attr: (x) => `data-area="${esc(x.a)}"` }) +
+      `<div class="filters" style="padding-top:12px;border-top:1px solid var(--line)"><span class="mut" style="font-size:12px">Total: <b class="num">${totN} orders</b>, <b class="num">${M(tot)}</b> awaiting shipment, the same rule as the EA Command Centre (status Open, lines still to ship).</span></div></section>`;
+  }
+  const F = [['all', 'All orders'], ['open', 'Open'], ['shipping', 'Shipping'], ['held', 'All holds']];
+  const match = (o, f) => f === 'all' || (f === 'held' ? isHeld(o) : o.st === f);
+  const chanOk = (o) => chanMatch(S.ordChan, o.chan);
+  const q = S.ordQ.toLowerCase();
+  const list = D.orders.filter((o) => match(o, S.ordF) && chanOk(o) && (S.ordArea === 'all' || o.area === S.ordArea) && (S.ordRep === 'all' || o.rep === S.ordRep) && (!q || (o.nbr + ' ' + o.cust + ' ' + o.rep).toLowerCase().includes(q)));
+  const cols = [
+    { id: 'no', label: 'Order', w: 12, val: (o) => o.nbr, html: (o) => `<b>${esc(o.nbr)}</b>` },
+    { id: 'date', label: 'Date', w: 9, num: 1, val: (o) => -o.days, html: (o) => fmtShort(o.date) },
+    { id: 'cust', label: 'Customer', w: 25, val: (o) => o.cust, html: (o) => `<button type="button" class="lnk" data-open="cust:${esc(o.cid)}" title="Open the account: what they owe, orders, back orders">${esc(o.cust)}</button>` },
+    { id: 'area', label: 'Area', w: 13, val: (o) => o.area, html: (o) => esc(o.area) },
+    { id: 'rep', label: 'Rep', w: 10, val: (o) => first(o.rep), html: (o) => esc(first(o.rep)) },
+    { id: 'val', label: 'Value', w: 10, al: 'r', num: 1, val: (o) => o.v, html: (o) => `<span class="num">${K(o.v)}</span>` },
+    { id: 'st', label: 'Status', w: 13, al: 'c', val: (o) => OST[o.st][0], html: ordPill },
+    { id: 'days', label: 'Days', w: 8, al: 'c', num: 1, val: (o) => o.days, html: (o) => `<span class="num">${o.days}</span>` }];
+  const fl = `<div class="filters">${chips('ordF', F, (k) => '(' + D.orders.filter((o) => match(o, k) && chanOk(o)).length + ')')}</div>` +
+    `<div class="filters">${selBox('ordArea', [['all', 'All areas']].concat(areaList().map((a) => [a, a])), 'Area')}${selBox('ordChan', STORE_TYPES, 'Store type')}${selBox('ordRep', [['all', 'All reps']].concat([...new Set(D.orders.map((o) => o.rep))].sort().map((r) => [r, first(r)])), 'Rep')}<span class="sp"></span>${searchBox('ordQ', 'Search order, customer or rep')}</div>`;
+  return `<section class="card">${head}${fl}` + dt('orders', cols, list, { def: { id: 'val', dir: -1 }, open: (o) => 'order:' + o.nbr, empty: 'Nothing matches.' }) + '</section>';
+}
+
+/* ---------- Back orders ---------- */
+const ageOk = (l) => { const a = S.boAge; return a === 'all' || (a === '7' ? l.days >= 7 : a === '4' ? (l.days >= 4 && l.days < 7) : l.days < 4); };
+const boOrders = (lines) => new Set(lines.map((l) => l.nbr)).size;
+function vBO() {
+  const q = S.boQ.toLowerCase();
+  const L = D.bo.filter((l) => (S.boSup === 'all' || l.sup === S.boSup) && (S.boRep === 'all' || l.rep === S.boRep) && chanMatch(S.boChan, l.chan) && ageOk(l) && (!q || (l.item + ' ' + l.cust + ' ' + l.nbr + ' ' + l.rep).toLowerCase().includes(q)));
+  const seg = '<div class="seg">' + [['line', 'Every line'], ['item', 'By item'], ['cust', 'By customer'], ['rep', 'By rep']].map((o) => `<button type="button" data-set="boBy:${o[0]}" aria-pressed="${S.boBy === o[0]}">${o[1]}</button>`).join('') + '</div>';
+  const reps = [...new Set(D.bo.map((l) => l.rep))].filter(Boolean).sort();
+  const repOpts = [['all', 'All reps']].concat(reps.map((r) => [r, first(r) + ' (' + boOrders(D.bo.filter((l) => l.rep === r)) + ')']));
+  const sups = [['all', 'All support']].concat([...new Set(D.bo.map((l) => l.sup))].sort().map((s) => [s, s]));
+  const f1 = `<div class="filters">${seg}<span class="sp"></span>${searchBox('boQ', 'Search order no., customer, item or rep')}</div>`;
+  const f2 = `<div class="filters">${selBox('boSup', sups, 'Support person')}${selBox('boRep', repOpts, 'Rep')}${selBox('boChan', STORE_TYPES, 'Store type')}${selBox('boAge', [['all', 'Any age'], ['7', '7+ days'], ['4', '4 to 6 days'], ['1', 'Under 4 days']], 'Age')}</div>`;
+  let table;
+  if (S.boBy === 'line') {
+    const cols = [
+      { id: 'item', label: 'Item', w: 20, val: (l) => l.item, html: (l) => `<b title="${esc(l.sku)}">${esc(l.item)}</b>` },
+      { id: 'ord', label: 'Order', w: 9, val: (l) => l.nbr, html: (l) => esc(l.nbr) },
+      { id: 'cust', label: 'Customer', w: 18, val: (l) => l.cust, html: (l) => esc(l.cust) },
+      { id: 'qty', label: 'Qty', w: 6, al: 'c', num: 1, val: (l) => l.qty, html: (l) => `<span class="num">${l.qty}</span>` },
+      { id: 'days', label: 'Days open', w: 10, al: 'c', num: 1, val: (l) => l.days, html: (l) => `<span class="pill ${l.days >= 7 ? 'r' : l.days >= 4 ? 'a' : 'g'}">${l.days} days</span>` },
+      { id: 'st', label: 'Stock', w: 15, val: (l) => l.ss[0], html: (l) => stp(l.ss) },
+      { id: 'rep', label: 'Rep', w: 8, val: (l) => first(l.rep), html: (l) => esc(first(l.rep)) },
+      { id: 'ans', label: 'Rep\'s answer', w: 14, val: (l) => l.ans || 'zz', html: ansPill }];
+    table = dt('bo', cols, L, { def: { id: 'days', dir: -1 }, open: (l) => 'cust:' + l.cid, empty: 'No back orders match.' });
+  } else {
+    const key = S.boBy, g = {};
+    L.forEach((l) => { const k = key === 'item' ? l.item : key === 'cust' ? l.cust : l.rep; (g[k] = g[k] || { k, lines: [] }).lines.push(l); });
+    const G = Object.keys(g).map((k) => { const o = g[k]; o.days = Math.max(...o.lines.map((x) => x.days)); o.qty = o.lines.reduce((s, x) => s + x.qty, 0); o.val = o.lines.reduce((s, x) => s + x.v, 0); o.n = boOrders(o.lines);
+      const ords = {}; o.lines.forEach((x) => { ords[x.nbr] = ords[x.nbr] || !!x.ans; }); o.ans = Object.values(ords).filter(Boolean).length; o.ship = o.lines.filter((x) => x.flag).length; return o; });
+    const ex = (o) => S.boOpen[key + ':' + o.k];
+    const first1 = (o) => `<span class="chev">${ex(o) ? '▾' : '▸'}</span><b>${esc(key === 'rep' ? first(o.k) : o.k)}</b>`;
+    let cols2;
+    if (key === 'item') cols2 = [
+      { id: 'k', label: 'Item', w: 30, val: (o) => o.k, html: first1 },
+      { id: 'n', label: 'Orders', w: 9, al: 'c', num: 1, val: (o) => o.n, html: (o) => o.n },
+      { id: 'qty', label: 'Owed (qty)', w: 12, al: 'c', num: 1, val: (o) => o.qty, html: (o) => o.qty },
+      { id: 'val', label: 'Value', w: 13, al: 'r', num: 1, val: (o) => o.val, html: (o) => K(o.val) },
+      { id: 'days', label: 'Oldest', w: 12, al: 'c', num: 1, val: (o) => o.days, html: (o) => o.days + ' days' },
+      { id: 'st', label: 'Stock at 71', w: 24, val: (o) => o.lines[0].s71 == null ? -1 : o.lines[0].s71, html: (o) => { const s = o.lines[0].s71; return s == null ? stp(['Stock n/a', 'n']) : stp(s <= 0 ? ['Out of stock', 'r'] : s < o.qty ? ['Short: ' + s, 'a'] : ['In stock: ' + s.toLocaleString(), 'g']); } }];
+    else if (key === 'cust') cols2 = [
+      { id: 'k', label: 'Customer', w: 30, val: (o) => o.k, html: first1 },
+      { id: 'rep', label: 'Rep', w: 13, val: (o) => first(o.lines[0].rep), html: (o) => esc(first(o.lines[0].rep)) },
+      { id: 'n', label: 'Orders', w: 9, al: 'c', num: 1, val: (o) => o.n, html: (o) => o.n },
+      { id: 'val', label: 'Value', w: 13, al: 'r', num: 1, val: (o) => o.val, html: (o) => K(o.val) },
+      { id: 'days', label: 'Oldest', w: 12, al: 'c', num: 1, val: (o) => o.days, html: (o) => o.days + ' days' },
+      { id: 'ans', label: 'Answered', w: 23, al: 'c', num: 1, val: (o) => o.ans, html: (o) => o.ans + ' of ' + o.n }];
+    else cols2 = [
+      { id: 'k', label: 'Rep', w: 16, val: (o) => o.k, html: first1 },
+      { id: 'sup', label: 'Support', w: 11, val: (o) => o.lines[0].sup, html: (o) => esc(o.lines[0].sup) },
+      { id: 'n', label: 'Orders to close out', w: 15, al: 'c', num: 1, val: (o) => o.n, html: (o) => o.n },
+      { id: 'val', label: 'Value', w: 12, al: 'r', num: 1, val: (o) => o.val, html: (o) => K(o.val) },
+      { id: 'days', label: 'Oldest', w: 11, al: 'c', num: 1, val: (o) => o.days, html: (o) => o.days + ' days' },
+      { id: 'ans', label: 'Answered', w: 11, al: 'c', num: 1, val: (o) => o.ans, html: (o) => o.ans + ' of ' + o.n },
+      { id: 'ship', label: 'In stock, not shipped', w: 24, al: 'c', num: 1, val: (o) => o.ship, html: (o) => o.ship }];
+    table = dt('bo' + key, cols2, G, { def: { id: 'days', dir: -1 }, attr: (o) => `data-exp="${esc(key + ':' + o.k)}"${ex(o) ? ' class="open"' : ''}`, empty: 'No back orders match.',
+      sub: (o, n) => { if (!ex(o)) return '';
+        const rows = o.lines.slice().sort((a, b) => b.days - a.days).map((l) => `<tr data-open="cust:${esc(l.cid)}"><td><b>${esc(l.item)}</b></td><td>${esc(l.nbr)}</td><td>${esc(l.cust)}</td><td class="c">${l.qty}</td><td class="c">${l.days} days</td><td>${stp(l.ss)}</td></tr>`).join('');
+        const ttl = key === 'rep' ? 'Orders to close out for ' + esc(first(o.k)) : key === 'item' ? 'Customers waiting on ' + esc(o.k) : 'Back orders for ' + esc(o.k);
+        return `<tr class="sub"><td colspan="${n}"><div class="xp"><div class="xp-h"><b>${ttl}</b><span>${o.n} order${o.n === 1 ? '' : 's'} &middot; ${o.lines.length} line${o.lines.length === 1 ? '' : 's'} &middot; ${K(o.val)} &middot; click a line to see the customer</span></div><table style="min-width:0"><thead><tr><th style="width:26%">Item</th><th style="width:12%">Order</th><th style="width:26%">Customer</th><th class="c" style="width:8%">Qty</th><th class="c" style="width:12%">Days open</th><th style="width:16%">Stock</th></tr></thead><tbody>${rows}</tbody></table></div></td></tr>`; } });
+  }
+  const msg = S.boBy === 'line' ? '' : ' Click a row to see its lines.';
+  return `<section class="card"><header><div><h2>Back orders</h2><p>Every open line on Back Order status, with the answer each rep has given on their My back orders page. Support is in the customer pop-up.${msg}</p></div><div class="hact"><button class="btn ghost sm" data-share type="button">Send to a rep</button></div></header>${f1}${f2}${table}</section>`;
+}
+
+/* ---------- Chain & Key ---------- */
+const KEYS = ['key', 'key_damita', 'key_other'];
+const chanMatch = (sel, ch) => sel === 'all' || (sel === 'key_all' ? KEYS.includes(ch) : ch === sel);
+function vStores() {
+  const t = S.storeT, all = D.stores.filter((s) => chanMatch(t, s.grp));
+  const sum = (sel) => { const a = D.stores.filter((s) => chanMatch(sel, s.grp)), T = a.reduce((x, s) => x + s.target, 0), Sl = a.reduce((x, s) => x + s.sales, 0);
+    return { n: a.length, t: T, s: Sl, p: T ? Math.round(Sl / T * 100) : 0, behind: a.filter((s) => s.ach != null && s.ach < SHOULD).length }; };
+  const kt = (sel, css, label, who, extra) => { const x = sum(sel);
+    return `<button type="button" class="kt ${css}" data-set="storeT:${sel}" aria-pressed="${t === sel}"><span class="kl"><span>${label} &middot; ${esc(who)}</span><span class="kn" style="color:${COL[cls(x.p)]}">${x.p}%</span></span>${bar(x.p)}<span class="ks">${M(x.s)} of ${M(x.t)} target &middot; should be ${SHOULD}% &middot; ${x.behind} of ${x.n} stores behind${extra ? '<br>' + extra : ''}</span></button>`; };
+  const tiles = `<div class="kts">${kt('chain', 'chain', 'Chain overall', 'Andrea Skelton')}${kt('key', 'key', 'Key overall', 'Shallet Marsh')}${kt('key_damita', 'key_damita', 'Key overall', 'Damita Samuels-Foster')}</div>`;
+  const seg = '<div class="seg big">' + [['chain', 'Chain'], ['key_all', 'All key'], ['key', 'Key · Shallet'], ['key_damita', 'Key · Damita']].map((o) => `<button type="button" data-set="storeT:${o[0]}" aria-pressed="${t === o[0]}">${o[1]}</button>`).join('') + '</div>';
+  const showWho = t === 'key_all';
+  const who = (s) => s.grp === 'key' ? 'Shallet' : s.grp === 'key_damita' ? 'Damita' : first(s.kam);
+  const cols = [
+    { id: 'n', label: 'Store', w: showWho ? 24 : 26, val: (s) => s.name, html: (s) => `<b>${esc(s.name)}</b>` },
+    { id: 'ach', label: 'Achieved', w: showWho ? 22 : 23, num: 1, val: (s) => s.ach == null ? -1 : s.ach, html: (s) => s.ach == null ? '<span class="mut">no target</span>' : barc(s.ach) },
+    { id: 't', label: 'Target', w: showWho ? 9 : 10, al: 'r', num: 1, val: (s) => s.target, html: (s) => `<span class="num">${s.target ? K(s.target) : '<span class="mut">none</span>'}</span>` },
+    { id: 'mtd', label: 'Sales', w: showWho ? 9 : 10, al: 'r', num: 1, val: (s) => s.sales, html: (s) => `<span class="num">${K(s.sales)}</span>` },
+    { id: 'oo', label: 'Open orders', w: showWho ? 10 : 11, al: 'c', num: 1, val: (s) => s.open_v, html: (s) => `<span class="num">${K(s.open_v)}</span>` },
+    { id: 'bo', label: 'Back orders', w: showWho ? 10 : 11, al: 'c', num: 1, val: (s) => s.bo_v, html: (s) => `<span class="num">${K(s.bo_v)}</span>` },
+    { id: 'last', label: 'Last order', w: showWho ? 8 : 9, al: 'c', num: 1, val: (s) => daysAgo(s.last) == null ? 9999 : daysAgo(s.last), html: (s) => { const d = daysAgo(s.last); return d == null ? '<span class="mut">none</span>' : (d === 0 ? 'today' : d + 'd ago'); } }];
+  if (showWho) cols.push({ id: 'who', label: 'Rep', w: 8, al: 'c', val: (s) => who(s), html: (s) => esc(who(s)) });
+  const note = t === 'key_all' ? 'All key stores: Shallet\'s 35, Damita\'s 22 and 14 more key stores that sit in the reps\' own books (their rep is shown). Click a heading to sort, or a store for its account.' : 'The same store lists as the Chain & Key dashboard and the hubs. Click a heading to sort, or a store for its account.';
+  return `<section class="card"><header><div><h2>Chain and Key stores</h2><p>${note}</p></div></header>${tiles}<div class="filters">${seg}</div>` +
+    dt('stores' + t, cols, all, { def: { id: 'ach', dir: 1 }, open: (s) => 'cust:' + s.id, empty: 'No stores in this group.' }) + '</section>';
+}
+
+/* ---------- Categories ---------- */
+function vCats() {
+  const list = D.cats;
+  const cols = [
+    { id: 'n', label: 'Category', w: 13, val: (c) => c.cls, html: (c) => `<b>${esc(c.cls)}</b>` },
+    { id: 'cm', label: 'Manager', w: 17, val: (c) => c.cm || 'zz', html: (c) => c.cm ? esc(c.cm) : '<span class="mut">none</span>' },
+    { id: 'ach', label: 'Achieved', w: 22, num: 1, val: (c) => c.ach == null ? -1 : c.ach, html: (c) => c.ach == null ? '<span class="mut">no target</span>' : (c.ach > 300 ? `<span class="pill a" title="Sales are far above this class's budget. Check the budget.">${c.ach}% check budget</span>` : barc(c.ach)) },
+    { id: 't', label: 'Target', w: 10, al: 'r', num: 1, val: (c) => c.target, html: (c) => `<span class="num">${M(c.target)}</span>` },
+    { id: 'mtd', label: 'Sales', w: 10, al: 'r', num: 1, val: (c) => c.sales, html: (c) => `<span class="num">${M(c.sales)}</span>` },
+    { id: 'gp', label: 'GP', w: 8, al: 'c', num: 1, val: (c) => c.gp == null ? -1 : c.gp, html: (c) => c.gp == null ? '<span class="mut">-</span>' : `<span class="num">${c.gp}%</span>` },
+    { id: 'oo', label: 'Open orders', w: 10, al: 'c', num: 1, val: (c) => c.open_v, html: (c) => `<span class="num">${M(c.open_v)}</span>` },
+    { id: 'bo', label: 'Back orders', w: 10, al: 'c', num: 1, val: (c) => c.bo_v, html: (c) => `<span class="num">${M(c.bo_v)}</span>` }];
+  return `<section class="card"><header><div><h2>Categories</h2><p>Every item class against its month target. Click a heading to sort, or a category for the key products behind and their stock at 71. Classes under J$500K are left out.</p></div></header>` +
+    dt('cats', cols, list, { def: { id: 'ach', dir: 1 }, open: (c) => 'cat:' + c.cls, empty: 'No categories found.' }) + '</section>';
+}
+
+/* ---------- product and category panels ---------- */
+async function dProduct(id) {
+  openPanel('Loading…', 'Product', '', '<div class="empty" style="margin:0">Looking up the product…</div>');
+  let p; try { p = await rpc('product', { id }); } catch (e) { return openPanel('Product', 'Product', '', '<div class="err">Could not load this product. Try again.</div>'); }
+  if (!p) return openPanel('Product', 'Product', '', '<div class="err">Product not found.</div>');
+  const stock = num(p.stock71), list = num(p.list), cost = num(p.cost), bo = p.bo || {}, boq = num(bo.qty), op = p.open || {};
+  const gp = (price) => price > 0 && cost > 0 ? Math.round((price - cost) / price * 100) : null;
+  const f30 = cost > 0 ? cost / 0.70 : null, f25 = cost > 0 ? cost / 0.75 : null;
+  const deal = p.deal && p.deal.price != null ? num(p.deal.price) : null;
+  const co = boq > stock ? `<div class="callout r"><b>Back orders exceed stock at 71.</b> ${boq} owed across ${num(bo.custs)} customer${num(bo.custs) === 1 ? '' : 's'} against ${stock} on hand. Check the next shipment before promising anything.</div>` : stock <= 0 ? '<div class="callout a"><b>Out of stock at 71.</b></div>' : '';
+  const sold = (p.sold || []).map((s) => { const below = f25 != null && num(s.price) < f25;
+    return lik(esc(tc(s.cust)), `<b${below ? ' style="color:var(--red)"' : ''}>${J(s.price)}</b>`, `${fmtShort(s.d)} &middot; ${num(s.qty)} sold${below ? ' &middot; below your 25% GP floor' : ''}`, 'cust:' + s.cid); }).join('') || '<div class="li"><span>No recent sales</span></div>';
+  const wh = (p.wh || []).map((w) => li(esc(w.name || w.id), `<span class="num">${num(w.on_hand)}</span>`)).join('') || '<div class="li"><span>No stock in any warehouse</span></div>';
+  const mtd = p.mtd || {}, gpm = num(mtd.rev) > 0 ? Math.round(num(mtd.gp) / num(mtd.rev) * 100) : null;
+  const note = `${p.name}: list ${J(list)}${deal != null ? ', deal sheet ' + J(deal) : ''}${f30 ? ', target ' + J(f30) : ''}${f25 ? ', lowest I approve ' + J(f25) : ''}. Stock at 71: ${stock}.`;
+  openPanel(p.name, 'Product &middot; ' + esc(p.cls || ''), esc(p.id) + (p.key_item === 'Yes' ? ' &middot; key item' : ''),
+    co + `<div class="facts">${fact('Stock at 71', stock.toLocaleString(), num(p.avail71) + ' available to ship', stock <= 0 ? 'r' : stock <= 100 ? 'a' : 'g')}${fact('On back order', boq, boq ? `${num(bo.orders)} order${num(bo.orders) === 1 ? '' : 's'}, oldest ${num(bo.oldest)} days` : 'nothing owed', boq ? 'a' : '')}` +
+    `${fact('List price', J(list), gp(list) != null ? 'GP ' + gp(list) + '%' : '')}${fact('Deal sheet', deal != null ? J(deal) : 'not on the sheet', deal != null && gp(deal) != null ? 'GP ' + gp(deal) + '%' : (p.deal ? esc(p.deal.sheet || '') : ''))}` +
+    `${fact('Target price (30% GP)', f30 ? J(f30) : 'no cost', '')}${fact('Lowest you approve (25% GP)', f25 ? J(f25) : 'no cost', 'below this is yours to decide')}</div>` +
+    `<h4>Last sold</h4><div class="list">${sold}</div>` +
+    `<h4>This month and on order</h4><div class="facts">${fact('Sold this month', num(mtd.qty).toLocaleString(), mtd.rev ? K(mtd.rev) + (gpm != null ? ' &middot; GP ' + gpm + '%' : '') : 'none yet')}${fact('Open orders', num(op.qty).toLocaleString(), `${num(op.orders)} order${num(op.orders) === 1 ? '' : 's'} to ship`)}</div>` +
+    `<h4>Stock by warehouse</h4><div class="list">${wh}</div><div class="acts">${noteBtn(note)}</div>`);
+}
+async function dCat(name) {
+  const c = D.cats.find((x) => x.cls === name); if (!c) return;
+  openPanel(name, 'Category' + (c.cm ? ' &middot; ' + esc(c.cm) : ''), '', '<div class="empty" style="margin:0">Loading the key products…</div>');
+  let r = { skus: [] }; try { r = await rpc('category', { cls: name }) || { skus: [] }; } catch (e) { r = null; }
+  const co = !c.cm ? '<div class="callout a"><b>No category manager.</b> Nobody is following this class up.</div>' : c.ach != null && c.ach > 300 ? '<div class="callout a"><b>Check the budget.</b> Sales are far above the budget for this class.</div>' : '';
+  const behind = r === null ? '<div class="err">Could not load the products.</div>' : (r.skus || []).length ? '<div class="list">' + r.skus.slice(0, 15).map((s) => { const full = num(s.full), pct = full > 0 ? Math.round(num(s.actual) / full * 100) : 0, st = num(s.s71);
+    return lik(`<b style="font-weight:600">${esc(s.name)}</b>`, `<span class="pct ${cls(pct)}">${pct}%</span>`, `${K(s.actual)} of ${K(full)} month target &middot; ${st <= 0 ? '<span style="color:var(--red);font-weight:600">out of stock at 71</span>' : st <= 100 ? `<span style="color:var(--amber);font-weight:600">low: ${st} at 71</span>` : st.toLocaleString() + ' in stock at 71'}`, 'prod:' + s.id); }).join('') + '</div>' : '<div class="empty" style="margin:0">None of the key products in this class are behind.</div>';
+  const left = Math.max(c.target - c.sales, 0);
+  openPanel(name, 'Category' + (c.cm ? ' &middot; ' + esc(c.cm) : ''), '',
+    co + `<div class="facts">${fact('Achieved', c.ach == null ? 'no target' : c.ach + '%', 'should be ' + SHOULD + '% by today', c.ach == null || c.ach > 300 ? '' : cls(c.ach))}${fact('Sales / target', M(c.sales), 'of ' + M(c.target))}${fact('Gross profit', c.gp == null ? '-' : c.gp + '%', '')}${fact('Still to sell', M(left), '')}${fact('Open orders', M(c.open_v), 'awaiting shipment')}${fact('Back orders', M(c.bo_v), 'owed to customers', c.bo_v >= 1e6 ? 'a' : '')}</div>` +
+    `<h4>Key products behind where they should be</h4>${behind}<div class="acts">${noteBtn(name + ' is at ' + (c.ach == null ? 'n/a' : c.ach + '%') + ' of target (' + SHOULD + '% by today). Please send me the plan for: ' + ((r && r.skus) || []).slice(0, 5).map((s) => s.name).join(', ') + '.')}</div>`);
+}
+
+function render() {
+  const t = S.tab;
+  if (D.error) { $('strip').innerHTML = ''; $('view').innerHTML = `<div class="err">${esc(D.error)}</div>`; return; }
+  if (!D.loaded) { $('view').innerHTML = '<div class="empty">Loading the latest figures…</div>'; return; }
+  $('strip').innerHTML = t === 'pulse' ? stripHTML() : '';
+  $('view').innerHTML = t === 'pulse' ? vPulse() : t === 'reps' ? vReps() : t === 'orders' ? vOrders() : t === 'cats' ? vCats() : t === 'stores' ? vStores() : vBO();
+}
+
+/* ---------- side panel ---------- */
+const fact = (l, v, s, c) => `<div class="fact"><small>${l}</small><b${c ? ` style="color:var(--${{ g: 'green', a: 'amber', r: 'red' }[c]})"` : ''}>${v}</b>${s ? `<span>${s}</span>` : ''}</div>`;
+const li = (a, b, c) => `<div class="li"><span>${a}${c ? `<small>${c}</small>` : ''}</span><span style="text-align:right">${b}</span></div>`;
+const lik = (a, b, c, spec) => `<button type="button" class="li" data-open="${esc(spec)}"><span>${a}${c ? `<small>${c}</small>` : ''}</span><span style="text-align:right">${b}</span></button>`;
+const noteBtn = (txt) => `<button class="btn ghost" data-copy="${esc(txt)}">Copy note</button>`;
+const terms = (t) => String(t || '').replace('DAYS', ' days');
+function arList(c) {
+  const a = c.ar || {}, over = num(a.overdue);
+  return '<div class="list">' + li('Current', J(a.cur)) + li('31 to 60 days', J(a.d60)) + li('61 to 90 days', J(a.d90)) + li('Over 90 days', num(a.d91) ? `<b style="color:var(--red)">${J(a.d91)}</b>` : J(a.d91)) +
+    li('<b>Owes in total</b>', `<b>${J(a.total)}</b>`) + li('Past its due date', over ? `<b style="color:var(--red)">${J(over)}</b>` : J(0)) +
+    li('Credit limit', c.credit_limit != null ? J(c.credit_limit) : 'not set', terms(c.terms) ? terms(c.terms) + ' terms' : '') +
+    li('Last payment', c.last_payment ? J(c.last_payment.amt) : 'none on record', c.last_payment ? fmtShort(c.last_payment.date) : '') + '</div>';
+}
+function openPanel(title, tag, sub, body) {
+  $('drawer').innerHTML = `<div class="dh"><div><span class="tag">${tag}</span><h3>${esc(title)}</h3>${sub ? `<p>${sub}</p>` : ''}</div><button class="x" data-close aria-label="Close">&times;</button></div><div class="db">${body}</div>`;
+  $('drawer').classList.add('on'); $('drawer').setAttribute('aria-hidden', 'false'); $('scrim').classList.add('on');
+}
+function closeAll() { $('drawer').classList.remove('on'); $('drawer').setAttribute('aria-hidden', 'true'); $('scrim').classList.remove('on'); $('modal').classList.remove('on'); }
+function openModal(title, html) { closeAll(); $('mbox').innerHTML = `<div class="mh"><h2>${title}</h2><button class="x" data-close aria-label="Close">&times;</button></div><div id="mHost">${html}</div>`; $('modal').classList.add('on'); $('scrim').classList.add('on'); return $('mHost'); }
+
+async function dCust(id) {
+  openPanel('Loading…', 'Customer', '', '<div class="empty" style="margin:0">Loading the account…</div>');
+  let c; try { c = await rpc('customer', { id }); } catch (e) { return openPanel('Customer', 'Customer', '', '<div class="err">Could not load this account. Try again.</div>'); }
+  if (!c) return openPanel('Customer', 'Customer', '', '<div class="err">Account not found.</div>');
+  const a = c.ar || {}, over = num(a.overdue), sales = num(c.sales), tgt = num(c.target), pct = tgt ? Math.round(sales / tgt * 100) : null;
+  const co = c.credit_hold ? `<div class="callout r"><b>On credit hold.</b> Overdue ${J(over)}${terms(c.terms) ? ' on ' + terms(c.terms) + ' terms' : ''}. Held orders ship once payment is arranged.</div>` : over > 0 ? `<div class="callout a">${J(over)} is past its due date. Not on credit hold.</div>` : '<div class="callout g">Account is clear. No credit hold.</div>';
+  const ords = (c.orders || []).map((o) => { const st = STKEY[o.st] || 'open'; return lik(`<b>${esc(o.nbr)}</b> <span class="pill ${OST[st][1]}">${OST[st][0]}</span>`, J(o.v), fmtShort(o.date), 'order:' + o.nbr); }).join('') || '<div class="li"><span>No open orders</span></div>';
+  const bo = (c.bo || []).map((b) => { const l = D.boByNbr[b.nbr], ss = stockState(b.s71 == null ? null : num(b.s71), num(b.qty));
+    return li(esc(b.item), `${num(b.qty)} &middot; ${num(b.days)} days`, `${esc(b.nbr)} &middot; ${ss[0]} &middot; ${b.ans ? ANS[b.ans][0] : 'not answered'}${l ? ' &middot; support: ' + esc(l.sup) : ''}`); }).join('') || '<div class="li"><span>No back orders</span></div>';
+  openPanel(tc(c.name), (c.chan ? c.chan.charAt(0).toUpperCase() + c.chan.slice(1) : (c.segment || 'Customer')), `${esc(c.rep || 'No rep on record')} &middot; ${esc(c.area || '')}`,
+    co + `<div class="facts">${fact('Sales this month', K(sales), pct == null ? 'no target set' : `${pct}% of ${SHOULD}% pace`, pct == null ? '' : cls(pct))}${fact('Month target', tgt ? K(tgt) : 'none', c.rep || '')}${fact('Owes in total', J(a.total), 'incl. current')}${fact('Past its due date', J(over), '', over ? 'r' : '')}</div>` +
+    `<h4>What they owe</h4>${arList(c)}<h4>Open orders</h4><div class="list">${ords}</div><h4>Back orders</h4><div class="list">${bo}</div>` +
+    `<div class="acts">${noteBtn('Follow-up on ' + tc(c.name) + ': ' + (c.credit_hold ? 'credit hold, ' : '') + (over ? J(over) + ' past due. ' : '') + 'sales ' + K(sales) + (tgt ? ' of ' + K(tgt) + ' target.' : '.'))}</div>`);
+}
+async function dOrder(nbr) {
+  openPanel(nbr, 'Order', '', '<div class="empty" style="margin:0">Loading the order…</div>');
+  let o; try { o = await rpc('order', { nbr }); } catch (e) { return openPanel(nbr, 'Order', '', '<div class="err">Could not load this order. Try again.</div>'); }
+  if (!o) return openPanel(nbr, 'Order', '', '<div class="err">Order not found.</div>');
+  const st = STKEY[o.st] || 'open', c = o.customer || {}, a = c.ar || {}, over = num(a.overdue), rep = (o.lines[0] || {}).rep || c.rep || '';
+  const openV = (o.lines || []).reduce((s, l) => s + num(l.open) * num(l.price), 0);
+  const why = { credit: 'Held by AR for the account balance. It ships once the customer pays or you agree a payment plan. The rep cannot release it.', hold: 'Keyed in but put on hold in Acumatica, not a credit hold. Ask support why, then release it or get it fixed.', open: 'Entered in Acumatica and waiting to go on a load.', shipping: 'A shipment has been made. It is on its way out of the warehouse.' }[st];
+  const co = `<div class="callout ${{ credit: 'r', hold: 'a', open: 'n', shipping: 'g' }[st]}"><b>${OST[st][0]}.</b> ${why}</div>`;
+  const reply = { credit: `Order ${o.nbr} (${tc(o.cust)}) is on credit hold: ${J(over)} past due. I need payment or a plan before it ships. Please speak to the customer today and tell me what they say.`, hold: `Order ${o.nbr} (${tc(o.cust)}) is on hold in Acumatica. Please confirm what you agreed with the customer and I will look at it.`, open: `Order ${o.nbr} (${tc(o.cust)}) is entered and waiting to go on a load.`, shipping: `Order ${o.nbr} (${tc(o.cust)}) has been shipped.` }[st];
+  const lines = (o.lines || []).map((l) => { const ss = stockState(l.s71 == null ? null : num(l.s71), num(l.open));
+    return lik(`${esc(l.item)} &times; ${num(l.open) || num(l.qty)}`, num(l.price) ? J(num(l.open) * num(l.price)) : '<span class="pill n">Free item</span>', num(l.price) ? `@ ${J(l.price)} &middot; ${ss[0]}` : ss[0], 'prod:' + l.sku); }).join('');
+  openPanel(String(o.nbr), 'Order &middot; ' + OST[st][0], `${esc(tc(o.cust))} &middot; ${esc(first(rep))} &middot; keyed ${esc(fmtShort(o.date))} &middot; ${esc(o.area)}`,
+    co + `<div class="facts">${fact('Open value', J(openV), (o.lines || []).length + ' lines')}${fact('Days open', num(o.days), 'order total ' + J(o.total))}${fact('Customer owes', J(a.total), 'incl. current')}${fact('Past its due date', J(over), c.credit_hold ? 'on credit hold' : '', over ? 'r' : '')}</div>` +
+    `<h4>What the customer owes</h4>${arList(c)}<h4>Lines</h4><div class="list">${lines}</div>` +
+    `<div class="acts"><button class="btn" data-copy="${esc(reply)}">Copy reply to rep</button><button class="btn ghost" data-open="cust:${esc(o.cid)}">Open customer</button>${rep ? `<button class="btn ghost" data-snap="${esc(rep)}" data-pack="hold">Card for ${esc(first(rep))}</button>` : ''}</div>`);
+}
+function dRep(name) {
+  const r = D.reps.find((x) => x.name === name); if (!r) return;
+  const left = Math.max(num(D.pulse.wd_total) - num(D.pulse.wd_done), 1), need = Math.max(r.target - r.sales, 0) / left;
+  const held = D.orders.filter((o) => isHeld(o) && o.rep === name);
+  const hs = held.length ? `<h4>Needs you</h4><div class="list">${held.map((o) => lik(`<b>${esc(o.nbr)}</b> ${ordPill(o)}`, K(o.v), esc(o.cust) + ' &middot; ' + o.days + ' days', 'order:' + o.nbr)).join('')}</div>` : '';
+  const d = daysAgo(r.last);
+  openPanel(r.name, 'Rep &middot; support ' + esc(r.support), esc(r.area || ''),
+    `<div class="facts">${fact('Achieved', r.ach + '%', 'should be ' + SHOULD + '% by today', cls(r.ach))}${fact('Sales / target', M(r.sales), 'of ' + M(r.target))}${fact('Still to sell', M(Math.max(r.target - r.sales, 0)), 'needs ' + M(need) + ' a working day')}${fact('Last order', d == null ? 'none' : d === 0 ? 'today' : d + 'd ago', '')}${fact('Open orders', M(r.open_v), 'awaiting shipment')}${fact('Back orders', M(r.bo_v), 'owed to customers')}</div>${hs}` +
+    `<div id="dropBox"><h4>Stopped ordering this month</h4><div class="empty" style="margin:0">Working it out&hellip;</div></div><div class="acts"><button class="btn" data-snap="${esc(r.name)}" data-pack="call">Call list card for ${esc(r.short)}</button><button class="btn ghost" data-snap="${esc(r.name)}" data-pack="tgt">Behind target</button><button class="btn ghost" data-snap="${esc(r.name)}" data-pack="opp">Opportunities</button></div>`);
+  loadDropped(r.name);
+}
+/* customers in the rep's book who bought in the last 3 full months but have not been invoiced this month */
+async function loadDropped(name) {
+  let r; try { r = await rpc('rep_dropped', { rep: name }); } catch (e) { r = null; }
+  const box = $('dropBox'); if (!box) return;
+  if (!r) { box.innerHTML = '<h4>Stopped ordering this month</h4><div class="err">Could not work this out. Try again.</div>'; return; }
+  const rows = (r.rows || []).map((x) => `<button type="button" class="drow" data-open="cust:${esc(x.id)}"><b title="${esc(tc(x.name))}">${esc(tc(x.name))}</b><span class="num">${K(x.usual)}</span><span class="mut">${esc(fmtShort(x.last))}</span></button>`).join('');
+  box.innerHTML = '<h4>Stopped ordering this month</h4>' + (num(r.n)
+    ? `<p class="dsum"><b>${num(r.n)}</b> customer${num(r.n) === 1 ? '' : 's'} bought in the last 3 months but not this month. Together they usually buy <b>${K(r.usual_total)}</b> a month.</p><div class="list dlist"><div class="dhead"><span>Customer</span><span>Usual a month</span><span>Last invoice</span></div>${rows}</div>${num(r.n) > 12 ? `<p class="dnote">Biggest 12 of ${num(r.n)} shown.</p>` : ''}`
+    : '<div class="empty" style="margin:0">Nobody in this book has stopped ordering this month.</div>');
+}
+function dSupport(n) {
+  const s = D.support.find((x) => x.n === n); if (!s) return;
+  const old = D.bo.filter((l) => l.sup === n).sort((a, b) => b.days - a.days).slice(0, 3);
+  const co = s.acted === 0 ? `<div class="callout r"><b>No activity today.</b> Last touch ${esc(lastTouchText(s.last))}. ${s.bo_n} back orders and ${s.hold_n} held orders sit with their reps.</div>` : '';
+  openPanel(s.full || s.n, 'Sales support', '',
+    co + `<div class="facts">${fact('Back orders', s.bo_n, 'orders on back order')}${fact('Actioned today', s.acted, 'last touch ' + lastTouchText(s.last), s.acted ? 'g' : 'r')}${fact('Open orders', s.open_n, 'awaiting shipment')}${fact('On hold', s.hold_n, 'credit hold or on hold')}</div>` +
+    `<h4>Reps covered</h4><div class="list"><div class="li"><span>${s.reps.map((r) => esc(first(r))).join(', ')}</span></div></div>` +
+    (old.length ? `<h4>Oldest back orders</h4><div class="list">${old.map((l) => lik(`<b>${esc(l.item)}</b>`, l.days + ' days', esc(l.cust) + ' &middot; ' + esc(first(l.rep)), 'cust:' + l.cid)).join('')}</div>` : '') +
+    `<div class="acts"><button class="btn" data-set="boSup:${esc(s.n)}" data-tab="bo">See all their back orders</button>${noteBtn('Hi ' + s.n + ', checking in on back orders and open orders today. ' + s.bo_n + ' back orders still open. Anything you need from me?')}</div>`);
+}
+function openDrawer(spec) {
+  const i = spec.indexOf(':'), type = spec.slice(0, i), key = spec.slice(i + 1);
+  if (type === 'cust') dCust(key); else if (type === 'order') dOrder(key); else if (type === 'rep') dRep(key); else if (type === 'support') dSupport(key); else if (type === 'prod') dProduct(key); else if (type === 'cat') dCat(key);
+}
+
+/* ---------- WhatsApp cards (images) ---------- */
+const PACKS = [['call', 'Call list'], ['tgt', 'Behind target'], ['opp', 'Opportunities'], ['bo', 'Back orders'], ['hold', 'Orders on hold']];
+const NOTES = {
+  call: 'This is your call list for today, most important first. Please speak to each customer and tell me the outcome by end of day.',
+  tgt: 'These customers normally buy from you every month and have not ordered yet this month. Please call each one today and tell me what they say.',
+  opp: 'These back-ordered items are in stock at 71 right now. Confirm with each customer and I will get them shipped. Tap your answer on My back orders: dflhq.com/my-backorders.html',
+  bo: 'These items are owed to your customers. Ask each customer: close it if they no longer want it, or reopen it if it still needs to go ahead. Tap your answer on My back orders: dflhq.com/my-backorders.html',
+  hold: 'Credit and on-hold orders need payment, or a payment plan from me, before they ship. Please speak to each customer today and tell me the outcome.' };
+const closeOut = (rep) => D.bo.filter((l) => l.rep === rep && l.days <= 90 && !(l.ans && l.ansState === 'done'));
+/* Customers who stopped ordering this month come from the rep_dropped part; cached per rep so the card can fill in once it arrives */
+S.drop = {};
+function needDrop(rep, pack) { return ['call', 'tgt', 'opp'].indexOf(pack) >= 0 && rep && S.drop[rep] === undefined; }
+const readyBO = (rep) => D.bo.filter((l) => l.rep === rep && l.ss[1] === 'g' && !(l.ans && l.ansState === 'done')).sort((a, b) => b.v - a.v);
+function snapModel(rep, pack) {
+  const rows = [];
+  if (pack === 'call' || pack === 'tgt' || pack === 'opp') {
+    const dr = S.drop[rep], r = D.reps.find((x) => x.name === rep) || { target: 0, sales: 0, ach: 0 };
+    const left = Math.max(num(D.pulse.wd_total) - num(D.pulse.wd_done), 1), toSell = Math.max(r.target - r.sales, 0);
+    const stopped = (dr && dr.rows) || [], stoppedN = dr ? num(dr.n) : 0, stoppedV = dr ? num(dr.usual_total) : 0, wait = !dr;
+    const H = D.orders.filter((o) => isHeld(o) && o.rep === rep).sort((a, b) => b.v - a.v);
+    const R = readyBO(rep), rv = R.reduce((s, l) => s + l.v, 0);
+    const stoppedRow = (x) => ({ n: tc(x.name), sub: 'Nothing invoiced this month', badge: ['Stopped ordering', 'a'], a: K(x.usual), b: daysAgo(x.last) == null ? '' : 'last ' + fmtShort(x.last) });
+    if (pack === 'tgt') {
+      stopped.slice(0, 8).forEach((x) => rows.push(stoppedRow(x)));
+      if (stoppedN > 8) rows.push({ n: '+ ' + (stoppedN - 8) + ' more customers', sub: 'Open the rep in the Sales Centre to see them all', a: '', b: '' });
+      return { eyebrow: 'Behind target · DFL Importers', title: `${first(rep)}, you are at ${r.ach}% of target`, sub: `Should be at ${SHOULD}% by today · month target ${K(r.target)}`,
+        tiles: [[r.ach + '%', 'achieved so far', COL[cls(r.ach)]], [K(toSell), 'still to sell', '#326BD3'], [K(toSell / left), 'needed a working day', '#F9A825']], heading: 'Customers to win back', cols: ['Customer', 'Usual a month', 'Last invoice'], rows,
+        empty: wait ? 'Working it out…' : `Nobody in ${first(rep)}'s book has stopped ordering this month.` };
+    }
+    if (pack === 'opp') {
+      R.slice(0, 8).forEach((l) => rows.push({ n: l.item, sub: l.cust + ' · ' + l.nbr, badge: l.ss, a: K(l.v), b: l.days + ' days' }));
+      if (R.length > 8) rows.push({ n: '+ ' + (R.length - 8) + ' more lines', sub: 'Open My back orders to see them all', a: '', b: '' });
+      return { eyebrow: 'Opportunities · DFL Importers', title: `${first(rep)}, sales you can close now`, sub: 'Back orders that are in stock at 71 today',
+        tiles: [[K(rv), 'ready to ship', '#1A8F4C'], [wait ? '…' : K(stoppedV), 'usual a month, lapsed', '#F9A825'], [K(toSell), 'still to sell this month', '#326BD3']], heading: 'Confirm these with the customer', cols: ['Item', 'Value', 'Days open'], rows, empty: `No back orders in stock for ${first(rep)} right now.` };
+    }
+    /* call list: held orders first, then customers who stopped ordering, then back orders that can ship */
+    H.slice(0, 3).forEach((o) => rows.push({ n: o.cust, sub: 'Order ' + o.nbr, badge: OST[o.st], a: K(o.v), b: o.days + ' days' }));
+    stopped.slice(0, 3).forEach((x) => rows.push(stoppedRow(x)));
+    R.slice(0, 2).forEach((l) => rows.push({ n: l.cust, sub: l.item, badge: ['Ready to ship', 'g'], a: K(l.v), b: l.days + ' days' }));
+    const calls = new Set(H.map((o) => o.cid).concat(stopped.map((x) => x.id), R.map((l) => l.cid))).size;
+    return { eyebrow: 'Call list · DFL Importers', title: `${first(rep)}, your calls for today`, sub: 'Held orders, customers gone quiet and back orders ready to ship',
+      tiles: [[calls + (stoppedN > stopped.length ? '+' : ''), 'customers to call', '#326BD3'], [K(H.reduce((s, o) => s + o.v, 0)), 'held orders', '#D63B3B'], [wait ? '…' : K(stoppedV), 'usual a month, lapsed', '#F9A825']], heading: 'Start at the top', cols: ['Customer', 'Value', 'How long'], rows,
+      empty: wait ? 'Working it out…' : `Nothing urgent for ${first(rep)} right now.` };
+  }
+  if (pack === 'bo') {
+    const L = D.bo.filter((l) => l.rep === rep).sort((a, b) => b.days - a.days);
+    const n = boOrders(L), tv = L.reduce((s, l) => s + l.v, 0), od = L.reduce((m, l) => Math.max(m, l.days), 0);
+    L.slice(0, 8).forEach((l) => rows.push({ n: l.item, sub: l.cust + ' · ' + l.nbr, badge: l.ss, a: l.qty + ' units', b: l.days + ' days' }));
+    if (L.length > 8) rows.push({ n: '+ ' + (L.length - 8) + ' more lines', sub: 'Open My back orders to see them all', a: '', b: '' });
+    return { eyebrow: 'Back orders · DFL Importers', title: `${first(rep)}, you have ${n} back order${n === 1 ? '' : 's'} to close out`, sub: 'Open back orders, with stock at 71 checked',
+      tiles: [[n, 'back orders', '#326BD3'], [K(tv), 'value owed', '#F9A825'], [od + ' days', 'oldest line open', '#D63B3B']], heading: 'Start with these', cols: ['Item', 'Qty', 'Days open'], rows, empty: `No back orders for ${first(rep)} right now.` };
+  }
+  const H = D.orders.filter((o) => isHeld(o) && o.rep === rep).sort((a, b) => b.v - a.v);
+  const hv = H.reduce((s, o) => s + o.v, 0), od = H.reduce((m, o) => Math.max(m, o.days), 0);
+  H.slice(0, 8).forEach((o) => rows.push({ n: o.nbr, sub: o.cust, badge: OST[o.st], a: K(o.v), b: o.days + ' days' }));
+  return { eyebrow: 'Orders on hold · DFL Importers', title: `${first(rep)}, these orders need you`, sub: 'On hold now in Acumatica',
+    tiles: [[H.length, 'orders on hold', '#326BD3'], [K(hv), 'value held', '#F9A825'], [od + ' days', 'longest on hold', '#D63B3B']], heading: 'Start with these', cols: ['Order', 'Value', 'Days held'], rows, empty: `Nothing on hold for ${first(rep)} right now.` };
+}
+function cardHTML(m, note) {
+  const t = m.tiles.map((x) => `<div class="wc-tile" style="--c:${x[2]}"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></div>`).join('');
+  const body = m.rows.length ? m.rows.map((x, i) => `<tr><td>${x.a ? `<span class="wc-n">${i + 1}</span>` : ''}<span class="wc-nm">${esc(x.n)}</span>${x.badge ? `<span class="wc-bg ${x.badge[1]}">${esc(x.badge[0])}</span>` : ''}${x.sub ? `<div class="wc-sub"${x.a ? '' : ' style="margin-left:0"'}>${esc(x.sub)}</div>` : ''}</td><td class="r">${esc(x.a)}</td><td class="r">${esc(x.b)}</td></tr>`).join('') : `<tr><td colspan="3" style="color:#6B7794">${esc(m.empty)}</td></tr>`;
+  return `<div class="wcard" id="wcard"><div class="wc-h"><div class="wc-eye">${esc(m.eyebrow)}</div><div class="wc-t">${esc(m.title)}</div><div class="wc-s">${esc(m.sub)}</div></div><div class="wc-b"><div class="wc-tiles">${t}</div><div class="wc-hd">${esc(m.heading)}</div><table class="wc-tb"><thead><tr><th>${m.cols[0]}</th><th class="r">${m.cols[1]}</th><th class="r">${m.cols[2]}</th></tr></thead><tbody>${body}</tbody></table><div class="wc-note" id="cardNote">${esc(note)}</div></div></div>`;
+}
+function buildSnap(host) {
+  if (!S.snapRep) S.snapRep = (D.reps[0] || {}).name || '';
+  const m = snapModel(S.snapRep, S.snapPack), note = S.notes[S.snapPack] !== undefined ? S.notes[S.snapPack] : NOTES[S.snapPack];
+  const reps = D.reps.filter((r) => r.target > 0).sort((a, b) => a.short.localeCompare(b.short));
+  host.innerHTML = `<div class="pad"><div class="snapctl"><div><label class="l" for="snapRep">Rep</label><select id="snapRep" class="full">${reps.map((r) => `<option value="${esc(r.name)}"${r.name === S.snapRep ? ' selected' : ''}>${esc(r.short)}</option>`).join('')}</select></div>` +
+    `<div><label class="l">Card</label><div class="seg">${PACKS.map((p) => `<button type="button" data-pack="${p[0]}" aria-pressed="${S.snapPack === p[0]}">${p[1]}</button>`).join('')}</div></div></div>` +
+    `<div class="cardwrap">${cardHTML(m, note)}</div><div style="margin-top:14px"><label class="l" for="noteIn">Message on the card (edit it)</label><textarea id="noteIn" rows="4"></textarea></div>` +
+    '<div class="acts"><button class="btn" type="button" id="cpImg">Copy image</button><button class="btn ghost" type="button" id="dlImg">Download image</button></div></div>';
+  host.querySelector('#snapRep').onchange = (e) => { S.snapRep = e.target.value; buildSnap(host); };
+  host.querySelectorAll('[data-pack]').forEach((b) => { b.onclick = () => { S.snapPack = b.getAttribute('data-pack'); buildSnap(host); }; });
+  const ta = host.querySelector('#noteIn'); ta.value = note; ta.oninput = () => { S.notes[S.snapPack] = ta.value; $('cardNote').textContent = ta.value; };
+  host.querySelector('#cpImg').onclick = copyCard; host.querySelector('#dlImg').onclick = downloadCard;
+  const rep = S.snapRep, pk = S.snapPack;
+  if (needDrop(rep, pk)) {
+    S.drop[rep] = null;
+    rpc('rep_dropped', { rep }).then((r) => { S.drop[rep] = r || { rows: [], n: 0, usual_total: 0 }; }, () => { S.drop[rep] = { rows: [], n: 0, usual_total: 0 }; })
+      .then(() => { if (host.isConnected && S.snapRep === rep && ['call', 'tgt', 'opp'].indexOf(S.snapPack) >= 0) buildSnap(host); });
+  }
+}
+function openSnapModal(rep, pack) { if (rep) S.snapRep = rep; if (pack) S.snapPack = pack; buildSnap(openModal('Make card', '')); }
+function cardCanvas() {
+  if (!window.html2canvas) { toast('The image maker is still loading. Try again in a moment.'); return Promise.reject(new Error('html2canvas missing')); }
+  return window.html2canvas($('wcard'), { scale: 2, backgroundColor: '#ffffff' });
+}
+function copyCard() {
+  cardCanvas().then((c) => c.toBlob((b) => {
+    try { navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(() => toast('Card copied. Paste it into WhatsApp.'), () => toast('Copy was blocked. Use Download image.')); } catch (e) { toast('Copy was blocked. Use Download image.'); }
+  }), () => {});
+}
+function downloadCard() {
+  cardCanvas().then((c) => { const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = 'DFL-' + first(S.snapRep) + '-' + S.snapPack + '.png'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }, () => {});
+}
+
+/* ---------- month-end export and send-to-rep ---------- */
+/* The same 17 reps the Manager Dashboard shows (it hides KAMs without a field book, Richard Gordon and leavers) */
+const VISIBLE_REPS = new Set(['Yanique Desouza', 'Oniel Carby', 'Kawayne Evans', 'Garreth Brown', 'Sheldon Brown', 'Tudi-ann Lammie', 'Stacy-Ann Bennett Edwards', 'Clerett Holness', 'Antonio Williams',
+  'Kimmone Campbell', 'Petronia Tinglin', 'Dionne Rerrie', 'Everton Green', 'Damita Samuels-Foster', 'Desrick Simpson', 'Eric Smith', 'Ruth Ann Lewis']);
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+async function openExport() {
+  const asAt = new Date(String(D.pulse.as_at).slice(0, 10) + 'T12:00:00'), yr = asAt.getFullYear(), cm = asAt.getMonth() + 1, curP = yr + String(cm).padStart(2, '0');
+  const opts = Array.from({ length: cm }, (_, i) => cm - i).map((m) => `<option value="${yr}${String(m).padStart(2, '0')}">${MONTH_NAMES[m - 1]} ${yr}${m === cm ? ' (open)' : ''}</option>`).join('');
+  const left = num(D.pulse.wd_total) - num(D.pulse.wd_done);
+  const h = openModal('Month-end export', `<div class="pad"><label class="l" for="expP">Period</label><select id="expP" class="full" style="max-width:260px">${opts}</select>` +
+    '<div id="expNote" style="margin-top:12px"></div><p style="font-size:13px;color:var(--ink2);margin:12px 0 8px">One row per rep with target, sales and achievement. Same 17 reps and same figures as the Manager Dashboard, so commission numbers match. It opens in Excel.</p>' +
+    '<div class="cardwrap" style="background:#fff;border:1px solid var(--line);padding:0;margin-top:0"><div id="expBody" style="padding:14px;color:var(--ink3);font-size:13px">Loading…</div></div>' +
+    '<div class="acts"><button class="btn" type="button" id="expGo" disabled>Download</button></div></div>');
+  const sel = h.querySelector('#expP'), body = h.querySelector('#expBody'), go = h.querySelector('#expGo'), note = h.querySelector('#expNote');
+  let rows = [], period = curP;
+  async function rowsFor(p) {
+    if (p === curP) return D.reps.filter((r) => VISIBLE_REPS.has(r.name)).map((r) => ({ name: r.name, target: r.target, actual: r.sales, ach: r.achx }));
+    const r = await sb.rpc('get_historical_month', { p_period: p }); if (r.error) throw r.error;
+    return (r.data || []).filter((x) => VISIBLE_REPS.has(x.salesperson)).map((x) => ({ name: x.salesperson, target: num(x.monthly_target), actual: num(x.monthly_actual), ach: num(x.pct_to_target) }));
+  }
+  async function load() {
+    period = sel.value; go.disabled = true; body.innerHTML = 'Working out ' + MONTH_NAMES[Number(period.slice(4)) - 1] + '. A past month can take a few seconds…';
+    note.innerHTML = period === curP && left > 0 ? `<div class="callout a"><b>${MONTH_NAMES[cm - 1]} is still open.</b> ${left} working days left. This exports figures to ${esc(fmtDay(D.pulse.as_at))}. Run it again after month end for commissions.</div>` : '';
+    try { rows = (await rowsFor(period)).sort((a, b) => a.name.localeCompare(b.name)); }
+    catch (e) { rows = []; body.innerHTML = '<span style="color:var(--red)">Could not work out this month. Try again, or tell Scott if it keeps happening.</span>'; return; }
+    if (!rows.length) { body.innerHTML = 'No figures found for this month.'; return; }
+    body.innerHTML = `<table style="font-size:12.5px;table-layout:auto;min-width:0"><thead><tr><th>Rep</th><th class="r">Target (J$)</th><th class="r">Actual MTD (J$)</th><th class="r">Ach %</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="r num">${Math.round(r.target).toLocaleString('en-US')}</td><td class="r num">${Math.round(r.actual).toLocaleString('en-US')}</td><td class="r num">${num(r.ach).toFixed(1)}%</td></tr>`).join('')}</tbody></table>`;
+    const mn = MONTH_NAMES[Number(period.slice(4)) - 1] + '-' + period.slice(0, 4);
+    go.textContent = 'Download DFL-RepPerformance-' + mn + '.csv'; go.disabled = false;
+  }
+  sel.onchange = load;
+  go.onclick = () => {
+    const q = (v) => '"' + String(v).replace(/"/g, '""') + '"', mn = MONTH_NAMES[Number(period.slice(4)) - 1] + '-' + period.slice(0, 4);
+    const csv = [['Rep', 'Target (J$)', 'Actual MTD (J$)', 'Ach %']].concat(rows.map((r) => [r.name, Math.round(r.target), Math.round(r.actual), num(r.ach).toFixed(1) + '%'])).map((row) => row.map(q).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = 'DFL-RepPerformance-' + mn + '.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
+  load();
+}
+const REPLINK = 'https://dflhq.com/my-backorders.html';
+const shareMsg = (rep) => { const n = boOrders(closeOut(rep)); return n ? `Hi ${first(rep)}, you have ${n} back order${n === 1 ? '' : 's'} ready to close out. Ask each customer, then tap Close it if they no longer want it, or Reopen it if it still needs to go ahead: ${REPLINK}` : `Hi ${first(rep)}, you have no back orders to close out right now. Thank you.`; };
+function openShare() {
+  const reps = [...new Set(D.bo.map((l) => l.rep))].filter(Boolean).sort();
+  const start = S.boRep !== 'all' ? S.boRep : (reps[0] || '');
+  const h = openModal('Send back orders to a rep', `<div class="pad"><p style="margin:0 0 14px;font-size:13px;color:var(--ink2)">Reps already have a <b>My back orders</b> page called "Close out the week". They tap <b>Close it</b> or <b>Reopen it</b> on each back order. The link is the same for every rep and shows only their own.</p>` +
+    `<label class="l" for="shScope">Rep</label><select id="shScope" class="full" style="max-width:320px">${reps.map((r) => `<option value="${esc(r)}"${r === start ? ' selected' : ''}>${esc(first(r))} (${boOrders(closeOut(r))} to close out)</option>`).join('')}</select>` +
+    '<label class="l" for="shMsg" style="margin-top:14px">Message with the link</label><textarea id="shMsg" rows="4"></textarea>' +
+    '<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="shCopy">Copy message</button><button class="btn ghost" type="button" id="shCard">Make card</button><button class="btn ghost" type="button" id="shView">See what they see</button></div>' +
+    '<p style="font-size:12px;color:var(--ink3);margin:12px 0 0">Adding the rep\'s name to the link opens their page as them (for you and support).</p></div>');
+  const sc = h.querySelector('#shScope'), ta = h.querySelector('#shMsg');
+  const upd = () => { ta.value = shareMsg(sc.value); }; upd(); sc.onchange = upd;
+  h.querySelector('#shCopy').onclick = () => copyText(ta.value);
+  h.querySelector('#shCard').onclick = () => openSnapModal(sc.value, 'bo');
+  h.querySelector('#shView').onclick = () => {
+    const host = openModal('See it as ' + esc(first(sc.value)), `<div class="pad"><div style="font-size:12px;color:var(--ink3);margin-bottom:10px">This is the real page the rep sees, opened as ${esc(first(sc.value))}. Taps here do change Acumatica, so look but do not tap.</div><div class="phone"><iframe title="My back orders" src="/my-backorders.html?rep=${encodeURIComponent(sc.value)}"></iframe></div><div class="acts" style="justify-content:center"><button class="btn ghost" type="button" id="phBack">Back</button></div></div>`);
+    host.querySelector('#phBack').onclick = openShare;
+  };
+}
+
+/* ---------- top search ---------- */
+let qTimer, qSeq = 0, qMatches = [], qi = 0;
+async function runSearch() {
+  const v = $('q').value.trim(), box = $('qres');
+  if (v.length < 2) { box.hidden = true; return; }
+  const seq = ++qSeq; let r;
+  let prods = [];
+  try { const both = await Promise.all([rpc('search', { q: v }), rpc('products', { q: v })]); r = both[0]; prods = both[1] || []; } catch (e) { return; }
+  if (seq !== qSeq) return;
+  const low = v.toLowerCase();
+  qMatches = [].concat(
+    (r.orders || []).map((x) => ({ t: 'Order', spec: 'order:' + x.nbr, l: x.nbr, s: tc(x.cust) + ' &middot; ' + esc(x.st) + ' &middot; ' + K(x.v) })),
+    (r.customers || []).map((x) => ({ t: 'Customer', spec: 'cust:' + x.id, l: tc(x.name), s: esc(x.area || '') + ' &middot; owes ' + K(x.owes) + (num(x.overdue) > 0 ? ' &middot; <b style="color:#D63B3B">' + K(x.overdue) + ' overdue</b>' : '') + (x.hold ? ' &middot; <b style="color:#D63B3B">CREDIT HOLD</b>' : '') })),
+    prods.map((x) => ({ t: 'Product', spec: 'prod:' + x.id, l: x.name, s: esc(x.id) + ' &middot; stock at 71: ' + num(x.stock71).toLocaleString() })),
+    D.reps.filter((x) => x.name.toLowerCase().includes(low)).slice(0, 5).map((x) => ({ t: 'Rep', spec: 'rep:' + x.name, l: x.name, s: x.ach + '% of target &middot; support ' + esc(x.support) })));
+  qi = 0;
+  box.innerHTML = qMatches.length ? qMatches.map((x, i) => `<button class="qrow${i === 0 ? ' on' : ''}" data-spec="${esc(x.spec)}"><span class="tag">${x.t}</span><span><b>${esc(x.l)}</b><small>${x.s}</small></span></button>`).join('') : `<div class="qrow"><span>Nothing matches "${esc(v)}".</span></div>`;
+  box.hidden = false;
+}
+function pickSearch(spec) { $('qres').hidden = true; $('q').value = ''; $('q').blur(); openDrawer(spec); }
+$('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(runSearch, 220); });
+$('q').addEventListener('keydown', (e) => {
+  const rows = $('qres').querySelectorAll('.qrow[data-spec]');
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!rows.length) return; qi = (qi + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length; rows.forEach((r, i) => r.classList.toggle('on', i === qi)); }
+  else if (e.key === 'Enter' && rows[qi]) pickSearch(rows[qi].getAttribute('data-spec'));
+  else if (e.key === 'Escape') { $('qres').hidden = true; $('q').blur(); }
+});
+document.addEventListener('keydown', (e) => {
+  const tg = document.activeElement.tagName;
+  if (e.key === '/' && tg !== 'INPUT' && tg !== 'SELECT' && tg !== 'TEXTAREA') { e.preventDefault(); $('q').focus(); }
+  if (e.key === 'Escape') closeAll();
+});
+
+/* ---------- clicks ---------- */
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-open],[data-tab],[data-snap],[data-copy],[data-close],[data-spec],[data-repf],[data-go],[data-set],[data-export],[data-share],[data-sort],[data-exp],[data-area],[data-ov],[data-rrep]');
+  if (!e.target.closest('.search')) $('qres').hidden = true;
+  if (e.target === $('scrim')) { closeAll(); return; }
+  if (!t) return;
+  if (t.hasAttribute('data-spec')) { pickSearch(t.getAttribute('data-spec')); return; }
+  if (t.hasAttribute('data-close')) { closeAll(); return; }
+  if (t.hasAttribute('data-sort')) { const p = t.getAttribute('data-sort').split(':'), k = p[0], id = p[1], cur = S.sort[k] || DEFS[k];
+    S.sort[k] = (cur && cur.id === id) ? { id, dir: -cur.dir } : { id, dir: t.hasAttribute('data-n') ? -1 : 1 }; render(); return; }
+  if (t.hasAttribute('data-exp')) { if (e.target.closest('tr.sub')) return; const k = t.getAttribute('data-exp'); S.boOpen[k] = !S.boOpen[k]; render(); return; }
+  if (t.hasAttribute('data-ov')) { const v = t.getAttribute('data-ov'); if (v === 'area' || v === 'rep') S.ordView = v; else { S.ordView = 'list'; S.ordChan = v === 'list' ? 'all' : v; } render(); return; }
+  if (t.hasAttribute('data-rrep')) { S.ordRep = t.getAttribute('data-rrep'); S.ordView = 'list'; S.ordChan = 'all'; S.ordF = 'all'; S.ordArea = 'all'; render(); return; }
+  if (t.hasAttribute('data-area')) { S.ordArea = t.getAttribute('data-area'); S.ordView = 'list'; S.ordF = 'all'; render(); return; }
+  if (t.hasAttribute('data-go')) { const g = t.getAttribute('data-go').split(':');
+    if (g[0] === 'reps' && g[1]) S.repF = g[1];
+    if (g[0] === 'orders') { if (g[1] === 'area') S.ordView = 'area'; else { S.ordView = 'list'; S.ordF = g[1]; S.ordArea = 'all'; S.ordQ = ''; S.ordChan = 'all'; S.ordRep = 'all'; } }
+    if (g[0] === 'bo') { S.boSup = 'all'; S.boRep = 'all'; S.boAge = 'all'; S.boChan = 'all'; S.boQ = ''; }
+    setTab(g[0]); return; }
+  if (t.hasAttribute('data-snap')) { openSnapModal(t.getAttribute('data-snap') || undefined, t.getAttribute('data-pack') || undefined); return; }
+  if (t.hasAttribute('data-copy')) { copyText(t.getAttribute('data-copy')); return; }
+  if (t.hasAttribute('data-export')) { openExport(); return; }
+  if (t.hasAttribute('data-share')) { openShare(); return; }
+  if (t.hasAttribute('data-repf')) { S.repF = t.getAttribute('data-repf'); render(); return; }
+  if (t.hasAttribute('data-set')) { const s = t.getAttribute('data-set').split(':'); S[s[0]] = s.slice(1).join(':'); if (t.hasAttribute('data-tab')) { closeAll(); setTab(t.getAttribute('data-tab')); } else render(); return; }
+  if (t.hasAttribute('data-tab')) { closeAll(); setTab(t.getAttribute('data-tab')); return; }
+  if (t.hasAttribute('data-open')) { openDrawer(t.getAttribute('data-open')); return; }
+});
+document.addEventListener('change', (e) => { const s = e.target.getAttribute && e.target.getAttribute('data-sel'); if (s) { S[s] = e.target.value; render(); } });
+document.addEventListener('input', (e) => { const q = e.target.getAttribute && e.target.getAttribute('data-q'); if (q) { const pos = e.target.selectionStart; S[q] = e.target.value; render(); const el = $(q); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (x) { /* not a text field */ } } } });
+$('snapTop').addEventListener('click', () => openSnapModal(S.snapRep || undefined));
+async function reload(manual) {
+  const btn = $('refreshBtn'); btn.disabled = true;
+  try { await loadAll(); header(); renderTabs(); render(); if (manual) toast('Refreshed.'); }
+  catch (e) { if (!D.loaded) { D.error = /42501|not allowed/.test(String((e && (e.message || e.code)) || '')) ? 'The Sales Centre is not open to you.' : 'Could not load the figures. Reload the page; if it keeps happening, tell Scott.'; render(); } else if (manual) toast('Could not refresh. Try again.'); }
+  finally { btn.disabled = false; }
+}
+$('refreshBtn').addEventListener('click', () => reload(true));
+
+let STARTED = false;
+function start() {
+  if (STARTED) return; STARTED = true;
+  document.body.style.visibility = 'visible';
+  const h = location.hash.replace('#', ''); if (TABS.some((t) => t[0] === h)) S.tab = h;
+  renderTabs(); reload(false);
+  // orders and back orders change all day: look again every 10 minutes while the page is open and visible
+  setInterval(() => { if (!document.hidden && D.loaded) reload(false); }, 10 * 60000);
+}
+document.addEventListener('dfl-auth-ready', start);
+if (window.DFL_PROFILE) start();
+})();
+</script>
+</body>
+</html>

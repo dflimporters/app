@@ -147,10 +147,11 @@
 
   <div id="signedOutState" style="display:none;">
     <div class="login-title">DFL Staff Portal</div>
-    <div class="login-sub">Sign in with your DFL Microsoft account, or with your phone number.</div>
+    <div class="login-sub" id="loginSub">Sign in with your DFL Microsoft account, or with your phone number.</div>
 
     <div class="login-message" id="loginMessage"></div>
 
+    <div id="staffPaths">
     <button class="btn-ms" id="msSignInBtn" onclick="signInWithMicrosoft()">
       <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
         <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
@@ -183,6 +184,22 @@
         Send code
       </button>
     </div>
+    </div><!-- /staffPaths -->
+
+    <!-- Supplier path: outside companies (supplier_users) sign in with an
+         emailed one-time code. Only emails DFL has added get a profile
+         (handle_new_user step 2b); anyone else lands on "not set up". -->
+    <div id="emailStep" style="display:none;">
+      <div class="field">
+        <label for="emailInput">Work email</label>
+        <input type="email" id="emailInput" placeholder="name@company.com"
+               autocomplete="email" inputmode="email">
+        <div class="field-hint">We'll email you a sign-in code</div>
+      </div>
+      <button class="btn-phone" id="sendEmailBtn" onclick="sendCode()">
+        Email me a code
+      </button>
+    </div>
 
     <!-- STEP 2 — the code -->
     <div id="codeStep" style="display:none;">
@@ -191,12 +208,12 @@
       </div>
 
       <div class="field">
-        <label for="codeInput">6-digit code</label>
+        <label for="codeInput" id="codeLabel">6-digit code</label>
         <!-- autocomplete="one-time-code" lets iOS and Android offer the code
              straight from the SMS, so nobody has to memorise it. -->
         <input type="text" id="codeInput" class="code-input" placeholder="······"
                autocomplete="one-time-code" inputmode="numeric"
-               maxlength="6" pattern="[0-9]*">
+               maxlength="8" pattern="[0-9]*">
       </div>
 
       <button class="btn-phone" id="verifyBtn" onclick="verifyCode()">
@@ -206,8 +223,12 @@
       <div class="toggle-line">
         <button type="button" id="resendBtn" onclick="sendCode(true)">Resend code</button>
         <span style="color:var(--border)">|</span>
-        <button type="button" onclick="backToPhone()">Use a different number</button>
+        <button type="button" id="changeBtn" onclick="backToPhone()">Use a different number</button>
       </div>
+    </div>
+
+    <div class="toggle-line" style="margin-top:22px;">
+      <button type="button" id="modeToggle" onclick="toggleSupplierMode()">Supplier partner? Sign in with your email</button>
     </div>
 
     <div class="login-footer">DFL Importers — Staff Portal</div>
@@ -264,6 +285,83 @@
   // exactly the same string that signInWithOtp was given, or it won't match.
   let pendingPhone = null;
   let resendTimer = null;
+
+  // 'phone' (staff) or 'email' (supplier partners). The code step is shared.
+  // ?supplier=1 opens straight into the email path — that's the link we send
+  // suppliers.
+  let authMode = 'phone';
+  let pendingEmail = null;
+  const emailStep = document.getElementById('emailStep');
+  const emailInput = document.getElementById('emailInput');
+  const sendEmailBtn = document.getElementById('sendEmailBtn');
+  const staffPaths = document.getElementById('staffPaths');
+  const modeToggle = document.getElementById('modeToggle');
+
+  function toggleSupplierMode(force) {
+    authMode = force || (authMode === 'phone' ? 'email' : 'phone');
+    clearInterval(resendTimer);
+    pendingPhone = null; pendingEmail = null;
+    codeStep.style.display = 'none';
+    loginMessage.className = 'login-message';
+    const isEmail = authMode === 'email';
+    staffPaths.style.display = isEmail ? 'none' : 'block';
+    phoneStep.style.display = 'block';
+    emailStep.style.display = isEmail ? 'block' : 'none';
+    document.getElementById('loginSub').textContent = isEmail
+      ? 'Supplier partners: enter the email address DFL registered for you.'
+      : 'Sign in with your DFL Microsoft account, or with your phone number.';
+    document.querySelector('#signedOutState .login-title').textContent = isEmail ? 'DFL Supplier Portal' : 'DFL Staff Portal';
+    modeToggle.textContent = isEmail ? 'DFL staff? Sign in here' : 'Supplier partner? Sign in with your email';
+    document.getElementById('changeBtn').textContent = isEmail ? 'Use a different email' : 'Use a different number';
+    document.getElementById('codeLabel').textContent = isEmail ? 'Code from the email' : '6-digit code';
+    sendEmailBtn.disabled = false; sendEmailBtn.textContent = 'Email me a code';
+    (isEmail ? emailInput : phoneInput).focus();
+  }
+
+  async function sendEmailCode(isResend) {
+    const email = (emailInput.value || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      showMessage('Enter a valid email address.', 'error');
+      return;
+    }
+    const btn = isResend ? resendBtn : sendEmailBtn;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    loginMessage.className = 'login-message';
+
+    // The email carries both a code and a sign-in link (depending on the
+    // Supabase email template); the link comes back to this page, which
+    // picks the session up in init().
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + '/login.html' }
+    });
+
+    if (error) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      if (/security purposes|rate limit|too many/i.test(error.message)) {
+        showMessage('Please wait a moment before requesting another email.', 'error');
+      } else {
+        showMessage(error.message || 'Could not send the email. Please try again.', 'error');
+      }
+      return;
+    }
+
+    pendingEmail = email;
+    sentToNumber.textContent = email;
+    emailStep.style.display = 'none';
+    codeStep.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    showMessage(isResend ? 'A new email is on its way.' : 'Check your inbox. Enter the code, or tap the sign-in link in the email.', 'info');
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = 'Verify & sign in';
+    codeInput.value = '';
+    codeInput.focus();
+    startResendCooldown();
+  }
 
   function showMessage(text, kind) {
     loginMessage.textContent = text;
@@ -368,6 +466,7 @@
   }
 
   async function sendCode(isResend) {
+    if (authMode === 'email') return sendEmailCode(isResend);
     const phone = normalizePhone(phoneInput.value);
 
     if (!phone) {
@@ -440,6 +539,7 @@
   }
 
   function backToPhone() {
+    if (authMode === 'email') { toggleSupplierMode('email'); return; }
     clearInterval(resendTimer);
     pendingPhone = null;
     codeStep.style.display = 'none';
@@ -452,22 +552,22 @@
 
   async function verifyCode() {
     const token = (codeInput.value || '').replace(/\D/g, '');
+    const isEmail = authMode === 'email';
 
-    if (!pendingPhone) { backToPhone(); return; }
+    if (isEmail ? !pendingEmail : !pendingPhone) { backToPhone(); return; }
 
-    if (token.length !== 6) {
-      showMessage('Enter the 6-digit code from the text message.', 'error');
+    // Email codes are 6–8 digits depending on the Supabase auth setting.
+    if (isEmail ? (token.length < 6 || token.length > 8) : token.length !== 6) {
+      showMessage(isEmail ? 'Enter the code from the email.' : 'Enter the 6-digit code from the text message.', 'error');
       return;
     }
 
     verifyBtn.disabled = true;
     verifyBtn.textContent = 'Checking…';
 
-    const { data, error } = await sb.auth.verifyOtp({
-      phone: pendingPhone,
-      token: token,
-      type: 'sms'
-    });
+    const { data, error } = await sb.auth.verifyOtp(isEmail
+      ? { email: pendingEmail, token: token, type: 'email' }
+      : { phone: pendingPhone, token: token, type: 'sms' });
 
     if (error) {
       verifyBtn.disabled = false;
@@ -507,10 +607,15 @@
     if (e.key === 'Enter') { e.preventDefault(); verifyCode(); }
   });
 
+  emailInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendCode(); }
+  });
+
+  // Auto-submit at six digits for SMS only: email codes may be longer.
   codeInput.addEventListener('input', () => {
-    const digits = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    const digits = codeInput.value.replace(/\D/g, '').slice(0, authMode === 'email' ? 8 : 6);
     if (codeInput.value !== digits) codeInput.value = digits;
-    if (digits.length === 6 && !verifyBtn.disabled) verifyCode();
+    if (authMode === 'phone' && digits.length === 6 && !verifyBtn.disabled) verifyCode();
   });
 
   async function signInWithMicrosoft() {
@@ -549,6 +654,7 @@
       await handleSignedIn(data.session.user);
     } else {
       showSignedOut();
+      if (params.get('supplier') === '1') toggleSupplierMode('email');
       showReasonMessage();
     }
   }

@@ -40,14 +40,17 @@
 // state; the rest come from reps.role.
 const DFL_ROLES = [
   'rep', 'merchandiser', 'team_leader', 'tl_merch', 'manager', 'admin', 'warehouse', 'pending',
-  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet'
+  'relief_merchandiser', 'management', 'rep_management', 'hr', 'fleet', 'sales_support', 'supplier'
 ];
 
 // Roles that may open ONLY the pages that explicitly list them. For everyone
 // else an unlisted page is open (see DFL_PAGE_ROLES); for these it's closed.
 // `hr` (Monique) is meant to see the HR Leave portal and nothing else.
 // `fleet` (Ordette Hamilton) sees the Fleet page and nothing else.
-const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet'];
+// `sales_support` (Alecia, Jenelle, Althia) sees the Sales Support Hub and nothing else.
+// `supplier` is an outside company login (supplier_users) — it must never fall
+// through to an unlisted staff page, so it is listed-only too.
+const DFL_LISTED_ONLY_ROLES = ['hr', 'fleet', 'sales_support', 'supplier'];
 
 // ------------------------------------------------------------
 // Where each role belongs when it has nowhere more specific to be.
@@ -71,7 +74,9 @@ const DFL_HOME_BY_ROLE = {
   management:   '/morning-brief.html',
   rep_management: '/index.html',
   hr:           '/hr/index.html',
-  fleet:        '/management/fleet.html'
+  fleet:        '/management/fleet.html',
+  sales_support: '/management/sales-support-hub.html',
+  supplier:     '/supplier/index.html'
 };
 
 // ------------------------------------------------------------
@@ -116,6 +121,8 @@ const DFL_PAGE_ROLES = {
   // A rep's own AR. Rows are filtered in Postgres by ar_my_rep_code(); this list
   // only decides who can open the page. Keep roles that can carry a salesperson code.
   '/my-ar.html':            ['admin', 'manager', 'rep', 'rep_management'],
+  // A rep's own back orders (Close it / Re-enter it). Data is limited in Postgres by rep_my_backorders(); support and managers can open one rep's list with ?rep=Name.
+  '/my-backorders.html':    ['admin', 'manager', 'rep', 'rep_management', 'sales_support'],
   '/calendar.html':         ['admin', 'manager', 'rep', 'rep_management'],
   '/debrief.html':          ['admin', 'manager', 'rep', 'rep_management'],
   '/customer.html':         ['admin', 'manager', 'rep', 'rep_management'],
@@ -127,6 +134,12 @@ const DFL_PAGE_ROLES = {
   // is_price_approver() — because Travis is also an admin and must not approve.
   '/price-requests.html':        ['admin', 'manager', 'rep_management'],
   '/admin/price-approvals.html': ['admin'],
+
+  // ---- Ask DFL ----
+  // Plain-English questions over sales, prices and budgets. Management only for now
+  // (Scott, 2026-11-10): management, Category Managers and the KAMs. The ask-dfl edge
+  // function checks the same roles (ALLOWED_ROLES) — change both together.
+  '/ask.html':                   ['admin', 'management', 'manager', 'rep_management'],
 
   // ---- 2027 category budget ----
   // Shared by direct link only (not in the rail or the rep app). The guard admits these roles so every
@@ -148,6 +161,12 @@ const DFL_PAGE_ROLES = {
   '/management/merch-dashboard.html':       ['manager', 'admin'],
   '/management/relief-coverage.html':       ['manager', 'admin'],
   '/management/rep-performance.html':       ['manager', 'admin'],
+  // Sales Explorer (customers, products and reps, any period against any other): sales_explorer_data()
+  // checks sales_explorer_can() itself: the price approver (Scott) only, for now. Side-nav: approverOnly.
+  '/management/sales-explorer.html':        ['admin'],
+  // DFL Sales Centre (Scott's one page for the day): sales_hub_data() checks is_price_approver() itself, so Scott only.
+  // Side-nav: approverOnly.
+  '/management/sales-centre.html':             ['admin'],
   '/management/stock-outage-tracker.html':  ['manager', 'admin'],
   // `fleet` can view, search, export and print. Document upload/approve still
   // needs is_manager() in Postgres, so those actions fail for her by design.
@@ -156,12 +175,31 @@ const DFL_PAGE_ROLES = {
   // then requires is_price_approver() (Scott only) — same pattern as
   // /admin/price-approvals.html, because Travis is also an admin.
   '/management/head-of-sales.html':         ['admin'],
+  // Chain Store Hub (Andrea Skelton's 44 chain accounts). Data comes from
+  // chain_hub_data(), which itself requires is_manager(); the side-nav link
+  // is shown only to Andrea and the price approver (Scott) — see chainHub.
+  '/management/chain-hub.html':             ['manager', 'admin'],
+  // Key Account Hub (Shallet Marsh's 35 key accounts): key_hub_data() requires is_manager();
+  // the side-nav link is shown only to Shallet and the price approver (Scott) — see keyHub.
+  '/management/key-hub.html':               ['manager', 'admin'],
+  // Sales Support Hub (the support people behind the field reps): ss_hub_data() checks access itself
+  // (Scott, admins, or the support person named in ss_hub_support). The side-nav link is shown only to
+  // the support people and the price approver (Scott) — see ssHub. Their role is sales_support (a listed-only role: this page and nothing else).
+  '/management/sales-support-hub.html':     ['manager', 'admin', 'sales_support'],
   // Leave & Coverage Tracker (sales-team leave). Same roles as is_manager(),
   // which gates writes on leave_tracker_* — reads also allow HR/management.
   '/management/leave-tracker.html':         ['manager', 'admin'],
   // Product price simulator — shows cost and GP. Must stay in step with
   // is_manager(), which get_product_price_master() checks server-side.
   '/dfl_product_price_dashboard.html':      ['manager', 'admin'],
+
+  // ---- Supplier portal ----
+  // Outside suppliers (role 'supplier', provisioned from supplier_users) see
+  // only their own items: supplier_dashboard() resolves the supplier from the
+  // login server-side. Staff here can preview any supplier with ?s=<id>; keep
+  // in step with supplier_staff_viewer() (admin, manager, management,
+  // rep_management). Editing shipments/logins is supplier_staff_editor().
+  '/supplier/index.html': ['supplier', 'admin', 'manager', 'management', 'rep_management'],
 
   // ---- Weekly Reports ----
   // Shell + the two pages it embeds — each listed individually, same reason
