@@ -233,8 +233,6 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
 .wc-sub{font-size:12.5px;color:#6B7794;margin:3px 0 0 40px}
 .wc-note{margin-top:22px;background:#FFF5E4;border:1.5px solid #F9A825;border-radius:12px;padding:18px 22px;font-size:15px;line-height:1.55;white-space:pre-wrap}
 
-/* embedded pages (Pricing, Explorer) */
-.embeds iframe{width:100%;height:calc(100vh - 210px);min-height:640px;border:1px solid #E8ECF3;border-radius:12px;background:#fff;display:block}
 .phone{max-width:380px;margin:0 auto;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#F3F5F9}
 .phone iframe{width:100%;height:560px;border:0;display:block}
 
@@ -299,7 +297,6 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
   <div class="asofline" id="asof"></div>
   <div id="strip"></div>
   <main id="view"><div class="empty">Loading the latest figures…</div></main>
-  <div class="embeds" id="embeds" hidden></div>
 </div>
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Detail"></aside>
@@ -319,9 +316,11 @@ label.l{font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.9
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (v) => (v == null || v === '' ? 0 : Number(v));
-const M = (v) => 'J$' + (num(v) / 1e6).toFixed(1) + 'M';
-const K = (v) => { v = num(v); return Math.abs(v) >= 1e6 ? 'J$' + (v / 1e6).toFixed(2) + 'M' : 'J$' + Math.round(v / 1e3) + 'K'; };
-const J = (v) => 'J$' + Math.round(num(v)).toLocaleString('en-US');
+/* under J$1M shows as J$800K (J$450 under a thousand); J$1M and over shows in millions or in full */
+const small = (v) => (Math.abs(v) >= 1000 ? 'J$' + Math.round(v / 1e3) + 'K' : 'J$' + Math.round(v));
+const M = (v) => { v = num(v); return Math.abs(v) >= 1e6 ? 'J$' + (v / 1e6).toFixed(1) + 'M' : small(v); };
+const K = (v) => { v = num(v); return Math.abs(v) >= 1e6 ? 'J$' + (v / 1e6).toFixed(2) + 'M' : small(v); };
+const J = (v) => { v = num(v); return Math.abs(v) < 1e6 ? small(v) : 'J$' + Math.round(v).toLocaleString('en-US'); };
 const tc = (s) => String(s || '').toLowerCase().replace(/(^|[\s\-'(\/&])([a-z])/g, (m, a, b) => a + b.toUpperCase());
 const first = (n) => String(n || '').split(' ')[0];
 const TZ = 'America/Jamaica';
@@ -337,8 +336,7 @@ const daysAgo = (d) => d ? Math.max(0, Math.round((new Date(todayKey() + 'T12:00
 let SHOULD = 86;
 const S = { tab: 'pulse', repF: 'all', ordF: 'all', ordView: 'list', ordChan: 'all', ordArea: 'all', ordRep: 'all', storeT: 'chain', ordQ: '', boBy: 'line', boSup: 'all', boRep: 'all', boChan: 'all', boAge: 'all', boQ: '', boOpen: {}, sort: {}, snapRep: '', snapPack: 'bo', notes: {} };
 const D = { pulse: null, reps: [], orders: [], stores: [], cats: [], areas: [], bo: [], support: [], supMap: {}, boByNbr: {}, loaded: false, error: null };
-const TABS = [['pulse', 'Pulse'], ['reps', 'Reps'], ['orders', 'Orders'], ['bo', 'Back orders'], ['cats', 'Categories'], ['stores', 'Chain & Key'], ['pricing', 'Pricing'], ['explorer', 'Explorer']];
-const EMBEDS = { pricing: { src: '/dfl_product_price_dashboard.html', trim: '.wrap{max-width:none}' }, explorer: { src: '/management/sales-explorer.html', trim: '.content>*{max-width:none}' } };
+const TABS = [['pulse', 'Pulse'], ['reps', 'Reps'], ['orders', 'Orders'], ['bo', 'Back orders'], ['cats', 'Categories'], ['stores', 'Chain & Key']];
 const AREA_ORDER = ['South East', 'South Central', 'South West', 'North West', 'North East', 'Hospitality North', 'Hospitality South', 'Unassigned'];
 /* Chain / Key groups come from ask_kam_accounts, the same lists the Chain & Key dashboard and the Chain and Key hubs use:
    chain = Andrea Skelton (44), key = Shallet Marsh (35), key_damita = Damita Samuels-Foster (22) */
@@ -387,8 +385,6 @@ const ICO = {
   bo: '<path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
   cats: '<path d="M4 6h16M4 12h16M4 18h10"/>',
   stores: '<path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6"/>',
-  pricing: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
-  explorer: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   money: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .8 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5v11"/>',
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
   trend: '<path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/>',
@@ -656,7 +652,7 @@ function vCats() {
     { id: 'gp', label: 'GP', w: 8, al: 'c', num: 1, val: (c) => c.gp == null ? -1 : c.gp, html: (c) => c.gp == null ? '<span class="mut">-</span>' : `<span class="num">${c.gp}%</span>` },
     { id: 'oo', label: 'Open orders', w: 10, al: 'c', num: 1, val: (c) => c.open_v, html: (c) => `<span class="num">${M(c.open_v)}</span>` },
     { id: 'bo', label: 'Back orders', w: 10, al: 'c', num: 1, val: (c) => c.bo_v, html: (c) => `<span class="num">${M(c.bo_v)}</span>` }];
-  return `<section class="card"><header><div><h2>Categories</h2><p>Every item class against its month target. Click a heading to sort, or a category for the key products behind and their stock at 71. Classes under J$0.5M are left out.</p></div></header>` +
+  return `<section class="card"><header><div><h2>Categories</h2><p>Every item class against its month target. Click a heading to sort, or a category for the key products behind and their stock at 71. Classes under J$500K are left out.</p></div></header>` +
     dt('cats', cols, list, { def: { id: 'ach', dir: 1 }, open: (c) => 'cat:' + c.cls, empty: 'No categories found.' }) + '</section>';
 }
 
@@ -696,22 +692,10 @@ async function dCat(name) {
     `<h4>Key products behind where they should be</h4>${behind}<div class="acts">${noteBtn(name + ' is at ' + (c.ach == null ? 'n/a' : c.ach + '%') + ' of target (' + SHOULD + '% by today). Please send me the plan for: ' + ((r && r.skus) || []).slice(0, 5).map((s) => s.name).join(', ') + '.')}</div>`);
 }
 
-/* ---------- embedded pages ---------- */
-function showEmbed(kind) {
-  const box = $('embeds'); box.hidden = false; $('view').hidden = true;
-  box.querySelectorAll('[data-emb]').forEach((el) => { el.hidden = el.getAttribute('data-emb') !== kind; });
-  if (!box.querySelector('[data-emb="' + kind + '"]')) {
-    const f = document.createElement('iframe'); f.setAttribute('data-emb', kind); f.title = kind === 'pricing' ? 'Product Intelligence' : 'Sales Explorer'; f.src = EMBEDS[kind].src;
-    f.addEventListener('load', () => { try { const d = f.contentDocument; if (d && d.head && !d.getElementById('hub-trim')) { const s = d.createElement('style'); s.id = 'hub-trim'; s.textContent = EMBEDS[kind].trim; d.head.appendChild(s); } } catch (e) { /* cross-origin: leave as is */ } });
-    box.appendChild(f);
-  }
-}
 function render() {
   const t = S.tab;
-  if (D.error) { $('strip').innerHTML = ''; $('embeds').hidden = true; $('view').hidden = false; $('view').innerHTML = `<div class="err">${esc(D.error)}</div>`; return; }
+  if (D.error) { $('strip').innerHTML = ''; $('view').innerHTML = `<div class="err">${esc(D.error)}</div>`; return; }
   if (!D.loaded) { $('view').innerHTML = '<div class="empty">Loading the latest figures…</div>'; return; }
-  if (EMBEDS[t]) { $('strip').innerHTML = ''; showEmbed(t); return; }
-  $('embeds').hidden = true; $('view').hidden = false;
   $('strip').innerHTML = t === 'pulse' ? stripHTML() : '';
   $('view').innerHTML = t === 'pulse' ? vPulse() : t === 'reps' ? vReps() : t === 'orders' ? vOrders() : t === 'cats' ? vCats() : t === 'stores' ? vStores() : vBO();
 }
