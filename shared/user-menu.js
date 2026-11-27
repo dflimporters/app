@@ -132,6 +132,18 @@
     onChange: function (fn) { listeners.push(fn); }
   };
 
+  // Service worker (/sw.js): makes phones pick up a release straight away
+  // instead of running cached app code for ~10 minutes — see sw.js. Also
+  // what lets Chrome offer "Install app". Top window only; hub.html registers
+  // the same file, and registering twice is a no-op.
+  if ('serviceWorker' in navigator && window.self === window.top) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function (e) {
+        console.warn('service worker not registered:', e);
+      });
+    });
+  }
+
 
   // ============================================================
   // PART 2 — the avatar dropdown
