@@ -2415,7 +2415,7 @@ async function generateBriefs() {
 
     // Fetch precall_cache for all matched customers
         const [cacheData, budgetData, keySkus] = await Promise.all([
-      fetchSupabase(`precall_cache?customer_id=${pgIn(foundIds)}&select=customer_id,customer_name,last_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
+      fetchSupabase(`precall_cache?customer_id=${pgIn(foundIds)}&select=customer_id,customer_name,last_order_date,last_real_order_date,avg_freq_days,ytd_total,ytd_by_category,mtd_total,mtd_by_category,key_item_last,item_history&limit=500`),
       fetchBudgetRows(foundIds),
       fetchSupabase(`key_skus?select=inventory_id,description,posting_class&limit=200`),
     ]);
@@ -2558,7 +2558,10 @@ function buildStoreHTML(storeName, dayName, cache, budget, keySkuMap) {
   const avgFreq    = cache ? (cache.avg_freq_days || 30) : 30;
   const lastDate   = lastOrder ? new Date(lastOrder) : null;
   const daysSince  = lastDate ? Math.round((today - lastDate) / 86400000) : null;
-  const nextDue    = lastDate ? new Date(lastDate.getTime() + avgFreq * 86400000) : null;
+  // Next due counts from the last REAL order (a top-up of a short delivery doesn't restart it); weekend -> Monday
+  const realLast   = cache && cache.last_real_order_date ? new Date(cache.last_real_order_date + 'T12:00:00') : lastDate;
+  let nextDue      = realLast ? new Date(realLast.getTime() + avgFreq * 86400000) : null;
+  if (nextDue) { const wd = nextDue.getDay(); if (wd === 6) nextDue = new Date(nextDue.getTime() + 2 * 86400000); else if (wd === 0) nextDue = new Date(nextDue.getTime() + 86400000); }
   const daysToNext = nextDue  ? Math.round((nextDue - today) / 86400000) : null;
   const isOverdue  = daysToNext !== null && daysToNext < 0;
   const isDueSoon  = daysToNext !== null && daysToNext <= 3 && daysToNext >= 0;
